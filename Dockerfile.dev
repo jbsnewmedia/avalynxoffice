@@ -20,8 +20,5 @@ WORKDIR /app
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 COPY . /app
 
-RUN composer install --optimize-autoloader --no-interaction --no-progress \
-    && composer bin ecs install --no-interaction --no-progress \
-    && composer bin phpstan install --no-interaction --no-progress \
-    && composer bin rector install --no-interaction --no-progress \
+RUN COMPOSER_MEMORY_LIMIT=-1 composer install --optimize-autoloader --no-interaction --no-progress \
     && chown -R application:application /app
