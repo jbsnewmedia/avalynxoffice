@@ -1,0 +1,63 @@
+<div class="sticky-top bg-body border-bottom shadow-sm">
+    {% if activeMailboxId|default(null) == 'all' and activeContactMailboxes|default([]) is not empty %}
+        <div class="mailbox-tag bg-body-tertiary text-body-secondary small px-3 py-1 border-bottom" style="font-size: 0.75rem;">
+            <i class="fa-solid fa-inbox me-1 small" aria-hidden="true"></i>
+            {%- for mailbox in activeContactMailboxes %}{{ mailbox.name }}{% if not loop.last %}, {% endif %}{% endfor -%}
+        </div>
+    {% endif %}
+    <div class="p-3 email-action-bar d-flex justify-content-between align-items-center">
+        <div class="btn-group email-actions" data-overflow-group="actions">
+            {% set contactActionViews = mail_contact_action_views(contact) %}
+            {% for actionView in contactActionViews %}
+                {% include actionView.template with actionView.context only %}
+            {% endfor %}
+            <button type="button" class="btn btn-primary dropdown-toggle overflow-more d-none" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ 'email.more_actions'|trans }}" title="{{ 'email.more_actions'|trans }}">
+                <i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end" data-overflow-menu="actions" aria-label="{{ 'email.more_actions'|trans }}"></ul>
+        </div>
+    </div>
+</div>
+<article class="card mb-4 shadow-sm m-4">
+    <header class="card-header bg-body-tertiary">
+        <div class="d-flex align-items-center w-100 min-w-0">
+            <div class="rounded-circle text-bg-primary d-flex align-items-center justify-content-center me-3 flex-shrink-0" style="width:56px;height:56px;font-size:1.25rem;" aria-label="{{ 'contact.avatar_aria'|trans }}">
+                <span aria-hidden="true">{{ contact.displayName|slice(0, 1)|upper }}</span>
+            </div>
+            <div class="min-w-0">
+                <h2 class="mb-0 text-break fs-4" title="{{ contact.displayName }}">{{ contact.displayName }}</h2>
+                {% if contact.company is not empty %}
+                    <small class="text-body-secondary d-block text-truncate" title="{{ contact.company }}">
+                        <i class="fa-solid fa-building me-1" aria-hidden="true"></i>{{ contact.company }}
+                    </small>
+                {% endif %}
+            </div>
+        </div>
+    </header>
+    <div class="card-body">
+        <dl class="row mb-0">
+            <dt class="col-sm-3"><i class="fa-solid fa-envelope me-2 text-body-secondary" aria-hidden="true"></i>{{ 'contact.email'|trans }}</dt>
+            <dd class="col-sm-9 text-break">
+                {% if contact.email == fallbackEmail %}
+                    <span class="text-body-secondary">–</span>
+                {% else %}
+                    <a href="mailto:{{ contact.email }}">{{ contact.email }}</a>
+                {% endif %}
+            </dd>
+            <dt class="col-sm-3"><i class="fa-solid fa-mobile-screen me-2 text-body-secondary" aria-hidden="true"></i>{{ 'contact.phone.mobile'|trans }}</dt>
+            <dd class="col-sm-9">{% if contact.mobilePhone is not empty %}{{ contact.mobilePhone }}{% else %}<span class="text-body-secondary">–</span>{% endif %}</dd>
+            <dt class="col-sm-3"><i class="fa-solid fa-briefcase me-2 text-body-secondary" aria-hidden="true"></i>{{ 'contact.phone.business'|trans }}</dt>
+            <dd class="col-sm-9">{% if contact.businessPhone is not empty %}{{ contact.businessPhone }}{% else %}<span class="text-body-secondary">–</span>{% endif %}</dd>
+            <dt class="col-sm-3"><i class="fa-solid fa-house me-2 text-body-secondary" aria-hidden="true"></i>{{ 'contact.phone.home'|trans }}</dt>
+            <dd class="col-sm-9">{% if contact.homePhone is not empty %}{{ contact.homePhone }}{% else %}<span class="text-body-secondary">–</span>{% endif %}</dd>
+            <dt class="col-sm-3"><i class="fa-solid fa-building me-2 text-body-secondary" aria-hidden="true"></i>{{ 'contact.company'|trans }}</dt>
+            <dd class="col-sm-9">{% if contact.company is not empty %}{{ contact.company }}{% else %}<span class="text-body-secondary">–</span>{% endif %}</dd>
+        </dl>
+    </div>
+    <footer class="card-footer bg-body-tertiary">
+        <div class="d-flex flex-wrap gap-3 small text-body-secondary">
+            <span title="{{ 'contact.created'|trans }}"><i class="fa-solid fa-plus me-1" aria-hidden="true"></i>{{ 'contact.created'|trans }}: {{ contact.createdAt ? contact.createdAt|date('d.m.Y, H:i') : '–' }}</span>
+            <span title="{{ 'contact.updated'|trans }}"><i class="fa-solid fa-pen me-1" aria-hidden="true"></i>{{ 'contact.updated'|trans }}: {{ contact.updatedAt ? contact.updatedAt|date('d.m.Y, H:i') : '–' }}</span>
+        </div>
+    </footer>
+</article>

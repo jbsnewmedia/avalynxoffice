@@ -1,0 +1,16 @@
+{% set mode = mode|default('user') %}
+{% do addAssetComposer('app/assets/css/bootstrap.min.css') %}
+{% do addAssetComposer('twbs/bootstrap/dist/js/bootstrap.bundle.min.js') %}
+{% do addAssetComposer('fortawesome/font-awesome/css/all.min.css') %}
+{% do addAssetComposer('lipis/flag-icons/css/flag-icons.min.css') %}
+{% if mode == 'guest' %}
+    {% do addAssetComposer('app/assets/css/app-guest.css') %}
+    {% do addAssetComposer('app/assets/js/app-guest.js') %}
+{% else %}
+    {% do addAssetComposer('avalynx/avalynx-alert/dist/css/avalynx-alert.css') %}
+    {% do addAssetComposer('avalynx/avalynx-alert/dist/js/avalynx-alert.js') %}
+    {% do addAssetComposer('avalynx/avalynx-autocomplete/dist/css/avalynx-autocomplete.css') %}
+    {% do addAssetComposer('avalynx/avalynx-autocomplete/dist/js/avalynx-autocomplete.js') %}
+    {% do addAssetComposer('app/assets/css/app.css') %}
+    {% do addAssetComposer('app/assets/js/app.js') %}
+{% endif %}

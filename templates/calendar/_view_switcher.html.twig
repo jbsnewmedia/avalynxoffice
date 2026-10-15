@@ -1,0 +1,30 @@
+{# Params:
+    view (string) — active view: 'list'|'day'|'week'|'month'
+    viewLinks (array<string, string>) — URLs to the other views
+    small (bool) — render a small button (toolbar size)
+#}
+{% set viewIcons = {day: 'fa-calendar-day', week: 'fa-calendar-week', month: 'fa-calendar-days', list: 'fa-list-ul'} %}
+{% set small = small|default(false) %}
+<div class="dropdown calendar-view-switcher-dropdown">
+    <button class="btn btn-outline-secondary{% if small %} btn-sm{% endif %} dropdown-toggle d-flex align-items-center" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ 'calendar.view_switcher_aria'|trans }}" title="{{ 'calendar.view_switcher_aria'|trans }}">
+        <i class="fa-solid {{ viewIcons[view] }} me-2" aria-hidden="true"></i>
+        <span>{{ ('calendar.view.' ~ view)|trans }}</span>
+    </button>
+    <ul class="dropdown-menu" aria-label="{{ 'calendar.view_switcher_aria'|trans }}">
+        {% for key in ['day', 'week', 'month', 'list'] %}
+            <li>
+                {% if key == view %}
+                    <span class="dropdown-item d-flex align-items-center active" aria-current="true" title="{{ ('calendar.view.' ~ key)|trans }}">
+                        <i class="fa-solid {{ viewIcons[key] }} me-2" aria-hidden="true"></i>
+                        {{ ('calendar.view.' ~ key)|trans }}
+                    </span>
+                {% else %}
+                    <a class="dropdown-item d-flex align-items-center" href="{{ viewLinks[key] }}" title="{{ ('calendar.view.' ~ key)|trans }}" aria-label="{{ ('calendar.view.' ~ key)|trans }}">
+                        <i class="fa-solid {{ viewIcons[key] }} me-2" aria-hidden="true"></i>
+                        {{ ('calendar.view.' ~ key)|trans }}
+                    </a>
+                {% endif %}
+            </li>
+        {% endfor %}
+    </ul>
+</div>

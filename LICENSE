@@ -1,0 +1,109 @@
+# AvalynxOffice Source-Available License (Draft)
+
+**Status: LEGAL_REVIEW_REQUIRED — this is a draft for review by legal counsel.
+It is not a finally binding legal document.**
+
+Version: 1.0-DRAFT — Copyright (c) 2026 JBS New Media GmbH
+
+## 1. Grant
+
+Subject to the terms below, the copyright holder grants you a non-exclusive,
+non-transferable, worldwide right to use, copy, modify and create derivative
+works of this software (the "AvalynxOffice") for the purpose of operating a
+self-hosted groupware installation (e-mail, calendars, contacts).
+
+## 2. Free Community Use
+
+Use of the software is free of charge for installations with **up to three (3)
+counted user accounts** ("Seats"). All functions are technically identical;
+there are no feature tiers.
+
+## 3. Commercial Use
+
+An installation with **more than three (3) Seats** requires a commercial
+license agreement with the copyright holder. Commercial licenses are additive:
+each valid license grants an additional number of Seats on top of the three
+free Seats. Deactivated and deleted user accounts do not count as Seats.
+Technical service accounts without personal access are excluded.
+
+Licenses must not be combined across different organizations. Duplicate
+license keys with identical license identifiers are only counted once.
+
+For associations, non-profit organizations and educational institutions there
+is **no** automatic free special license. Individual special licenses can be
+requested separately and are granted at the sole discretion of the copyright
+holder.
+
+## 4. Technical Enforcement
+
+The software contains technical measures that count Seats and — after a grace
+period of 30 days following a license violation — restrict the software to a
+read-only mode for user-initiated write operations. Receiving, storing and
+reading e-mails remain possible in read-only mode; sending and modifications
+to e-mails, calendars and contacts are disabled. These technical measures do
+not create, limit or extend any contractual rights; the decisive terms are
+those of the applicable (commercial) license agreement.
+
+## 5. Restrictions
+
+You must not:
+
+1. use the software in production with more than three Seats without a valid
+   commercial license;
+2. circumvent, disable or modify the technical license enforcement;
+3. remove or alter copyright, trademark or attribution notices;
+4. redistribute the software or derivative works except under the terms of
+   this license.
+
+## 6. Source Availability and Change License
+
+This license follows the *source-available* model: the source code is publicly
+viewable but is not licensed under an OSI-approved open-source license.
+
+The copyright holder intends to release each version of the software under an
+OSI-approved open-source license (the "Change License") no later than four
+years after the first availability of that version (the "Change Date"). The
+intended Change License is **planned** to be the **GNU Affero General Public
+License v3.0 (AGPL-3.0)** — this choice is explicitly subject to review:
+
+> **LEGAL_REVIEW_REQUIRED:** The Business Source License 1.1 (BSL 1.1) was
+> evaluated as a starting point (see `LICENSING.md`). BSL 1.1 requires a
+> Change License that is a "Later Applicable License" or a generally
+> recognized open-source license and prohibits the Licensor from
+> exercising any rights to the Licensed Work under non-open terms during
+> the Change License window. If BSL 1.1 is adopted, its official text must
+> be used unchanged together with the Licensor, Licensed Work, Change
+> License and Change Date specifications. Until the legal review is
+> complete, this section is a statement of intent only.
+
+## 7. Third-Party Components
+
+The software depends on third-party components with their own licenses
+(notably Symfony components under the MIT license, Bootstrap under the MIT
+license, Font Awesome, Laminas Mail, Z-Push and others). The respective
+license and copyright notices of these components remain valid and are
+documented in `NOTICE.md`. This license does not apply to third-party
+components.
+
+## 8. No Warranty and Limitation of Liability
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM,
+DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
+OR OTHER DEALINGS IN THE SOFTWARE.
+
+> **LEGAL_REVIEW_REQUIRED:** Warranty and liability limitations must be
+> aligned with mandatory law of the applicable jurisdiction (e.g. §§ 521 ff.,
+> 536a BGB and the Product Liability Act for German law).
+
+## 9. Governing Law
+
+> **LEGAL_REVIEW_REQUIRED:** Choice of law and jurisdiction to be determined
+> by legal counsel.
+
+---
+
+*This document is a draft. Do not rely on it as a final license. Every
+deployment and every commercial license agreement must be based on reviewed
+and finalized terms.*

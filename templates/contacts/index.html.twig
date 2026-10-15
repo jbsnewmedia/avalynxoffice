@@ -1,0 +1,71 @@
+{% extends 'base.html.twig' %}
+{% block stylesheets %}
+    {% include '_assets.html.twig' with { mode: 'user' } %}
+    {{ parent() }}
+{% endblock %}
+{% block title %}{{ 'contact.title'|trans }} - {{ 'app.title'|trans }}{% endblock %}
+{% block body %}
+{% include '_navbar.html.twig' with {
+    showMailToggles: true,
+    activeModule: 'contacts',
+    leftToggle: {target: '#contactGroupOffcanvas', icon: 'fa-users-rectangle', label: 'nav.show_contact_groups'},
+    midToggle: {target: '#contactListOffcanvas', icon: 'fa-list', label: 'nav.show_contact_list'},
+} %}
+<div class="offcanvas offcanvas-start" tabindex="-1" id="contactGroupOffcanvas" aria-labelledby="contactGroupOffcanvasLabel" role="dialog" aria-modal="true">
+    <div class="offcanvas-header text-bg-primary">
+        <h5 class="offcanvas-title" id="contactGroupOffcanvasLabel">{{ 'offcanvas.contact_groups'|trans }}</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="{{ 'common.close'|trans }}"></button>
+    </div>
+    <div class="offcanvas-body p-0">
+        <aside class="bg-body">
+            {% embed '_mailbox_filter.html.twig' with { mailboxes: mailboxes, activeMailbox: activeMailbox, activeMailboxId: activeMailboxId, optionRoute: 'contact_group', optionParams: {groupId: activeGroup}, allLabel: 'mailbox.all'|trans } %}
+                {% block action %}
+                    <a href="{{ path('contact_new_modal') }}" class="btn btn-primary w-100 d-flex align-items-center justify-content-center gap-2 action-btn-modal {{ license_manager.isReadOnly ? 'disabled' }}" {{ license_manager.isReadOnly ? 'aria-disabled="true"' }} data-title="{{ 'contact.new'|trans }}" data-modal-size="modal-lg">
+                        <i class="fa-solid fa-user-plus" aria-hidden="true"></i>{{ 'contact.new'|trans }}
+                    </a>
+                {% endblock %}
+            {% endembed %}
+            <div id="folders-container">
+                {% include 'contacts/_groups.html.twig' with { groups: groups, activeGroup: activeGroup, search: search, totalContacts: totalContacts, activeMailboxId: activeMailboxId } %}
+            </div>
+        </aside>
+    </div>
+</div>
+<div class="offcanvas offcanvas-start" tabindex="-1" id="contactListOffcanvas" aria-labelledby="contactListOffcanvasLabel" role="dialog" aria-modal="true">
+    <div class="offcanvas-header text-bg-primary">
+        <h5 class="offcanvas-title" id="contactListOffcanvasLabel">{{ 'offcanvas.contacts'|trans }}</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="{{ 'common.close'|trans }}"></button>
+    </div>
+    <div class="offcanvas-body p-0">
+        <section class="bg-body">
+            {% include 'contacts/_list.html.twig' with { contacts: contacts, activeContact: activeContact, activeGroup: activeGroup, search: search, activeMailboxId: activeMailboxId } %}
+        </section>
+    </div>
+</div>
+<div class="container-fluid">
+    <div class="row">
+        <aside class="col-xxl-2 d-none d-xxl-block mail-body-height overflow-auto bg-body shadow-sm p-0 border-end">
+            {% embed '_mailbox_filter.html.twig' with { mailboxes: mailboxes, activeMailbox: activeMailbox, activeMailboxId: activeMailboxId, optionRoute: 'contact_group', optionParams: {groupId: activeGroup}, allLabel: 'mailbox.all'|trans } %}
+                {% block action %}
+                    <a href="{{ path('contact_new_modal') }}" class="btn btn-primary w-100 d-flex align-items-center justify-content-center gap-2 action-btn-modal {{ license_manager.isReadOnly ? 'disabled' }}" {{ license_manager.isReadOnly ? 'aria-disabled="true"' }} data-title="{{ 'contact.new'|trans }}" data-modal-size="modal-lg">
+                        <i class="fa-solid fa-user-plus" aria-hidden="true"></i>{{ 'contact.new'|trans }}
+                    </a>
+                {% endblock %}
+            {% endembed %}
+            {% include 'contacts/_groups.html.twig' with { groups: groups, activeGroup: activeGroup, search: search, totalContacts: totalContacts, activeMailboxId: activeMailboxId } %}
+        </aside>
+        <section class="col-xxl-3 d-none d-xxl-block mail-body-height overflow-auto p-0 bg-body border-end">
+            {% include 'contacts/_list.html.twig' with { contacts: contacts, activeContact: activeContact, activeGroup: activeGroup, search: search, activeMailboxId: activeMailboxId } %}
+        </section>
+        <main class="col-xxl-7 col-12 mail-body-height overflow-auto bg-body p-0">
+            <div id="contact-detail">
+                {% if activeContact %}
+                    {% include 'contacts/_detail.html.twig' with { contact: activeContact, fallbackEmail: fallbackEmail } %}
+                {% else %}
+                    <div class="p-5 text-center text-body-secondary">{{ 'contact.none_selected'|trans }}</div>
+                {% endif %}
+            </div>
+        </main>
+    </div>
+</div>
+{% endblock %}

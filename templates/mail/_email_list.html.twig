@@ -1,0 +1,19 @@
+<div class="sticky-top bg-body border-bottom shadow-sm">
+    <div class="input-group p-3">
+        <input type="text" class="form-control" placeholder="{{ 'search.placeholder'|trans }}" aria-label="{{ 'search.search'|trans }}">
+        <button class="btn btn-outline-secondary d-none" type="button" aria-label="{{ 'search.clear'|trans }}" title="{{ 'search.clear'|trans }}" data-action="clear-search">
+            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+        </button>
+        <button class="btn btn-primary" type="button" aria-label="{{ 'search.search'|trans }}" title="{{ 'search.search'|trans }}">
+            <i class="fa-solid fa-search" aria-hidden="true"></i>
+        </button>
+    </div>
+</div>
+<div class="email-list-container" data-mailbox-id="{{ activeMailbox ? activeMailbox.id : 'all' }}" data-current-folder-id="{{ activeFolder ? activeFolder.id : '' }}" data-folder-id="{{ activeFolder ? activeFolder.id : '' }}" data-total="{{ totalEmails is defined ? totalEmails : (emails|length) }}" data-offset="{{ offset is defined ? offset : (emails|length) }}" data-limit="{{ limit is defined ? limit : 10 }}">
+    {% if emails is not empty %}
+        {% include 'mail/_email_items.html.twig' with { emails: emails, activeEmail: activeEmail, activeMailbox: activeMailbox, activeFolder: activeFolder } %}
+    {% else %}
+        <div class="p-4 text-body-secondary">{{ 'emails.none_in_folder'|trans }}</div>
+    {% endif %}
+    <div class="email-load-more-sentinel" aria-hidden="true"></div>
+</div>

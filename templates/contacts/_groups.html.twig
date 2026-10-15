@@ -1,0 +1,28 @@
+{% set scopeParams = activeMailboxId is defined and activeMailboxId != 'all' ? {mailbox: activeMailboxId} : {} %}
+{% set qParams = search is defined and search is not empty ? {q: search} : {} %}
+{% set extraParams = scopeParams|merge(qParams) %}
+<div class="p-3">
+    <h6 class="text-uppercase text-body-secondary fw-bold small mb-2">{{ 'contact.groups'|trans }}</h6>
+    <div class="list-group list-group-flush">
+        <a href="{{ path('contact_group', {groupId: 'all'}|merge(extraParams)) }}"
+           class="list-group-item list-group-item-action d-flex align-items-center {{ activeGroup == 'all' ? 'active' : '' }}"
+           {% if activeGroup == 'all' %}aria-current="page"{% endif %}
+           aria-label="{{ 'contact.open_group'|trans({'%group%': 'contact.all'|trans}) }}">
+            <i class="fa-solid fa-users me-2" aria-hidden="true"></i>
+            <span>{{ 'contact.all'|trans }}</span>
+            <span class="badge bg-primary rounded-pill ms-auto group-count-badge" aria-label="{{ 'contact.count'|trans({'%count%': totalContacts}) }}">{{ totalContacts }}</span>
+        </a>
+        {% for letter, count in groups %}
+            <a href="{{ path('contact_group', {groupId: letter}|merge(extraParams)) }}"
+               class="list-group-item list-group-item-action d-flex align-items-center {{ activeGroup == letter ? 'active' : '' }}"
+               {% if activeGroup == letter %}aria-current="page"{% endif %}
+               aria-label="{{ 'contact.open_group'|trans({'%group%': letter == 'other' ? '#' : letter}) }}">
+                <i class="fa-solid fa-folder me-2" aria-hidden="true"></i>
+                <span>{{ letter == 'other' ? '#' : letter }}</span>
+                <span class="badge bg-primary rounded-pill ms-auto group-count-badge" aria-label="{{ 'contact.count'|trans({'%count%': count}) }}">{{ count }}</span>
+            </a>
+        {% else %}
+            <div class="list-group-item text-body-secondary">{{ 'contact.none'|trans }}</div>
+        {% endfor %}
+    </div>
+</div>

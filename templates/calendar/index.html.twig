@@ -1,0 +1,90 @@
+{% extends 'base.html.twig' %}
+{% block stylesheets %}
+    {% include '_assets.html.twig' with { mode: 'user' } %}
+    {{ parent() }}
+{% endblock %}
+{% block title %}{{ 'calendar.title'|trans }} - {{ 'app.title'|trans }}{% endblock %}
+{% block body %}
+{% set isListView = 'list' == view %}
+<div class="calendar-page d-flex flex-column">
+{% include '_navbar.html.twig' with {
+    showMailToggles: true,
+    activeModule: 'calendar',
+    showMidToggle: isListView,
+    leftToggle: {target: '#calendarGroupOffcanvas', icon: 'fa-calendar-days', label: 'nav.show_calendar_groups'},
+    midToggle: {target: '#calendarListOffcanvas', icon: 'fa-list', label: 'nav.show_calendar_list'},
+} %}
+<div class="offcanvas offcanvas-start" tabindex="-1" id="calendarGroupOffcanvas" aria-labelledby="calendarGroupOffcanvasLabel" role="dialog" aria-modal="true">
+    <div class="offcanvas-header text-bg-primary">
+        <h5 class="offcanvas-title" id="calendarGroupOffcanvasLabel">{{ 'offcanvas.calendar_groups'|trans }}</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="{{ 'common.close'|trans }}"></button>
+    </div>
+    <div class="offcanvas-body p-0">
+        <aside class="bg-body">
+            {% embed '_mailbox_filter.html.twig' with { mailboxes: mailboxes, activeMailbox: activeMailbox, activeMailboxId: activeMailboxId, optionRoute: 'calendar_month', optionParams: {monthKey: activeMonth}, allLabel: 'mailbox.all'|trans } %}
+                {% block action %}
+                    <a href="{{ path('calendar_new_modal') }}" class="btn btn-primary w-100 d-flex align-items-center justify-content-center gap-2 action-btn-modal {{ license_manager.isReadOnly ? 'disabled' }}" {{ license_manager.isReadOnly ? 'aria-disabled="true"' }} data-title="{{ 'calendar.new'|trans }}" data-modal-size="modal-lg">
+                        <i class="fa-solid fa-calendar-plus" aria-hidden="true"></i>{{ 'calendar.new'|trans }}
+                    </a>
+                {% endblock %}
+            {% endembed %}
+            {% include 'calendar/_groups.html.twig' with { groups: groups, activeMonth: activeMonth, search: search, totalEvents: totalEvents, activeMailboxId: activeMailboxId } %}
+        </aside>
+    </div>
+</div>
+{% if isListView %}
+<div class="offcanvas offcanvas-start" tabindex="-1" id="calendarListOffcanvas" aria-labelledby="calendarListOffcanvasLabel" role="dialog" aria-modal="true">
+    <div class="offcanvas-header text-bg-primary">
+        <h5 class="offcanvas-title" id="calendarListOffcanvasLabel">{{ 'offcanvas.calendar_list'|trans }}</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="{{ 'common.close'|trans }}"></button>
+    </div>
+    <div class="offcanvas-body p-0">
+        <section class="bg-body">
+            {% include 'calendar/_list.html.twig' with { events: events, activeEvent: activeEvent, activeMonth: activeMonth, search: search, activeMailboxId: activeMailboxId } %}
+        </section>
+    </div>
+</div>
+{% endif %}
+{% if not isListView %}
+{% include 'calendar/_toolbar.html.twig' with { view: view, viewLinks: viewLinks, navigation: navigation, grid: grid, monthLabel: monthLabel, activeMonth: activeMonth } %}
+{% endif %}
+{% if isListView %}
+<div class="container-fluid calendar-content">
+    <div class="row h-100">
+        <aside class="col-xxl-2 d-none d-xxl-block overflow-auto bg-body shadow-sm p-0 border-end">
+            {% embed '_mailbox_filter.html.twig' with { mailboxes: mailboxes, activeMailbox: activeMailbox, activeMailboxId: activeMailboxId, optionRoute: 'calendar_month', optionParams: {monthKey: activeMonth}, allLabel: 'mailbox.all'|trans } %}
+                {% block action %}
+                    <a href="{{ path('calendar_new_modal') }}" class="btn btn-primary w-100 d-flex align-items-center justify-content-center gap-2 action-btn-modal {{ license_manager.isReadOnly ? 'disabled' }}" {{ license_manager.isReadOnly ? 'aria-disabled="true"' }} data-title="{{ 'calendar.new'|trans }}" data-modal-size="modal-lg">
+                        <i class="fa-solid fa-calendar-plus" aria-hidden="true"></i>{{ 'calendar.new'|trans }}
+                    </a>
+                {% endblock %}
+            {% endembed %}
+            {% include 'calendar/_groups.html.twig' with { groups: groups, activeMonth: activeMonth, search: search, totalEvents: totalEvents, activeMailboxId: activeMailboxId } %}
+        </aside>
+        <section class="col-xxl-3 d-none d-xxl-block overflow-auto p-0 bg-body border-end">
+            {% include 'calendar/_list.html.twig' with { events: events, activeEvent: activeEvent, activeMonth: activeMonth, search: search, activeMailboxId: activeMailboxId } %}
+        </section>
+        <main class="col-xxl-7 col-12 overflow-auto bg-body p-0">
+            <div id="event-detail">
+                {% if activeEvent %}
+                    {% include 'calendar/_detail.html.twig' with { activeEvent: activeEvent, activeMonth: activeMonth, activeMailboxId: activeMailboxId, view: view, viewLinks: viewLinks } %}
+                {% else %}
+                    <div class="p-5 text-center text-body-secondary">{{ 'calendar.none_selected'|trans }}</div>
+                {% endif %}
+            </div>
+        </main>
+    </div>
+</div>
+{% else %}
+<div class="container-fluid calendar-content overflow-auto">
+    {% if 'month' == view %}
+        {% include 'calendar/_month.html.twig' with { grid: grid, activeMailboxId: activeMailboxId, search: search } %}
+    {% elseif 'week' == view %}
+        {% include 'calendar/_week.html.twig' with { grid: grid, activeMailboxId: activeMailboxId, search: search } %}
+    {% else %}
+        {% include 'calendar/_day.html.twig' with { grid: grid } %}
+    {% endif %}
+</div>
+{% endif %}
+</div>
+{% endblock %}

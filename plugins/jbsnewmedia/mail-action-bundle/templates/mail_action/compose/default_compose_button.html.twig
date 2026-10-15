@@ -1,0 +1,13 @@
+{% if license_manager.isReadOnly %}
+    <span class="btn btn-primary disabled w-100" aria-disabled="true" title="{{ 'license.read_only_action'|trans }}">
+        <i class="fa-solid fa-lock me-2" aria-hidden="true"></i>{{ 'license.read_only_action'|trans }}
+    </span>
+{% else %}
+<a href="{{ path('mail_compose') }}"
+   class="btn btn-primary w-100 action-btn-modal"
+   data-title="{{ 'mail.new_email'|trans }}"
+   aria-label="{{ 'mail.new_email'|trans }}"
+   title="{{ 'mail.new_email'|trans }}">
+    <i class="fa-solid fa-pen-to-square me-2" aria-hidden="true"></i>{{ 'mail.new_email'|trans }}
+</a>
+{% endif %}

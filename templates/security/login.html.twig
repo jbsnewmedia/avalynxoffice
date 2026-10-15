@@ -1,0 +1,142 @@
+{% extends 'base.html.twig' %}
+{% block title %}{{ 'login.title'|trans }} - {{ 'app.title'|trans }}{% endblock %}
+{% block stylesheets %}
+    {% include '_assets.html.twig' with { mode: 'guest' } %}
+    {{ parent() }}
+{% endblock %}
+{% block body %}
+<div class="d-flex flex-column min-vh-100">
+{% include '_navbar.html.twig' with { showMailToggles: false, showLanguageDropdown: true } %}
+<section class="py-5 flex-grow-1 d-flex align-items-center">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-5">
+                <div class="card shadow mx-auto login-card">
+                    <div class="card-body p-4 p-md-5">
+                        <div class="text-center mb-4">
+                            <div class="brandmark mb-2 bg-white border border-white" aria-hidden="true"><img class="brandmark-logo" src="assets/svg/app-logo.svg" alt="AvalynxOffice Logo"/></div>
+                            <h1 class="h4 mb-1">{{ 'login.welcome_back'|trans }}</h1>
+                            <p class="text-body-secondary mb-0">{{ 'login.subtitle'|trans({'%app%': ('app.title'|trans)}) }}</p>
+                        </div>
+                        {% if error %}
+                            <div class="alert alert-danger" role="alert">
+                                {{ error.messageKey|trans(error.messageData, 'security') }}
+                            </div>
+                        {% endif %}
+                        <form method="post" action="{{ path('app_login') }}" class="needs-validation" novalidate>
+                            <div class="mb-3">
+                                <label for="inputEmail" class="form-label">{{ 'login.email'|trans }}</label>
+                                <input type="email" class="form-control" id="inputEmail" name="_username" value="{{ last_username }}" autocomplete="username" required autofocus />
+                                <div class="invalid-feedback">{{ 'login.email_invalid'|trans }}</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="inputPassword" class="form-label">{{ 'login.password'|trans }}</label>
+                                <div class="input-group" id="passwordGroup">
+                                    <input type="password" class="form-control" id="inputPassword" name="_password" autocomplete="current-password" required />
+                                    <button class="btn btn-outline-input" type="button" id="togglePassword" aria-label="{{ 'login.show_password'|trans }}" data-label-show="{{ 'login.show_password'|trans }}" data-label-hide="{{ 'login.hide_password'|trans }}">
+                                        <i class="fa-solid fa-eye" aria-hidden="true"></i>
+                                    </button>
+                                    <div class="invalid-feedback">{{ 'login.password_invalid'|trans }}</div>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mt-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input no-validation" type="checkbox" value="on" id="remember" name="_remember_me" />
+                                        <label class="form-check-label no-validation" for="remember">{{ 'login.remember_me'|trans }}</label>
+                                    </div>
+                                    <a class="small" href="#">{{ 'login.forgot_password'|trans }}</a>
+                                </div>
+                            </div>
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}" />
+                            <button type="submit" class="btn btn-primary w-100 d-flex align-items-center justify-content-center gap-2">
+                                <i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i>
+                                {{ 'login.sign_in'|trans }}
+                            </button>
+                        </form>
+                        {#
+                        <div class="text-center text-body-secondary my-4 d-flex align-items-center">
+                            <hr class="flex-grow-1" />
+                            <span class="px-3 small">{{ 'login.or'|trans }}</span>
+                            <hr class="flex-grow-1" />
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="button" class="btn btn-outline-secondary">
+                                <i class="fa-brands fa-google me-2" aria-hidden="true"></i> {{ 'login.sign_in_with_google'|trans }}
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary">
+                                <i class="fa-brands fa-github me-2" aria-hidden="true"></i> {{ 'login.sign_in_with_github'|trans }}
+                            </button>
+                        </div>
+                        <p class="text-center mt-4 mb-0">
+                            {{ 'login.no_account'|trans }} <a href="#">{{ 'login.register'|trans }}</a>
+                        </p>
+                        #}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+<footer class="py-4 bg-body-tertiary border-top mt-auto">
+    <div class="container d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <span class="text-body-secondary small">© {{ "now"|date("Y") }} - <img src="assets/svg/jbsnewmedia-symbol.svg" class="footer-logo">  <strong>JBS</strong> New Media GmbH</span>
+        <ul class="nav small">
+            <li class="nav-item"><a class="nav-link text-body-secondary" href="#" data-bs-toggle="modal" data-bs-target="#impressumModal">{{ 'login.impressum'|trans }}</a></li>
+            <li class="nav-item"><a class="nav-link text-body-secondary" href="#" data-bs-toggle="modal" data-bs-target="#datenschutzModal">{{ 'login.datenschutz'|trans }}</a></li>
+            <li class="nav-item"><a class="nav-link text-body-secondary" href="#" data-bs-toggle="modal" data-bs-target="#agbModal">{{ 'login.agb'|trans }}</a></li>
+        </ul>
+    </div>
+</footer>
+<!-- Modals -->
+<div class="modal fade" id="impressumModal" tabindex="-1" aria-labelledby="impressumModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="impressumModalLabel">{{ 'login.impressum'|trans }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ 'common.close'|trans }}"></button>
+            </div>
+            <div class="modal-body">
+                {{ 'login.legal_placeholder'|trans({'%type%': 'login.impressum'|trans}) }}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ 'common.close'|trans }}</button>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="datenschutzModal" tabindex="-1" aria-labelledby="datenschutzModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="datenschutzModalLabel">{{ 'login.datenschutz'|trans }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ 'common.close'|trans }}"></button>
+            </div>
+            <div class="modal-body">
+                {{ 'login.legal_placeholder'|trans({'%type%': 'login.datenschutz'|trans}) }}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ 'common.close'|trans }}</button>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="agbModal" tabindex="-1" aria-labelledby="agbModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="agbModalLabel">{{ 'login.agb'|trans }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ 'common.close'|trans }}"></button>
+            </div>
+            <div class="modal-body">
+                {{ 'login.legal_placeholder'|trans({'%type%': 'login.agb'|trans}) }}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ 'common.close'|trans }}</button>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+{% endblock %}
+{% block javascripts %}
+    {{ parent() }}
+{% endblock %}

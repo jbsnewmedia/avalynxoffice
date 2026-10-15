@@ -1,0 +1,14 @@
+{% if license_manager.isReadOnly %}
+    <span class="btn btn-primary disabled" data-priority="50" aria-disabled="true" title="{{ 'license.read_only_action'|trans }}">
+        <i class="fa-solid fa-lock me-2" aria-hidden="true"></i>{{ 'license.read_only_action'|trans }}
+    </span>
+{% else %}
+<a class="btn btn-primary"
+   href="#"
+   data-action-id="mark-spam"
+   data-priority="50"
+   aria-label="{{ 'email.mark_spam'|trans }}"
+   title="{{ 'email.mark_spam'|trans }}">
+    <i class="fa-solid fa-tag" aria-hidden="true"></i>
+</a>
+{% endif %}

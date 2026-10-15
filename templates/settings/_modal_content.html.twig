@@ -1,0 +1,85 @@
+<div class="p-4">
+    <div class="row g-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-body">
+                    <strong>{{ 'settings.language'|trans }}</strong>
+                </div>
+                <div class="card-body">
+                    {% set currentLocale = app.request.locale ?? app.request.getLocale() %}
+                    {% set lang2 = (currentLocale|default('en'))[:2] %}
+                    {% set flagMap = {'de':'de','en':'gb'} %}
+                    {% set currentFlag = flagMap[lang2]|default('gb') %}
+                    <p class="text-body-secondary">{{ 'settings.language_help'|trans }}</p>
+                    <div class="d-flex align-items-center gap-2">
+                        <a class="btn btn-primary d-flex align-items-center {% if currentLocale starts with 'de' %}active disabled{% endif %}"
+                           href="{% if currentLocale starts with 'de' %}#{% else %}{{ path('app_set_locale', {'_locale': 'de', 'r': current_uri}) }}{% endif %}">
+                            <span class="fi fi-de me-2" aria-hidden="true"></span>
+                            <span>{{ 'settings.language_name.de'|trans }}</span>
+                        </a>
+                        <a class="btn btn-primary d-flex align-items-center {% if currentLocale starts with 'en' %}active disabled{% endif %}"
+                           href="{% if currentLocale starts with 'en' %}#{% else %}{{ path('app_set_locale', {'_locale': 'en', 'r': current_uri}) }}{% endif %}">
+                            <span class="fi fi-gb me-2" aria-hidden="true"></span>
+                            <span>{{ 'settings.language_name.en'|trans }}</span>
+                        </a>
+                    </div>
+                    <div class="mt-3">
+                        <span class="text-body-secondary small">{{ 'settings.current_language'|trans }}:</span>
+                        <span class="ms-2 d-inline-flex align-items-center">
+                            <span class="fi fi-{{ currentFlag }} me-2" aria-hidden="true"></span>
+                            <span>{% if currentLocale starts with 'de' %}{{ 'settings.language_name.de'|trans }}{% else %}{{ 'settings.language_name.en'|trans }}{% endif %}</span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-body">
+                    <strong>{{ 'settings.newsletter'|trans }}</strong>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{{ path('app_settings_newsletter') }}">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" role="switch" id="newsletterSwitchModal" name="newsletter_optin" {% if newsletter_optin %}checked{% endif %} onchange="this.form.submit()">
+                            <label class="form-check-label" for="newsletterSwitchModal">{{ 'settings.newsletter_optin'|trans }}</label>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-body">
+                    <strong>{{ 'connector.title'|trans }}</strong>
+                </div>
+                <div class="card-body">
+                    <p class="text-body-secondary">{{ 'connector.settings_description'|trans }}</p>
+                    <a href="{{ path('connector_index') }}" class="btn btn-primary action-btn-modal" data-title="{{ 'connector.title'|trans }}" data-modal-size="modal-xl">
+                        <i class="fa-regular fa-envelope me-2" aria-hidden="true"></i>
+                        {{ 'connector.manage'|trans }}
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-body">
+                    <strong>{{ 'mailbox.title'|trans }}</strong>
+                </div>
+                <div class="card-body">
+                    <p class="text-body-secondary">{{ 'mailbox.structure_description'|trans }}</p>
+                    <a href="{{ path('mailbox_structure') }}" class="btn btn-primary action-btn-modal" data-title="{{ 'mailbox.view'|trans }}" data-modal-size="modal-xl">
+                        <i class="fa-regular fa-folder-open me-2" aria-hidden="true"></i>{{ 'mailbox.view'|trans }}
+                    </a>
+
+                    <p class="text-body-secondary mt-4">{{ 'mailbox.settings_description'|trans }}</p>
+                    <a href="{{ path('mailbox_index') }}" class="btn btn-primary action-btn-modal" data-title="{{ 'mailbox.title'|trans }}" data-modal-size="modal-xl">
+                        <i class="fa-solid fa-gear me-2" aria-hidden="true"></i>{{ 'mailbox.manage'|trans }}
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>

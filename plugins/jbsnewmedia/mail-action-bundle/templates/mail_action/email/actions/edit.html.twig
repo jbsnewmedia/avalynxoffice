@@ -1,0 +1,15 @@
+{% if license_manager.isReadOnly %}
+    <span class="btn btn-primary disabled" data-priority="90" aria-disabled="true" title="{{ 'license.read_only_action'|trans }}">
+        <i class="fa-solid fa-lock me-2" aria-hidden="true"></i>{{ 'license.read_only_action'|trans }}
+    </span>
+{% else %}
+<a href="{{ path('mail_edit', {id: email.id}) }}"
+   class="btn btn-primary action-btn-modal"
+   data-title="{{ 'email.edit'|trans }}"
+   data-action-id="edit"
+   data-priority="90"
+   aria-label="{{ 'email.edit'|trans }}"
+   title="{{ 'email.edit'|trans }}">
+    <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
+</a>
+{% endif %}

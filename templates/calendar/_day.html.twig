@@ -1,0 +1,49 @@
+{# Params:
+    grid (array<string, mixed>) — day view data: {anchor, day: {date, isToday, events}}
+#}
+{% set day = grid.day %}
+<div class="calendar-day-view p-3" data-date="{{ day.date|date('Y-m-d') }}">
+    <div class="d-flex align-items-center justify-content-between gap-2 mb-3">
+        <span class="text-body-secondary">
+            <i class="fa-solid {{ day.isToday ? 'fa-star' : 'fa-calendar-day' }} me-2" aria-hidden="true"></i>
+            {% if day.isToday %}{{ 'calendar.today'|trans }}{% endif %}
+        </span>
+        <a href="{{ path('calendar_new_modal', {date: day.date|date('Y-m-d')}) }}"
+           class="action-btn-modal btn btn-sm btn-outline-primary {{ license_manager.isReadOnly ? 'disabled' }}" {{ license_manager.isReadOnly ? 'aria-disabled="true"' }}
+           data-title="{{ 'calendar.new'|trans }}"
+           aria-label="{{ 'calendar.new_on'|trans({'%date%': day.date|date('d.m.Y')}) }}">
+            <i class="fa-solid fa-plus me-1" aria-hidden="true"></i>{{ 'calendar.new'|trans }}
+        </a>
+    </div>
+    {% if day.events is empty %}
+        <div class="p-5 text-center text-body-secondary">{{ 'calendar.no_events'|trans }}</div>
+    {% else %}
+        <div class="list-group list-group-flush border rounded shadow-sm">
+            {% for event in day.events %}
+                <a href="{{ path('calendar_event_detail', {monthKey: day.date|date('Y-m'), eventId: event.id}) }}"
+                   class="action-btn-modal list-group-item list-group-item-action d-flex align-items-center gap-3 {{ event.isAllDay ? 'calendar-day-item-allday' : '' }}"
+                   data-title="{{ event.title }}"
+                   aria-label="{{ 'calendar.item_aria'|trans({'%title%': event.title, '%date%': event.startAt|date('d.m.Y')}) }}">
+                    <span class="calendar-day-time text-body-secondary flex-shrink-0 {{ event.isAllDay ? 'fw-semibold' : '' }}">
+                        {% if event.isAllDay %}
+                            {{ 'calendar.all_day'|trans }}
+                        {% else %}
+                            {{ event.startAt|date('H:i') }}{% if event.endAt %}&ndash;{{ event.endAt|date('H:i') }}{% endif %}
+                        {% endif %}
+                    </span>
+                    <span class="flex-grow-1 min-w-0">
+                        <span class="d-block fw-semibold text-truncate">{{ event.title }}</span>
+                        {% if event.location is not empty %}
+                            <span class="d-block small text-body-secondary text-truncate" title="{{ event.location }}">
+                                <i class="fa-solid fa-location-dot me-1" aria-hidden="true"></i>{{ event.location }}
+                            </span>
+                        {% endif %}
+                    </span>
+                    {% if event.recurrenceType is not null %}
+                        <i class="fa-solid fa-repeat text-body-secondary flex-shrink-0" title="{{ 'calendar.recurrence'|trans }}" aria-label="{{ 'calendar.recurrence'|trans }}"></i>
+                    {% endif %}
+                </a>
+            {% endfor %}
+        </div>
+    {% endif %}
+</div>

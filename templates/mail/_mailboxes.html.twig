@@ -1,0 +1,47 @@
+<div class="p-3 border-bottom">
+    <h6 class="text-uppercase text-body-secondary fw-bold small mb-2">{{ 'mail.mailboxes'|trans }}</h6>
+    <div class="dropdown w-100 mb-3 mailbox-dropdown" data-bs-auto-close="outside">
+        {% set activeLabel = activeMailbox ? activeMailbox.email : ('mail.all'|trans) %}
+        <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start d-flex align-items-center" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ 'mail.switch_mailbox'|trans }}">
+            <i class="fa-solid fa-envelope me-2" aria-hidden="true"></i>
+            <span class="flex-grow-1">{{ activeLabel }}</span>
+        </button>
+        <ul class="dropdown-menu w-100">
+            <li class="px-2 py-0">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text" id="mailbox-search-label"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></span>
+                    <input type="text" class="form-control mailbox-search" placeholder="{{ 'search.placeholder'|trans }}" aria-label="{{ 'mail.search_mailboxes'|trans }}" aria-describedby="mailbox-search-label">
+                    <button class="btn btn-outline-secondary d-none" type="button" title="{{ 'search.clear'|trans }}" aria-label="{{ 'search.clear'|trans }}" data-action="clear-mailbox-search">
+                        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                    </button>
+                </div>
+            </li>
+            <li><hr class="dropdown-divider"></li>
+            <li>
+                <a class="dropdown-item d-flex align-items-center mailbox-option {{ not activeMailbox ? 'active' : '' }}" href="{{ path('mail_index') }}" aria-label="{{ 'mail.show_all_mailboxes'|trans }}">
+                    <i class="fa-solid fa-layer-group me-2" aria-hidden="true"></i>
+                    {{ 'mail.all'|trans }}
+                </a>
+            </li>
+            <li><hr class="dropdown-divider"></li>
+            {% for mb in mailboxes %}
+                {% set firstFolder = firstFolderByMailbox[mb.id ~ '']|default(null) %}
+                <li>
+                    <a class="dropdown-item d-flex align-items-center mailbox-option {{ activeMailbox and activeMailbox.id == mb.id ? 'active' : '' }}"
+                       href="{{ firstFolder ? path('mail_folder', {mailboxId: mb.id, folderId: firstFolder.id}) : path('mail_index') }}"
+                       aria-label="{{ 'mail.open_mailbox'|trans({'%email%': mb.email}) }}">
+                        <i class="fa-regular fa-envelope me-2" aria-hidden="true"></i>
+                        {{ mb.email }}
+                    </a>
+                </li>
+            {% else %}
+                <li><span class="dropdown-item text-body-secondary">{{ 'mail.none'|trans }}</span></li>
+            {% endfor %}
+            <li class="mailbox-no-results d-none"><span class="dropdown-item text-body-secondary">{{ 'search.no_results'|trans }}</span></li>
+        </ul>
+    </div>
+    {% set composeButtonViews = mail_compose_button_views() %}
+    {% for buttonView in composeButtonViews %}
+        {% include buttonView.template with buttonView.context only %}
+    {% endfor %}
+</div>

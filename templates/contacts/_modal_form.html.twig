@@ -1,0 +1,22 @@
+<div class="p-4">
+    <h4 class="m-0 mb-4">{{ title }}</h4>
+    {{ form_start(form, {'attr': {'id': 'modal-form'}}) }}
+        <div class="row g-3">
+            <div class="col-md-4">{{ form_row(form.firstname, {'attr': {'class': 'form-control'}}) }}</div>
+            <div class="col-md-4">{{ form_row(form.lastname, {'attr': {'class': 'form-control'}}) }}</div>
+            <div class="col-md-4">{{ form_row(form.name, {'attr': {'class': 'form-control'}}) }}</div>
+            <div class="col-md-8">{{ form_row(form.email, {'attr': {'class': 'form-control'}}) }}</div>
+            <div class="col-md-4">{{ form_row(form.company, {'attr': {'class': 'form-control'}}) }}</div>
+            {% if form.mailbox is defined %}
+                <div class="col-md-6">{{ form_row(form.mailbox, {'attr': {'class': 'form-select'}}) }}</div>
+            {% endif %}
+            <div class="col-12"><hr class="my-1"></div>
+            <div class="col-md-4">{{ form_row(form.businessPhone, {'attr': {'class': 'form-control'}}) }}</div>
+            <div class="col-md-4">{{ form_row(form.mobilePhone, {'attr': {'class': 'form-control'}}) }}</div>
+            <div class="col-md-4">{{ form_row(form.homePhone, {'attr': {'class': 'form-control'}}) }}</div>
+        </div>
+        <div class="modal-form-buttons d-none">
+            {{ form_widget(form.save) }}
+        </div>
+    {{ form_end(form) }}
+</div>

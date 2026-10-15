@@ -1,0 +1,80 @@
+<div class="sticky-top bg-body border-bottom shadow-sm">
+    {% if activeMailboxId|default(null) == 'all' and activeEvent.mailbox is not null %}
+        <div class="mailbox-tag bg-body-tertiary text-body-secondary small px-3 py-1 border-bottom" style="font-size: 0.75rem;">
+            <i class="fa-solid fa-inbox me-1 small" aria-hidden="true"></i>{{ activeEvent.mailbox.name ?: activeEvent.mailbox.email }}
+        </div>
+    {% endif %}
+    <div class="p-3 email-action-bar d-flex justify-content-between align-items-center">
+        <div class="btn-group" data-overflow-group="actions">
+            {% set calendarActionViews = mail_calendar_action_views(activeEvent) %}
+            {% for actionView in calendarActionViews %}
+                {% include actionView.template with actionView.context only %}
+            {% endfor %}
+            <button type="button" class="btn btn-primary dropdown-toggle overflow-more d-none" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ 'email.more_actions'|trans }}" title="{{ 'email.more_actions'|trans }}">
+                <i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end" data-overflow-menu="actions" aria-label="{{ 'email.more_actions'|trans }}"></ul>
+        </div>
+        {% include 'calendar/_view_switcher.html.twig' with { view: view, viewLinks: viewLinks } %}
+    </div>
+</div>
+<article class="card mb-4 shadow-sm m-4">
+    <header class="card-header bg-body-tertiary">
+        <div class="d-flex align-items-center w-100 min-w-0">
+            <span class="border border-primary-subtle bg-primary-subtle rounded d-inline-flex flex-column align-items-center justify-content-center flex-shrink-0 text-center me-3" style="width:3.5rem;height:3.5rem;" aria-hidden="true">
+                <span class="fw-bold lh-1 text-primary-emphasis fs-5">{{ activeEvent.startAt|date('d') }}</span>
+                <span class="text-uppercase text-primary-emphasis small">{{ activeEvent.startAt|date('M') }}</span>
+            </span>
+            <div class="min-w-0">
+                <h2 class="mb-0 text-break fs-4" title="{{ activeEvent.title }}">{{ activeEvent.title }}</h2>
+                {% if activeEvent.location is not empty %}
+                    <small class="text-body-secondary d-block text-truncate" title="{{ activeEvent.location }}">
+                        <i class="fa-solid fa-location-dot me-1" aria-hidden="true"></i>{{ activeEvent.location }}
+                    </small>
+                {% endif %}
+            </div>
+        </div>
+    </header>
+    <div class="card-body">
+        <dl class="row mb-0">
+            <dt class="col-sm-3"><i class="fa-regular fa-calendar me-2 text-body-secondary" aria-hidden="true"></i>{{ 'calendar.when'|trans }}</dt>
+            <dd class="col-sm-9 text-break">
+                {% if activeEvent.isAllDay %}
+                    {{ activeEvent.startAt|date('d.m.Y') }}{% if activeEvent.endAt %} – {{ activeEvent.endAt|date('d.m.Y') }}{% endif %} ({{ 'calendar.all_day'|trans }})
+                {% else %}
+                    {{ activeEvent.startAt|date('d.m.Y, H:i') }}{% if activeEvent.endAt %} – {{ activeEvent.endAt|date('H:i') }}{% endif %} {{ 'common.oclock'|trans }}
+                {% endif %}
+            </dd>
+            <dt class="col-sm-3"><i class="fa-solid fa-location-dot me-2 text-body-secondary" aria-hidden="true"></i>{{ 'calendar.location'|trans }}</dt>
+            <dd class="col-sm-9 text-break">{% if activeEvent.location is not empty %}{{ activeEvent.location }}{% else %}<span class="text-body-secondary">–</span>{% endif %}</dd>
+            {% if activeEvent.recurrenceType is not null %}
+                <dt class="col-sm-3"><i class="fa-solid fa-repeat me-2 text-body-secondary" aria-hidden="true"></i>{{ 'calendar.recurrence'|trans }}</dt>
+                <dd class="col-sm-9 text-break">{{ ('calendar.recurrence.' ~ activeEvent.recurrenceType)|trans }}{% if activeEvent.recurrenceInterval is not null and activeEvent.recurrenceInterval > 1 %}, {{ 'calendar.recurrence_every'|trans({'%count%': activeEvent.recurrenceInterval}) }}{% endif %}{% if activeEvent.recurrenceUntil is not empty %}, {{ 'calendar.recurrence_until'|trans({'%date%': activeEvent.recurrenceUntil|date('d.m.Y')}) }}{% endif %}</dd>
+            {% endif %}
+            {% if activeEvent.mailbox is not null %}
+                <dt class="col-sm-3"><i class="fa-solid fa-inbox me-2 text-body-secondary" aria-hidden="true"></i>{{ 'calendar.mailbox'|trans }}</dt>
+                <dd class="col-sm-9 text-break">{{ activeEvent.mailbox.email }}</dd>
+            {% endif %}
+            {% if activeEvent.busyStatus is not null %}
+                <dt class="col-sm-3"><i class="fa-solid fa-hourglass-half me-2 text-body-secondary" aria-hidden="true"></i>{{ 'calendar.form.busy'|trans }}</dt>
+                <dd class="col-sm-9">{{ ('calendar.busy.' ~ activeEvent.busyStatus)|trans }}</dd>
+            {% endif %}
+            {% if activeEvent.sensitivity is not null %}
+                <dt class="col-sm-3"><i class="fa-solid fa-user-shield me-2 text-body-secondary" aria-hidden="true"></i>{{ 'calendar.form.sensitivity'|trans }}</dt>
+                <dd class="col-sm-9">{{ ('calendar.sensitivity.' ~ activeEvent.sensitivity)|trans }}</dd>
+            {% endif %}
+            {% if activeEvent.reminder is not null %}
+                <dt class="col-sm-3"><i class="fa-regular fa-bell me-2 text-body-secondary" aria-hidden="true"></i>{{ 'calendar.form.reminder'|trans }}</dt>
+                <dd class="col-sm-9">{{ 'calendar.reminder_minutes'|trans({'%count%': activeEvent.reminder}) }}</dd>
+            {% endif %}
+            <dt class="col-sm-3"><i class="fa-solid fa-align-left me-2 text-body-secondary" aria-hidden="true"></i>{{ 'calendar.description'|trans }}</dt>
+            <dd class="col-sm-9">{% if activeEvent.description is not empty %}<span class="text-break" style="white-space: pre-wrap;">{{ activeEvent.description }}</span>{% else %}<span class="text-body-secondary">–</span>{% endif %}</dd>
+        </dl>
+    </div>
+    <footer class="card-footer bg-body-tertiary">
+        <div class="d-flex flex-wrap gap-3 small text-body-secondary">
+            <span title="{{ 'calendar.created'|trans }}"><i class="fa-solid fa-plus me-1" aria-hidden="true"></i>{{ 'calendar.created'|trans }}: {{ activeEvent.createdAt ? activeEvent.createdAt|date('d.m.Y, H:i') : '–' }}</span>
+            <span title="{{ 'calendar.updated'|trans }}"><i class="fa-solid fa-pen me-1" aria-hidden="true"></i>{{ 'calendar.updated'|trans }}: {{ activeEvent.updatedAt ? activeEvent.updatedAt|date('d.m.Y, H:i') : '–' }}</span>
+        </div>
+    </footer>
+</article>

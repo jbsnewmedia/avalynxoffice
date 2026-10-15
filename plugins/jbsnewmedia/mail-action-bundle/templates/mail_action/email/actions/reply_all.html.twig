@@ -1,0 +1,15 @@
+{% if license_manager.isReadOnly %}
+    <span class="btn btn-primary disabled" data-priority="85" aria-disabled="true" title="{{ 'license.read_only_action'|trans }}">
+        <i class="fa-solid fa-lock me-2" aria-hidden="true"></i>{{ 'license.read_only_action'|trans }}
+    </span>
+{% else %}
+<a href="{{ path('mail_reply_all', {id: email.id}) }}"
+   class="btn btn-primary action-btn-modal"
+   data-title="{{ 'email.reply_all'|trans }}"
+   data-action-id="reply-all"
+   data-priority="85"
+   aria-label="{{ 'email.reply_all'|trans }}"
+   title="{{ 'email.reply_all'|trans }}">
+    <i class="fa-solid fa-reply-all" aria-hidden="true"></i>
+</a>
+{% endif %}

@@ -1,0 +1,800 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Service\Mail;
+
+use App\Entity\Address;
+use App\Entity\Attachment;
+use App\Entity\Body;
+use App\Entity\Email;
+use App\Entity\EmailAddressLink;
+use App\Entity\EmailAttachmentLink;
+use App\Entity\EmailBodyLink;
+use App\Entity\EmailFolder;
+use App\Entity\Enum\BodyContentType;
+use App\Entity\Enum\EmailAddressType;
+use App\Entity\Enum\FolderFunction;
+use App\Entity\Mailbox;
+use App\Entity\MailboxConnector;
+use App\Repository\EmailRepository;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
+use Doctrine\ORM\EntityManagerInterface;
+use Laminas\Mail\Storage\Message as StorageMessage;
+use Symfony\Component\Console\Output\OutputInterface;
+
+class Pop3Fetcher
+{
+    private ?OutputInterface $output = null;
+    private ?string $errorLogPath = null;
+
+    public function __construct(
+        private readonly EntityManagerInterface $em,
+        private readonly EmailRepository $emailRepo,
+        private readonly FolderManager $folderManager,
+        private readonly AttachmentStorage $attachmentStorage,
+        private readonly Pop3StorageFactory $pop3StorageFactory,
+    ) {
+    }
+
+    public function setOutput(?OutputInterface $output): self
+    {
+        $this->output = $output;
+
+        return $this;
+    }
+
+    public function setErrorLogPath(?string $path): self
+    {
+        $this->errorLogPath = $path;
+
+        return $this;
+    }
+
+    private function log(string $message, string $type = 'info'): void
+    {
+        if ($this->output) {
+            $this->output->writeln(sprintf('<%s>   %s</%s>', $type, $message, $type));
+        }
+        if ('error' === $type && $this->errorLogPath) {
+            $line = sprintf('[%s] %s', date('Y-m-d H:i:s'), $message);
+            @file_put_contents($this->errorLogPath, $line."\n", FILE_APPEND);
+        }
+    }
+
+    private function logError(int $num, ?string $uidl, ?string $subject, \Throwable $e, ?MailboxConnector $connector = null, ?\Laminas\Mail\Storage\Pop3 $storage = null): void
+    {
+        $msg = sprintf('Fehler bei Nachricht %d (UIDL: %s): %s — Subject: %s', $num, $uidl ?? 'unknown', $e->getMessage(), $subject ?? '(kein Betreff)');
+        $this->log($msg, 'error');
+        if ($this->errorLogPath) {
+            $detail = sprintf(
+                "[%s] === ERROR ===\nNachricht-Nr: %d\nUIDL: %s\nSubject: %s\nError: %s\nFile: %s:%d\nTrace:\n%s\n\n",
+                date('Y-m-d H:i:s'),
+                $num,
+                $uidl ?? 'unknown',
+                $subject ?? '(kein Betreff)',
+                $e->getMessage(),
+                $e->getFile(),
+                $e->getLine(),
+                $e->getTraceAsString()
+            );
+            @file_put_contents($this->errorLogPath, $detail, FILE_APPEND);
+        }
+        if ($connector && $storage) {
+            $this->dumpRawError($num, $uidl, $connector, $storage, $e->getMessage());
+        }
+    }
+
+    private function dumpRawError(int $num, ?string $uidl, MailboxConnector $connector, \Laminas\Mail\Storage\Pop3 $storage, string $errorReason): void
+    {
+        $raw = $this->fetchRawViaProtocol($storage, $num);
+        if (null === $raw) {
+            $this->log(sprintf('Konnte Raw-Inhalt von Nachricht %d weder über Laminas-API noch POP3-RETR lesen.', $num), 'error');
+
+            return;
+        }
+        try {
+            $connectorKey = $this->getConnectorDumpKey($connector);
+            $date = new \DateTimeImmutable();
+            $dir = 'mail_dumps/'.$connectorKey.'/'.$date->format('Y/m/d').'/error';
+            if (!is_dir($dir)) {
+                @mkdir($dir, 0775, true);
+            }
+            $filename = str_replace([':', '/'], '_', $uidl ?? (string) $num).'.eml';
+            $fullContent = "X-Mail-Fetch-Status: error\nX-Mail-Fetch-Error: ".str_replace(["\r", "\n"], ' ', $errorReason)."\nX-Mail-Fetch-Date: ".date('c')."\nX-Mail-Fetch-UIDL: ".($uidl ?? 'unknown')."\nX-Mail-Fetch-Num: ".$num."\n\n".$raw;
+            file_put_contents($dir.'/'.$filename, $fullContent);
+            $this->log(sprintf('Raw-Mail als error abgelegt: %s/%s', $dir, $filename), 'comment');
+        } catch (\Throwable $dumpError) {
+            $this->log('Fehler beim Dumpen der fehlgeschlagenen Mail: '.$dumpError->getMessage(), 'error');
+        }
+    }
+
+    private function fetchRawViaProtocol(\Laminas\Mail\Storage\Pop3 $storage, int $num): ?string
+    {
+        try {
+            return $storage->getRawHeader($num)."\n\n".$storage->getRawContent($num);
+        } catch (\Throwable) {
+        }
+        try {
+            $reflection = new \ReflectionClass($storage);
+            $protocolProp = $reflection->getProperty('protocol');
+            $protocol = $protocolProp->getValue($storage);
+            if (is_object($protocol) && method_exists($protocol, 'retrieve')) {
+                $this->log(sprintf('Fallback: direkter POP3-RETR für Nachricht %d (umgeht Laminas-Header-Parser).', $num), 'comment');
+
+                $raw = $protocol->retrieve($num);
+
+                return is_string($raw) ? $raw : '';
+            }
+        } catch (\Throwable $e) {
+            $this->log(sprintf('POP3-RETR-Fallback für Nachricht %d fehlgeschlagen: %s', $num, $e->getMessage()), 'error');
+        }
+
+        return null;
+    }
+
+    /**
+     * Versucht eine Raw-Mail (Header + Body) in ein Laminas StorageMessage zu parsen.
+     * Wenn der Standard-Parser an kaputten Headern scheitert (z. B. rohe UTF-8 Bytes in To:/From:),
+     * werden die Header-Werte permissiv via RFC 2047 encoded-word saniert und erneut geparst.
+     */
+    private function parseMessageWithSanitizedHeaders(string $rawContent): ?StorageMessage
+    {
+        try {
+            return new StorageMessage(['raw' => $rawContent]);
+        } catch (\Throwable $firstError) {
+            $this->log(sprintf('Erster Parser-Versuch fehlgeschlagen (%s), versuche Header-Sanierung...', $firstError->getMessage()), 'comment');
+        }
+
+        $splitPos = strpos($rawContent, "\r\n\r\n");
+        if (false === $splitPos) {
+            $splitPos = strpos($rawContent, "\n\n");
+        }
+        if (false === $splitPos) {
+            return null;
+        }
+        $headersRaw = substr($rawContent, 0, $splitPos);
+        $body = substr($rawContent, $splitPos);
+        $body = ltrim($body, "\r\n");
+
+        $sanitized = $this->sanitizeRawHeaders($headersRaw);
+
+        try {
+            return new StorageMessage(['headers' => $sanitized, 'content' => $body, 'noToplines' => true]);
+        } catch (\Throwable $secondError) {
+            $this->log(sprintf('Auch sanierte Header scheitern: %s', $secondError->getMessage()), 'error');
+
+            return null;
+        }
+    }
+
+    private function sanitizeRawHeaders(string $headersRaw): string
+    {
+        $lines = preg_split('/\r\n|\n/', $headersRaw) ?: [];
+        $out = [];
+        foreach ($lines as $line) {
+            if ('' === $line) {
+                $out[] = $line;
+                continue;
+            }
+            if (preg_match('/^([!-9;-~]+):(.*)$/', $line, $m)) {
+                $name = $m[1];
+                $value = $m[2];
+                if (preg_match('/[\x80-\xFF]/', $value)) {
+                    if (preg_match('/^(.*<[^>]+>)\s*$/', $value, $addrMatch)) {
+                        $prefix = $addrMatch[1];
+                        $angleStart = strrpos($prefix, '<');
+                        if (false !== $angleStart) {
+                            $displayName = trim(substr($prefix, 0, $angleStart));
+                            $address = substr($prefix, $angleStart);
+                            if (preg_match('/[\x80-\xFF]/', $displayName)) {
+                                $displayName = $this->encodeUtf8As2047($displayName);
+                            }
+                            $value = $displayName.' '.$address;
+                        }
+                    } else {
+                        $value = $this->encodeUtf8As2047($value);
+                    }
+                }
+                $out[] = $name.':'.$value;
+            } else {
+                $out[] = $line;
+            }
+        }
+
+        return implode("\r\n", $out);
+    }
+
+    private function encodeUtf8As2047(string $value): string
+    {
+        $cleaned = ltrim($value);
+        if (false === mb_check_encoding($cleaned, 'UTF-8')) {
+            $detected = mb_detect_encoding($cleaned, ['Windows-1252', 'ISO-8859-1', 'UTF-8'], true);
+            if ('UTF-8' !== $detected && false !== $detected) {
+                $converted = mb_convert_encoding($cleaned, 'UTF-8', $detected);
+                if (is_string($converted) && mb_check_encoding($converted, 'UTF-8')) {
+                    $cleaned = $converted;
+                } else {
+                    $cleaned = (string) iconv('UTF-8', 'UTF-8//IGNORE', $cleaned);
+                }
+            } else {
+                $cleaned = (string) iconv('UTF-8', 'UTF-8//IGNORE', $cleaned);
+            }
+        }
+
+        return '=?utf-8?B?'.base64_encode($cleaned).'?=';
+    }
+
+    /**
+     * @return array{imported: int, skipped: int, errors: int}
+     */
+    public function fetchForConnector(MailboxConnector $connector, ?int $limit = null, ?bool $deleteAfter = null, bool $oldestFirst = false): array
+    {
+        $mailbox = $connector->getMailbox();
+        if (!$mailbox instanceof Mailbox) {
+            $this->log('Connector ist keinem Postfach zugeordnet.', 'error');
+
+            return ['imported' => 0, 'skipped' => 0, 'errors' => 0];
+        }
+        if (!$connector->getPop3Host() || !$connector->getPop3Username() || !$connector->getPop3Password()) {
+            $this->log('POP3-Konfiguration unvollständig.', 'error');
+
+            return ['imported' => 0, 'skipped' => 0, 'errors' => 0];
+        }
+        $this->log(sprintf('Verbinde mit %s:%d (Sicherheit: %s) ...',
+            $connector->getPop3Host(),
+            $connector->getPop3Port() ?: 110,
+            $connector->getPop3Security() ?: 'keine'
+        ));
+        $config = [
+            'host' => $connector->getPop3Host(),
+            'user' => $connector->getPop3Username(),
+            'password' => $connector->getPop3Password(),
+            'port' => $connector->getPop3Port() ?: null,
+            'ssl' => null,
+        ];
+        $security = strtolower((string) $connector->getPop3Security());
+        if ('ssl' === $security || 'tls' === $security) {
+            $config['ssl'] = 'ssl' === $security ? 'SSL' : 'TLS';
+        }
+        $delete = $deleteAfter ?? $connector->getPop3DeleteAfterFetch();
+        $imported = $skipped = $errors = 0;
+        try {
+            $storage = $this->pop3StorageFactory->create($config);
+            $this->log('Verbindung erfolgreich hergestellt.');
+        } catch (\Throwable $e) {
+            $this->log(sprintf('Verbindungsfehler: %s', $e->getMessage()), 'error');
+
+            return ['imported' => 0, 'skipped' => 0, 'errors' => 0];
+        }
+        try {
+            $this->log('Zähle Nachrichten auf dem Server ...');
+            $count = $storage->countMessages();
+            $this->log(sprintf('%d Nachrichten gefunden.', $count));
+            $this->ensureInboxForMailbox($mailbox);
+            $indices = [];
+            if (null !== $limit && !$oldestFirst) {
+                for ($i = $count; $i > max(0, $count - $limit); --$i) {
+                    $indices[] = $i;
+                }
+                $this->log(sprintf('Verarbeite die neuesten %d Nachrichten ...', count($indices)));
+            } elseif (null !== $limit && $oldestFirst) {
+                for ($i = 1; $i <= min($count, $limit); ++$i) {
+                    $indices[] = $i;
+                }
+                $this->log(sprintf('Verarbeite die ältesten %d Nachrichten ...', count($indices)));
+            } elseif ($oldestFirst) {
+                for ($i = 1; $i <= $count; ++$i) {
+                    $indices[] = $i;
+                }
+                $this->log('Verarbeite alle Nachrichten (älteste zuerst) ...');
+            } else {
+                for ($i = $count; $i >= 1; --$i) {
+                    $indices[] = $i;
+                }
+                $this->log('Verarbeite alle Nachrichten (neueste zuerst) ...');
+            }
+            foreach ($indices as $num) {
+                $uidl = null;
+                $subject = null;
+                $hadEncodingIssues = false;
+                try {
+                    $uidlRaw = $storage->getUniqueId($num);
+                    $uidl = is_string($uidlRaw) ? $uidlRaw : (string) $num;
+                    $importKey = (string) $connector->getId().':'.$uidl;
+                    $this->log(sprintf('Prüfe Nachricht %d (UIDL: %s) ...', $num, $uidl), 'comment');
+                    $exists = $this->emailRepo->findOneBy(['importKey' => $importKey]);
+                    if ($exists) {
+                        $this->log('Bereits importiert. Überspringe.');
+                        ++$skipped;
+                        continue;
+                    }
+                    $this->log('Lade Nachricht vom Server ...');
+                    try {
+                        $msg = $storage->getMessage($num);
+                        $rawContent = $msg->getHeaders()->toString()."\n\n".$msg->getContent();
+                    } catch (\Throwable $parseError) {
+                        $this->log(sprintf('Laminas-Header-Parser scheitert (Nachricht %d): %s — versuche Header-Sanierung.', $num, $parseError->getMessage()), 'comment');
+                        $raw = $this->fetchRawViaProtocol($storage, $num);
+                        if (null === $raw) {
+                            throw $parseError;
+                        }
+                        $parsedMsg = $this->parseMessageWithSanitizedHeaders($raw);
+                        if (null === $parsedMsg) {
+                            $this->dumpRawError($num, $uidl, $connector, $storage, 'Header-Sanierung gescheitert: '.$parseError->getMessage());
+                            throw $parseError;
+                        }
+                        $msg = $parsedMsg;
+                        $rawContent = $raw;
+                        $hadEncodingIssues = true;
+                        $this->log(sprintf('Header-Sanierung erfolgreich für Nachricht %d.', $num), 'info');
+                    }
+                    $contentHash = hash('sha256', $rawContent);
+                    $existsByHash = $this->emailRepo->findOneBy(['contentHash' => $contentHash]);
+                    if ($existsByHash) {
+                        $this->log('E-Mail mit identischem Inhalt bereits importiert. Überspringe.');
+                        ++$skipped;
+                        continue;
+                    }
+                    $subject = $this->safeHeader($msg, 'subject');
+                    $this->log(sprintf('Verarbeite Nachricht: "%s" (Hash: %s)', $subject, substr($contentHash, 0, 8)));
+                    $this->dumpOriginalMessage($msg, $connector, null, $importKey, 'pending');
+                    try {
+                        $email = $this->convertMessageToEntity($msg, $mailbox, $importKey, $hadEncodingIssues);
+                        $email->setContentHash($contentHash);
+                        $this->log(sprintf('Speichere in Datenbank (ID: %s) ...', $email->getId()));
+                        $this->em->persist($email);
+                        try {
+                            $this->em->flush();
+                        } catch (UniqueConstraintViolationException $e) {
+                            $this->log('Nachricht wurde während des Prozesses bereits von einem anderen Prozess importiert (UniqueConstraint). Überspringe.', 'comment');
+                            if (!$this->em->isOpen()) {
+                                throw $e;
+                            }
+                            continue;
+                        }
+                        $this->dumpOriginalMessage($msg, $connector, $email, $importKey);
+                    } catch (\Throwable $e) {
+                        $this->removePendingDump($connector, $importKey, $this->extractDateFromMessage($msg));
+                        throw $e;
+                    }
+                    if ($delete) {
+                        $this->log('Lösche Nachricht vom Server ...');
+                        $storage->removeMessage($num);
+                    }
+                    $this->log('Nachricht erfolgreich importiert.', 'info');
+                    ++$imported;
+                } catch (\Throwable $e) {
+                    $this->logError($num, $uidl, $subject, $e, $connector, $storage);
+                    ++$errors;
+                    if (!$this->em->isOpen()) {
+                        $this->log('EntityManager ist geschlossen. Versuche Re-Open (Achtung: State-Verlust möglich).', 'error');
+                        break;
+                    }
+                    $this->em->clear();
+                    $mailbox = $this->em->find(Mailbox::class, $mailbox->getId()) ?? $mailbox;
+                }
+            }
+        } finally {
+            $storage->close();
+            $this->log('Verbindung geschlossen.');
+        }
+
+        return compact('imported', 'skipped', 'errors');
+    }
+
+    private function ensureInboxForMailbox(Mailbox $mailbox): void
+    {
+        $this->folderManager->ensureSystemFolder($mailbox, FolderFunction::MAILBOX);
+        $this->folderManager->ensureSystemFolder($mailbox, FolderFunction::INBOX);
+    }
+
+    private function convertMessageToEntity(StorageMessage $msg, Mailbox $mailbox, string $importKey, bool $hasEncodingIssues = false): Email
+    {
+        $email = new Email();
+        $email->setMailbox($mailbox);
+        $email->setIsOutgoing(false)->setIsRead(false);
+        $email->setImportKey($importKey);
+        $email->setHasEncodingIssues($hasEncodingIssues);
+        $email->setSubject($this->safeHeader($msg, 'subject'));
+        $dateHeader = $this->safeHeader($msg, 'date');
+        if ($dateHeader) {
+            try {
+                $email->setReceivedAt(new \DateTimeImmutable($dateHeader));
+            } catch (\Throwable) {
+            }
+        }
+        $this->folderManager->syncEmailSystemFolders($email);
+        $messageId = $this->safeHeader($msg, 'message-id');
+        if ($messageId) {
+            $email->setMessageId(trim($messageId, "<> \t\r\n"));
+        }
+        $from = $this->parseAddresses($this->safeHeader($msg, 'from'));
+        foreach ($from as $a) {
+            $this->linkAddress($email, $a['email'], $a['name'] ?? null, EmailAddressType::SENDER);
+        }
+        foreach (['to' => EmailAddressType::RECIPIENT, 'cc' => EmailAddressType::CC, 'bcc' => EmailAddressType::BCC, 'reply-to' => EmailAddressType::REPLY_TO] as $hdr => $type) {
+            $list = $this->parseAddresses($this->safeHeader($msg, $hdr));
+            foreach ($list as $a) {
+                $this->linkAddress($email, $a['email'], $a['name'] ?? null, $type);
+            }
+        }
+        $textBody = '';
+        $htmlBody = '';
+        $this->extractParts($msg, $textBody, $htmlBody, $email);
+        if ('' !== $htmlBody) {
+            $b = new Body();
+            $b->setContent($htmlBody);
+            $this->em->persist($b);
+            $bl = new EmailBodyLink();
+            $bl->setEmail($email);
+            $bl->setBody($b);
+            $bl->setContentType(BodyContentType::HTML);
+            $email->addEmailBody($bl);
+            $this->em->persist($bl);
+            if (null === $email->getPreviewBody()) {
+                $email->setPreviewBody($this->convertHtmlToText($htmlBody));
+            }
+        }
+        if ('' !== $textBody) {
+            $b = new Body();
+            $b->setContent($textBody);
+            $this->em->persist($b);
+            $bl = new EmailBodyLink();
+            $bl->setEmail($email);
+            $bl->setBody($b);
+            $bl->setContentType(BodyContentType::TEXT);
+            $email->addEmailBody($bl);
+            $this->em->persist($bl);
+            $email->setPreviewBody(mb_substr((string) $textBody, 0, 500));
+        }
+        $folder = $mailbox->getInboxFolder() ?? $this->folderManager->ensureSystemFolder($mailbox, FolderFunction::MAILBOX);
+        $ef = new EmailFolder();
+        $ef->setEmail($email);
+        $ef->setFolder($folder);
+        $email->addEmailFolder($ef);
+        $this->em->persist($ef);
+
+        return $email;
+    }
+
+    private function convertHtmlToText(string $html): string
+    {
+        $html = preg_replace('/<(head|style|script)\b[^>]*>.*?<\/\1>/is', '', $html);
+        $html = preg_replace('/<(br|p|div|tr|td|h[1-6])\b[^>]*>/i', ' ', (string) $html);
+        $text = strip_tags((string) $html);
+        $text = preg_replace('/\s+/', ' ', $text);
+
+        return mb_substr(trim((string) $text), 0, 500);
+    }
+
+    private function safeHeader(StorageMessage $msg, string $name): ?string
+    {
+        try {
+            $headers = $msg->getHeaders();
+            if (!$headers->has($name)) {
+                return null;
+            }
+            $header = $headers->get($name);
+            $value = '';
+            if ($header instanceof \Laminas\Mail\Header\HeaderInterface) {
+                $value = $header->getFieldValue();
+            }
+
+            return $this->toUtf8($this->decodeHeaderValue((string) $value));
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function decodeHeaderValue(string $value): string
+    {
+        if (!str_contains($value, '=?')) {
+            return $value;
+        }
+        $value = preg_replace('/(\?=)\s+(?==\?)/', '$1', $value);
+        if (function_exists('iconv_mime_decode')) {
+            $decoded = @iconv_mime_decode((string) $value, ICONV_MIME_DECODE_CONTINUE_ON_ERROR, 'UTF-8');
+            if (false !== $decoded) {
+                return $decoded;
+            }
+        }
+
+        return mb_decode_mimeheader((string) $value);
+    }
+
+    private function toUtf8(?string $str): string
+    {
+        if (null === $str || '' === $str) {
+            return '';
+        }
+        if (mb_check_encoding($str, 'UTF-8')) {
+            if (preg_match('/[\xC3\xC2][\x80-\xBF]/', $str)) {
+                $tentative = @mb_convert_encoding($str, 'ISO-8859-1', 'UTF-8');
+                if (false !== $tentative && $tentative !== $str && mb_check_encoding($tentative, 'UTF-8')) {
+                    return $tentative;
+                }
+            }
+
+            return $str;
+        }
+        $encodings = ['ISO-8859-1', 'Windows-1252', 'ASCII', 'UTF-7'];
+        $detected = mb_detect_encoding($str, $encodings, true);
+        if ($detected) {
+            $conv = mb_convert_encoding($str, 'UTF-8', $detected);
+            if (is_string($conv)) {
+                return $conv;
+            }
+        }
+        $out = @mb_convert_encoding($str, 'UTF-8', 'ISO-8859-1');
+
+        return (string) $out;
+    }
+
+    /**
+     * @return array<int, array{email: string, name?: string|null}>
+     */
+    private function parseAddresses(?string $header): array
+    {
+        if (!$header) {
+            return [];
+        }
+        if (str_contains($header, '=?')) {
+            $header = $this->decodeHeaderValue($header);
+        }
+        $parts = preg_split('/\s*,\s*/', $header) ?: [];
+        $out = [];
+        foreach ($parts as $p) {
+            $p = trim($p);
+            if ('' === $p) {
+                continue;
+            }
+            if (preg_match('/^(.*?)<([^>]+)>$/', $p, $m)) {
+                $name = trim(trim($m[1], "\"' "));
+                $out[] = ['email' => trim($m[2]), 'name' => '' !== $name ? $this->toUtf8($name) : null];
+            } else {
+                $out[] = ['email' => trim($p)];
+            }
+        }
+
+        return $out;
+    }
+
+    private function linkAddress(Email $email, string $emailAddr, ?string $name, EmailAddressType $type): void
+    {
+        $emailAddr = trim($emailAddr, "<> \t\n\r");
+        if ('' === $emailAddr) {
+            return;
+        }
+        $name = $this->toUtf8($name);
+        $addrRepo = $this->em->getRepository(Address::class);
+        $addr = $addrRepo->findOneBy(['email' => $emailAddr]);
+        if (!$addr) {
+            $addr = new Address();
+            $addr->setEmail($emailAddr);
+            $this->em->persist($addr);
+        }
+        if ('' !== $name && !$addr->getName()) {
+            $addr->setName($name);
+        }
+        $link = new EmailAddressLink();
+        $link->setEmail($email);
+        $link->setAddress($addr);
+        $link->setType($type);
+        $email->addEmailAddress($link);
+        $this->em->persist($link);
+    }
+
+    private function extractParts(StorageMessage $msg, string &$textBody, string &$htmlBody, Email $email): void
+    {
+        if ($msg->isMultipart()) {
+            $partCount = 0;
+            try {
+                /** @var StorageMessage $part */
+                foreach (new \RecursiveIteratorIterator($msg) as $part) {
+                    ++$partCount;
+                    try {
+                        $headers = $part->getHeaders();
+                        $typeHeader = $headers->has('content-type') ? $headers->get('content-type') : null;
+                        $typeFieldValue = '';
+                        if ($typeHeader instanceof \Laminas\Mail\Header\HeaderInterface) {
+                            $typeFieldValue = $typeHeader->getFieldValue();
+                        }
+                        $rawType = $part->contentType ?? null;
+                        $type = strtolower(is_string($rawType) ? $rawType : $typeFieldValue);
+                        if (str_contains($type, 'text/plain')) {
+                            $textBody .= $this->getPartContent($part)."\n";
+                        } elseif (str_contains($type, 'text/html')) {
+                            $htmlBody .= $this->getPartContent($part)."\n";
+                        } elseif (str_contains($type, 'message/delivery-status') || str_contains($type, 'message/rfc822') || str_contains($type, 'text/rfc822-headers')) {
+                            $textBody .= "\n--- ".strtoupper($type)." ---\n";
+                            $textBody .= $this->getPartContent($part)."\n";
+                        } elseif (str_contains($type, 'application/') || str_contains($type, 'image/') || str_contains($type, 'audio/') || str_contains($type, 'video/')) {
+                            $this->log(sprintf('Verarbeite Attachment (Typ: %s) ...', $type));
+                            $this->storeAttachmentPart($part, $email, $type);
+                        }
+                    } catch (\Throwable $e) {
+                        $this->log(sprintf('Fehler bei MIME-Part %d übersprungen: %s', $partCount, $e->getMessage()), 'comment');
+                    }
+                }
+            } catch (\Throwable $e) {
+                $this->log(sprintf('Fehler beim Iterieren der MIME-Parts: %s', $e->getMessage()), 'comment');
+            }
+            if ($partCount > 0) {
+                $this->log(sprintf('%d MIME-Parts verarbeitet.', $partCount));
+            }
+        } else {
+            $headers = $msg->getHeaders();
+            $typeHeader = $headers->has('content-type') ? $headers->get('content-type') : null;
+            $typeFieldValue = 'text/plain';
+            if ($typeHeader instanceof \Laminas\Mail\Header\HeaderInterface) {
+                $typeFieldValue = $typeHeader->getFieldValue();
+            }
+            $rawType = $msg->contentType ?? null;
+            $type = strtolower(is_string($rawType) ? $rawType : $typeFieldValue);
+            $content = $this->getPartContent($msg);
+            if (str_contains($type, 'text/html')) {
+                $htmlBody = $content;
+            } else {
+                $textBody = $content;
+            }
+        }
+    }
+
+    private function getPartContent(StorageMessage $part, bool $isBinary = false): string
+    {
+        try {
+            $content = (string) $part->getContent();
+            $headers = $part->getHeaders();
+            $encodingHeader = $headers->has('content-transfer-encoding') ? $headers->get('content-transfer-encoding') : null;
+            $encodingFieldValue = '';
+            if ($encodingHeader instanceof \Laminas\Mail\Header\HeaderInterface) {
+                $encodingFieldValue = $encodingHeader->getFieldValue();
+            }
+            $rawEncoding = $part->contentTransferEncoding ?? null;
+            $encoding = strtolower(is_string($rawEncoding) ? $rawEncoding : $encodingFieldValue);
+            if ('base64' === $encoding) {
+                $content = base64_decode($content, true) ?: '';
+            } elseif ('quoted-printable' === $encoding) {
+                $content = quoted_printable_decode($content);
+            }
+            if ($isBinary) {
+                return $content;
+            }
+            if (!mb_check_encoding($content, 'UTF-8')) {
+                $typeHeader = $headers->has('content-type') ? $headers->get('content-type') : null;
+                $typeFieldValue = '';
+                if ($typeHeader instanceof \Laminas\Mail\Header\HeaderInterface) {
+                    $typeFieldValue = $typeHeader->getFieldValue();
+                }
+                $rawContentType = $part->contentType ?? null;
+                $contentType = is_string($rawContentType) ? $rawContentType : $typeFieldValue;
+                if (preg_match('/charset\s*=\s*\"?([^\";\s]+)\"?/i', $contentType, $m)) {
+                    $charset = strtoupper($m[1]);
+                    try {
+                        $converted = mb_convert_encoding($content, 'UTF-8', $charset);
+                        $content = is_string($converted) ? $converted : $this->toUtf8($content);
+                    } catch (\Throwable) {
+                        $content = $this->toUtf8($content);
+                    }
+                } else {
+                    $content = $this->toUtf8($content);
+                }
+            }
+
+            return $content;
+        } catch (\Throwable) {
+            return '';
+        }
+    }
+
+    private function storeAttachmentPart(StorageMessage $part, Email $email, string $contentType): void
+    {
+        $filename = $this->detectFileName($part) ?? 'attachment.bin';
+        $data = $this->getPartContent($part, true);
+        $att = new Attachment();
+        $att->setName($filename);
+        $att->setSize(strlen($data));
+        $att->setMimeType($contentType ?: 'application/octet-stream');
+        $att->setSha1(sha1($data));
+        try {
+            $att->setFilePath($this->attachmentStorage->store($att, $data));
+        } catch (\RuntimeException $e) {
+            $this->log(sprintf('Attachment "%s" wurde übersprungen: %s', $filename, $e->getMessage()), 'comment');
+
+            return;
+        }
+        $this->em->persist($att);
+        $link = new EmailAttachmentLink();
+        $link->setEmail($email);
+        $link->setAttachment($att);
+        $email->addEmailAttachment($link);
+        $this->em->persist($link);
+    }
+
+    private function detectFileName(StorageMessage $part): ?string
+    {
+        foreach (['content-disposition', 'content-type'] as $h) {
+            try {
+                $v = $part->getHeader($h);
+                $value = '';
+                if ($v instanceof \Laminas\Mail\Header\HeaderInterface) {
+                    $value = $v->getFieldValue();
+                } elseif (is_string($v)) {
+                    $value = $v;
+                }
+                if ('' !== $value && preg_match('/filename\s*=\s*\"?([^\";]+)\"?/i', $value, $m)) {
+                    return basename($this->toUtf8($this->decodeHeaderValue($m[1])));
+                }
+            } catch (\Throwable) {
+            }
+        }
+
+        return null;
+    }
+
+    private function getConnectorDumpKey(MailboxConnector $connector): string
+    {
+        $name = $connector->getEmail() ?: $connector->getPop3Username() ?: (string) $connector->getId();
+
+        return preg_replace('/[^a-zA-Z0-9@._-]/', '_', $name) ?? 'unknown_connector';
+    }
+
+    private function removePendingDump(MailboxConnector $connector, string $importKey, ?\DateTimeImmutable $date = null): void
+    {
+        try {
+            $connectorKey = $this->getConnectorDumpKey($connector);
+            $date ??= new \DateTimeImmutable();
+            $dir = 'mail_dumps/'.$connectorKey.'/'.$date->format('Y/m/d').'/pending';
+            $pendingFile = $dir.'/'.str_replace([':', '/'], '_', $importKey).'.eml';
+            if (file_exists($pendingFile)) {
+                @unlink($pendingFile);
+            }
+        } catch (\Throwable) {
+        }
+    }
+
+    private function dumpOriginalMessage(StorageMessage $msg, MailboxConnector $connector, ?Email $email, ?string $importKey = null, string $status = 'success', ?string $errorReason = null): void
+    {
+        try {
+            $date = $email?->getReceivedAt() ?? $this->extractDateFromMessage($msg) ?? new \DateTimeImmutable();
+            $connectorKey = $this->getConnectorDumpKey($connector);
+            $dir = 'mail_dumps/'.$connectorKey.'/'.$date->format('Y/m/d').'/'.$status;
+            if (!is_dir($dir)) {
+                @mkdir($dir, 0775, true);
+            }
+            if ($email?->getContentHash()) {
+                $filename = $email->getContentHash().'.eml';
+            } elseif ($email?->getId()) {
+                $filename = (string) $email->getId().'.eml';
+            } else {
+                $filename = str_replace([':', '/'], '_', (string) $importKey).'.eml';
+            }
+            $rawContent = $msg->getHeaders()->toString()."\n\n".$msg->getContent();
+            if ('error' === $status && $errorReason) {
+                $rawContent = "X-Mail-Fetch-Status: error\nX-Mail-Fetch-Error: ".str_replace(["\r", "\n"], ' ', $errorReason)."\nX-Mail-Fetch-Date: ".date('c')."\n\n".$rawContent;
+            } else {
+                $rawContent = "X-Mail-Fetch-Status: success\nX-Mail-Fetch-Date: ".date('c')."\n\n".$rawContent;
+            }
+            file_put_contents($dir.'/'.$filename, $rawContent);
+            if ('success' === $status && $email?->getId() && $importKey) {
+                $this->removePendingDump($connector, $importKey, $date);
+            }
+        } catch (\Throwable $e) {
+            $this->log('Fehler beim Dumpen der Original-Nachricht: '.$e->getMessage(), 'error');
+        }
+    }
+
+    private function extractDateFromMessage(StorageMessage $msg): ?\DateTimeImmutable
+    {
+        $dateHeader = $this->safeHeader($msg, 'date');
+        if ($dateHeader) {
+            try {
+                return new \DateTimeImmutable($dateHeader);
+            } catch (\Throwable) {
+            }
+        }
+
+        return null;
+    }
+}

@@ -1,0 +1,15 @@
+{% if license_manager.isReadOnly %}
+    <span class="btn btn-primary disabled" data-priority="90" aria-disabled="true" title="{{ 'license.read_only_action'|trans }}">
+        <i class="fa-solid fa-lock me-2" aria-hidden="true"></i>{{ 'license.read_only_action'|trans }}
+    </span>
+{% else %}
+<a href="{{ path('calendar_edit_modal', {monthKey: monthKey, eventId: event.id}) }}"
+   class="btn btn-primary action-btn-modal"
+   data-title="{{ 'calendar.edit'|trans }}"
+   data-action-id="calendar-edit"
+   data-priority="90"
+   aria-label="{{ 'calendar.edit'|trans }}"
+   title="{{ 'calendar.edit'|trans }}">
+    <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
+</a>
+{% endif %}

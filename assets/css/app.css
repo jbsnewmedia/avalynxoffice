@@ -1,0 +1,486 @@
+:root {
+    --mail-app-primary: var(--bs-primary);
+    --mail-app-primary-rgb: var(--bs-primary-rgb);
+    --mail-app-primary-hover: rgba(var(--bs-primary-rgb), 0.1);
+}
+body {
+    overflow-y: hidden;
+}
+.mail-body-height {
+    height: calc(100vh - 70px);
+}
+#email-detail {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+#email-detail > .card {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+#email-detail .card-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+#email-detail .card-body > .email-body-wrapper {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+.email-html-frame {
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+    border: 0;
+}
+[data-bs-theme=dark] .email-html-frame {
+    filter: invert(0.9) hue-rotate(180deg);
+}
+.brandmark {
+    display: inline-grid;
+    place-items: center;
+    border-radius: 15%;
+}
+.brandmark-logo {
+    width: 80%;
+    height: 80%;
+}
+.email-item {
+    transition: background-color .2s;
+    cursor: pointer;
+}
+.email-item:hover, .email-item.email-active {
+    background-color: var(--mail-app-primary-hover);
+}
+.email-unread {
+    background-color: rgba(var(--mail-app-primary-rgb), 0.05);
+}
+[data-bs-theme=dark] .email-unread {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+.email-item-content {
+    border-left: 3px solid transparent !important;
+}
+.email-item:hover .email-item-content, .email-item.email-active .email-item-content {
+    border-left: 3px solid var(--mail-app-primary) !important;
+}
+.avatar-circle {
+    width: 40px;
+    height: 40px;
+}
+.dropdown-menu {
+    transform: translateY(5px);
+}
+.folder-drop-target {
+    transition: background-color .15s ease, box-shadow .15s ease, border-color .15s ease, color .15s ease;
+}
+.folder-drop-target.drag-over {
+    background-color: var(--mail-app-primary-hover);
+    box-shadow: inset 3px 0 0 var(--mail-app-primary);
+}
+.folder-drop-target.drag-over .fa-folder,
+.folder-drop-target.drag-over span {
+    color: var(--mail-app-primary);
+}
+.folder-drop-target.drag-over .folder-unread-badge {
+    background-color: var(--mail-app-primary);
+}
+.list-group-item.active .folder-unread-badge {
+    background-color: var(--bs-body-bg) !important;
+    color: var(--mail-app-primary) !important;
+}
+.offcanvas {
+    z-index: 1200 !important;
+}
+.offcanvas-backdrop {
+    z-index: 1195 !important;
+}
+.navbar,
+.offcanvas-header {
+    min-height: 70px;
+}
+.btn-navbar {
+    height: 44px;
+    width: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+.btn-navbar.dropdown-toggle::after {
+    display: none;
+}
+.email-actions {
+    width: 100%;
+}
+.email-actions > .btn {
+    flex: 0 0 auto;
+    width: auto;
+}
+.email-actions > .btn,
+.email-actions > .btn-group > .btn {
+    border-radius: 0.375rem;
+}
+.email-actions > .btn:not(:first-child),
+.email-actions > .btn-group:not(:first-child) > .btn {
+    border-top-left-radius: 0 !important;
+    border-bottom-left-radius: 0 !important;
+}
+.email-actions > .btn:not(:last-child),
+.email-actions > .btn-group:not(:last-child) > .btn {
+    border-top-right-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+}
+.email-actions > .btn:not(.d-none):last-of-type,
+.email-actions > .btn-group:not(.d-none):last-of-type > .btn {
+    border-top-right-radius: 0.375rem !important;
+    border-bottom-right-radius: 0.375rem !important;
+}
+@media (min-width: 1400px) {
+    #actionModal .modal-dialog.modal-xl {
+        max-width: min(1320px, calc(100vw - 3rem));
+    }
+}
+@media (min-width: 1800px) {
+    #actionModal .modal-dialog.modal-xl {
+        max-width: min(1560px, calc(100vw - 4rem));
+    }
+}
+.settings-mailbox-structure {
+    display: grid;
+    gap: 1rem;
+}
+.settings-mailbox-card {
+    border: 1px solid rgba(var(--bs-body-color-rgb), 0.12);
+    border-radius: 0.75rem;
+    padding: 1rem;
+    background: rgba(var(--bs-body-color-rgb), 0.02);
+}
+.settings-mailbox-list-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+}
+.settings-mailbox-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.5rem;
+}
+.settings-mailbox-list li {
+    border: 1px solid rgba(var(--bs-body-color-rgb), 0.08);
+    border-radius: 0.5rem;
+    padding: 0.625rem 0.75rem;
+    background: var(--bs-body-bg);
+}
+[data-bs-theme=dark] .settings-mailbox-card {
+    background: rgba(255, 255, 255, 0.02);
+}
+.mailbox-list-editor {
+    height: 100%;
+    padding: 1rem;
+    border: 1px solid rgba(var(--bs-body-color-rgb), 0.12);
+    border-radius: 0.75rem;
+    background: rgba(var(--bs-body-color-rgb), 0.02);
+}
+.mailbox-list-editor .form-label {
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+}
+.mailbox-list-editor .form-text,
+.mailbox-list-editor .invalid-feedback,
+.mailbox-list-editor .invalid-feedback ul {
+    margin-top: 0.75rem;
+    margin-bottom: 0;
+}
+.mailbox-list-editor .invalid-feedback ul {
+    padding-left: 1rem;
+}
+.mailbox-list-editor-invalid {
+    border-color: var(--bs-danger);
+}
+.mailbox-list-items {
+    display: grid;
+    gap: 0.5rem;
+    min-height: 3rem;
+}
+.mailbox-list-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) auto;
+    gap: 0.75rem;
+    align-items: end;
+    padding: 0.75rem;
+    border: 1px solid rgba(var(--bs-body-color-rgb), 0.12);
+    border-radius: 0.75rem;
+    background: var(--bs-body-bg);
+}
+.mailbox-list-editor-folders .mailbox-list-row {
+    grid-template-columns: minmax(0, 1.5fr) 8rem auto;
+}
+.mailbox-list-field {
+    min-width: 0;
+}
+.mailbox-list-row-remove {
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0;
+}
+@media (max-width: 767.98px) {
+    .mailbox-list-row,
+    .mailbox-list-editor-folders .mailbox-list-row {
+        grid-template-columns: 1fr;
+    }
+    .mailbox-list-row-remove {
+        width: 100%;
+    }
+}
+[data-bs-theme=dark] .mailbox-list-editor {
+    background: rgba(255, 255, 255, 0.02);
+}
+.compose-setting {
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.75rem;
+}
+.compose-editor .avalynx-autocomplete-wrapper {
+    width: 100%;
+}
+.compose-attachments-dropzone {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 7rem;
+    border: 2px dashed var(--bs-border-color);
+    border-radius: 0.75rem;
+    background: var(--bs-tertiary-bg);
+    color: var(--bs-secondary-color);
+    cursor: pointer;
+    transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+}
+.compose-attachments-dropzone.is-dragover {
+    border-color: var(--bs-primary);
+    background: var(--bs-primary-bg-subtle);
+    color: var(--bs-primary-text-emphasis);
+}
+
+/* Calendar views: Outlook-style day/week/month grid */
+.calendar-page {
+    height: 100vh;
+}
+.calendar-content {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+.calendar-toolbar {
+    flex-shrink: 0;
+}
+.calendar-toolbar-title {
+    line-height: 1.2;
+    white-space: nowrap;
+}
+.calendar-grid {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+    border-top: 1px solid var(--bs-border-color);
+}
+.calendar-grid-header {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    border-bottom: 1px solid var(--bs-border-color);
+    background: var(--bs-tertiary-bg);
+}
+.calendar-grid-weekday {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--bs-secondary-color);
+    border-right: 1px solid var(--bs-border-color);
+    min-width: 0;
+}
+.calendar-grid-weekday:last-child {
+    border-right: 0;
+}
+.calendar-grid-row {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    flex: 1 1 auto;
+    border-bottom: 1px solid var(--bs-border-color);
+}
+.calendar-grid-row:last-child {
+    border-bottom: 0;
+}
+.calendar-grid-cell {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 6.25rem;
+    padding: 0.25rem;
+    border-right: 1px solid var(--bs-border-color);
+}
+.calendar-grid-cell:last-child {
+    border-right: 0;
+}
+.calendar-grid-cell-outside {
+    background: var(--bs-tertiary-bg);
+}
+.calendar-grid-cell-outside .calendar-grid-day-number {
+    color: var(--bs-secondary-color);
+    font-weight: 400;
+}
+.calendar-grid-cell-today {
+    background: var(--bs-primary-bg-subtle);
+}
+.calendar-grid-cell-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.25rem;
+    margin-bottom: 0.25rem;
+}
+.calendar-grid-day-number {
+    font-size: 0.8rem;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--bs-body-color);
+}
+.calendar-grid-cell-today .calendar-grid-day-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.4rem;
+    height: 1.4rem;
+    border-radius: 50%;
+    background: var(--bs-primary);
+    color: #fff;
+}
+.calendar-grid-add {
+    padding: 0.15rem 0.3rem;
+    font-size: 0.75rem;
+    line-height: 1;
+    color: var(--bs-secondary-color);
+    border-radius: 0.3rem;
+    opacity: 0.45;
+    transition: opacity 0.15s ease, color 0.15s ease;
+}
+.calendar-grid-add:hover {
+    opacity: 1;
+    color: var(--bs-primary);
+}
+.calendar-grid-events {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-height: 0;
+}
+.calendar-event-chip {
+    display: flex;
+    align-items: baseline;
+    gap: 0.3rem;
+    min-width: 0;
+    padding: 0.15rem 0.4rem;
+    font-size: 0.75rem;
+    line-height: 1.35;
+    color: var(--bs-primary-text-emphasis);
+    background: var(--bs-primary-bg-subtle);
+    border-radius: 0.35rem;
+    text-decoration: none;
+}
+.calendar-event-chip:hover {
+    color: var(--bs-primary-text-emphasis);
+    background: var(--bs-primary-border-subtle);
+    text-decoration: none;
+}
+.calendar-event-time {
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.85;
+}
+.calendar-event-title {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+.calendar-event-recurrence {
+    flex-shrink: 0;
+    font-size: 0.6rem;
+    opacity: 0.7;
+}
+.calendar-event-chip-allday {
+    color: #fff;
+    background: var(--bs-primary);
+}
+.calendar-event-chip-allday:hover {
+    color: #fff;
+    background: var(--bs-primary);
+    filter: brightness(0.92);
+}
+.calendar-event-more {
+    align-self: flex-start;
+    padding: 0.05rem 0.35rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--bs-secondary-color);
+    border-radius: 0.3rem;
+    text-decoration: none;
+}
+.calendar-event-more:hover {
+    color: var(--bs-body-color);
+    background: var(--bs-secondary-bg);
+    text-decoration: none;
+}
+.calendar-grid-week .calendar-grid-cell {
+    min-height: 16rem;
+}
+.calendar-grid-week .calendar-grid-weekday {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    font-size: 0.8rem;
+}
+.calendar-grid-weekday-today {
+    color: var(--bs-primary-text-emphasis);
+}
+.calendar-grid-day-link {
+    font-size: 0.9rem;
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--bs-body-color);
+    text-decoration: none;
+}
+.calendar-grid-day-link:hover {
+    color: var(--bs-primary);
+    text-decoration: none;
+}
+.calendar-grid-day-link-today {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.4rem;
+    height: 1.4rem;
+    border-radius: 50%;
+    background: var(--bs-primary);
+    color: #fff;
+}
+.calendar-grid-day-link-today:hover {
+    color: #fff;
+    background: var(--bs-primary);
+    filter: brightness(1.1);
+}
+.calendar-day-time {
+    min-width: 5.5rem;
+    font-variant-numeric: tabular-nums;
+}
+.calendar-day-item-allday {
+    background: var(--bs-primary-bg-subtle);
+}

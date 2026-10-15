@@ -1,0 +1,44 @@
+{# Params:
+    grid (array<string, mixed>) — week grid data: {anchor, start, end, days: 7 day cells}
+    activeMailboxId (string) — active mailbox id or 'all'
+    search (string) — active search term
+#}
+{% set scopeParams = activeMailboxId != 'all' ? {mailbox: activeMailboxId} : {} %}
+{% set qParams = search is not empty ? {q: search} : {} %}
+<div class="calendar-grid calendar-grid-week" role="grid" aria-label="{{ 'calendar.view.week'|trans }}">
+    <div class="calendar-grid-header" role="row">
+        {% for day in grid.days %}
+            <div class="calendar-grid-weekday {{ day.isToday ? 'calendar-grid-weekday-today' : '' }}" role="columnheader">
+                <span class="calendar-grid-weekday-name">{{ ('calendar.weekday_short.' ~ day.date|date('N'))|trans }}</span>
+                <a href="{{ path('calendar_month', {monthKey: day.date|date('Y-m'), view: 'day', date: day.date|date('Y-m-d')}|merge(scopeParams)|merge(qParams)) }}"
+                   class="calendar-grid-day-link {{ day.isToday ? 'calendar-grid-day-link-today' : '' }}"
+                   aria-label="{{ ('calendar.weekday.' ~ day.date|date('N'))|trans }}, {{ day.date|date('d.m.') }}"
+                   title="{{ ('calendar.weekday.' ~ day.date|date('N'))|trans }}">{{ day.date|date('j') }}</a>
+            </div>
+        {% endfor %}
+    </div>
+    <div class="calendar-grid-row calendar-grid-row-week" role="row">
+        {% for day in grid.days %}
+            <div class="calendar-grid-cell {{ day.isToday ? 'calendar-grid-cell-today' : '' }}" data-date="{{ day.date|date('Y-m-d') }}" role="gridcell">
+                <div class="calendar-grid-cell-head justify-content-end">
+                    <a href="{{ path('calendar_new_modal', {date: day.date|date('Y-m-d')}) }}"
+                       class="action-btn-modal calendar-grid-add {{ license_manager.isReadOnly ? 'd-none' }}"
+                       data-title="{{ 'calendar.new'|trans }}"
+                       title="{{ 'calendar.new_on'|trans({'%date%': day.date|date('d.m.')}) }}"
+                       aria-label="{{ 'calendar.new_on'|trans({'%date%': day.date|date('d.m.')}) }}"><i class="fa-solid fa-plus" aria-hidden="true"></i></a>
+                </div>
+                <div class="calendar-grid-events">
+                    {% for event in day.events|slice(0, 8) %}
+                        {% include 'calendar/_event_chip.html.twig' with {event: event, monthKey: day.date|date('Y-m')} %}
+                    {% endfor %}
+                    {% if day.events|length > 8 %}
+                        <a href="{{ path('calendar_month', {monthKey: day.date|date('Y-m'), view: 'day', date: day.date|date('Y-m-d')}|merge(scopeParams)|merge(qParams)) }}"
+                           class="calendar-event-more"
+                           title="{{ 'calendar.more_aria'|trans({'%count%': day.events|length - 8}) }}"
+                           aria-label="{{ 'calendar.more_aria'|trans({'%count%': day.events|length - 8}) }}">+{{ day.events|length - 8 }}</a>
+                    {% endif %}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</div>

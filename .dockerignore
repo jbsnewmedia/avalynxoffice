@@ -1,0 +1,13 @@
+.git
+.github
+.idea
+.phpunit.cache
+.php-cs-fixer.cache
+var
+vendor
+vendor-bin/*/vendor
+node_modules
+mail_dumps
+docker/postgres
+*.md
+!README.md

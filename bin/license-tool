@@ -1,0 +1,308 @@
+#!/usr/bin/env php
+<?php
+
+/*
+ * Standalone license issuance tool for Weboffice.
+ *
+ * This tool belongs to the license issuer ONLY. It must never be shipped
+ * with a production installation, never be placed in a public Docker image
+ * and never be committed together with a private signing key. The Symfony
+ * application itself is fully functional without it.
+ *
+ * Usage:
+ *   php bin/license-tool keygen --output-dir keys
+ *   php bin/license-tool issue --secret-key keys/issuer.secret --key-id issuer-2026-01 \
+ *       --license-id LIC-2026-000001 --customer-id CUSTOMER-001 --organization-id org-example \
+ *       --additional-seats 7 [--valid-from 2026-10-13T00:00:00Z] [--expires-at 2027-10-13T00:00:00Z] \
+ *       [--installation-id <id>]
+ *   php bin/license-tool decode --license WOL1....
+ *   php bin/license-tool verify --license WOL1.... --public-key keys/issuer.public
+ */
+
+declare(strict_types=1);
+
+if (PHP_SAPI !== 'cli') {
+    fwrite(STDERR, "This tool must be run from the command line.\n");
+
+    exit(1);
+}
+
+if (!function_exists('sodium_crypto_sign_keypair')) {
+    fwrite(STDERR, "The ext-sodium extension is required.\n");
+
+    exit(1);
+}
+
+const WOL1_PREFIX = 'WOL1';
+
+/**
+ * Decodes a Base64URL string without padding.
+ */
+function base64url_decode(string $data): string
+{
+    $remainder = strlen($data) % 4;
+    if (0 !== $remainder) {
+        $data .= str_repeat('=', 4 - $remainder);
+    }
+
+    $decoded = base64_decode(strtr($data, '-_', '+/'), true);
+    if (false === $decoded) {
+        throw new InvalidArgumentException('The value is not valid Base64URL.');
+    }
+
+    return $decoded;
+}
+
+exit((int) !main($argv));
+
+/**
+ * @param list<string> $argv
+ */
+function main(array $argv): bool
+{
+    $command = $argv[1] ?? '';
+
+    try {
+        return match ($command) {
+            'keygen' => keygen(parseOptions(array_slice($argv, 2))),
+            'issue' => issue(parseOptions(array_slice($argv, 2))),
+            'decode' => decode(parseOptions(array_slice($argv, 2))),
+            'verify' => verify(parseOptions(array_slice($argv, 2))),
+            default => usage(),
+        };
+    } catch (\Throwable $e) {
+        fwrite(STDERR, 'ERROR: '.$e->getMessage()."\n");
+
+        return false;
+    }
+}
+
+/**
+ * @return array<string, string|bool>
+ */
+function parseOptions(array $args): array
+{
+    $options = [];
+    $count = count($args);
+    for ($i = 0; $i < $count; ++$i) {
+        $arg = $args[$i];
+        if (!str_starts_with($arg, '--')) {
+            continue;
+        }
+
+        $name = substr($arg, 2);
+        if (isset($args[$i + 1]) && !str_starts_with($args[$i + 1], '--')) {
+            $options[$name] = $args[$i + 1];
+            ++$i;
+
+            continue;
+        }
+
+        $options[$name] = true;
+    }
+
+    return $options;
+}
+
+function usage(): bool
+{
+    fwrite(STDERR, <<<'HELP'
+    Weboffice license tool (issuer side only)
+
+    Commands:
+      keygen   --output-dir <dir> [--key-id <id>]
+               Generates an Ed25519 keypair. The secret key signs licenses,
+               the public key is configured in the application via
+               WEBOFFICE_LICENSE_PUBLIC_KEYS.
+
+      issue    --secret-key <file> --key-id <id> --license-id <id>
+                --customer-id <id> --organization-id <id>
+                --additional-seats <n> [--valid-from <iso8601-utc>]
+                [--expires-at <iso8601-utc>] [--installation-id <id>]
+               Prints the signed license key (WOL1.PAYLOAD.SIGNATURE).
+
+      decode   --license <key>
+               Decodes a license key for diagnosis (no verification).
+
+      verify   --license <key> --public-key <file>
+               Independently verifies the Ed25519 signature and payload.
+
+    HELP);
+
+    return false;
+}
+
+/**
+ * @param array<string, string|bool> $options
+ */
+function keygen(array $options): bool
+{
+    $outputDir = isset($options['output-dir']) && is_string($options['output-dir'])
+        ? rtrim($options['output-dir'], '/')
+        : '.';
+    $keyId = isset($options['key-id']) && is_string($options['key-id'])
+        ? $options['key-id']
+        : gmdate('Y-m-d');
+
+    $keyPair = sodium_crypto_sign_keypair();
+    $secret = sodium_crypto_sign_secretkey($keyPair);
+    $public = sodium_crypto_sign_publickey($keyPair);
+
+    if (!is_dir($outputDir) && !mkdir($outputDir, 0700, true) && !is_dir($outputDir)) {
+        throw new RuntimeException(sprintf('Output directory "%s" could not be created.', $outputDir));
+    }
+
+    $secretPath = sprintf('%s/%s.secret', $outputDir, $keyId);
+    $publicPath = sprintf('%s/%s.public', $outputDir, $keyId);
+
+    file_put_contents($secretPath, base64_encode($secret)."\n");
+    chmod($secretPath, 0600);
+    file_put_contents($publicPath, base64_encode($public)."\n");
+
+    printf(
+        "Ed25519 keypair generated.\n\n  Secret key (KEEP SAFE, never commit, never ship):\n    %s\n\n  Public key (configure in WEBOFFICE_LICENSE_PUBLIC_KEYS):\n    %s\n    value: %s\n\nExample application configuration:\n  WEBOFFICE_LICENSE_PUBLIC_KEYS='{\"%s\":\"%s\"}'\n",
+        $secretPath,
+        $publicPath,
+        trim((string) file_get_contents($publicPath)),
+        $keyId,
+        trim((string) file_get_contents($publicPath)),
+    );
+
+    return true;
+}
+
+/**
+ * @param array<string, string|bool> $options
+ */
+function issue(array $options): bool
+{
+    foreach (['secret-key', 'key-id', 'license-id', 'customer-id', 'organization-id'] as $required) {
+        if (!isset($options[$required]) || !is_string($options[$required]) || '' === $options[$required]) {
+            throw new InvalidArgumentException(sprintf('Missing required option --%s', $required));
+        }
+    }
+
+    $seatsRaw = $options['additional-seats'] ?? null;
+    if (!is_string($seatsRaw) || !preg_match('/^\d+$/', $seatsRaw) || (int) $seatsRaw < 1) {
+        throw new InvalidArgumentException('--additional-seats must be a positive integer');
+    }
+
+    $secretBase64 = trim((string) file_get_contents((string) $options['secret-key']));
+    $secret = base64_decode($secretBase64, true);
+    if (false === $secret || SODIUM_CRYPTO_SIGN_SECRETKEYBYTES !== strlen($secret)) {
+        throw new InvalidArgumentException('The secret key file does not contain a valid Ed25519 secret key.');
+    }
+
+    $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
+    $validFrom = isset($options['valid-from']) && is_string($options['valid-from'])
+        ? new DateTimeImmutable($options['valid-from'])
+        : $now;
+    $expiresAt = isset($options['expires-at']) && is_string($options['expires-at'])
+        ? new DateTimeImmutable($options['expires-at'])
+        : $now->modify('+1 year');
+
+    if ($expiresAt <= $validFrom) {
+        throw new InvalidArgumentException('--expires-at must be after --valid-from');
+    }
+
+    $payload = [
+        'version' => 1,
+        'key_id' => (string) $options['key-id'],
+        'license_id' => (string) $options['license-id'],
+        'customer_id' => (string) $options['customer-id'],
+        'organization_id' => (string) $options['organization-id'],
+        'additional_seats' => (int) $seatsRaw,
+        'valid_from' => $validFrom->setTimezone(new DateTimeZone('UTC'))->format(DATE_ATOM),
+        'expires_at' => $expiresAt->setTimezone(new DateTimeZone('UTC'))->format(DATE_ATOM),
+        'installation_id' => isset($options['installation-id']) && is_string($options['installation-id']) && '' !== $options['installation-id']
+            ? $options['installation-id']
+            : null,
+    ];
+
+    $json = json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+    $encodedPayload = rtrim(strtr(base64_encode($json), '+/', '-_'), '=');
+    $signedContent = WOL1_PREFIX.'.'.$encodedPayload;
+    $signature = sodium_crypto_sign_detached($signedContent, $secret);
+    $encodedSignature = rtrim(strtr(base64_encode($signature), '+/', '-_'), '=');
+
+    printf("%s.%s\n", $signedContent, $encodedSignature);
+
+    return true;
+}
+
+/**
+ * @param array<string, string|bool> $options
+ */
+function decode(array $options): bool
+{
+    $license = $options['license'] ?? null;
+    if (!is_string($license) || '' === $license) {
+        throw new InvalidArgumentException('Missing required option --license');
+    }
+
+    $parts = explode('.', $license);
+    if (3 !== count($parts) || WOL1_PREFIX !== $parts[0]) {
+        throw new InvalidArgumentException('Invalid license key format');
+    }
+
+    $payloadRaw = base64url_decode($parts[1]);
+    $signature = base64url_decode($parts[2]);
+
+    $payload = json_decode($payloadRaw, true, 6, JSON_THROW_ON_ERROR);
+    if (!is_array($payload)) {
+        throw new InvalidArgumentException('License payload is not a JSON object');
+    }
+
+    printf("Signed content : %s.%s\n", WOL1_PREFIX, $parts[1]);
+    printf("Signature      : %d bytes, Base64URL: %s\n", strlen($signature), $parts[2]);
+    echo "Payload        :\n";
+    echo json_encode($payload, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), "\n";
+
+    return true;
+}
+
+/**
+ * @param array<string, string|bool> $options
+ */
+function verify(array $options): bool
+{
+    foreach (['license', 'public-key'] as $required) {
+        if (!isset($options[$required]) || !is_string($options[$required]) || '' === $options[$required]) {
+            throw new InvalidArgumentException(sprintf('Missing required option --%s', $required));
+        }
+    }
+
+    $license = (string) $options['license'];
+    $parts = explode('.', $license);
+    if (3 !== count($parts) || WOL1_PREFIX !== $parts[0]) {
+        throw new InvalidArgumentException('Invalid license key format');
+    }
+
+    $publicBase64 = trim((string) file_get_contents((string) $options['public-key']));
+    $public = base64_decode($publicBase64, true);
+    if (false === $public || SODIUM_CRYPTO_SIGN_PUBLICKEYBYTES !== strlen($public)) {
+        throw new InvalidArgumentException('The public key file does not contain a valid Ed25519 public key.');
+    }
+
+    $payloadRaw = base64url_decode($parts[1]);
+    $signature = base64url_decode($parts[2]);
+
+    $signedContent = WOL1_PREFIX.'.'.$parts[1];
+    $valid = sodium_crypto_sign_verify_detached((string) $signature, $signedContent, $public);
+
+    printf("Signature: %s\n", $valid ? 'VALID' : 'INVALID');
+
+    if (!$valid) {
+        return false;
+    }
+
+    $payload = json_decode($payloadRaw, true, 6, JSON_THROW_ON_ERROR);
+    if (!is_array($payload)) {
+        throw new InvalidArgumentException('License payload is not a JSON object');
+    }
+
+    echo "Payload:\n";
+    echo json_encode($payload, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), "\n";
+
+    return true;
+}

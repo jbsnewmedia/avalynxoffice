@@ -1,0 +1,32 @@
+{# Params: entitlement (App\Licensing\Model\LicenseEntitlement) #}
+<div class="card shadow-sm">
+    <div class="card-body">
+        <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+            <div class="fs-5 fw-semibold">{{ 'license.status'|trans }}</div>
+            {% set statusBadge = {
+                'COMMUNITY': 'bg-success-subtle text-body',
+                'VALID': 'bg-success-subtle text-body',
+                'GRACE_PERIOD': 'bg-warning-subtle text-body',
+                'READ_ONLY': 'bg-danger-subtle text-body',
+            } %}
+            <span class="badge {{ statusBadge[entitlement.status.value] ?? 'bg-secondary' }}">
+                <i class="fa-solid {{ entitlement.isReadOnly ? 'fa-lock' : 'fa-circle-check' }} me-1" aria-hidden="true"></i>
+                {{ ('license.status.' ~ entitlement.status.value|lower)|trans }}
+            </span>
+        </div>
+        <dl class="row mb-0">
+            <dt class="col-sm-6">{{ 'license.used_seats'|trans }}</dt>
+            <dd class="col-sm-6">{{ entitlement.usedSeats }}</dd>
+            <dt class="col-sm-6">{{ 'license.allowed_seats'|trans }}</dt>
+            <dd class="col-sm-6">{{ entitlement.allowedSeats }}</dd>
+            <dt class="col-sm-6">{{ 'license.free_seats'|trans }}</dt>
+            <dd class="col-sm-6">{{ entitlement.getFreeSeats }}</dd>
+            {% if entitlement.gracePeriodEndsAt %}
+                <dt class="col-sm-6">{{ 'license.grace_until'|trans }}</dt>
+                <dd class="col-sm-6">{{ entitlement.gracePeriodEndsAt|date('Y-m-d H:i') }} UTC</dd>
+            {% endif %}
+            <dt class="col-sm-6">{{ 'license.organization'|trans }}</dt>
+            <dd class="col-sm-6"><code>{{ entitlement.organizationId }}</code></dd>
+        </dl>
+    </div>
+</div>

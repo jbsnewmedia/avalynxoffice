@@ -1,0 +1,23 @@
+{
+    "name": "jbsnewmedia/mail-action-bundle",
+    "version": "0.1.0",
+    "description": "Plugin-based mail action buttons (compose + email actions) with priority, position and override support",
+    "type": "symfony-bundle",
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.4",
+        "symfony/framework-bundle": "^7.4 || ^8.0",
+        "symfony/twig-bundle": "^7.4 || ^8.0",
+        "twig/twig": "^3.22"
+    },
+    "autoload": {
+        "psr-4": {
+            "JBSNewMedia\\MailActionBundle\\": "src/"
+        }
+    },
+    "extra": {
+        "symfony": {
+            "bundle": "JBSNewMedia\\MailActionBundle\\MailActionBundle"
+        }
+    }
+}

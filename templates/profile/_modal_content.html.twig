@@ -1,0 +1,25 @@
+<div class="p-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-body">
+            <strong>{{ 'profile.title'|trans }}</strong>
+        </div>
+        <div class="card-body">
+            {% if user %}
+                <div class="mb-3">
+                    <label class="form-label text-body-secondary small">{{ 'profile.email'|trans }}</label>
+                    <div class="fw-semibold">{{ user.email }}</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-body-secondary small">{{ 'profile.roles'|trans }}</label>
+                    <div>
+                        {% for role in user.roles %}
+                            <span class="badge bg-body-tertiary text-dark border">{{ role }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% else %}
+                <p class="text-danger">{{ 'profile.no_user'|trans }}</p>
+            {% endif %}
+        </div>
+    </div>
+</div>

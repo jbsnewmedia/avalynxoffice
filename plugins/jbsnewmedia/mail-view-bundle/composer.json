@@ -1,0 +1,23 @@
+{
+    "name": "jbsnewmedia/mail-view-bundle",
+    "version": "0.1.0",
+    "description": "Plugin-based mail detail view rendering",
+    "type": "symfony-bundle",
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.4",
+        "symfony/framework-bundle": "^7.4 || ^8.0",
+        "symfony/twig-bundle": "^7.4 || ^8.0",
+        "twig/twig": "^3.22"
+    },
+    "autoload": {
+        "psr-4": {
+            "JBSNewMedia\\MailViewBundle\\": "src/"
+        }
+    },
+    "extra": {
+        "symfony": {
+            "bundle": "JBSNewMedia\\MailViewBundle\\MailViewBundle"
+        }
+    }
+}

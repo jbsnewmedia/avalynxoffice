@@ -1,0 +1,43 @@
+{
+    "plugins": [
+        {
+            "package": "jbsnewmedia/mail-action-bundle",
+            "path": "plugins/jbsnewmedia/mail-action-bundle",
+            "bundle": "JBSNewMedia\\MailActionBundle\\MailActionBundle",
+            "active": true,
+            "environments": [
+                "all"
+            ],
+            "autoload": {
+                "psr-4": {
+                    "JBSNewMedia\\MailActionBundle\\": [
+                        "plugins/jbsnewmedia/mail-action-bundle/src"
+                    ]
+                }
+            },
+            "routes": {
+                "resource": {
+                    "path": "plugins/jbsnewmedia/mail-action-bundle/src/Controller",
+                    "namespace": "JBSNewMedia\\MailActionBundle\\Controller"
+                },
+                "type": "attribute"
+            }
+        },
+        {
+            "package": "jbsnewmedia/mail-view-bundle",
+            "path": "plugins/jbsnewmedia/mail-view-bundle",
+            "bundle": "JBSNewMedia\\MailViewBundle\\MailViewBundle",
+            "active": true,
+            "environments": [
+                "all"
+            ],
+            "autoload": {
+                "psr-4": {
+                    "JBSNewMedia\\MailViewBundle\\": [
+                        "plugins/jbsnewmedia/mail-view-bundle/src"
+                    ]
+                }
+            }
+        }
+    ]
+}

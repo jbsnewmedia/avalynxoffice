@@ -1,0 +1,30 @@
+<div class="p-4 modal-form-ajax-success">
+    <div class="d-flex align-items-center mb-4">
+        <a href="{{ path('app_settings') }}" class="btn btn-outline-secondary me-2 action-btn-modal" data-title="{{ 'settings.title'|trans }}" data-modal-size="modal-xl" data-dismiss-label="{{ 'common.close'|trans }}" aria-label="{{ 'common.back'|trans }}" title="{{ 'common.back'|trans }}">
+            <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+        </a>
+        <h4 class="m-0">{{ 'license.title'|trans }}</h4>
+    </div>
+
+    {% include 'license/_status.html.twig' %}
+
+    {% if entitlement.isReadOnly %}
+        <div class="alert alert-danger mt-4 mb-0" role="alert">
+            <i class="fa-solid fa-triangle-exclamation me-2" aria-hidden="true"></i>{{ 'license.warning.read_only'|trans }}
+        </div>
+    {% elseif entitlement.isOverLimit %}
+        <div class="alert alert-warning mt-4 mb-0" role="alert">
+            <i class="fa-solid fa-triangle-exclamation me-2" aria-hidden="true"></i>{{ 'license.warning.grace'|trans }}
+        </div>
+    {% endif %}
+
+    {% include 'license/_diagnostics.html.twig' %}
+
+    <div class="card shadow-sm mt-4">
+        <div class="card-body">
+            <p class="mb-2">{{ 'license.info.terms'|trans }}</p>
+            <p class="mb-2">{{ 'license.info.commercial'|trans({'%email%': 'licensing@jbs-newmedia.com'}) }}</p>
+            <p class="mb-0">{{ 'license.info.nonprofit'|trans }}</p>
+        </div>
+    </div>
+</div>

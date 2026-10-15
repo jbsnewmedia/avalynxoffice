@@ -1,0 +1,120 @@
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    JBSNewMedia\MailActionBundle\:
+        resource: '../../'
+        exclude:
+            - '../../DependencyInjection/'
+            - '../../Model/'
+            - '../../Contract/'
+            - '../../Twig/'
+
+    JBSNewMedia\MailActionBundle\Registry\ComposeButtonRegistry: ~
+    JBSNewMedia\MailActionBundle\Registry\EmailActionRegistry: ~
+    JBSNewMedia\MailActionBundle\Registry\ContactActionRegistry: ~
+    JBSNewMedia\MailActionBundle\Registry\CalendarActionRegistry: ~
+    JBSNewMedia\MailActionBundle\Plugin\DefaultComposeButtonPlugin:
+        tags:
+            -
+                name: !php/const JBSNewMedia\MailActionBundle\DependencyInjection\MailActionTags::COMPOSE_BUTTON
+                id: 'mail.compose.default_new_email'
+                priority: 0
+                position: 100
+
+    JBSNewMedia\MailActionBundle\Plugin\EmailAction\EmailToggleReadActionPlugin:
+        tags:
+            -
+                name: !php/const JBSNewMedia\MailActionBundle\DependencyInjection\MailActionTags::EMAIL_ACTION
+                id: 'mail.email.action.read_state'
+                priority: 0
+                position: 100
+
+    JBSNewMedia\MailActionBundle\Plugin\EmailAction\EmailReplyOrEditActionPlugin:
+        tags:
+            -
+                name: !php/const JBSNewMedia\MailActionBundle\DependencyInjection\MailActionTags::EMAIL_ACTION
+                id: 'mail.email.action.reply_or_edit'
+                priority: 0
+                position: 90
+
+    JBSNewMedia\MailActionBundle\Plugin\EmailAction\EmailReplyAllActionPlugin:
+        tags:
+            -
+                name: !php/const JBSNewMedia\MailActionBundle\DependencyInjection\MailActionTags::EMAIL_ACTION
+                id: 'mail.email.action.reply_all'
+                priority: 0
+                position: 85
+
+    JBSNewMedia\MailActionBundle\Plugin\EmailAction\EmailPrintActionPlugin:
+        tags:
+            -
+                name: !php/const JBSNewMedia\MailActionBundle\DependencyInjection\MailActionTags::EMAIL_ACTION
+                id: 'mail.email.action.print'
+                priority: 0
+                position: 80
+
+    JBSNewMedia\MailActionBundle\Plugin\EmailAction\EmailForwardActionPlugin:
+        tags:
+            -
+                name: !php/const JBSNewMedia\MailActionBundle\DependencyInjection\MailActionTags::EMAIL_ACTION
+                id: 'mail.email.action.forward'
+                priority: 0
+                position: 70
+
+    JBSNewMedia\MailActionBundle\Plugin\EmailAction\EmailMoveActionPlugin:
+        tags:
+            -
+                name: !php/const JBSNewMedia\MailActionBundle\DependencyInjection\MailActionTags::EMAIL_ACTION
+                id: 'mail.email.action.move'
+                priority: 0
+                position: 60
+
+    JBSNewMedia\MailActionBundle\Plugin\EmailAction\EmailMarkSpamActionPlugin:
+        tags:
+            -
+                name: !php/const JBSNewMedia\MailActionBundle\DependencyInjection\MailActionTags::EMAIL_ACTION
+                id: 'mail.email.action.mark_spam'
+                priority: 0
+                position: 50
+
+    JBSNewMedia\MailActionBundle\Plugin\EmailAction\EmailDeleteActionPlugin:
+        tags:
+            -
+                name: !php/const JBSNewMedia\MailActionBundle\DependencyInjection\MailActionTags::EMAIL_ACTION
+                id: 'mail.email.action.delete'
+                priority: 0
+                position: 10
+
+    JBSNewMedia\MailActionBundle\Plugin\ContactAction\ContactEditActionPlugin:
+        tags:
+            -
+                name: !php/const JBSNewMedia\MailActionBundle\DependencyInjection\MailActionTags::CONTACT_ACTION
+                id: 'mail.contact.action.edit'
+                priority: 0
+                position: 90
+
+    JBSNewMedia\MailActionBundle\Plugin\ContactAction\ContactDeleteActionPlugin:
+        tags:
+            -
+                name: !php/const JBSNewMedia\MailActionBundle\DependencyInjection\MailActionTags::CONTACT_ACTION
+                id: 'mail.contact.action.delete'
+                priority: 0
+                position: 10
+
+    JBSNewMedia\MailActionBundle\Plugin\CalendarAction\CalendarEditActionPlugin:
+        tags:
+            -
+                name: !php/const JBSNewMedia\MailActionBundle\DependencyInjection\MailActionTags::CALENDAR_ACTION
+                id: 'mail.calendar.action.edit'
+                priority: 0
+                position: 90
+
+    JBSNewMedia\MailActionBundle\Plugin\CalendarAction\CalendarDeleteActionPlugin:
+        tags:
+            -
+                name: !php/const JBSNewMedia\MailActionBundle\DependencyInjection\MailActionTags::CALENDAR_ACTION
+                id: 'mail.calendar.action.delete'
+                priority: 0
+                position: 10

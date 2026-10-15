@@ -1,0 +1,13 @@
+# Basis for core and plugin code quality
+parameters:
+    paths:
+        - src
+        - plugins/jbsnewmedia/mail-action-bundle/src
+        - plugins/jbsnewmedia/mail-view-bundle/src
+    bootstrapFiles:
+        - vendor-bin/phpstan/vendor/autoload.php
+        - vendor/autoload.php
+    level: max
+    treatPhpDocTypesAsCertain: false
+    doctrine:
+        allowNullablePropertyForRequiredField: true

@@ -1,0 +1,70 @@
+{% extends 'base.html.twig' %}
+{% block javascripts %}
+    {{ parent() }}
+    <script id="i18n-mail" type="application/json"
+            data-loading-email={{ 'js.loading_email'|trans|json_encode|raw }}
+            data-load-more={{ 'js.load_more'|trans|json_encode|raw }}
+            data-email-load-error={{ 'js.email_load_error'|trans|json_encode|raw }}
+            data-no-results={{ 'js.no_results'|trans|json_encode|raw }}
+            data-already-in-folder={{ 'js.already_in_folder'|trans|json_encode|raw }}
+            data-unexpected-response={{ 'js.unexpected_response'|trans|json_encode|raw }}
+            data-move-failed={{ 'js.move_failed'|trans|json_encode|raw }}
+            data-moved-to-folder={{ 'js.moved_to_folder'|trans({'%name%': '__NAME__'})|json_encode|raw }}
+            data-read-label={{ 'js.read_label'|trans|json_encode|raw }}
+            data-unread-label={{ 'js.unread_label'|trans|json_encode|raw }}
+            data-folder-unread-aria={{ 'folder.unread_emails_count'|trans({'%count%': '__COUNT__'})|json_encode|raw }}>
+    </script>
+{% endblock %}
+{% block stylesheets %}
+    {% include '_assets.html.twig' with { mode: 'user' } %}
+    {{ parent() }}
+{% endblock %}
+{% block title %}{{ 'app.title'|trans }}{% endblock %}
+{% block body %}
+{% include '_navbar.html.twig' with { showMailToggles: true, activeModule: 'mail' } %}
+<div class="offcanvas offcanvas-start" tabindex="-1" id="mailboxOffcanvas" aria-labelledby="mailboxOffcanvasLabel" role="dialog" aria-modal="true">
+    <div class="offcanvas-header text-bg-primary">
+        <h5 class="offcanvas-title" id="mailboxOffcanvasLabel">{{ 'offcanvas.mailboxes_and_folders'|trans }}</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="{{ 'common.close'|trans }}"></button>
+    </div>
+    <div class="offcanvas-body p-0">
+        <aside class="bg-body">
+            {% include 'mail/_mailboxes.html.twig' with { mailboxes: mailboxes, activeMailbox: activeMailbox } %}
+            <div id="folders-container">
+                {% include 'mail/_folders.html.twig' with { folders: folders, activeFolder: activeFolder, activeMailbox: activeMailbox, folderEmailCounts: folderEmailCounts } %}
+            </div>
+        </aside>
+    </div>
+</div>
+<div class="offcanvas offcanvas-start" tabindex="-1" id="emailListOffcanvas" aria-labelledby="emailListOffcanvasLabel" role="dialog" aria-modal="true">
+    <div class="offcanvas-header text-bg-primary">
+        <h5 class="offcanvas-title" id="emailListOffcanvasLabel">{{ 'offcanvas.emails'|trans }}</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="{{ 'common.close'|trans }}"></button>
+    </div>
+    <div class="offcanvas-body p-0">
+        <section class="bg-body">
+            {% include 'mail/_email_list.html.twig' with { emails: emails, activeEmail: activeEmail, activeMailbox: activeMailbox, activeFolder: activeFolder } %}
+        </section>
+    </div>
+</div>
+<div class="container-fluid">
+    <div class="row">
+        <aside class="col-xxl-2 d-none d-xxl-block mail-body-height overflow-auto bg-body shadow-sm p-0 border-end">
+            {% include 'mail/_mailboxes.html.twig' with { mailboxes: mailboxes, activeMailbox: activeMailbox } %}
+            {% include 'mail/_folders.html.twig' with { folders: folders, activeFolder: activeFolder, activeMailbox: activeMailbox, folderEmailCounts: folderEmailCounts } %}
+        </aside>
+        <section class="col-xxl-3 d-none d-xxl-block mail-body-height overflow-auto p-0 bg-body border-end">
+            {% include 'mail/_email_list.html.twig' with { emails: emails, activeEmail: activeEmail, activeMailbox: activeMailbox, activeFolder: activeFolder } %}
+        </section>
+        <main class="col-xxl-7 col-12 mail-body-height overflow-auto bg-body p-0">
+            <div id="email-detail">
+                {% if activeEmail %}
+                    {% include emailDetailTemplate|default('mail/_email_detail.html.twig') with { email: activeEmail, activeMailboxId: activeMailbox ? activeMailbox.id : 'all' } %}
+                {% else %}
+                    <div class="p-5 text-center text-body-secondary">{{ 'emails.none_selected'|trans }}</div>
+                {% endif %}
+            </div>
+        </main>
+    </div>
+</div>
+{% endblock %}

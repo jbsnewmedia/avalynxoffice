@@ -1,0 +1,27 @@
+# Development image: like the production image, but ships the dev
+# dependencies and the composer-bin tooling (PHPUnit, PHPStan, ECS, Rector)
+# so the full quality gate set runs against a mounted working copy or
+# directly inside the image. Published as jbsnewmedia/avalynxoffice-dev
+# (latest) by the docker-image workflow.
+FROM webdevops/php-apache:8.5
+
+ENV WEB_DOCUMENT_ROOT=/app/public \
+    APP_ENV=dev \
+    APP_DEBUG=1 \
+    PHP_MEMORY_LIMIT=512M \
+    PHP_MAX_EXECUTION_TIME=300 \
+    PHP_POST_MAX_SIZE=200M \
+    PHP_UPLOAD_MAX_FILESIZE=100M \
+    PHP_DISMOD=ioncube \
+    PHP_ENMOD=mailparse
+
+WORKDIR /app
+
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+COPY . /app
+
+RUN composer install --optimize-autoloader --no-interaction --no-progress \
+    && composer bin ecs install --no-interaction --no-progress \
+    && composer bin phpstan install --no-interaction --no-progress \
+    && composer bin rector install --no-interaction --no-progress \
+    && chown -R application:application /app

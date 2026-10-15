@@ -1,0 +1,231 @@
+{
+    "type": "project",
+    "license": "proprietary",
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "require": {
+        "php": ">=8.5",
+        "ext-ctype": "*",
+        "ext-iconv": "*",
+        "ext-json": "*",
+        "avalynx/avalynx-alert": "^1.0.6",
+        "avalynx/avalynx-autocomplete": "^1.0.5",
+        "doctrine/dbal": "^4.5.0",
+        "doctrine/doctrine-bundle": "^3.3.2",
+        "doctrine/doctrine-fixtures-bundle": "^4.3.1",
+        "doctrine/doctrine-migrations-bundle": "^4.0.1",
+        "doctrine/orm": "^3.7.5",
+        "fakerphp/faker": "^1.24.1",
+        "fortawesome/font-awesome": "^7.3.1",
+        "jbsnewmedia/asset-composer-bundle": "^1.2",
+        "jbsnewmedia/bootstrap-bundle": "^1.1",
+        "jbsnewmedia/css-purger": "^1.0.4",
+        "jbsnewmedia/mail-action-bundle": ">=0.1@dev",
+        "laminas/laminas-mail": "^2.5.2",
+        "lipis/flag-icons": "^7.5",
+        "php-cs-fixer/shim": "^3.95.27",
+        "phpdocumentor/reflection-docblock": "^5.6.7",
+        "phpstan/phpdoc-parser": "^2.3.6",
+        "scssphp/scssphp": "^2.1.0",
+        "symfony/asset": "8.1.*",
+        "symfony/console": "8.1.*",
+        "symfony/doctrine-messenger": "8.1.*",
+        "symfony/dotenv": "8.1.*",
+        "symfony/expression-language": "8.1.*",
+        "symfony/flex": "^2.11.0",
+        "symfony/form": "8.1.*",
+        "symfony/framework-bundle": "8.1.*",
+        "symfony/http-client": "8.1.*",
+        "symfony/intl": "8.1.*",
+        "symfony/mailer": "8.1.*",
+        "symfony/maker-bundle": "^1.68",
+        "symfony/mime": "8.1.*",
+        "symfony/monolog-bundle": "^4.1",
+        "symfony/notifier": "8.1.*",
+        "symfony/process": "8.1.*",
+        "symfony/property-access": "8.1.*",
+        "symfony/property-info": "8.1.*",
+        "symfony/runtime": "8.1.*",
+        "symfony/security-bundle": "8.1.*",
+        "symfony/security-csrf": "8.1.*",
+        "symfony/serializer": "8.1.*",
+        "symfony/string": "8.1.*",
+        "symfony/translation": "8.1.*",
+        "symfony/twig-bundle": "8.1.*",
+        "symfony/uid": "8.1.*",
+        "symfony/validator": "8.1.*",
+        "symfony/web-link": "8.1.*",
+        "symfony/yaml": "8.1.*",
+        "twbs/bootstrap": "^5.3.8",
+        "twig/extra-bundle": "^2.12|^3.29.0",
+        "twig/twig": "^2.12|^3.30.0",
+        "zenstruck/foundry": "^2.14.1"
+    },
+    "require-dev": {
+        "bamarni/composer-bin-plugin": "^1.9.1",
+        "phpunit/phpunit": "^12.5.39",
+        "symfony/browser-kit": "8.1.*",
+        "symfony/css-selector": "8.1.*",
+        "symfony/debug-bundle": "8.1.*",
+        "symfony/stopwatch": "8.1.*",
+        "symfony/web-profiler-bundle": "8.1.*"
+    },
+    "config": {
+        "allow-plugins": {
+            "bamarni/composer-bin-plugin": true,
+            "php-http/discovery": true,
+            "symfony/flex": true,
+            "symfony/runtime": true
+        },
+        "bump-after-update": true,
+        "sort-packages": true
+    },
+    "repositories": [
+        {
+            "type": "path",
+            "url": "plugins/*/*",
+            "options": {
+                "symlink": true
+            }
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "App\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "App\\Tests\\": "tests/"
+        }
+    },
+    "replace": {
+        "symfony/polyfill-ctype": "*",
+        "symfony/polyfill-iconv": "*",
+        "symfony/polyfill-php72": "*",
+        "symfony/polyfill-php73": "*",
+        "symfony/polyfill-php74": "*",
+        "symfony/polyfill-php80": "*",
+        "symfony/polyfill-php81": "*",
+        "symfony/polyfill-php82": "*",
+        "symfony/polyfill-php83": "*",
+        "symfony/polyfill-php84": "*",
+        "symfony/polyfill-php85": "*"
+    },
+    "scripts": {
+        "auto-scripts": {
+            "cache:clear": "symfony-cmd",
+            "assets:install %PUBLIC_DIR%": "symfony-cmd"
+        },
+        "post-install-cmd": [
+            "@auto-scripts"
+        ],
+        "post-update-cmd": [
+            "@auto-scripts"
+        ],
+        "bin-ecs-install": [
+            "composer bin ecs install"
+        ],
+        "bin-ecs-update": [
+            "composer bin ecs update"
+        ],
+        "bin-ecs": [
+            "vendor-bin/ecs/vendor/bin/php-cs-fixer check --allow-risky=yes"
+        ],
+        "bin-ecs-fix": [
+            "vendor-bin/ecs/vendor/bin/php-cs-fixer fix --allow-risky=yes"
+        ],
+        "bin-ecs-v": [
+            "vendor-bin/ecs/vendor/bin/php-cs-fixer -V"
+        ],
+        "bin-phpstan-install": [
+            "composer bin phpstan install"
+        ],
+        "bin-phpstan-update": [
+            "composer bin phpstan update"
+        ],
+        "bin-phpstan": [
+            "vendor-bin/phpstan/vendor/bin/phpstan analyse --configuration=phpstan-global.neon"
+        ],
+        "bin-phpstan-v": [
+            "vendor-bin/phpstan/vendor/bin/phpstan -V"
+        ],
+        "bin-phpunit-install": [
+            "composer bin phpunit install"
+        ],
+        "bin-phpunit-update": [
+            "composer bin phpunit update"
+        ],
+        "bin-phpunit": [
+            "bash -lc 'status=0; vendor-bin/phpunit/vendor/bin/phpunit || status=$?; php bin/console doctrine:fixtures:load --no-interaction; restore_status=$?; if [ $restore_status -ne 0 ]; then exit $restore_status; fi; exit $status'"
+        ],
+        "bin-phpunit-no-coverage": [
+            "bash -lc 'status=0; vendor-bin/phpunit/vendor/bin/phpunit --configuration=phpunit-no-coverage.xml.dist || status=$?; php bin/console doctrine:fixtures:load --no-interaction; restore_status=$?; if [ $restore_status -ne 0 ]; then exit $restore_status; fi; exit $status'"
+        ],
+        "bin-phpunit-coverage": [
+            "bash -lc 'status=0; XDEBUG_MODE=coverage vendor-bin/phpunit/vendor/bin/phpunit --configuration=phpunit-coverage.xml.dist --coverage-html var/coverage || status=$?; php bin/console doctrine:fixtures:load --no-interaction; restore_status=$?; if [ $restore_status -ne 0 ]; then exit $restore_status; fi; exit $status'"
+        ],
+        "bin-phpunit-v": [
+            "vendor-bin/phpunit/vendor/bin/phpunit --version"
+        ],
+        "bin-rector-install": [
+            "composer bin rector install"
+        ],
+        "bin-rector-update": [
+            "composer bin rector update"
+        ],
+        "bin-rector": [
+            "vendor-bin/rector/vendor/bin/rector --dry-run"
+        ],
+        "bin-rector-process": [
+            "vendor-bin/rector/vendor/bin/rector process"
+        ],
+        "bin-rector-v": [
+            "vendor-bin/rector/vendor/bin/rector -V"
+        ],
+        "test": [
+            "@bin-phpunit-no-coverage"
+        ],
+        "test-coverage": [
+            "@bin-phpunit-coverage"
+        ],
+        "test-full": [
+            "@bin-phpunit"
+        ],
+        "test-watch": [
+            "bash -lc 'status=0; vendor-bin/phpunit/vendor/bin/phpunit --testdox || status=$?; php bin/console doctrine:fixtures:load --no-interaction; restore_status=$?; if [ $restore_status -ne 0 ]; then exit $restore_status; fi; exit $status'"
+        ],
+        "ci": [
+            "@bin-ecs",
+            "@bin-rector",
+            "@bin-phpstan",
+            "@bin-phpunit-no-coverage"
+        ],
+        "ci-fix": [
+            "@bin-ecs-fix",
+            "@bin-rector-process",
+            "@bin-phpstan",
+            "@bin-phpunit-no-coverage"
+        ],
+        "ci-coverage": [
+            "@bin-ecs",
+            "@bin-rector",
+            "@bin-phpstan",
+            "@bin-phpunit-coverage"
+        ]
+    },
+    "conflict": {
+        "symfony/symfony": "*"
+    },
+    "extra": {
+        "symfony": {
+            "allow-contrib": false,
+            "require": "8.1.*"
+        },
+        "bamarni-bin": {
+            "bin-links": false,
+            "target-directory": "vendor-bin",
+            "forward-command": true
+        }
+    }
+}

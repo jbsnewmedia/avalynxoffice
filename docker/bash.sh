@@ -1,0 +1,2 @@
+#!/bin/bash
+docker exec --user=application -it -w /app avalynxoffice-web-1 bash

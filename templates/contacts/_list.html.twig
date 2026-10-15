@@ -1,0 +1,48 @@
+{% set scopeParams = activeMailboxId is defined and activeMailboxId != 'all' ? {mailbox: activeMailboxId} : {} %}
+{% set contactBasePath = path('contact_group', {groupId: activeGroup}|merge(scopeParams)) %}
+<div class="sticky-top bg-body border-bottom shadow-sm">
+    <form class="input-group p-3" method="get" action="{{ contactBasePath }}" role="search">
+        {% if activeMailboxId is defined and activeMailboxId != 'all' %}
+            <input type="hidden" name="mailbox" value="{{ activeMailboxId }}">
+        {% endif %}
+        <label class="visually-hidden" for="contact-search-input">{{ 'contact.search'|trans }}</label>
+        <input type="search" class="form-control" id="contact-search-input" name="q" value="{{ search }}" placeholder="{{ 'search.placeholder'|trans }}" aria-label="{{ 'contact.search'|trans }}">
+        {% if search is not empty %}
+            <a class="btn btn-outline-secondary" type="button" href="{{ contactBasePath }}" aria-label="{{ 'search.clear'|trans }}" title="{{ 'search.clear'|trans }}">
+                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+            </a>
+        {% endif %}
+        <button class="btn btn-primary" type="submit" aria-label="{{ 'search.search'|trans }}" title="{{ 'search.search'|trans }}">
+            <i class="fa-solid fa-search" aria-hidden="true"></i>
+        </button>
+    </form>
+</div>
+<div class="email-list-container">
+    {% if contacts is not empty %}
+        {% for contact in contacts %}
+            <a href="{{ path('contact_group_contact', {groupId: activeGroup, contactId: contact.id}|merge(scopeParams)|merge(search is not empty ? {q: search} : {})) }}"
+               class="email-item border-bottom d-block text-decoration-none {{ activeContact and activeContact.id == contact.id ? 'email-active' : '' }}"
+               data-contact="{{ contact.id }}"
+               {% if activeContact and activeContact.id == contact.id %}aria-current="true"{% endif %}
+               aria-label="{{ 'contact.item_aria'|trans({'%name%': contact.displayName, '%email%': contact.email}) }}">
+                <div class="email-item-content px-3 py-3 d-flex align-items-center gap-3">
+                    <span class="rounded-circle text-bg-primary d-inline-flex align-items-center justify-content-center fw-semibold flex-shrink-0" style="width:2.5rem;height:2.5rem;" aria-hidden="true">{{ contact.displayName|slice(0, 1)|upper }}</span>
+                    <span class="flex-grow-1 min-w-0">
+                        <span class="d-block fw-semibold text-truncate">{{ contact.displayName }}</span>
+                        <span class="d-block small text-body-secondary text-truncate">
+                            <i class="fa-solid fa-envelope me-1" aria-hidden="true"></i>{{ contact.email }}
+                            {% if contact.company is not empty %}
+                                <span class="mx-1" aria-hidden="true">&middot;</span><i class="fa-solid fa-building me-1" aria-hidden="true"></i>{{ contact.company }}
+                            {% endif %}
+                        </span>
+                    </span>
+                    {% if contact.mobilePhone is not empty or contact.businessPhone is not empty or contact.homePhone is not empty %}
+                        <i class="fa-solid fa-phone text-body-secondary flex-shrink-0" title="{{ 'contact.has_phone'|trans }}" aria-label="{{ 'contact.has_phone'|trans }}"></i>
+                    {% endif %}
+                </div>
+            </a>
+        {% endfor %}
+    {% else %}
+        <div class="p-4 text-body-secondary">{{ search is not empty ? 'contact.none_in_search'|trans : 'contact.none_in_group'|trans }}</div>
+    {% endif %}
+</div>

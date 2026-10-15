@@ -1,0 +1,113 @@
+{# Params:
+    showMailToggles (bool) — whether to show mobile toggles for mail UI
+    showMidToggle (bool) — whether to show the mid (list) toggle; defaults to true
+    showLanguageDropdown (bool) — whether to show the language selection dropdown
+    activeModule (string) — currently active module: 'mail'|'contacts'|'calendar'
+    leftToggle (array) — mobile toggle config {target, icon, label}; defaults to the mailboxes offcanvas
+    midToggle (array) — mobile toggle config {target, icon, label}; defaults to the email list offcanvas
+#}
+{% set showMailToggles = showMailToggles|default(false) %}
+{% set showMidToggle = showMidToggle|default(true) %}
+{% set showLanguageDropdown = showLanguageDropdown|default(false) %}
+{% set activeModule = activeModule|default('mail') %}
+{% set leftToggle = leftToggle|default({target: '#mailboxOffcanvas', icon: 'fa-inbox', label: 'nav.show_mailboxes'}) %}
+{% set midToggle = midToggle|default({target: '#emailListOffcanvas', icon: 'fa-list', label: 'nav.show_email_list'}) %}
+{% set modules = {
+    'mail': {route: 'mail_index', icon: 'fa-envelope', label: 'nav.mails'},
+    'contacts': {route: 'contact_index', icon: 'fa-address-book', label: 'nav.contacts'},
+    'calendar': {route: 'calendar_index', icon: 'fa-calendar-days', label: 'nav.calendar'},
+} %}
+<header>
+    <nav class="navbar navbar-expand-xxl bg-primary" data-bs-theme="dark">
+        <div class="container-fluid">
+            {% if showMailToggles %}
+                <button class="btn btn-outline-light btn-navbar me-2 d-xxl-none" type="button" data-bs-toggle="offcanvas" data-bs-target="{{ leftToggle.target }}" aria-label="{{ leftToggle.label|trans }}" title="{{ leftToggle.label|trans }}">
+                    <i class="fa-solid {{ leftToggle.icon }}" aria-hidden="true"></i>
+                </button>
+                {% if showMidToggle %}
+                    <button class="btn btn-outline-light btn-navbar me-2 d-xxl-none" type="button" data-bs-toggle="offcanvas" data-bs-target="{{ midToggle.target }}" aria-label="{{ midToggle.label|trans }}" title="{{ midToggle.label|trans }}">
+                        <i class="fa-solid {{ midToggle.icon }}" aria-hidden="true"></i>
+                    </button>
+                {% endif %}
+            {% endif %}
+            <a class="navbar-brand d-flex {{ showMailToggles ? 'd-none d-sm-flex' : '' }} align-items-center gap-2" href="#" aria-label="{{ 'nav.home'|trans }}">
+                <span class="brandmark bg-white border border-white" style="width:44px;height:44px;" aria-hidden="true"><img style="width:80%;height:80%;" src="/assets/svg/app-logo.svg" alt="AvalynxOffice Logo"/></span>
+                <span class="fw-semibold">{{ 'app.title_short'|trans }}</span>
+            </a>
+            {% if app.user %}
+                <ul class="navbar-nav flex-row ms-3 me-auto gap-1" aria-label="{{ 'nav.modules'|trans }}">
+                    {% for module, config in modules %}
+                        <li class="nav-item">
+                            <a class="nav-link px-2 px-lg-3 {{ activeModule == module ? 'active fw-semibold' : '' }}"
+                               href="{{ path(config.route) }}"
+                               {% if activeModule == module %}aria-current="page"{% endif %}
+                               aria-label="{{ config.label|trans }}"
+                               title="{{ config.label|trans }}">
+                                <i class="fa-solid {{ config.icon }} me-lg-1" aria-hidden="true"></i><span class="d-none d-lg-inline">{{ config.label|trans }}</span>
+                            </a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+            <div class="d-flex ms-auto align-items-center gap-1" style="position: relative; z-index: 1060;">
+                <button class="btn btn-outline-light btn-navbar" type="button" id="darkModeToggle" aria-label="{{ 'nav.toggle_dark_mode'|trans }}" title="{{ 'nav.toggle_dark_mode'|trans }}">
+                    <i class="fa-solid fa-moon" aria-hidden="true"></i>
+                </button>
+                {% if showLanguageDropdown %}
+                    {% set currentUrl = app.request.uri %}
+                    {% set currentLocale = app.request.locale ?? app.request.getLocale() %}
+                    <div class="dropdown">
+                        {% set lang2 = (currentLocale|default('en'))[:2] %}
+                        {% set flagMap = {'de':'de','en':'gb'} %}
+                        {% set currentFlag = flagMap[lang2]|default('gb') %}
+                        <button class="btn btn-outline-light btn-navbar dropdown-toggle" type="button" id="langDropdown" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ 'nav.change_language'|trans }}" title="{{ 'nav.change_language'|trans }}">
+                            <span class="fi fi-{{ currentFlag }}" aria-hidden="true"></span>
+                            <span class="visually-hidden">{{ 'nav.change_language'|trans }}</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="langDropdown">
+                                <li>
+                                    {% if currentLocale starts with 'de' %}
+                                        <a class="dropdown-item active d-flex align-items-center" href="#" aria-current="true">
+                                            <span class="fi fi-de me-2" aria-hidden="true"></span>Deutsch ✓
+                                        </a>
+                                    {% else %}
+                                        <a class="dropdown-item d-flex align-items-center" href="{{ path('app_set_locale', {'_locale': 'de', 'r': currentUrl}) }}">
+                                            <span class="fi fi-de me-2" aria-hidden="true"></span>Deutsch
+                                        </a>
+                                    {% endif %}
+                                </li>
+                                <li>
+                                    {% if currentLocale starts with 'en' %}
+                                        <a class="dropdown-item active d-flex align-items-center" href="#" aria-current="true">
+                                            <span class="fi fi-gb me-2" aria-hidden="true"></span>English ✓
+                                        </a>
+                                    {% else %}
+                                        <a class="dropdown-item d-flex align-items-center" href="{{ path('app_set_locale', {'_locale': 'en', 'r': currentUrl}) }}">
+                                            <span class="fi fi-gb me-2" aria-hidden="true"></span>English
+                                        </a>
+                                    {% endif %}
+                                </li>
+                            </ul>
+                        </div>
+                {% endif %}
+                {% if app.user %}
+                    <div class="dropdown">
+                        <button class="btn btn-outline-light btn-navbar dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ 'nav.open_user_menu'|trans }}" title="{{ 'nav.open_user_menu'|trans }}">
+                            <i class="fa-solid fa-user" aria-hidden="true"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                            <li><a class="dropdown-item action-btn-modal" href="{{ path('app_settings') }}" data-title="{{ 'nav.settings'|trans }}" data-modal-size="modal-xl" data-dismiss-label="{{ 'common.close'|trans }}" aria-label="{{ 'nav.open_settings'|trans }}"><i class="fa-solid fa-gear me-2" aria-hidden="true"></i>{{ 'nav.settings'|trans }}</a></li>
+                            <li><a class="dropdown-item action-btn-modal" href="{{ path('app_profile') }}" data-title="{{ 'nav.profile'|trans }}" aria-label="{{ 'nav.open_profile'|trans }}"><i class="fa-solid fa-user me-2" aria-hidden="true"></i>{{ 'nav.profile'|trans }}</a></li>
+                            <li><hr class="dropdown-divider" aria-hidden="true"></li>
+                            <li><a class="dropdown-item action-btn-modal" href="{{ path('app_help') }}" data-title="{{ 'nav.help'|trans }}" aria-label="{{ 'nav.help'|trans }}"><i class="fa-solid fa-circle-question me-2" aria-hidden="true"></i>{{ 'nav.help'|trans }}</a></li>
+                            <li><a class="dropdown-item action-btn-modal" href="{{ path('app_about') }}" data-title="{{ 'nav.about'|trans }}" aria-label="{{ 'nav.about'|trans }}"><i class="fa-solid fa-circle-info me-2" aria-hidden="true"></i>{{ 'nav.about'|trans }}</a></li>
+                            <li><a class="dropdown-item action-btn-modal" href="{{ path('app_license') }}" data-title="{{ 'license.menu'|trans }}" aria-label="{{ 'license.menu'|trans }}"><i class="fa-solid fa-scale-balanced me-2" aria-hidden="true"></i>{{ 'license.menu'|trans }}</a></li>
+                            <li><hr class="dropdown-divider" aria-hidden="true"></li>
+                            <li><a class="dropdown-item" href="{{ path('app_logout') }}" aria-label="{{ 'nav.logout'|trans }}"><i class="fa-solid fa-sign-out-alt me-2" aria-hidden="true"></i>{{ 'nav.logout'|trans }}</a></li>
+                        </ul>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+</header>

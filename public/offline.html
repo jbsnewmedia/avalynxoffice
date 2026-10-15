@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Offline</title>
+  <meta name="robots" content="noindex,nofollow">
+  <style>
+    :root{--primary:#333}
+    html,body{height:100%}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,'Helvetica Neue',Arial,'Noto Sans',sans-serif;display:grid;place-items:center;background:#f8f9fa;color:#212529}
+    .card{background:#fff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.05);padding:24px;max-width:520px;margin:16px}
+    h1{font-size:22px;margin:8px 0 6px}
+    p{margin:0 0 8px;line-height:1.5;color:#6c757d}
+    .actions{margin-top:16px;display:flex;gap:8px;flex-wrap:wrap}
+    .btn{appearance:none;border:1px solid #ced4da;background:#fff;padding:8px 12px;border-radius:8px;color:#212529;text-decoration:none;cursor:pointer}
+    .btn.primary{background:var(--primary);border-color:var(--primary);color:#fff}
+  </style>
+</head>
+<body>
+  <main class="card" role="main" aria-labelledby="offline-title">
+    <h1 id="offline-title">You are offline</h1>
+    <p>There is currently no internet connection. Connect to the internet and try again.</p>
+    <div class="actions">
+      <button class="btn primary" onclick="location.reload()">Try again</button>
+    </div>
+  </main>
+</body>
+</html>

@@ -1,0 +1,72 @@
+<div class="p-4">
+    {% set aliasesInvalid = form.aliases.vars.errors|length > 0 %}
+    {% set foldersInvalid = form.folders.vars.errors|length > 0 %}
+    {% set folderFunctionOptions = [
+        { value: 'none', label: 'folder.function.none'|trans },
+        { value: 'mailbox', label: 'folder.function.mailbox'|trans },
+        { value: 'inbox', label: 'folder.function.inbox'|trans },
+        { value: 'outbox', label: 'folder.function.outbox'|trans },
+        { value: 'drafts', label: 'folder.function.drafts'|trans },
+    ] %}
+    <div class="d-flex align-items-center mb-4">
+        <a href="{{ path('mailbox_index') }}" class="btn btn-outline-secondary me-2 action-btn-modal" data-title="{{ 'mailbox.title'|trans }}" data-modal-size="modal-xl" aria-label="{{ 'common.back'|trans }}" title="{{ 'common.back'|trans }}">
+            <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+        </a>
+        <h4 class="m-0">{{ title }}</h4>
+    </div>
+    {{ form_start(form, {'attr': {'id': 'modal-form'}}) }}
+        <div class="row g-3">
+            <div class="col-md-6">{{ form_row(form.name, {'attr': {'class': 'form-control'}}) }}</div>
+            <div class="col-md-6">{{ form_row(form.email, {'attr': {'class': 'form-control'}}) }}</div>
+            <div class="col-md-6">
+                <div class="mailbox-list-editor mailbox-list-editor-aliases{% if aliasesInvalid %} mailbox-list-editor-invalid{% endif %}"
+                     data-mailbox-list-editor
+                     data-mailbox-list-type="alias"
+                     data-primary-label="{{ 'mailbox.email'|trans }}"
+                     data-primary-placeholder="{{ 'mailbox.aliases_placeholder'|trans }}"
+                     data-secondary-label="{{ 'mailbox.alias_name'|trans }}"
+                     data-secondary-placeholder="{{ 'mailbox.alias_name_placeholder'|trans }}">
+                    {{ form_label(form.aliases) }}
+                    {{ form_widget(form.aliases, {'attr': {'class': 'd-none', 'data-mailbox-list-storage': 'true'}}) }}
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="small text-body-secondary">{{ 'mailbox.alias_fields_help'|trans }}</div>
+                        <button type="button" class="btn btn-primary" data-mailbox-list-add>
+                            <i class="fa-solid fa-plus me-2" aria-hidden="true"></i>{{ 'mailbox.add_alias'|trans }}
+                        </button>
+                    </div>
+                    <div class="mailbox-list-items" data-mailbox-list-items data-remove-label="{{ 'mailbox.remove_alias'|trans }}"></div>
+                    <div class="mailbox-list-empty text-body-secondary small" data-mailbox-list-empty>{{ 'mailbox.aliases_empty'|trans }}</div>
+                    {{ form_help(form.aliases) }}
+                    {{ form_errors(form.aliases) }}
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="mailbox-list-editor mailbox-list-editor-folders{% if foldersInvalid %} mailbox-list-editor-invalid{% endif %}"
+                     data-mailbox-list-editor
+                     data-mailbox-list-type="folder"
+                     data-primary-label="{{ 'mailbox.folder_name'|trans }}"
+                     data-primary-placeholder="{{ 'mailbox.folders_placeholder'|trans }}"
+                     data-secondary-label="{{ 'mailbox.sort_order'|trans }}"
+                     data-secondary-placeholder="{{ 'mailbox.sort_order_placeholder'|trans }}"
+                     data-tertiary-label="{{ 'mailbox.folder_functions'|trans }}"
+                     data-folder-function-options="{{ folderFunctionOptions|json_encode|e('html_attr') }}">
+                    {{ form_label(form.folders) }}
+                    {{ form_widget(form.folders, {'attr': {'class': 'd-none', 'data-mailbox-list-storage': 'true'}}) }}
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="small text-body-secondary">{{ 'mailbox.folder_fields_help'|trans }}</div>
+                        <button type="button" class="btn btn-primary" data-mailbox-list-add>
+                            <i class="fa-solid fa-plus me-2" aria-hidden="true"></i>{{ 'mailbox.add_folder'|trans }}
+                        </button>
+                    </div>
+                    <div class="mailbox-list-items" data-mailbox-list-items data-remove-label="{{ 'mailbox.remove_folder'|trans }}"></div>
+                    <div class="mailbox-list-empty text-body-secondary small" data-mailbox-list-empty>{{ 'mailbox.folders_empty'|trans }}</div>
+                    {{ form_help(form.folders) }}
+                    {{ form_errors(form.folders) }}
+                </div>
+            </div>
+        </div>
+        <div class="modal-form-buttons d-none">
+            {{ form_widget(form.save) }}
+        </div>
+    {{ form_end(form) }}
+</div>

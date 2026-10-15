@@ -1,0 +1,139 @@
+body {
+    overflow-y: scroll;
+}
+.brandmark {
+    width: 60px;
+    height: 60px;
+    border: 1px solid var(--bs-border-color); 
+    display: inline-grid;
+    place-items: center;
+    border-radius: 15%;
+    background: var(--bs-body-bg); 
+}
+.brandmark-logo {
+    width: 80%;
+    height: 80%;
+}
+.login-card {
+    max-width: 420px;
+}
+.footer-logo {
+    height: 14px;
+}
+.was-validated .form-check-input.no-validation:valid,
+.form-check-input.no-validation.is-valid {
+    border-color: var(--bs-border-color);
+}
+.was-validated .form-check-input.no-validation:valid:checked,
+.form-check-input.no-validation.is-valid:checked {
+    background-color: var(--bs-primary);
+}
+.was-validated .form-check-input.no-validation:valid:focus,
+.form-check-input.no-validation.is-valid:focus {
+    box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.25);
+    border-color: var(--bs-primary-border-subtle);
+}
+.was-validated .form-check-input.no-validation:valid ~ .form-check-label.no-validation,
+.form-check-input.no-validation.is-valid ~ .form-check-label.no-validation {
+    color: var(--bs-body-color);
+}
+#passwordGroup .btn {
+    border-radius: 0 var(--bs-border-radius) var(--bs-border-radius) 0 !important;
+}
+
+/* Custom button style to match input field color */
+.btn-outline-input {
+    background-color: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    border-color: var(--bs-border-color);
+    position: relative;
+    z-index: 2;
+    margin-left: -1px !important;
+}
+
+[data-bs-theme=dark] .btn-outline-input {
+    background-color: var(--bs-body-bg);
+    border-color: var(--bs-border-color);
+    color: var(--bs-body-color);
+}
+
+.btn-outline-input:hover,
+.btn-outline-input:active,
+.btn-outline-input.active {
+    background-color: var(--bs-tertiary-bg);
+    color: var(--bs-body-color);
+    border-color: var(--bs-border-color);
+}
+
+[data-bs-theme=dark] .btn-outline-input:hover,
+[data-bs-theme=dark] .btn-outline-input:active,
+[data-bs-theme=dark] .btn-outline-input.active {
+    background-color: var(--bs-tertiary-bg);
+    border-color: var(--bs-border-color);
+}
+
+.btn-outline-input:focus,
+.form-control:focus + .btn-outline-input {
+    background-color: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    box-shadow: none;
+    border-color: var(--bs-primary-border-subtle);
+    z-index: 5;
+}
+
+.form-control:focus + .btn-outline-input:hover,
+.form-control:focus + .btn-outline-input.active,
+[data-bs-theme=dark] .form-control:focus + .btn-outline-input:hover,
+[data-bs-theme=dark] .form-control:focus + .btn-outline-input.active {
+    background-color: var(--bs-tertiary-bg);
+}
+
+/* Handle danger/error state for password toggle button */
+.form-control.is-invalid + .btn-outline-input,
+.was-validated .form-control:invalid + .btn-outline-input {
+    border-color: var(--bs-form-invalid-border-color);
+    color: var(--bs-form-invalid-border-color);
+    z-index: 2;
+}
+
+/* Ensure border remains red on focus when invalid */
+#passwordGroup .form-control.is-invalid:focus + .btn-outline-input,
+#passwordGroup .was-validated .form-control:invalid:focus + .btn-outline-input {
+    border-color: var(--bs-form-invalid-border-color);
+    z-index: 5;
+}
+
+/* Keep red border even when hovered/active if invalid */
+.form-control.is-invalid + .btn-outline-input:hover,
+.form-control.is-invalid + .btn-outline-input:active,
+.form-control.is-invalid + .btn-outline-input.active,
+.was-validated .form-control:invalid + .btn-outline-input:hover,
+.was-validated .form-control:invalid + .btn-outline-input:active,
+.was-validated .form-control:invalid + .btn-outline-input.active {
+    border-color: var(--bs-form-invalid-border-color);
+}
+
+/* Handle success state for password toggle button */
+.form-control.is-valid + .btn-outline-input,
+.was-validated .form-control:valid + .btn-outline-input {
+    border-color: var(--bs-form-valid-border-color);
+    color: var(--bs-form-valid-border-color);
+    z-index: 2;
+}
+
+/* Ensure border remains green on focus when valid */
+#passwordGroup .form-control.is-valid:focus + .btn-outline-input,
+#passwordGroup .was-validated .form-control:valid:focus + .btn-outline-input {
+    border-color: var(--bs-form-valid-border-color);
+    z-index: 5;
+}
+
+/* Keep green border even when hovered/active if valid */
+.form-control.is-valid + .btn-outline-input:hover,
+.form-control.is-valid + .btn-outline-input:active,
+.form-control.is-valid + .btn-outline-input.active,
+.was-validated .form-control:valid + .btn-outline-input:hover,
+.was-validated .form-control:valid + .btn-outline-input:active,
+.was-validated .form-control:valid + .btn-outline-input.active {
+    border-color: var(--bs-form-valid-border-color);
+}

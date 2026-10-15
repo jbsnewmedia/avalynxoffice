@@ -1,0 +1,60 @@
+{% set scopeParams = activeMailboxId is defined and activeMailboxId != 'all' ? {mailbox: activeMailboxId} : {} %}
+{% set calendarBasePath = path('calendar_month', {monthKey: activeMonth}|merge(scopeParams)) %}
+<div class="sticky-top bg-body border-bottom shadow-sm">
+    <form class="input-group p-3" method="get" action="{{ calendarBasePath }}" role="search">
+        {% if activeMailboxId is defined and activeMailboxId != 'all' %}
+            <input type="hidden" name="mailbox" value="{{ activeMailboxId }}">
+        {% endif %}
+        <label class="visually-hidden" for="calendar-search-input">{{ 'calendar.search'|trans }}</label>
+        <input type="search" class="form-control" id="calendar-search-input" name="q" value="{{ search }}" placeholder="{{ 'search.placeholder'|trans }}" aria-label="{{ 'calendar.search'|trans }}">
+        {% if search is not empty %}
+            <a class="btn btn-outline-secondary" type="button" href="{{ calendarBasePath }}" aria-label="{{ 'search.clear'|trans }}" title="{{ 'search.clear'|trans }}">
+                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+            </a>
+        {% endif %}
+        <button class="btn btn-primary" type="submit" aria-label="{{ 'search.search'|trans }}" title="{{ 'search.search'|trans }}">
+            <i class="fa-solid fa-search" aria-hidden="true"></i>
+        </button>
+    </form>
+</div>
+<div class="email-list-container">
+    {% if events is not empty %}
+        {% set now = 'now'|date('Y-m-d') %}
+        {% for event in events %}
+            {% set isPast = event.startAt|date('Y-m-d') < now %}
+            <a href="{{ path('calendar_month_event', {monthKey: activeMonth, eventId: event.id}|merge(scopeParams)|merge(search is not empty ? {q: search} : {})) }}"
+               class="email-item border-bottom d-block text-decoration-none {{ activeEvent and activeEvent.id == event.id ? 'email-active' : '' }} {{ isPast ? 'text-body-secondary' : '' }}"
+               data-event="{{ event.id }}"
+               {% if activeEvent and activeEvent.id == event.id %}aria-current="true"{% endif %}
+               aria-label="{{ 'calendar.item_aria'|trans({'%title%': event.title, '%date%': event.startAt|date('d.m.Y')}) }}">
+                <div class="email-item-content px-3 py-3 d-flex align-items-center gap-3">
+                    <span class="border border-primary-subtle bg-primary-subtle rounded d-inline-flex flex-column align-items-center justify-content-center flex-shrink-0 text-center" style="width:2.75rem;height:2.75rem;" aria-hidden="true">
+                        <span class="fw-bold lh-1 text-primary-emphasis">{{ event.startAt|date('d') }}</span>
+                        <span class="text-uppercase text-primary-emphasis" style="font-size:0.65rem;">{{ event.startAt|date('M') }}</span>
+                    </span>
+                    <span class="flex-grow-1 min-w-0">
+                        <span class="d-block fw-semibold text-truncate">{{ event.title }}</span>
+                        <span class="d-block small text-body-secondary text-truncate">
+                            {% if event.isAllDay %}
+                                <i class="fa-solid fa-day-calendar me-1" aria-hidden="true"></i>{{ 'calendar.all_day'|trans }}
+                            {% else %}
+                                <i class="fa-regular fa-clock me-1" aria-hidden="true"></i>{{ event.startAt|date('H:i') }}{% if event.endAt %}–{{ event.endAt|date('H:i') }}{% endif %}
+                            {% endif %}
+                            {% if event.location is not empty %}
+                                <span class="mx-1" aria-hidden="true">&middot;</span><i class="fa-solid fa-location-dot me-1" aria-hidden="true"></i>{{ event.location }}
+                            {% endif %}
+                            {% if event.recurrenceType is not null %}
+                                <span class="mx-1" aria-hidden="true">&middot;</span><i class="fa-solid fa-repeat me-1" title="{{ 'calendar.recurrence'|trans }}" aria-label="{{ 'calendar.recurrence'|trans }}"></i>
+                            {% endif %}
+                        </span>
+                    </span>
+                    {% if event.startAt|date('Y-m-d') == now %}
+                        <span class="badge text-bg-primary flex-shrink-0" title="{{ 'calendar.today'|trans }}">{{ 'calendar.today'|trans }}</span>
+                    {% endif %}
+                </div>
+            </a>
+        {% endfor %}
+    {% else %}
+        <div class="p-4 text-body-secondary">{{ search is not empty ? 'calendar.none_in_search'|trans : 'calendar.none_in_month'|trans }}</div>
+    {% endif %}
+</div>

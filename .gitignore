@@ -1,0 +1,41 @@
+
+###> symfony/framework-bundle ###
+/.env.local
+/.env.local.php
+/.env.*.local
+/config/secrets/prod/prod.decrypt.private.php
+/public/bundles/
+/var/
+/vendor/
+###< symfony/framework-bundle ###
+/docker/mariadb/
+/.idea/
+
+###> phpunit/phpunit ###
+/phpunit.xml
+/.phpunit.cache/
+###< phpunit/phpunit ###
+
+###> php-cs-fixer/shim ###
+/.php-cs-fixer.php
+/.php-cs-fixer.cache
+###< php-cs-fixer/shim ###
+/docker/postgres/
+/dist/avalynxoffice-prod.tar.gz
+/composer.lock
+/mail_dumps/
+/yes
+/Neuer Ordner/
+/vendor-bin/ecs/vendor/
+/vendor-bin/ecs/composer.lock
+/vendor-bin/phpstan/vendor/
+/vendor-bin/phpstan/composer.lock
+/vendor-bin/phpunit/vendor/
+/vendor-bin/phpunit/composer.lock
+/vendor-bin/rector/vendor/
+/vendor-bin/rector/composer.lock
+/.junie/memory
+/data/
+/.playwright-mcp/
+/dist/
+/*.png

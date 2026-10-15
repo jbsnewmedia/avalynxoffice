@@ -1,0 +1,34 @@
+{# Params:
+    view (string) — active view: 'list'|'day'|'week'|'month'
+    viewLinks (array<string, string>) — URLs to the other views
+    navigation (array{prev: string, today: string, next: string}|null) — period navigation
+    grid (array<string, mixed>|null) — grid data of the active period (grid views only)
+    monthLabel (string|null) — label of the active month (list view only)
+    activeMonth (string) — active month key ('all' or Y-m)
+#}
+<div class="calendar-toolbar bg-body border-bottom px-3 py-2 d-flex flex-wrap align-items-center gap-2">
+    {% include 'calendar/_view_switcher.html.twig' with { view: view, viewLinks: viewLinks, small: true } %}
+    {% if navigation %}
+        <div class="btn-group" role="group" aria-label="{{ 'calendar.period_nav_aria'|trans }}">
+            <a href="{{ navigation.prev }}" class="btn btn-sm btn-outline-secondary" aria-label="{{ 'calendar.prev_period_aria'|trans }}" title="{{ 'calendar.prev_period'|trans }}"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></a>
+            <a href="{{ navigation.today }}" class="btn btn-sm btn-outline-secondary" aria-label="{{ 'calendar.today_aria'|trans }}" title="{{ 'calendar.today'|trans }}">{{ 'calendar.today'|trans }}</a>
+            <a href="{{ navigation.next }}" class="btn btn-sm btn-outline-secondary" aria-label="{{ 'calendar.next_period_aria'|trans }}" title="{{ 'calendar.next_period'|trans }}"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></a>
+        </div>
+    {% endif %}
+    <span class="calendar-toolbar-title fs-5 fw-semibold ms-1">
+        {% if 'month' == view and grid %}
+            {{ 'calendar.month'|trans({'%month%': ('calendar.months.' ~ grid.anchor|date('n'))|trans, '%year%': grid.anchor|date('Y')}) }}
+        {% elseif 'week' == view and grid %}
+            {{ 'calendar.week_title'|trans({'%start_day%': grid.start|date('j'), '%start_month%': ('calendar.months.' ~ grid.start|date('n'))|trans, '%end_day%': grid.end|date('j'), '%end_month%': ('calendar.months.' ~ grid.end|date('n'))|trans, '%year%': grid.end|date('Y')}) }}
+        {% elseif 'day' == view and grid %}
+            {{ 'calendar.day_title'|trans({'%weekday%': ('calendar.weekday.' ~ grid.anchor|date('N'))|trans, '%day%': grid.anchor|date('j'), '%month%': ('calendar.months.' ~ grid.anchor|date('n'))|trans, '%year%': grid.anchor|date('Y')}) }}
+        {% elseif monthLabel %}
+            {{ monthLabel }}
+        {% else %}
+            {{ 'calendar.all'|trans }}
+        {% endif %}
+    </span>
+    <a href="{{ path('calendar_new_modal') }}" class="action-btn-modal btn btn-sm btn-primary ms-auto {{ license_manager.isReadOnly ? 'disabled' }}" {{ license_manager.isReadOnly ? 'aria-disabled="true"' }} data-title="{{ 'calendar.new'|trans }}" data-modal-size="modal-lg" aria-label="{{ 'calendar.new'|trans }}">
+        <i class="fa-solid fa-calendar-plus me-1" aria-hidden="true"></i>{{ 'calendar.new'|trans }}
+    </a>
+</div>

@@ -1,0 +1,25 @@
+<div class="p-4">
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="d-flex flex-wrap align-items-center gap-3">
+                <div class="brandmark bg-white border" style="width:56px;height:56px;">
+                    <img src="/assets/svg/app-logo.svg" alt="Logo" style="width:75%;height:75%;"/>
+                </div>
+                <div>
+                    <div class="fs-5 fw-semibold">{{ 'app.title'|trans }}</div>
+                    <div class="text-body-secondary">{{ 'about.version'|trans({'%version%': version|default('dev')}) }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <p class="text-body-secondary">{{ 'about.copyright'|trans({'%year%': year|default('2025')}) }}</p>
+    <div class="card shadow-sm mt-3">
+        <div class="card-body">
+            <h6 class="card-title mb-2"><i class="fa-solid fa-scale-balanced me-2" aria-hidden="true"></i>{{ 'license.menu'|trans }}</h6>
+            <p class="mb-2 small">{{ 'license.info.terms'|trans }}</p>
+            <p class="mb-2 small">{{ 'license.info.commercial'|trans({'%email%': 'licensing@jbs-newmedia.com'}) }}</p>
+            <p class="mb-0 small">{{ 'license.info.nonprofit'|trans }}</p>
+            <a href="{{ path('app_license') }}" class="btn btn-sm btn-outline-primary mt-3 action-btn-modal" data-title="{{ 'license.menu'|trans }}">{{ 'license.footer_link'|trans }}</a>
+        </div>
+    </div>
+</div>

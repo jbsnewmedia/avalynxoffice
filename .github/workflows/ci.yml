@@ -1,0 +1,61 @@
+name: ci
+
+on:
+    push:
+        branches:
+            - main
+            - master
+    pull_request:
+
+jobs:
+    check:
+        runs-on: ubuntu-24.04
+
+        services:
+            postgres:
+                image: postgres:16
+                env:
+                    POSTGRES_DB: my_database
+                    POSTGRES_USER: my_user
+                    POSTGRES_PASSWORD: my_password
+                ports:
+                    - 5432:5432
+                options: >-
+                    --health-cmd pg_isready
+                    --health-interval 10s
+                    --health-timeout 5s
+                    --health-retries 5
+
+        env:
+            DATABASE_URL: postgresql://my_user:my_password@127.0.0.1:5432/my_database?serverVersion=16&charset=utf8
+
+        steps:
+            -   uses: actions/checkout@v6
+
+            -   name: Setup PHP
+                uses: shivammathur/setup-php@v2
+                with:
+                    php-version: '8.5'
+                    extensions: pdo_pgsql
+                    coverage: none
+
+            -   name: Install dependencies
+                run: composer install --no-interaction --no-progress
+
+            -   name: Install tooling
+                run: |
+                    composer bin ecs install --no-interaction --no-progress
+                    composer bin phpstan install --no-interaction --no-progress
+                    composer bin rector install --no-interaction --no-progress
+
+            -   name: ECS
+                run: composer bin-ecs
+
+            -   name: Rector
+                run: composer bin-rector
+
+            -   name: PHPStan
+                run: composer bin-phpstan
+
+            -   name: PHPUnit
+                run: vendor-bin/phpunit/vendor/bin/phpunit --configuration=phpunit-no-coverage.xml.dist

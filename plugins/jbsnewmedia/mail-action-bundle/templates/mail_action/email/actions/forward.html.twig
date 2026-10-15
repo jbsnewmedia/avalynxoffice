@@ -1,0 +1,15 @@
+{% if license_manager.isReadOnly %}
+    <span class="btn btn-primary disabled" data-priority="70" aria-disabled="true" title="{{ 'license.read_only_action'|trans }}">
+        <i class="fa-solid fa-lock me-2" aria-hidden="true"></i>{{ 'license.read_only_action'|trans }}
+    </span>
+{% else %}
+<a class="btn btn-primary action-btn-modal"
+   href="{{ path('mail_forward', {id: email.id}) }}"
+   data-title="{{ 'email.forward'|trans }}"
+   data-action-id="forward"
+   data-priority="70"
+   aria-label="{{ 'email.forward'|trans }}"
+   title="{{ 'email.forward'|trans }}">
+    <i class="fa-solid fa-forward" aria-hidden="true"></i>
+</a>
+{% endif %}

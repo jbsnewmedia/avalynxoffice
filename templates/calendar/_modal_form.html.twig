@@ -1,0 +1,23 @@
+<div class="p-4">
+    <h4 class="m-0 mb-4">{{ title }}</h4>
+    {{ form_start(form, {'attr': {'id': 'modal-form'}}) }}
+        <div class="row g-3">
+            <div class="col-12">{{ form_row(form.title, {'attr': {'class': 'form-control'}}) }}</div>
+            <div class="col-md-6">{{ form_row(form.startAt, {'attr': {'class': 'form-control'}}) }}</div>
+            <div class="col-md-6">{{ form_row(form.endAt, {'attr': {'class': 'form-control'}}) }}</div>
+            <div class="col-md-6">{{ form_row(form.isAllDay, {'attr': {'class': 'form-check-input'}}) }}</div>
+            {% if form.mailbox is defined %}
+                <div class="col-md-6">{{ form_row(form.mailbox, {'attr': {'class': 'form-select'}}) }}</div>
+            {% endif %}
+            <div class="col-12">{{ form_row(form.location, {'attr': {'class': 'form-control'}}) }}</div>
+            <div class="col-12">{{ form_row(form.description, {'attr': {'class': 'form-control'}}) }}</div>
+            <div class="col-12"><hr class="my-1"></div>
+            <div class="col-md-4">{{ form_row(form.busyStatus, {'attr': {'class': 'form-select'}}) }}</div>
+            <div class="col-md-4">{{ form_row(form.sensitivity, {'attr': {'class': 'form-select'}}) }}</div>
+            <div class="col-md-4">{{ form_row(form.reminder, {'attr': {'class': 'form-control'}}) }}</div>
+        </div>
+        <div class="modal-form-buttons d-none">
+            {{ form_widget(form.save) }}
+        </div>
+    {{ form_end(form) }}
+</div>

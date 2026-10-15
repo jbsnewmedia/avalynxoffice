@@ -1,0 +1,17 @@
+{% if license_manager.isReadOnly %}
+    <span class="btn btn-primary disabled" data-priority="10" aria-disabled="true" title="{{ 'license.read_only_action'|trans }}">
+        <i class="fa-solid fa-lock me-2" aria-hidden="true"></i>{{ 'license.read_only_action'|trans }}
+    </span>
+{% else %}
+<a class="btn btn-primary confirm-action"
+   href="{{ path('calendar_event_delete', {monthKey: monthKey, eventId: event.id}) }}"
+   data-action-id="calendar-delete"
+   data-priority="10"
+   data-method="post"
+   data-token="{{ csrf_token('delete_event_' ~ event.id) }}"
+   data-confirm="{{ 'calendar.confirm_delete'|trans({'%title%': event.title}) }}"
+   aria-label="{{ 'calendar.delete'|trans }}"
+   title="{{ 'calendar.delete'|trans }}">
+    <i class="fa-solid fa-trash" aria-hidden="true"></i>
+</a>
+{% endif %}

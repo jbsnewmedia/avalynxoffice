@@ -1,0 +1,5 @@
+@media print {
+    .no-print { display: none !important; }
+    a[href]:after { content: "" !important; }
+}
+body { background: #fff; }

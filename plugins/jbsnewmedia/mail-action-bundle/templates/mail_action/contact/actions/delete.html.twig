@@ -1,0 +1,17 @@
+{% if license_manager.isReadOnly %}
+    <span class="btn btn-primary disabled" data-priority="10" aria-disabled="true" title="{{ 'license.read_only_action'|trans }}">
+        <i class="fa-solid fa-lock me-2" aria-hidden="true"></i>{{ 'license.read_only_action'|trans }}
+    </span>
+{% else %}
+<a class="btn btn-primary confirm-action"
+   href="{{ path('contact_delete', {groupId: 'all', contactId: contact.id}) }}"
+   data-action-id="contact-delete"
+   data-priority="10"
+   data-method="post"
+   data-token="{{ csrf_token('delete_contact_' ~ contact.id) }}"
+   data-confirm="{{ 'contact.confirm_delete'|trans({'%name%': contact.displayName}) }}"
+   aria-label="{{ 'contact.delete'|trans }}"
+   title="{{ 'contact.delete'|trans }}">
+    <i class="fa-solid fa-trash" aria-hidden="true"></i>
+</a>
+{% endif %}

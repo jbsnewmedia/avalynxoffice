@@ -1,0 +1,218 @@
+<div class="sticky-top bg-body border-bottom shadow-sm">
+    {% if activeMailboxId|default(null) == 'all' %}
+        <div class="mailbox-tag bg-body-tertiary text-body-secondary small px-3 py-1 border-bottom" style="font-size: 0.75rem;">
+            <i class="fa-solid fa-inbox me-1 small"></i> {{ email.mailbox.name }}
+        </div>
+    {% endif %}
+    <div class="p-3 email-action-bar d-flex justify-content-between align-items-center">
+        <div class="btn-group email-actions" data-overflow-group="actions">
+            {% set emailActionViews = mail_email_action_views(email) %}
+            {% for actionView in emailActionViews %}
+                {% include actionView.template with actionView.context only %}
+            {% endfor %}
+            <button type="button" class="btn btn-primary dropdown-toggle overflow-more d-none" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ 'email.more_actions'|trans }}" title="{{ 'email.more_actions'|trans }}">
+                <i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end" data-overflow-menu="actions" aria-label="{{ 'email.more_actions'|trans }}">
+            </ul>
+        </div>
+    </div>
+</div>
+<article class="card mb-4 shadow-sm m-4">
+    <header class="card-header bg-body-tertiary">
+        <div class="d-flex flex-column gap-2 gap-md-3">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center">
+                <div class="d-flex align-items-center w-100 min-w-0">
+                    <div class="rounded-circle text-bg-primary d-flex align-items-center justify-content-center me-2 flex-shrink-0" style="width:40px;height:40px;" aria-label="{{ 'email.sender_initials'|trans }}">
+                        {% set senderInitials = 'MM' %}
+                        {% for link in email.emailAddresses %}
+                            {% if link.type.value == 'sender' %}
+                                {% set senderInitials = (link.address.name ?: link.address.email)|slice(0,1)|upper ~ (link.address.name ?: link.address.email)|slice(1,1)|upper %}
+                            {% endif %}
+                        {% endfor %}
+                        <span aria-hidden="true">{{ senderInitials }}</span>
+                    </div>
+                    <div class="min-w-0">
+                        {% for link in email.emailAddresses %}
+                            {% if link.type.value == 'sender' %}
+                                <h6 class="mb-0 text-truncate" title="{{ link.address.name ?: link.address.email }}">{{ link.address.name ?: link.address.email }}</h6>
+                                <small class="text-body-secondary text-truncate d-block" title="{{ link.address.email }}">{{ link.address.email }}</small>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="text-body-secondary mt-2 mt-md-0 text-start text-md-end w-100 w-md-auto">
+                    {% set effDate = email.sentAt ?: email.receivedAt %}
+                    <div class="d-flex d-md-block align-items-center justify-content-start justify-content-md-end gap-2">
+                        {% if email.isOutgoing %}
+                            {% if email.isSent %}
+                                <i class="fa-solid fa-paper-plane text-primary" title="{{ 'email.sent'|trans }}" aria-label="{{ 'email.sent'|trans }}" aria-hidden="false"></i>
+                            {% elseif email.isDraft %}
+                                <i class="fa-solid fa-file-pen text-body-secondary" title="{{ 'email.draft'|trans }}" aria-label="{{ 'email.draft'|trans }}" aria-hidden="false"></i>
+                            {% elseif email.scheduledAt and email.scheduledAt > date() %}
+                                <i class="fa-solid fa-calendar-check text-info" title="{{ 'email.scheduled'|trans({'%date%': email.scheduledAt|date('d.m.Y H:i')}) }}" aria-label="{{ 'email.scheduled'|trans({'%date%': email.scheduledAt|date('d.m.Y H:i')}) }}" aria-hidden="false"></i>
+                            {% else %}
+                                <i class="fa-solid fa-clock text-warning" title="{{ 'email.not_sent'|trans }}" aria-label="{{ 'email.not_sent'|trans }}" aria-hidden="false"></i>
+                            {% endif %}
+                        {% else %}
+                            <i class="fa-solid fa-inbox text-success" title="{{ 'email.received'|trans }}" aria-label="{{ 'email.received'|trans }}" aria-hidden="false"></i>
+                        {% endif %}
+                        <small class="d-inline-block" aria-label="{{ 'email.date_label'|trans({'%date%': effDate ? (effDate|date('d.m.Y, H:i') ~ ' ' ~ ('common.oclock'|trans)) : ('common.unknown'|trans)}) }}">{{ effDate ? (effDate|date('d.m.Y, H:i') ~ ' ' ~ ('common.oclock'|trans)) : '' }}</small>
+                    </div>
+                </div>
+            </div>
+            {% if email.subject %}
+                <div class="d-flex align-items-start gap-2 flex-wrap">
+                    <h2 class="mb-0 text-break fs-5 fs-md-4 flex-grow-1 min-w-0" title="{{ email.subject }}">{{ email.subject }}</h2>
+                    {% if email.hasEncodingIssues %}
+                        <span class="badge text-bg-warning bg-opacity-25 text-warning-emphasis d-inline-flex align-items-center gap-1 flex-shrink-0 mt-1"
+                              title="Diese E-Mail enthielt nicht-konforme Header (z. B. rohe UTF-8-Bytes in To:/From:). Beim Import wurden die Header automatisch repariert. Subject oder Absender können Zeichen verlieren."
+                              aria-label="Kodierungsproblem">
+                            <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+                            <span>Kodierung korrigiert</span>
+                        </span>
+                    {% endif %}
+                </div>
+            {% endif %}
+            <div class="mt-1">
+                {% set recipients = [] %}
+                {% for link in email.emailAddresses %}
+                    {% if link.type.value == 'recipient' %}
+                        {% set recipients = recipients|merge([link.address.name ?: link.address.email]) %}
+                    {% endif %}
+                {% endfor %}
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <div class="me-2 flex-grow-1 min-w-0" aria-label="{{ 'email.to_label'|trans }}: {{ recipients|join(', ') }}">
+                        <strong class="text-body-secondary me-1">{{ 'email.to_label'|trans }}</strong>
+                        <span class="d-none d-md-inline">{{ recipients|join(', ') }}</span>
+                        <span class="d-inline d-md-none">({{ recipients|length }})</span>
+                    </div>
+                    <button class="btn btn-sm btn-outline-secondary ms-auto" type="button"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#email-meta-{{ email.id }}"
+                            aria-expanded="false"
+                            aria-controls="email-meta-{{ email.id }}"
+                            title="{{ 'email.details_toggle'|trans }}" aria-label="{{ 'email.details_toggle'|trans }}">
+                        <i class="fa-solid fa-circle-info me-1" aria-hidden="true"></i>
+                        {{ 'email.details'|trans }}
+                    </button>
+                </div>
+                <div id="email-meta-{{ email.id }}" class="collapse mt-2">
+                    {% set from = null %}
+                    {% set toList = [] %}
+                    {% set ccList = [] %}
+                    {% set bccList = [] %}
+                    {% set replyToList = [] %}
+                    {% for link in email.emailAddresses %}
+                        {% if link.type.value == 'sender' %}
+                            {% set from = link %}
+                        {% elseif link.type.value == 'recipient' %}
+                            {% set toList = toList|merge([link]) %}
+                        {% elseif link.type.value == 'cc' %}
+                            {% set ccList = ccList|merge([link]) %}
+                        {% elseif link.type.value == 'bcc' %}
+                            {% set bccList = bccList|merge([link]) %}
+                        {% elseif link.type.value == 'reply_to' %}
+                            {% set replyToList = replyToList|merge([link]) %}
+                        {% endif %}
+                    {% endfor %}
+                    <dl class="row small mb-0">
+                        <dt class="col-sm-2">{{ 'email.from'|trans }}</dt>
+                        <dd class="col-sm-10">
+                            {% if from %}
+                                {{ from.address.name ?: from.address.email }} &lt;{{ from.address.email }}&gt;
+                            {% else %}
+                                <span class="text-body-secondary">{{ 'common.unknown'|trans }}</span>
+                            {% endif %}
+                        </dd>
+                        <dt class="col-sm-2">{{ 'email.to'|trans }}</dt>
+                        <dd class="col-sm-10">
+                            {% if toList|length > 0 %}
+                                {% for l in toList %}
+                                    {{ l.address.name ?: l.address.email }} &lt;{{ l.address.email }}&gt;{{ not loop.last ? ', ' : '' }}
+                                {% endfor %}
+                            {% else %}
+                                <span class="text-body-secondary">–</span>
+                            {% endif %}
+                        </dd>
+                        {% if ccList|length > 0 %}
+                            <dt class="col-sm-2">{{ 'email.cc'|trans }}</dt>
+                            <dd class="col-sm-10">
+                                {% for l in ccList %}
+                                    {{ l.address.name ?: l.address.email }} &lt;{{ l.address.email }}&gt;{{ not loop.last ? ', ' : '' }}
+                                {% endfor %}
+                            </dd>
+                        {% endif %}
+                        {% if bccList|length > 0 %}
+                            <dt class="col-sm-2">{{ 'email.bcc'|trans }}</dt>
+                            <dd class="col-sm-10">
+                                {% for l in bccList %}
+                                    {{ l.address.name ?: l.address.email }} &lt;{{ l.address.email }}&gt;{{ not loop.last ? ', ' : '' }}
+                                {% endfor %}
+                            </dd>
+                        {% endif %}
+                        {% if replyToList|length > 0 %}
+                            <dt class="col-sm-2">{{ 'email.reply_to'|trans }}</dt>
+                            <dd class="col-sm-10">
+                                {% for l in replyToList %}
+                                    {{ l.address.name ?: l.address.email }} &lt;{{ l.address.email }}&gt;{{ not loop.last ? ', ' : '' }}
+                                {% endfor %}
+                            </dd>
+                        {% endif %}
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </header>
+    <div class="card-body">
+        <div class="email-body-wrapper">
+            {% set htmlBody = null %}
+            {% set textBody = null %}
+            {% for bl in email.emailBodies %}
+                {% if bl.contentType.value == 'html' %}
+                    {% set htmlBody = bl.body.content %}
+                {% elseif bl.contentType.value == 'text' %}
+                    {% set textBody = bl.body.content %}
+                {% endif %}
+            {% endfor %}
+            {% if htmlBody %}
+                {% set srcdocHtml = '<!DOCTYPE html><html><head><meta charset="utf-8"><base target="_blank"><style>body{margin:0;padding:16px;word-wrap:break-word;color:#212529;background:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;}img{max-width:100%;height:auto;}a{color:#0d6efd;}table{max-width:100%;}</style></head><body>' ~ htmlBody ~ '</body></html>' %}
+                <iframe class="email-html-frame"
+                        srcdoc="{{ srcdocHtml|e('html_attr') }}"
+                        sandbox="allow-popups"
+                        loading="lazy"
+                        referrerpolicy="no-referrer"
+                        title="E-Mail Inhalt"></iframe>
+            {% elseif textBody %}
+                <pre class="mb-0" style="white-space: pre-wrap;">{{ textBody }}</pre>
+            {% else %}
+                <div class="text-body-secondary">{{ 'email.no_content'|trans }}</div>
+            {% endif %}
+        </div>
+    </div>
+    {% set attCount = email.emailAttachments|length %}
+    {% if attCount > 0 %}
+        <footer class="card-footer bg-body-tertiary">
+            <h6 class="mb-3"><i class="fa-solid fa-paperclip me-2" aria-hidden="true"></i>{{ 'email.attachments'|trans }} ({{ attCount }})</h6>
+            <div class="row g-3">
+                {% for l in email.emailAttachments %}
+                    {% set a = l.attachment %}
+                    <div class="col-lg-6 col-12">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body p-3 d-flex align-items-center">
+                                <i class="fa-regular {{ file_icon(a.mimeType ?? null, a.name ?? null) }} {{ file_icon_color(a.mimeType ?? null, a.name ?? null)|default('text-body-secondary') }} fs-3 me-3" aria-hidden="true"></i>
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-0 text-truncate" title="{{ a.name }}">{{ a.name }}</h6>
+                                    <span class="text-body-secondary small">{{ a.size|bytes_to_human }}</span>
+                                </div>
+                                <button class="btn btn-sm btn-primary ms-2" title="{{ 'email.download'|trans }}" aria-label="{{ 'email.download'|trans }}: {{ a.name }}">
+                                    <i class="fa-solid fa-download" aria-hidden="true"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </footer>
+    {% endif %}
+</article>

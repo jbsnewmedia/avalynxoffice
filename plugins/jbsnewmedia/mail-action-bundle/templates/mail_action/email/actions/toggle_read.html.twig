@@ -1,0 +1,35 @@
+{% if license_manager.isReadOnly %}
+    <button type="button"
+            class="btn btn-primary"
+            disabled
+            aria-disabled="true"
+            data-priority="100"
+            title="{{ 'license.read_only_action'|trans }}">
+        <i class="fa-solid fa-lock" aria-hidden="true"></i>
+        <span class="visually-hidden">{{ 'license.read_only_action'|trans }}</span>
+    </button>
+{% else %}
+{% if not email.isOutgoing %}
+    <button type="button"
+            class="btn btn-primary toggle-read-detail"
+            data-action-id="toggle-read"
+            data-priority="100"
+            data-email="{{ email.id }}"
+            data-read="{{ email.isRead ? '0' : '1' }}"
+            title="{{ email.isRead ? ('email.mark_unread'|trans) : ('email.mark_read'|trans) }}"
+            aria-label="{{ email.isRead ? ('email.mark_unread'|trans) : ('email.mark_read'|trans) }}">
+        <i class="fa-solid {{ email.isRead ? 'fa-envelope' : 'fa-envelope-open' }}" aria-hidden="true"></i>
+        <span class="toggle-read-detail-text visually-hidden">{{ email.isRead ? ('email.mark_unread'|trans) : ('email.mark_read'|trans) }}</span>
+    </button>
+{% else %}
+    <a class="btn btn-secondary disabled"
+       href="#"
+       data-action-id="read-only"
+       data-priority="100"
+       title="{{ 'email.read_only'|trans }}"
+       aria-disabled="true">
+        <i class="fa-solid fa-lock" aria-hidden="true"></i>
+        <span class="visually-hidden">{{ 'email.sent'|trans }} ({{ 'email.read_only'|trans }})</span>
+    </a>
+{% endif %}
+{% endif %}
