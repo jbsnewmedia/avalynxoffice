@@ -32,7 +32,7 @@ class PurgeCssCommand extends Command
     protected function configure(): void
     {
         $this
-            ->addArgument('input', InputArgument::OPTIONAL, 'Pfad zur Eingabe-CSS-Datei (absolut oder relativ)', '/app/assets/css/bootstrap.min.css')
+            ->addArgument('input', InputArgument::OPTIONAL, 'Pfad zur Eingabe-CSS-Datei (absolut oder relativ)', 'assets/css/bootstrap.min.css')
             ->addArgument('output', InputArgument::OPTIONAL, 'Pfad zur Ausgabe-CSS-Datei (Standard: <input> mit .purged vor .css)')
             ->addOption('overwrite', null, InputOption::VALUE_NONE, 'Eingabedatei überschreiben (Backup wird als .bak erstellt)')
             ->addOption('dry-run', null, InputOption::VALUE_NONE, 'Nur Bericht ausgeben, keine Datei schreiben')
@@ -46,7 +46,7 @@ class PurgeCssCommand extends Command
     {
         $projectDir = dirname(__DIR__, 2);
         $inArg = $input->getArgument('input');
-        $inArg = is_string($inArg) ? $inArg : '/app/assets/css/bootstrap.min.css';
+        $inArg = is_string($inArg) ? $inArg : 'assets/css/bootstrap.min.css';
         $outArg = $input->getArgument('output');
         $outArg = is_string($outArg) ? $outArg : null;
         $overwrite = (bool) $input->getOption('overwrite');
