@@ -35,6 +35,14 @@ done
 echo '[avalynxoffice] Running database migrations ...'
 run_as_application 'php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration'
 
+# The Symfony container cache is considered always-fresh in prod and the var
+# directory is a persistent volume: after an image update the stale cache of
+# the previous image version must be rebuilt (it contains the compiled
+# configuration, e.g. new trusted_proxies settings).
+echo '[avalynxoffice] Rebuilding the application cache ...'
+run_as_application 'php bin/console cache:clear --no-warmup 2>&1' || true
+run_as_application 'php bin/console cache:warmup --quiet 2>&1' || true
+
 if [ -n "${OFFICE_ADMIN_EMAIL:-}" ] && [ -n "${OFFICE_ADMIN_PASSWORD:-}" ]; then
     echo '[avalynxoffice] Ensuring the configured administrator exists ...'
     run_as_application 'php bin/console app:user:create --email="$OFFICE_ADMIN_EMAIL" --password="$OFFICE_ADMIN_PASSWORD"'
