@@ -2,6 +2,13 @@
 framework:
     secret: '%env(APP_SECRET)%'
 
+    # Behind a reverse proxy (docker stack nginx or an external TLS proxy) the
+    # client IP, scheme and port arrive via X-Forwarded-* headers. Empty by
+    # default (headers ignored); set TRUSTED_PROXIES to the proxy addresses,
+    # e.g. "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16" for private networks.
+    trusted_proxies: '%env(default::TRUSTED_PROXIES)%'
+    trusted_headers: ['x-forwarded-for', 'x-forwarded-host', 'x-forwarded-proto', 'x-forwarded-port']
+
     csrf_protection:
         enabled: true
 
