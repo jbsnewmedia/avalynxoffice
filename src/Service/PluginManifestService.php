@@ -25,12 +25,12 @@ class PluginManifestService
         try {
             $manifest = $this->readJsonFile($this->getManifestPath());
         } catch (\JsonException $exception) {
-            throw new \RuntimeException('plugins/plugins.json ist kein gültiges JSON.', 0, $exception);
+            throw new \RuntimeException('plugins/plugins.json is not valid JSON.', 0, $exception);
         }
 
         $plugins = $this->extractPluginList($manifest);
         if (null === $plugins) {
-            throw new \RuntimeException('plugins/plugins.json hat nicht das erwartete Format.');
+            throw new \RuntimeException('plugins/plugins.json does not have the expected format.');
         }
 
         return ['plugins' => $plugins];
@@ -50,7 +50,7 @@ class PluginManifestService
 
         $json = json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
         if (!$this->writeFile($this->getManifestPath(), $json."\n")) {
-            throw new \RuntimeException('plugins/plugins.json konnte nicht geschrieben werden.');
+            throw new \RuntimeException('plugins/plugins.json could not be written.');
         }
 
         return $manifest;
@@ -349,12 +349,12 @@ class PluginManifestService
         try {
             $decoded = json_decode((string) file_get_contents($composerFile), true, 512, JSON_THROW_ON_ERROR);
         } catch (\JsonException $exception) {
-            throw new \RuntimeException(sprintf('Plugin-Datei "%s" enthält ungültiges JSON.', $composerFile), 0, $exception);
+            throw new \RuntimeException(sprintf('Plugin file "%s" contains invalid JSON.', $composerFile), 0, $exception);
         }
 
         $result = $this->stringKeyedArray($decoded);
         if (null === $result) {
-            throw new \RuntimeException(sprintf('Plugin-Datei "%s" hat nicht das erwartete Format.', $composerFile));
+            throw new \RuntimeException(sprintf('Plugin file "%s" does not have the expected format.', $composerFile));
         }
 
         return $result;

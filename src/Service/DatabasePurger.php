@@ -10,11 +10,11 @@ use Doctrine\DBAL\Platforms\AbstractPlatform;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
- * Leert Datenbanktabellen dynamisch über den Schema-Manager.
+ * Clears database tables dynamically via the schema manager.
  *
  * Im Gegensatz zum MailClearCommand (statische Liste der Mail-Tabellen) werden hier
- * alle Tabellen berücksichtigt. Systemtabellen (Migrationen, Messenger) bleiben
- * immer erhalten, die Benutzer-Tabelle kann wahlweise geschont werden.
+ * every table is taken into account. System tables (migrations, messenger) are
+ * always preserved; the user table can optionally be kept.
  */
 class DatabasePurger
 {
@@ -27,7 +27,7 @@ class DatabasePurger
     }
 
     /**
-     * @return list<string> die geleerten Tabellen
+     * @return list<string> the cleared tables
      */
     public function purge(bool $keepUsers = false): array
     {

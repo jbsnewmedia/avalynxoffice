@@ -66,9 +66,9 @@ final class Pop3FetcherErrorHandlingTest extends TestCase
         ]);
 
         $content = (string) file_get_contents($errorLogPath);
-        self::assertStringContainsString('Fehler bei Nachricht 1 (UIDL: uid-1)', $content);
+        self::assertStringContainsString('Error on message 1 (UIDL: uid-1)', $content);
         self::assertStringContainsString('=== ERROR ===', $content);
-        self::assertStringContainsString('Subject: Betreff', $content);
+        self::assertStringContainsString('subject: Betreff', $content);
         self::assertStringContainsString('Trace:', $content);
     }
 
@@ -103,8 +103,8 @@ final class Pop3FetcherErrorHandlingTest extends TestCase
         $this->callPrivate('logError', [4, null, null, new \RuntimeException('kaputt'), $connector, $storage]);
 
         $content = (string) file_get_contents($errorLogPath);
-        self::assertStringContainsString('Konnte Raw-Inhalt von Nachricht 4', $content);
-        self::assertStringContainsString('POP3-RETR-Fallback für Nachricht 4 fehlgeschlagen', $content);
+        self::assertStringContainsString('Could not read raw content of message 4', $content);
+        self::assertStringContainsString('POP3 RETR fallback for message 4 failed', $content);
 
         $brokenConnector = $this->createStub(MailboxConnector::class);
         $brokenConnector->method('getEmail')->willThrowException(new \RuntimeException('connector kaputt'));
@@ -114,7 +114,7 @@ final class Pop3FetcherErrorHandlingTest extends TestCase
         $this->callPrivate('logError', [4, null, null, new \RuntimeException('kaputt'), $brokenConnector, $storageWithRaw]);
 
         $content = (string) file_get_contents($errorLogPath);
-        self::assertStringContainsString('Fehler beim Dumpen der fehlgeschlagenen Mail', $content);
+        self::assertStringContainsString('Error dumping the failed mail', $content);
     }
 
     public function testFetchRawViaProtocolHandlesNonStringAndMissingProtocol(): void
@@ -320,7 +320,7 @@ final class Pop3FetcherErrorHandlingTest extends TestCase
         self::assertSame(['imported' => 0, 'skipped' => 0, 'errors' => 1], $fetcher->fetchForConnector($connector));
 
         $content = (string) file_get_contents($errorLogPath);
-        self::assertStringContainsString('Fehler bei Nachricht 1', $content);
+        self::assertStringContainsString('Error on message 1', $content);
         self::assertStringContainsString('Header kaputt', $content);
 
         $dumpDir = $this->tempDir.'/mail_dumps/support@example.com/'.date('Y/m/d').'/error';

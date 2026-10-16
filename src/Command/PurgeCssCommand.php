@@ -17,7 +17,7 @@ use Symfony\Component\Filesystem\Filesystem;
 
 #[AsCommand(
     name: 'assets:css-purge',
-    description: 'Purge eine CSS-Datei auf Basis der in den Twig-Templates verwendeten CSS-Klassen.'
+    description: 'Purge a CSS file based on the CSS classes used in the Twig templates.'
 )]
 class PurgeCssCommand extends Command
 {
@@ -32,13 +32,13 @@ class PurgeCssCommand extends Command
     protected function configure(): void
     {
         $this
-            ->addArgument('input', InputArgument::OPTIONAL, 'Pfad zur Eingabe-CSS-Datei (absolut oder relativ)', 'assets/css/bootstrap.min.css')
-            ->addArgument('output', InputArgument::OPTIONAL, 'Pfad zur Ausgabe-CSS-Datei (Standard: <input> mit .purged vor .css)')
-            ->addOption('overwrite', null, InputOption::VALUE_NONE, 'Eingabedatei überschreiben (Backup wird als .bak erstellt)')
-            ->addOption('dry-run', null, InputOption::VALUE_NONE, 'Nur Bericht ausgeben, keine Datei schreiben')
-            ->addOption('safelist', null, InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY, 'Zusätzliche Klassen whitelisten (mehrfach verwenden oder per Komma)')
-            ->addOption('json', null, InputOption::VALUE_NONE, 'Bericht als JSON ausgeben')
-            ->addOption('debug-selectors', null, InputOption::VALUE_NONE, 'Finale Selektoren-Liste anzeigen/ausgeben (auch in JSON)');
+            ->addArgument('input', InputArgument::OPTIONAL, 'Path to the input CSS file (absolute or relative)', 'assets/css/bootstrap.min.css')
+            ->addArgument('output', InputArgument::OPTIONAL, 'Path to the output CSS file (default: <input> with .purged before .css)')
+            ->addOption('overwrite', null, InputOption::VALUE_NONE, 'Overwrite the input file (a .bak backup is created)')
+            ->addOption('dry-run', null, InputOption::VALUE_NONE, 'Only print a report, do not write a file')
+            ->addOption('safelist', null, InputOption::VALUE_OPTIONAL | InputOption::VALUE_IS_ARRAY, 'Whitelist additional classes (repeat the option or separate by comma)')
+            ->addOption('json', null, InputOption::VALUE_NONE, 'Print the report as JSON')
+            ->addOption('debug-selectors', null, InputOption::VALUE_NONE, 'Show the final selector list (also in JSON)');
     }
 
     #[\Override]
@@ -66,7 +66,7 @@ class PurgeCssCommand extends Command
         }
         $inPath = $this->toAbsolutePath($inArg, $projectDir);
         if (!is_file($inPath)) {
-            $output->writeln('<error>Eingabedatei nicht gefunden: '.$inArg.'</error>');
+            $output->writeln('<error>Input file not found: '.$inArg.'</error>');
 
             return Command::FAILURE;
         }
@@ -74,7 +74,7 @@ class PurgeCssCommand extends Command
         if (null !== $outArg) {
             $outPath = $this->toAbsolutePath($outArg, $projectDir);
         } elseif ($overwrite) {
-            $outPath = $inPath; // wird überschrieben (mit Backup)
+            $outPath = $inPath; // will be overwritten (with backup)
         } else {
             $outPath = preg_replace('/\.css($|\?.*)/i', '.purged.css$1', $inPath) ?? ($inPath.'.purged.css');
         }
@@ -83,7 +83,7 @@ class PurgeCssCommand extends Command
         try {
             $purger = $this->purgerFactory->create($inPath);
         } catch (\Throwable $e) {
-            $output->writeln('<error>Initialisierung des Vendor-CSS-Purgers fehlgeschlagen: '.$e->getMessage().'</error>');
+            $output->writeln('<error>Vendor CSS purger initialization failed: '.$e->getMessage().'</error>');
 
             return Command::FAILURE;
         }
@@ -92,7 +92,7 @@ class PurgeCssCommand extends Command
             $purger->prepareContent();
             $purger->runContent();
         } catch (\Throwable $e) {
-            $output->writeln('<error>Verarbeitung der CSS-Datei im Vendor-Purger fehlgeschlagen: '.$e->getMessage().'</error>');
+            $output->writeln('<error>Vendor purger failed to process the CSS file: '.$e->getMessage().'</error>');
 
             return Command::FAILURE;
         }
@@ -125,7 +125,7 @@ class PurgeCssCommand extends Command
         try {
             $purgedCss = $purger->generateOutput();
         } catch (\Throwable $e) {
-            $output->writeln('<error>Erzeugen der Ausgabedaten fehlgeschlagen: '.$e->getMessage().'</error>');
+            $output->writeln('<error>Failed to generate the output data: '.$e->getMessage().'</error>');
 
             return Command::FAILURE;
         }
@@ -148,10 +148,10 @@ class PurgeCssCommand extends Command
             $json = json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
             $output->writeln(is_string($json) ? $json : '');
         } else {
-            $output->writeln('<info>Gefundene Klassen:</info> '.count($usedClasses));
-            $output->writeln(sprintf('Größe vorher: %d B | nachher: %d B | gespart: %d B (%.2f%%)', $stats['bytes_in'], $stats['bytes_out'], $stats['bytes_saved'], $stats['percent_reduction']));
+            $output->writeln('<info>Found classes:</info> '.count($usedClasses));
+            $output->writeln(sprintf('Size before: %d B | after: %d B | saved: %d B (%.2f%%)', $stats['bytes_in'], $stats['bytes_out'], $stats['bytes_saved'], $stats['percent_reduction']));
             if ($debugSelectors) {
-                $output->writeln('<info>Selektoren (gesamt '.count($selectors).'):</info>');
+                $output->writeln('<info>Selectors (total '.count($selectors).'):</info>');
                 foreach ($selectors as $sel) {
                     $output->writeln('  '.$sel);
                 }
@@ -166,7 +166,7 @@ class PurgeCssCommand extends Command
             try {
                 $filesystem->mkdir($outDir);
             } catch (IOExceptionInterface) {
-                $output->writeln('<error>Konnte Zielverzeichnis nicht anlegen: '.$outDir.'</error>');
+                $output->writeln('<error>Failed to create the output directory: '.$outDir.'</error>');
 
                 return Command::FAILURE;
             }
@@ -175,20 +175,20 @@ class PurgeCssCommand extends Command
             $bak = $inPath.'.bak';
             try {
                 $filesystem->copy($inPath, $bak, true);
-                $output->writeln('<info>Backup erstellt:</info> '.$this->toRelativePath($bak, $projectDir));
+                $output->writeln('<info>Backup created:</info> '.$this->toRelativePath($bak, $projectDir));
             } catch (IOExceptionInterface) {
-                $output->writeln('<comment>Warnung: Backup konnte nicht erstellt werden: '.$bak.'</comment>');
+                $output->writeln('<comment>Warning: could not create the backup: '.$bak.'</comment>');
             }
         }
         try {
             $filesystem->dumpFile($outPath, $purgedCss);
         } catch (IOExceptionInterface) {
-            $output->writeln('<error>Schreiben der Ausgabedatei fehlgeschlagen: '.$outPath.'</error>');
+            $output->writeln('<error>Failed to write the output file: '.$outPath.'</error>');
 
             return Command::FAILURE;
         }
         if (!$asJson) {
-            $output->writeln('<info>Purged CSS geschrieben nach:</info> '.$this->toRelativePath($outPath, $projectDir));
+            $output->writeln('<info>Purged CSS written to:</info> '.$this->toRelativePath($outPath, $projectDir));
         }
 
         return Command::SUCCESS;

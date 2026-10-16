@@ -39,7 +39,7 @@ class AttachmentStorage
     {
         $size = strlen($data);
         if ($size > $this->maxBytes) {
-            throw new \RuntimeException(sprintf('Maximal %d Bytes erlaubt, erhalten: %d Bytes.', $this->maxBytes, $size));
+            throw new \RuntimeException(sprintf('Maximum of %d bytes allowed, got %d bytes.', $this->maxBytes, $size));
         }
 
         $relativePath = $this->buildRelativePath($attachment);
@@ -48,7 +48,7 @@ class AttachmentStorage
         try {
             new Filesystem()->dumpFile($absolutePath, $data);
         } catch (IOExceptionInterface $exception) {
-            throw new \RuntimeException(sprintf('Attachment-Datei "%s" konnte nicht geschrieben werden.', $absolutePath), 0, $exception);
+            throw new \RuntimeException(sprintf('Attachment file "%s" could not be written.', $absolutePath), 0, $exception);
         }
 
         return $relativePath;
@@ -58,7 +58,7 @@ class AttachmentStorage
     {
         $absolutePath = $this->resolveAbsolutePath($attachment->getFilePath());
         if (!is_file($absolutePath) || !is_readable($absolutePath)) {
-            throw new \RuntimeException(sprintf('Attachment-Datei "%s" ist nicht lesbar.', $absolutePath));
+            throw new \RuntimeException(sprintf('Attachment file "%s" is not readable.', $absolutePath));
         }
 
         $response = new BinaryFileResponse($absolutePath);

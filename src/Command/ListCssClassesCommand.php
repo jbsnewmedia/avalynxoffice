@@ -13,7 +13,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 #[AsCommand(
     name: 'templates:list-css-classes',
-    description: 'Durchsucht alle Twig-Templates (App und Bundles) und listet alle gefundenen CSS-Klassen auf.'
+    description: 'Scans all Twig templates (app and bundles) and lists all CSS classes found.'
 )]
 class ListCssClassesCommand extends Command
 {
@@ -27,8 +27,8 @@ class ListCssClassesCommand extends Command
     protected function configure(): void
     {
         $this
-            ->addOption('json', null, InputOption::VALUE_NONE, 'Ausgabe als JSON')
-            ->addOption('grouped', null, InputOption::VALUE_NONE, 'Nach Template gruppierte Ausgabe (nur Textausgabe)');
+            ->addOption('json', null, InputOption::VALUE_NONE, 'Output as JSON')
+            ->addOption('grouped', null, InputOption::VALUE_NONE, 'Output grouped by template (text output only)');
     }
 
     #[\Override]

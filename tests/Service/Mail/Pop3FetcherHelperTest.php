@@ -90,7 +90,7 @@ final class Pop3FetcherHelperTest extends TestCase
         $output
             ->expects(self::once())
             ->method('writeln')
-            ->with('<error>   Connector ist keinem Postfach zugeordnet.</error>');
+            ->with('<error>   Connector is not assigned to a mailbox.</error>');
 
         self::assertSame($this->fetcher, $this->fetcher->setOutput($output));
         self::assertSame(['imported' => 0, 'skipped' => 0, 'errors' => 0], $this->fetcher->fetchForConnector(new MailboxConnector()));
@@ -259,7 +259,7 @@ final class Pop3FetcherHelperTest extends TestCase
     public function testDumpAndRemovePendingSwallowFilesystemAndConnectorFailures(): void
     {
         $output = $this->createMock(OutputInterface::class);
-        $output->expects(self::once())->method('writeln')->with(self::stringContains('Fehler beim Dumpen'));
+        $output->expects(self::once())->method('writeln')->with(self::stringContains('Error dumping'));
         $this->fetcher->setOutput($output);
 
         $message = $this->createStub(StorageMessage::class);

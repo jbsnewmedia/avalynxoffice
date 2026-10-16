@@ -150,7 +150,7 @@ final class CommandGapFillTest extends TestCase
 
         $missing = new CommandTester(new MailFetchCommand($mailboxRepository, $fetcher));
         self::assertSame(Command::FAILURE, $missing->execute(['--mailbox' => 'missing@example.com']));
-        self::assertStringContainsString('Mailbox nicht gefunden', $missing->getDisplay());
+        self::assertStringContainsString('Mailbox not found', $missing->getDisplay());
 
         $emptyRepository = $this->createMock(MailboxRepository::class);
         $emptyRepository->expects(self::once())
@@ -208,7 +208,7 @@ final class CommandGapFillTest extends TestCase
 
         $tester = new CommandTester(new MailFetchCommand($mailboxRepository, $fetcher));
         self::assertSame(Command::FAILURE, $tester->execute(['--mailbox' => 'fallback@example.com']));
-        self::assertStringContainsString('Mailbox nicht gefunden', $tester->getDisplay());
+        self::assertStringContainsString('Mailbox not found', $tester->getDisplay());
     }
 
     public function testMailFetchCommandProcessesConnectorsAndReportsTotals(): void
@@ -243,9 +243,9 @@ final class CommandGapFillTest extends TestCase
             '--delete-after' => true,
         ]));
 
-        self::assertStringContainsString('Kein Connector konfiguriert.', $tester->getDisplay());
+        self::assertStringContainsString('No connector configured.', $tester->getDisplay());
         self::assertStringContainsString('Abruf startet', $tester->getDisplay());
-        self::assertStringContainsString('Gesamt: importiert=3, übersprungen=1, Fehler=1', $tester->getDisplay());
+        self::assertStringContainsString('Total: imported=3, skipped=1, errors=1', $tester->getDisplay());
     }
 
     public function testMailFetchCommandReportsWhenNoConnectorsCanBeProcessed(): void
@@ -316,8 +316,8 @@ final class CommandGapFillTest extends TestCase
         self::assertSame('mailbox@example.com', $persisted[0]->getEmail());
         self::assertSame('smtp.example.com', $persisted[1]->getSmtpHost());
         self::assertCount(1, $admin->getMailboxes());
-        self::assertStringContainsString('Mailbox wird dem User admin@example.com zugeordnet.', $tester->getDisplay());
-        self::assertStringContainsString('wurde erfolgreich angelegt', $tester->getDisplay());
+        self::assertStringContainsString('Mailbox is assigned to user admin@example.com.', $tester->getDisplay());
+        self::assertStringContainsString('has been created', $tester->getDisplay());
     }
 
     public function testMailboxConfigureSmtpCommandHandlesConnectorLookupMailboxFallbackAndMissingIdentifier(): void
@@ -389,7 +389,7 @@ final class CommandGapFillTest extends TestCase
         $tester->setInputs(['no']);
 
         self::assertSame(Command::SUCCESS, $tester->execute([]));
-        self::assertStringContainsString('Vorgang abgebrochen.', $tester->getDisplay());
+        self::assertStringContainsString('Operation aborted.', $tester->getDisplay());
     }
 
     public function testMailClearCommandClearsSqliteTablesAndFallsBackToDelete(): void
@@ -421,7 +421,7 @@ final class CommandGapFillTest extends TestCase
 
         self::assertSame(Command::SUCCESS, $tester->execute(['--yes' => true]));
         self::assertStringContainsString('Leere Tabelle address', $tester->getDisplay());
-        self::assertStringContainsString('Alle Tabellen wurden erfolgreich geleert.', $tester->getDisplay());
+        self::assertStringContainsString('All tables have been cleared successfully.', $tester->getDisplay());
     }
 
     public function testMailClearCommandFallsBackToDeleteForPostgresql(): void
@@ -466,8 +466,8 @@ final class CommandGapFillTest extends TestCase
         $tester = new CommandTester(new MailClearCommand($entityManager));
 
         self::assertSame(Command::SUCCESS, $tester->execute(['--yes' => true]));
-        self::assertStringContainsString('Versuche DELETE FROM', $tester->getDisplay());
-        self::assertStringContainsString('Alle Tabellen mit DELETE gelöscht.', $tester->getDisplay());
+        self::assertStringContainsString('Trying DELETE FROM', $tester->getDisplay());
+        self::assertStringContainsString('All tables cleared with DELETE.', $tester->getDisplay());
     }
 
     public function testMailClearCommandRestoresMysqlForeignKeyChecksOnFailure(): void
@@ -499,7 +499,7 @@ final class CommandGapFillTest extends TestCase
         $tester = new CommandTester(new MailClearCommand($entityManager));
 
         self::assertSame(Command::FAILURE, $tester->execute(['--yes' => true]));
-        self::assertStringContainsString('Fehler beim Leeren der Tabellen', $tester->getDisplay());
+        self::assertStringContainsString('Failed to clear the tables', $tester->getDisplay());
     }
 
     public function testMailSendCommandReportsWhenNoPendingEmailsExist(): void
@@ -525,7 +525,7 @@ final class CommandGapFillTest extends TestCase
         $tester = new CommandTester(new MailSendCommand($repository, $entityManager, $folderManager, $attachmentStorage, $this->createStub(SmtpMailerFactory::class), new AllowAllLicenseEnforcement()));
 
         self::assertSame(Command::SUCCESS, $tester->execute([]));
-        self::assertStringContainsString('Keine ausstehenden E-Mails zum Versenden gefunden.', $tester->getDisplay());
+        self::assertStringContainsString('No pending emails found to send.', $tester->getDisplay());
     }
 
     public function testMailSendCommandSendsEligibleEmailsAndSkipsFutureScheduledMessages(): void
@@ -566,7 +566,7 @@ final class CommandGapFillTest extends TestCase
         self::assertFalse($sendableEmail->isSending());
         self::assertInstanceOf(\DateTimeImmutable::class, $sendableEmail->getSentAt());
         self::assertFalse($futureEmail->isSent());
-        self::assertStringContainsString('Mail erfolgreich versendet.', $tester->getDisplay());
+        self::assertStringContainsString('Mail sent successfully.', $tester->getDisplay());
     }
 
     public function testMailSendCommandHandlesMissingSmtpConfiguration(): void
@@ -584,7 +584,7 @@ final class CommandGapFillTest extends TestCase
 
         $this->invokeMailSend($command, (new Email())->setSubject('Missing config'), $output);
 
-        self::assertStringContainsString('Keine SMTP-Konfiguration', $output->fetch());
+        self::assertStringContainsString('No SMTP configuration', $output->fetch());
     }
 
     public function testMailSendCommandResetsSendingFlagAfterTransportFailuresForTlsAndSsl(): void
@@ -619,7 +619,7 @@ final class CommandGapFillTest extends TestCase
 
             self::assertFalse($email->isSent());
             self::assertFalse($email->isSending());
-            self::assertStringContainsString('Fehler beim Senden', $output->fetch());
+            self::assertStringContainsString('Failed to send', $output->fetch());
         }
     }
 
@@ -633,7 +633,7 @@ final class CommandGapFillTest extends TestCase
         self::assertSame(Command::FAILURE, $tester->execute([
             'input' => 'var/does-not-exist.css',
         ]));
-        self::assertStringContainsString('Eingabedatei nicht gefunden', $tester->getDisplay());
+        self::assertStringContainsString('Input file not found', $tester->getDisplay());
     }
 
     public function testPurgeCssCommandSupportsDryRunJsonAndOverwriteModes(): void
@@ -668,8 +668,8 @@ final class CommandGapFillTest extends TestCase
                 '--overwrite' => true,
             ]));
             self::assertFileExists($inputPath.'.bak');
-            self::assertStringContainsString('Backup erstellt', $overwrite->getDisplay());
-            self::assertStringContainsString('Purged CSS geschrieben nach', $overwrite->getDisplay());
+            self::assertStringContainsString('Backup created', $overwrite->getDisplay());
+            self::assertStringContainsString('Purged CSS written to', $overwrite->getDisplay());
         } finally {
             @unlink($inputPath);
             @unlink($inputPath.'.bak');
@@ -735,7 +735,7 @@ final class CommandGapFillTest extends TestCase
 
         $tester = new CommandTester(new MailFetchCommand($mailboxRepository, $fetcher));
         self::assertSame(Command::SUCCESS, $tester->execute(['--mailbox' => 'mailbox-id']));
-        self::assertStringContainsString('Gesamt: importiert=2', $tester->getDisplay());
+        self::assertStringContainsString('Total: imported=2', $tester->getDisplay());
     }
 
     public function testMailSendCommandAttachesFilesAndSkipsNullAttachments(): void
@@ -795,7 +795,7 @@ final class CommandGapFillTest extends TestCase
 
         self::assertSame(Command::SUCCESS, $tester->execute(['--yes' => true]));
         self::assertStringContainsString('Leere alle Tabellen in PostgreSQL', $tester->getDisplay());
-        self::assertStringContainsString('Alle Tabellen wurden erfolgreich geleert.', $tester->getDisplay());
+        self::assertStringContainsString('All tables have been cleared successfully.', $tester->getDisplay());
     }
 
     public function testMailClearCommandClearsMysqlTablesSuccessfully(): void
@@ -815,7 +815,7 @@ final class CommandGapFillTest extends TestCase
 
         self::assertSame(Command::SUCCESS, $tester->execute(['--yes' => true]));
         self::assertStringContainsString('Leere Tabelle', $tester->getDisplay());
-        self::assertStringContainsString('Alle Tabellen wurden erfolgreich geleert.', $tester->getDisplay());
+        self::assertStringContainsString('All tables have been cleared successfully.', $tester->getDisplay());
     }
 
     public function testMailClearCommandRestoresSqliteForeignKeysOnFailure(): void
@@ -843,7 +843,7 @@ final class CommandGapFillTest extends TestCase
         $tester = new CommandTester(new MailClearCommand($entityManager));
 
         self::assertSame(Command::FAILURE, $tester->execute(['--yes' => true]));
-        self::assertStringContainsString('Fehler beim Leeren der Tabellen', $tester->getDisplay());
+        self::assertStringContainsString('Failed to clear the tables', $tester->getDisplay());
     }
 
     public function testMailClearCommandRestoresPostgresqlReplicationRoleOnFailure(): void
@@ -874,7 +874,7 @@ final class CommandGapFillTest extends TestCase
         $tester = new CommandTester(new MailClearCommand($entityManager));
 
         self::assertSame(Command::FAILURE, $tester->execute(['--yes' => true]));
-        self::assertStringContainsString('Fehler beim Leeren der Tabellen', $tester->getDisplay());
+        self::assertStringContainsString('Failed to clear the tables', $tester->getDisplay());
     }
 
     public function testCompileScssCommandFailsWhenOutputDirectoryCannotBeCreated(): void
@@ -919,8 +919,8 @@ final class CommandGapFillTest extends TestCase
                 '--debug-selectors' => true,
             ]));
             self::assertFileExists($outputPath);
-            self::assertStringContainsString('Selektoren (gesamt', $tester->getDisplay());
-            self::assertStringContainsString('Purged CSS geschrieben nach', $tester->getDisplay());
+            self::assertStringContainsString('Selectors (total ', $tester->getDisplay());
+            self::assertStringContainsString('Purged CSS written to', $tester->getDisplay());
         } finally {
             @unlink($inputPath);
             @unlink($outputPath);
@@ -941,7 +941,7 @@ final class CommandGapFillTest extends TestCase
         try {
             $tester = new CommandTester($command);
             self::assertSame(Command::FAILURE, $tester->execute(['input' => $inputPath]));
-            self::assertStringContainsString('Initialisierung des Vendor-CSS-Purgers fehlgeschlagen', $tester->getDisplay());
+            self::assertStringContainsString('Vendor CSS purger initialization failed', $tester->getDisplay());
         } finally {
             @unlink($inputPath);
         }
@@ -963,7 +963,7 @@ final class CommandGapFillTest extends TestCase
         try {
             $tester = new CommandTester($command);
             self::assertSame(Command::FAILURE, $tester->execute(['input' => $inputPath]));
-            self::assertStringContainsString('Verarbeitung der CSS-Datei im Vendor-Purger fehlgeschlagen', $tester->getDisplay());
+            self::assertStringContainsString('Vendor purger failed to process the CSS file', $tester->getDisplay());
         } finally {
             @unlink($inputPath);
         }
@@ -986,7 +986,7 @@ final class CommandGapFillTest extends TestCase
         try {
             $tester = new CommandTester($command);
             self::assertSame(Command::FAILURE, $tester->execute(['input' => $inputPath]));
-            self::assertStringContainsString('Erzeugen der Ausgabedaten fehlgeschlagen', $tester->getDisplay());
+            self::assertStringContainsString('Failed to generate the output data', $tester->getDisplay());
         } finally {
             @unlink($inputPath);
         }
@@ -1009,7 +1009,7 @@ final class CommandGapFillTest extends TestCase
                 'input' => $inputPath,
                 'output' => $blockerPath.'/out.css',
             ]));
-            self::assertStringContainsString('Konnte Zielverzeichnis nicht anlegen', $tester->getDisplay());
+            self::assertStringContainsString('Failed to create the output directory', $tester->getDisplay());
         } finally {
             @unlink($inputPath);
             @unlink($blockerPath);
@@ -1034,7 +1034,7 @@ final class CommandGapFillTest extends TestCase
                 'input' => $inputPath,
                 '--overwrite' => true,
             ]));
-            self::assertStringContainsString('Backup konnte nicht erstellt werden', $tester->getDisplay());
+            self::assertStringContainsString('could not create the backup', $tester->getDisplay());
         } finally {
             @rmdir($bakDir);
             @unlink($inputPath);
@@ -1059,7 +1059,7 @@ final class CommandGapFillTest extends TestCase
                 'input' => $inputPath,
                 'output' => $outputDir,
             ]));
-            self::assertStringContainsString('Schreiben der Ausgabedatei fehlgeschlagen', $tester->getDisplay());
+            self::assertStringContainsString('Failed to write the output file', $tester->getDisplay());
         } finally {
             @rmdir($outputDir);
             @unlink($inputPath);

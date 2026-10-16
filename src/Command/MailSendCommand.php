@@ -23,7 +23,7 @@ use Symfony\Component\Mime\Email as SymfonyEmail;
 
 #[AsCommand(
     name: 'app:mail:send',
-    description: 'Versendet alle E-Mails, die zum Senden markiert sind.'
+    description: 'Sends all emails that are marked for sending.'
 )]
 class MailSendCommand extends Command
 {
@@ -52,7 +52,7 @@ class MailSendCommand extends Command
             static fn (Email $email): bool => !$email->isLicenseHold()
         ));
         if (empty($pendingEmails)) {
-            $output->writeln('Keine ausstehenden E-Mails zum Versenden gefunden.');
+            $output->writeln('No pending emails found to send.');
 
             return Command::SUCCESS;
         }
@@ -94,18 +94,18 @@ class MailSendCommand extends Command
         }
         $this->entityManager->flush();
         $output->writeln(sprintf(
-            '[LICENSE] AvalynxOffice befindet sich im eingeschränkten Modus. %d wartende Nachricht(en) wurden angehalten und nicht versendet. Nach der Lizenzwiederherstellung können sie mit "app:license:release-mail" freigegeben werden.',
+            '[LICENSE] AvalynxOffice is in restricted mode. %d pending message(s) were held and not sent. After the license is restored, they can be released with "app:license:release-mail".',
             count($emails),
         ));
     }
 
     private function sendEmail(Email $email, OutputInterface $output): void
     {
-        $output->writeln(sprintf('Sende Mail: %s (ID: %s)', $email->getSubject(), $email->getId()));
+        $output->writeln(sprintf('Sending mail: %s (ID: %s)', $email->getSubject(), $email->getId()));
         $mailbox = $email->getMailbox();
         $connector = $mailbox?->getPrimaryConnector();
         if (!$mailbox || !($connector instanceof MailboxConnector) || !$connector->getSmtpHost()) {
-            $output->writeln('  [ERROR] Keine SMTP-Konfiguration für diese Mail/Mailbox gefunden.');
+            $output->writeln('  [ERROR] No SMTP configuration found for this mail/mailbox.');
 
             return;
         }
@@ -159,9 +159,9 @@ class MailSendCommand extends Command
             if ($email->getMailbox()) {
                 $this->folderManager->syncEmailSystemFolders($email);
             }
-            $output->writeln('  [OK] Mail erfolgreich versendet.');
+            $output->writeln('  [OK] Mail sent successfully.');
         } catch (\Exception $e) {
-            $output->writeln(sprintf('  [ERROR] Fehler beim Senden: %s', $e->getMessage()));
+            $output->writeln(sprintf('  [ERROR] Failed to send: %s', $e->getMessage()));
         } finally {
             $email->setIsSending(false);
             $this->entityManager->flush();

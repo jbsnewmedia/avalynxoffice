@@ -18,7 +18,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(
     name: 'app:mailbox:add',
-    description: 'Legt eine neue Mailbox an.',
+    description: 'Creates a new mailbox.',
 )]
 class MailboxAddCommand extends Command
 {
@@ -33,7 +33,7 @@ class MailboxAddCommand extends Command
     {
         $this
             ->addArgument('email', InputArgument::REQUIRED, 'E-Mail-Adresse der Mailbox')
-            ->addArgument('password', InputArgument::REQUIRED, 'Passwort für POP3/SMTP')
+            ->addArgument('password', InputArgument::REQUIRED, 'Password for POP3/SMTP')
             ->addOption('name', null, InputOption::VALUE_REQUIRED, 'Anzeigename der Mailbox', 'Default Mailbox')
             ->addOption('connector-email', null, InputOption::VALUE_REQUIRED, 'E-Mail-Adresse des Connectors (falls abweichend von der Mailbox-E-Mail)')
             ->addOption('connector-name', null, InputOption::VALUE_REQUIRED, 'Anzeigename des Connectors')
@@ -104,12 +104,12 @@ class MailboxAddCommand extends Command
         $admin = $userRepo->findOneBy(['email' => 'admin@example.com']) ?: $userRepo->findOneBy([]);
         if ($admin) {
             $admin->addMailbox($mailbox);
-            $io->note(sprintf('Mailbox wird dem User %s zugeordnet.', $admin->getEmail()));
+            $io->note(sprintf('Mailbox is assigned to user %s.', $admin->getEmail()));
         }
         $this->entityManager->persist($mailbox);
         $this->entityManager->persist($connector);
         $this->entityManager->flush();
-        $io->success(sprintf('Mailbox %s (%s) wurde erfolgreich angelegt.', $name, $email));
+        $io->success(sprintf('Mailbox %s (%s) has been created.', $name, $email));
 
         return Command::SUCCESS;
     }

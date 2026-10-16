@@ -68,8 +68,8 @@ class AppFixtures extends Fixture
             ),
             $this->createMailbox(
                 $manager,
-                name: 'Büro',
-                email: 'buero@example.com',
+                name: 'Office',
+                email: 'office@example.com',
                 connectorName: 'Buero Connector',
                 connectorEmail: 'buero@connector.example',
                 assignedAddresses: [
@@ -399,12 +399,12 @@ class AppFixtures extends Fixture
         $now = new \DateTimeImmutable();
 
         $events = [
-            ['title' => 'Wartungsfenster Server', 'location' => 'Rechenzentrum', 'description' => 'Regelmäßige Updates und Backups prüfen.', 'start' => $now->modify('first day of this month')->setTime(9, 0), 'end' => $now->modify('first day of this month')->setTime(11, 0), 'allDay' => false],
-            ['title' => 'Team-Meeting', 'location' => 'Büro Mainz', 'description' => null, 'start' => $now->modify('monday this week')->setTime(10, 0), 'end' => $now->modify('monday this week')->setTime(11, 30), 'allDay' => false],
+            ['title' => 'Server maintenance window', 'location' => 'Data center', 'description' => 'Check regular updates and backups.', 'start' => $now->modify('first day of this month')->setTime(9, 0), 'end' => $now->modify('first day of this month')->setTime(11, 0), 'allDay' => false],
+            ['title' => 'Team meeting', 'location' => 'Mainz office', 'description' => null, 'start' => $now->modify('monday this week')->setTime(10, 0), 'end' => $now->modify('monday this week')->setTime(11, 30), 'allDay' => false],
             ['title' => 'Kundentermin', 'location' => 'beim Kunden', 'description' => 'Vorstellung der neuen Exchange-Anbindung.', 'start' => $now->modify('friday this week')->setTime(14, 0), 'end' => $now->modify('friday this week')->setTime(15, 0), 'allDay' => false],
             ['title' => 'Urlaub', 'location' => null, 'description' => null, 'start' => $now->modify('first day of next month')->setTime(0, 0), 'end' => null, 'allDay' => true],
-            ['title' => 'Retrospektive', 'location' => 'Online', 'description' => 'Monatsrückblick mit dem gesamten Team.', 'start' => $now->modify('last day of next month')->setTime(16, 0), 'end' => $now->modify('last day of next month')->setTime(17, 0), 'allDay' => false],
-            ['title' => 'Jahresplanung', 'location' => 'Büro Mainz', 'description' => 'Planung des nächsten Quartals.', 'start' => $now->modify('first day of last month')->setTime(9, 0), 'end' => $now->modify('first day of last month')->setTime(12, 0), 'allDay' => false],
+            ['title' => 'Retrospective', 'location' => 'Online', 'description' => 'Monthly retrospective with the whole team.', 'start' => $now->modify('last day of next month')->setTime(16, 0), 'end' => $now->modify('last day of next month')->setTime(17, 0), 'allDay' => false],
+            ['title' => 'Annual planning', 'location' => 'Mainz office', 'description' => 'Planning for the next quarter.', 'start' => $now->modify('first day of last month')->setTime(9, 0), 'end' => $now->modify('first day of last month')->setTime(12, 0), 'allDay' => false],
         ];
 
         foreach ($events as $definition) {

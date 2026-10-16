@@ -64,15 +64,15 @@ class Pop3Fetcher
 
     private function logError(int $num, ?string $uidl, ?string $subject, \Throwable $e, ?MailboxConnector $connector = null, ?\Laminas\Mail\Storage\Pop3 $storage = null): void
     {
-        $msg = sprintf('Fehler bei Nachricht %d (UIDL: %s): %s — Subject: %s', $num, $uidl ?? 'unknown', $e->getMessage(), $subject ?? '(kein Betreff)');
+        $msg = sprintf('Error on message %d (UIDL: %s): %s — subject: %s', $num, $uidl ?? 'unknown', $e->getMessage(), $subject ?? '(no subject)');
         $this->log($msg, 'error');
         if ($this->errorLogPath) {
             $detail = sprintf(
-                "[%s] === ERROR ===\nNachricht-Nr: %d\nUIDL: %s\nSubject: %s\nError: %s\nFile: %s:%d\nTrace:\n%s\n\n",
+                "[%s] === ERROR ===\nMessage no.: %d\nUIDL: %s\nSubject: %s\nError: %s\nFile: %s:%d\nTrace:\n%s\n\n",
                 date('Y-m-d H:i:s'),
                 $num,
                 $uidl ?? 'unknown',
-                $subject ?? '(kein Betreff)',
+                $subject ?? '(no subject)',
                 $e->getMessage(),
                 $e->getFile(),
                 $e->getLine(),
@@ -89,7 +89,7 @@ class Pop3Fetcher
     {
         $raw = $this->fetchRawViaProtocol($storage, $num);
         if (null === $raw) {
-            $this->log(sprintf('Konnte Raw-Inhalt von Nachricht %d weder über Laminas-API noch POP3-RETR lesen.', $num), 'error');
+            $this->log(sprintf('Could not read raw content of message %d via Laminas API or POP3 RETR.', $num), 'error');
 
             return;
         }
@@ -105,7 +105,7 @@ class Pop3Fetcher
             file_put_contents($dir.'/'.$filename, $fullContent);
             $this->log(sprintf('Raw-Mail als error abgelegt: %s/%s', $dir, $filename), 'comment');
         } catch (\Throwable $dumpError) {
-            $this->log('Fehler beim Dumpen der fehlgeschlagenen Mail: '.$dumpError->getMessage(), 'error');
+            $this->log('Error dumping the failed mail: '.$dumpError->getMessage(), 'error');
         }
     }
 
@@ -120,14 +120,14 @@ class Pop3Fetcher
             $protocolProp = $reflection->getProperty('protocol');
             $protocol = $protocolProp->getValue($storage);
             if (is_object($protocol) && method_exists($protocol, 'retrieve')) {
-                $this->log(sprintf('Fallback: direkter POP3-RETR für Nachricht %d (umgeht Laminas-Header-Parser).', $num), 'comment');
+                $this->log(sprintf('Fallback: direct POP3 RETR for message %d (bypasses the Laminas header parser).', $num), 'comment');
 
                 $raw = $protocol->retrieve($num);
 
                 return is_string($raw) ? $raw : '';
             }
         } catch (\Throwable $e) {
-            $this->log(sprintf('POP3-RETR-Fallback für Nachricht %d fehlgeschlagen: %s', $num, $e->getMessage()), 'error');
+            $this->log(sprintf('POP3 RETR fallback for message %d failed: %s', $num, $e->getMessage()), 'error');
         }
 
         return null;
@@ -135,7 +135,7 @@ class Pop3Fetcher
 
     /**
      * Versucht eine Raw-Mail (Header + Body) in ein Laminas StorageMessage zu parsen.
-     * Wenn der Standard-Parser an kaputten Headern scheitert (z. B. rohe UTF-8 Bytes in To:/From:),
+     * When the default parser fails on broken headers (e.g. raw UTF-8 bytes in To:/From:),
      * werden die Header-Werte permissiv via RFC 2047 encoded-word saniert und erneut geparst.
      */
     private function parseMessageWithSanitizedHeaders(string $rawContent): ?StorageMessage
@@ -143,7 +143,7 @@ class Pop3Fetcher
         try {
             return new StorageMessage(['raw' => $rawContent]);
         } catch (\Throwable $firstError) {
-            $this->log(sprintf('Erster Parser-Versuch fehlgeschlagen (%s), versuche Header-Sanierung...', $firstError->getMessage()), 'comment');
+            $this->log(sprintf('First parser attempt failed (%s), trying header sanitization...', $firstError->getMessage()), 'comment');
         }
 
         $splitPos = strpos($rawContent, "\r\n\r\n");
@@ -162,7 +162,7 @@ class Pop3Fetcher
         try {
             return new StorageMessage(['headers' => $sanitized, 'content' => $body, 'noToplines' => true]);
         } catch (\Throwable $secondError) {
-            $this->log(sprintf('Auch sanierte Header scheitern: %s', $secondError->getMessage()), 'error');
+            $this->log(sprintf('Sanitized headers also fail: %s', $secondError->getMessage()), 'error');
 
             return null;
         }
@@ -232,12 +232,12 @@ class Pop3Fetcher
     {
         $mailbox = $connector->getMailbox();
         if (!$mailbox instanceof Mailbox) {
-            $this->log('Connector ist keinem Postfach zugeordnet.', 'error');
+            $this->log('Connector is not assigned to a mailbox.', 'error');
 
             return ['imported' => 0, 'skipped' => 0, 'errors' => 0];
         }
         if (!$connector->getPop3Host() || !$connector->getPop3Username() || !$connector->getPop3Password()) {
-            $this->log('POP3-Konfiguration unvollständig.', 'error');
+            $this->log('POP3 configuration incomplete.', 'error');
 
             return ['imported' => 0, 'skipped' => 0, 'errors' => 0];
         }
@@ -261,38 +261,38 @@ class Pop3Fetcher
         $imported = $skipped = $errors = 0;
         try {
             $storage = $this->pop3StorageFactory->create($config);
-            $this->log('Verbindung erfolgreich hergestellt.');
+            $this->log('Connection established successfully.');
         } catch (\Throwable $e) {
             $this->log(sprintf('Verbindungsfehler: %s', $e->getMessage()), 'error');
 
             return ['imported' => 0, 'skipped' => 0, 'errors' => 0];
         }
         try {
-            $this->log('Zähle Nachrichten auf dem Server ...');
+            $this->log('Listing messages on the server ...');
             $count = $storage->countMessages();
-            $this->log(sprintf('%d Nachrichten gefunden.', $count));
+            $this->log(sprintf('%d messages found.', $count));
             $this->ensureInboxForMailbox($mailbox);
             $indices = [];
             if (null !== $limit && !$oldestFirst) {
                 for ($i = $count; $i > max(0, $count - $limit); --$i) {
                     $indices[] = $i;
                 }
-                $this->log(sprintf('Verarbeite die neuesten %d Nachrichten ...', count($indices)));
+                $this->log(sprintf('Processing the newest %d messages ...', count($indices)));
             } elseif (null !== $limit && $oldestFirst) {
                 for ($i = 1; $i <= min($count, $limit); ++$i) {
                     $indices[] = $i;
                 }
-                $this->log(sprintf('Verarbeite die ältesten %d Nachrichten ...', count($indices)));
+                $this->log(sprintf('Processing the oldest %d messages ...', count($indices)));
             } elseif ($oldestFirst) {
                 for ($i = 1; $i <= $count; ++$i) {
                     $indices[] = $i;
                 }
-                $this->log('Verarbeite alle Nachrichten (älteste zuerst) ...');
+                $this->log('Processing all messages (oldest first) ...');
             } else {
                 for ($i = $count; $i >= 1; --$i) {
                     $indices[] = $i;
                 }
-                $this->log('Verarbeite alle Nachrichten (neueste zuerst) ...');
+                $this->log('Processing all messages (newest first) ...');
             }
             foreach ($indices as $num) {
                 $uidl = null;
@@ -302,42 +302,42 @@ class Pop3Fetcher
                     $uidlRaw = $storage->getUniqueId($num);
                     $uidl = is_string($uidlRaw) ? $uidlRaw : (string) $num;
                     $importKey = (string) $connector->getId().':'.$uidl;
-                    $this->log(sprintf('Prüfe Nachricht %d (UIDL: %s) ...', $num, $uidl), 'comment');
+                    $this->log(sprintf('Checking message %d (UIDL: %s) ...', $num, $uidl), 'comment');
                     $exists = $this->emailRepo->findOneBy(['importKey' => $importKey]);
                     if ($exists) {
-                        $this->log('Bereits importiert. Überspringe.');
+                        $this->log('Already imported. Skipping.');
                         ++$skipped;
                         continue;
                     }
-                    $this->log('Lade Nachricht vom Server ...');
+                    $this->log('Loading message from server ...');
                     try {
                         $msg = $storage->getMessage($num);
                         $rawContent = $msg->getHeaders()->toString()."\n\n".$msg->getContent();
                     } catch (\Throwable $parseError) {
-                        $this->log(sprintf('Laminas-Header-Parser scheitert (Nachricht %d): %s — versuche Header-Sanierung.', $num, $parseError->getMessage()), 'comment');
+                        $this->log(sprintf('Laminas header parser fails (message %d): %s — trying header sanitization.', $num, $parseError->getMessage()), 'comment');
                         $raw = $this->fetchRawViaProtocol($storage, $num);
                         if (null === $raw) {
                             throw $parseError;
                         }
                         $parsedMsg = $this->parseMessageWithSanitizedHeaders($raw);
                         if (null === $parsedMsg) {
-                            $this->dumpRawError($num, $uidl, $connector, $storage, 'Header-Sanierung gescheitert: '.$parseError->getMessage());
+                            $this->dumpRawError($num, $uidl, $connector, $storage, 'Header sanitization failed: '.$parseError->getMessage());
                             throw $parseError;
                         }
                         $msg = $parsedMsg;
                         $rawContent = $raw;
                         $hadEncodingIssues = true;
-                        $this->log(sprintf('Header-Sanierung erfolgreich für Nachricht %d.', $num), 'info');
+                        $this->log(sprintf('Header sanitization succeeded for message %d.', $num), 'info');
                     }
                     $contentHash = hash('sha256', $rawContent);
                     $existsByHash = $this->emailRepo->findOneBy(['contentHash' => $contentHash]);
                     if ($existsByHash) {
-                        $this->log('E-Mail mit identischem Inhalt bereits importiert. Überspringe.');
+                        $this->log('Message with identical content already imported. Skipping.');
                         ++$skipped;
                         continue;
                     }
                     $subject = $this->safeHeader($msg, 'subject');
-                    $this->log(sprintf('Verarbeite Nachricht: "%s" (Hash: %s)', $subject, substr($contentHash, 0, 8)));
+                    $this->log(sprintf('Processing message: "%s" (hash: %s)', $subject, substr($contentHash, 0, 8)));
                     $this->dumpOriginalMessage($msg, $connector, null, $importKey, 'pending');
                     try {
                         $email = $this->convertMessageToEntity($msg, $mailbox, $importKey, $hadEncodingIssues);
@@ -347,7 +347,7 @@ class Pop3Fetcher
                         try {
                             $this->em->flush();
                         } catch (UniqueConstraintViolationException $e) {
-                            $this->log('Nachricht wurde während des Prozesses bereits von einem anderen Prozess importiert (UniqueConstraint). Überspringe.', 'comment');
+                            $this->log('Message was already imported by another process while running (unique constraint). Skipping.', 'comment');
                             if (!$this->em->isOpen()) {
                                 throw $e;
                             }
@@ -359,16 +359,16 @@ class Pop3Fetcher
                         throw $e;
                     }
                     if ($delete) {
-                        $this->log('Lösche Nachricht vom Server ...');
+                        $this->log('Deleting message from server ...');
                         $storage->removeMessage($num);
                     }
-                    $this->log('Nachricht erfolgreich importiert.', 'info');
+                    $this->log('Message imported successfully.', 'info');
                     ++$imported;
                 } catch (\Throwable $e) {
                     $this->logError($num, $uidl, $subject, $e, $connector, $storage);
                     ++$errors;
                     if (!$this->em->isOpen()) {
-                        $this->log('EntityManager ist geschlossen. Versuche Re-Open (Achtung: State-Verlust möglich).', 'error');
+                        $this->log('EntityManager is closed. Trying to re-open (warning: state may be lost).', 'error');
                         break;
                     }
                     $this->em->clear();
@@ -610,15 +610,15 @@ class Pop3Fetcher
                             $textBody .= "\n--- ".strtoupper($type)." ---\n";
                             $textBody .= $this->getPartContent($part)."\n";
                         } elseif (str_contains($type, 'application/') || str_contains($type, 'image/') || str_contains($type, 'audio/') || str_contains($type, 'video/')) {
-                            $this->log(sprintf('Verarbeite Attachment (Typ: %s) ...', $type));
+                            $this->log(sprintf('Processing attachment (type: %s) ...', $type));
                             $this->storeAttachmentPart($part, $email, $type);
                         }
                     } catch (\Throwable $e) {
-                        $this->log(sprintf('Fehler bei MIME-Part %d übersprungen: %s', $partCount, $e->getMessage()), 'comment');
+                        $this->log(sprintf('Skipping failing MIME part %d: %s', $partCount, $e->getMessage()), 'comment');
                     }
                 }
             } catch (\Throwable $e) {
-                $this->log(sprintf('Fehler beim Iterieren der MIME-Parts: %s', $e->getMessage()), 'comment');
+                $this->log(sprintf('Error iterating the MIME parts: %s', $e->getMessage()), 'comment');
             }
             if ($partCount > 0) {
                 $this->log(sprintf('%d MIME-Parts verarbeitet.', $partCount));
@@ -700,7 +700,7 @@ class Pop3Fetcher
         try {
             $att->setFilePath($this->attachmentStorage->store($att, $data));
         } catch (\RuntimeException $e) {
-            $this->log(sprintf('Attachment "%s" wurde übersprungen: %s', $filename, $e->getMessage()), 'comment');
+            $this->log(sprintf('Skipping attachment "%s": %s', $filename, $e->getMessage()), 'comment');
 
             return;
         }
@@ -781,7 +781,7 @@ class Pop3Fetcher
                 $this->removePendingDump($connector, $importKey, $date);
             }
         } catch (\Throwable $e) {
-            $this->log('Fehler beim Dumpen der Original-Nachricht: '.$e->getMessage(), 'error');
+            $this->log('Error dumping the original message: '.$e->getMessage(), 'error');
         }
     }
 

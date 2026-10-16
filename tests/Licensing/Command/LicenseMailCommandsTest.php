@@ -81,7 +81,7 @@ final class LicenseMailCommandsTest extends KernelTestCase
         $exitCode = $tester->execute([]);
 
         self::assertSame(Command::SUCCESS, $exitCode);
-        self::assertStringContainsString('eingeschränkten Modus', $tester->getDisplay());
+        self::assertStringContainsString('restricted mode', $tester->getDisplay());
 
         /** @var Email $reloaded */
         $reloaded = $this->em->find(Email::class, $email->getId());
@@ -131,7 +131,7 @@ final class LicenseMailCommandsTest extends KernelTestCase
         $releaseExit = $releaseTester->execute([]);
 
         self::assertSame(Command::SUCCESS, $releaseExit);
-        self::assertStringContainsString('1 angehaltene Nachricht(en)', $releaseTester->getDisplay());
+        self::assertStringContainsString('1 held message(s)', $releaseTester->getDisplay());
         /** @var Email $released */
         $released = $this->em->find(Email::class, $email->getId());
         self::assertFalse($released->isLicenseHold());
@@ -195,7 +195,7 @@ final class LicenseMailCommandsTest extends KernelTestCase
         $exitCode = $tester->execute([]);
 
         self::assertSame(Command::SUCCESS, $exitCode);
-        self::assertStringContainsString('eingeschränkten Modus', $tester->getDisplay());
+        self::assertStringContainsString('restricted mode', $tester->getDisplay());
         self::assertTrue($email->isLicenseHold());
         self::assertFalse($email->isSent());
     }

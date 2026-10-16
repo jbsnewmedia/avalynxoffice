@@ -145,7 +145,7 @@ class AttachmentStorageTest extends TestCase
         try {
             set_error_handler(static fn (): bool => true);
             $this->expectException(\RuntimeException::class);
-            $this->expectExceptionMessage('konnte nicht geschrieben werden');
+            $this->expectExceptionMessage('could not be written');
             $storage->store($attachment, 'payload');
         } finally {
             restore_error_handler();

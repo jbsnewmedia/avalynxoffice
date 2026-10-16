@@ -176,7 +176,7 @@ JSON);
         $service = new PluginManifestService($this->projectDir);
 
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('ungültiges JSON');
+        $this->expectExceptionMessage('invalid JSON');
         $service->refreshManifest();
     }
 
@@ -211,7 +211,7 @@ JSON);
             $invalidJsonService->loadManifest();
             self::fail('Expected invalid JSON exception.');
         } catch (\RuntimeException $exception) {
-            self::assertStringContainsString('kein gültiges JSON', $exception->getMessage());
+            self::assertStringContainsString('is not valid JSON', $exception->getMessage());
         }
 
         $invalidFormatService = new TestablePluginManifestService(
@@ -223,7 +223,7 @@ JSON);
         );
 
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('erwartete Format');
+        $this->expectExceptionMessage('expected format');
         $invalidFormatService->loadManifest();
     }
 
@@ -272,7 +272,7 @@ JSON);
             $decodeComposerFile->invoke($service, $composerFile);
             self::fail('Expected invalid composer format exception.');
         } catch (\Throwable $exception) {
-            self::assertStringContainsString('erwartete Format', (string) $exception->getMessage());
+            self::assertStringContainsString('expected format', (string) $exception->getMessage());
         }
 
         $normalizePsr4Autoload = new \ReflectionMethod(PluginManifestService::class, 'normalizePsr4Autoload');
@@ -349,7 +349,7 @@ JSON);
         );
 
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('konnte nicht geschrieben werden');
+        $this->expectExceptionMessage('could not be written');
         $service->refreshManifest();
     }
 

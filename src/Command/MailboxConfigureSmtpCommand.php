@@ -17,7 +17,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(
     name: 'app:mailbox:configure-smtp',
-    description: 'Konfiguriert die SMTP-Einstellungen einer bestehenden Mailbox.',
+    description: 'Configures the SMTP settings of an existing mailbox.',
 )]
 class MailboxConfigureSmtpCommand extends Command
 {
@@ -57,7 +57,7 @@ class MailboxConfigureSmtpCommand extends Command
             $connector = $mailbox?->getPrimaryConnector();
         }
         if (!$connector) {
-            $io->error(sprintf('Mailbox bzw. Connector mit Identifier "%s" wurde nicht gefunden.', $identifier));
+            $io->error(sprintf('Mailbox or connector with identifier "%s" was not found.', $identifier));
 
             return Command::FAILURE;
         }
@@ -82,7 +82,7 @@ class MailboxConfigureSmtpCommand extends Command
             $connector->setSmtpSecurity($security);
         }
         $this->entityManager->flush();
-        $io->success(sprintf('SMTP-Konfiguration für Connector %s wurde aktualisiert.', $connector->getEmail()));
+        $io->success(sprintf('SMTP configuration for connector %s has been updated.', $connector->getEmail()));
 
         return Command::SUCCESS;
     }

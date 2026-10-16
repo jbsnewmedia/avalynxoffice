@@ -14,7 +14,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 #[AsCommand(
     name: 'app:mail:fetch',
-    description: 'Ruft E-Mails per POP3 für konfigurierte Postfächer ab und importiert sie in die Datenbank.'
+    description: 'Fetches mail via POP3 for the configured mailboxes and imports it into the database.'
 )]
 class MailFetchCommand extends Command
 {
@@ -30,10 +30,10 @@ class MailFetchCommand extends Command
     {
         $this
             ->addOption('mailbox', null, InputOption::VALUE_REQUIRED, 'Mailbox-ID (UUID) oder E-Mail-Adresse. Wenn nicht gesetzt, werden alle Mailboxen mit ihren Connectoren abgerufen.')
-            ->addOption('limit', null, InputOption::VALUE_REQUIRED, 'Maximale Anzahl zu verarbeitender Nachrichten pro Mailbox.', null)
-            ->addOption('oldest', null, InputOption::VALUE_NONE, 'Älteste Nachrichten zuerst verarbeiten (Standard: neueste zuerst).')
-            ->addOption('delete-after', null, InputOption::VALUE_NONE, 'Nach erfolgreichem Import Nachricht auf dem Server löschen (überschreibt Mailbox-Einstellung).')
-            ->addOption('error-log', null, InputOption::VALUE_REQUIRED, 'Pfad für detailliertes Fehler-Log (mit UIDL, Subject, Trace).');
+            ->addOption('limit', null, InputOption::VALUE_REQUIRED, 'Maximum number of messages to process per mailbox.', null)
+            ->addOption('oldest', null, InputOption::VALUE_NONE, 'Process the oldest messages first (default: newest first).')
+            ->addOption('delete-after', null, InputOption::VALUE_NONE, 'Delete the message from the server after a successful import (overrides the mailbox setting).')
+            ->addOption('error-log', null, InputOption::VALUE_REQUIRED, 'Path for a detailed error log (with UIDL, subject and trace).');
     }
 
     #[\Override]
@@ -66,7 +66,7 @@ class MailFetchCommand extends Command
                 $mb = $this->mailboxRepo->findOneBy(['email' => $mbFilter]);
             }
             if (!$mb) {
-                $output->writeln('<error>Mailbox nicht gefunden: '.$mbFilter.'</error>');
+                $output->writeln('<error>Mailbox not found: '.$mbFilter.'</error>');
 
                 return Command::FAILURE;
             }
@@ -86,7 +86,7 @@ class MailFetchCommand extends Command
         foreach ($mailboxes as $mb) {
             $connectors = $mb->getConnectors();
             if ($connectors->isEmpty()) {
-                $output->writeln(sprintf('<comment>[%s]</comment> Kein Connector konfiguriert.', $mb->getEmail()));
+                $output->writeln(sprintf('<comment>[%s]</comment> No connector configured.', $mb->getEmail()));
                 continue;
             }
             foreach ($connectors as $connector) {
@@ -96,7 +96,7 @@ class MailFetchCommand extends Command
                 $this->fetcher->setOutput($output);
                 $this->fetcher->setErrorLogPath($errorLogPath);
                 $result = $this->fetcher->fetchForConnector($connector, $limit, $deleteAfter, $oldest);
-                $output->writeln(sprintf('   importiert: %d, übersprungen: %d, Fehler: %d', $result['imported'], $result['skipped'], $result['errors']));
+                $output->writeln(sprintf('   imported: %d, skipped: %d, errors: %d', $result['imported'], $result['skipped'], $result['errors']));
                 $totalImported += $result['imported'];
                 $totalSkipped += $result['skipped'];
                 $totalErrors += $result['errors'];
@@ -108,7 +108,7 @@ class MailFetchCommand extends Command
             return Command::SUCCESS;
         }
         $output->writeln('—');
-        $output->writeln(sprintf('<info>Fertig.</info> Gesamt: importiert=%d, übersprungen=%d, Fehler=%d', $totalImported, $totalSkipped, $totalErrors));
+        $output->writeln(sprintf('<info>Done.</info> Total: imported=%d, skipped=%d, errors=%d', $totalImported, $totalSkipped, $totalErrors));
 
         return $totalErrors > 0 ? Command::FAILURE : Command::SUCCESS;
     }

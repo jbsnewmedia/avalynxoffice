@@ -43,15 +43,15 @@ class MailClearCommand extends Command
     #[\Override]
     protected function configure(): void
     {
-        $this->addOption('yes', 'y', InputOption::VALUE_NONE, 'Bestätigung überspringen');
+        $this->addOption('yes', 'y', InputOption::VALUE_NONE, 'Skip the confirmation');
     }
 
     #[\Override]
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
-        if (!$input->getOption('yes') && !$io->confirm('Sind Sie sicher, dass Sie alle Mail-Daten (Emails, Anhänge, Kontakte, Ordner) löschen wollen?', false)) {
-            $io->note('Vorgang abgebrochen.');
+        if (!$input->getOption('yes') && !$io->confirm('Are you sure you want to delete all mail data (emails, attachments, contacts, folders)?', false)) {
+            $io->note('Operation aborted.');
 
             return Command::SUCCESS;
         }
@@ -73,9 +73,9 @@ class MailClearCommand extends Command
                 $io->write('Leere alle Tabellen in PostgreSQL... ');
                 try {
                     $connection->executeStatement(sprintf('TRUNCATE %s', $tableList));
-                    $io->writeln('erfolgreich.');
+                    $io->writeln('succeeded.');
                 } catch (\Exception) {
-                    $io->writeln('fehlgeschlagen. Versuche DELETE FROM...');
+                    $io->writeln('failed. Trying DELETE FROM...');
                     if ($connection->isTransactionActive()) {
                         $connection->rollBack();
                         $connection->beginTransaction();
@@ -83,7 +83,7 @@ class MailClearCommand extends Command
                     foreach ($this->tables as $table) {
                         $connection->executeStatement('DELETE FROM '.$table);
                     }
-                    $io->writeln('Alle Tabellen mit DELETE gelöscht.');
+                    $io->writeln('All tables cleared with DELETE.');
                 }
             } else {
                 try {
@@ -97,7 +97,7 @@ class MailClearCommand extends Command
                     } catch (\Exception) {
                         $connection->executeStatement('DELETE FROM '.$table);
                     }
-                    $io->writeln('erfolgreich.');
+                    $io->writeln('succeeded.');
                 }
             }
             $connection->commit();
@@ -108,7 +108,7 @@ class MailClearCommand extends Command
             } else {
                 $connection->executeStatement('SET FOREIGN_KEY_CHECKS = 1');
             }
-            $io->success('Alle Tabellen wurden erfolgreich geleert.');
+            $io->success('All tables have been cleared successfully.');
         } catch (\Exception $e) {
             if ($connection->isTransactionActive()) {
                 $connection->rollBack();
@@ -121,7 +121,7 @@ class MailClearCommand extends Command
             } else {
                 $connection->executeStatement('SET FOREIGN_KEY_CHECKS = 1');
             }
-            $io->error('Fehler beim Leeren der Tabellen: '.$e->getMessage());
+            $io->error('Failed to clear the tables: '.$e->getMessage());
 
             return Command::FAILURE;
         }

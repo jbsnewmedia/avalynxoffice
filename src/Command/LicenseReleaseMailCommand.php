@@ -19,7 +19,7 @@ use Symfony\Component\Console\Output\OutputInterface;
  */
 #[AsCommand(
     name: 'app:license:release-mail',
-    description: 'Gibt vom Lizenzmodus angehaltene ausgehende E-Mails zur erneuten Verarbeitung frei.'
+    description: 'Releases outgoing emails held by the license mode for reprocessing.'
 )]
 final class LicenseReleaseMailCommand extends Command
 {
@@ -35,7 +35,7 @@ final class LicenseReleaseMailCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         if ($this->licenseEnforcement->isReadOnly()) {
-            $output->writeln('[LICENSE] AvalynxOffice befindet sich weiterhin im eingeschränkten Modus. Eine Freigabe ist nicht möglich.');
+            $output->writeln('[LICENSE] AvalynxOffice is still in restricted mode. Releasing is not possible.');
 
             return Command::FAILURE;
         }
@@ -46,7 +46,7 @@ final class LicenseReleaseMailCommand extends Command
         }
         $this->entityManager->flush();
 
-        $output->writeln(sprintf('%d angehaltene Nachricht(en) wurden freigegeben.', count($held)));
+        $output->writeln(sprintf('%d held message(s) were released.', count($held)));
 
         return Command::SUCCESS;
     }
