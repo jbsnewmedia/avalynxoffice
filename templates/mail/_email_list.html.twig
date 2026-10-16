@@ -9,11 +9,11 @@
         </button>
     </div>
 </div>
-<div class="email-list-container" data-mailbox-id="{{ activeMailbox ? activeMailbox.id : 'all' }}" data-current-folder-id="{{ activeFolder ? activeFolder.id : '' }}" data-folder-id="{{ activeFolder ? activeFolder.id : '' }}" data-total="{{ totalEmails is defined ? totalEmails : (emails|length) }}" data-offset="{{ offset is defined ? offset : (emails|length) }}" data-limit="{{ limit is defined ? limit : 10 }}">
+<div class="email-list-container" data-mailbox-id="{{ activeMailbox ? activeMailbox.id : 'all' }}" data-current-folder-id="{{ activeFolder ? activeFolder.id : '' }}" data-folder-id="{{ activeFolder ? activeFolder.id : (allMails|default(false) ? 'all' : '') }}" data-total="{{ totalEmails is defined ? totalEmails : (emails|length) }}" data-offset="{{ offset is defined ? offset : (emails|length) }}" data-limit="{{ limit is defined ? limit : 10 }}">
     {% if emails is not empty %}
         {% include 'mail/_email_items.html.twig' with { emails: emails, activeEmail: activeEmail, activeMailbox: activeMailbox, activeFolder: activeFolder } %}
     {% else %}
-        <div class="p-4 text-body-secondary">{{ 'emails.none_in_folder'|trans }}</div>
+        <div class="p-4 text-body-secondary">{{ allMails|default(false) ? 'emails.none_available'|trans : 'emails.none_in_folder'|trans }}</div>
     {% endif %}
     <div class="email-load-more-sentinel" aria-hidden="true"></div>
 </div>

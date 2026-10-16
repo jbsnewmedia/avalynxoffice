@@ -134,13 +134,48 @@ final class MailControllerCoverageTest extends WebTestCase
         self::assertResponseRedirects('/mails');
     }
 
-    public function testIndexSelectsFirstFolderWithUnreadEmails(): void
+    public function testIndexRendersAllMailsView(): void
     {
         $this->loginAdmin();
         $this->entityManager->clear();
 
         $this->client->request('GET', '/mails');
         self::assertResponseIsSuccessful();
+        self::assertSelectorExists('a[href="/mails/all/all"]');
+        self::assertSelectorExists(sprintf('.email-item[data-email="%s"]', $this->email->getId()));
+    }
+
+    public function testAllMailsViewsAndPaginationSupportAllScope(): void
+    {
+        $this->loginAdmin();
+        $this->entityManager->clear();
+        $mailboxId = (string) $this->mailbox->getId();
+        $emailId = (string) $this->email->getId();
+
+        $this->client->request('GET', '/mails/all/all');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists(sprintf('.email-item[data-email="%s"]', $emailId));
+
+        $this->client->request('GET', sprintf('/mails/%s/all', $mailboxId));
+        self::assertResponseIsSuccessful();
+
+        $this->client->request('GET', sprintf('/mails/all/all/%s', $emailId));
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists(sprintf('.email-item.email-active[data-email="%s"]', $emailId));
+
+        $this->client->request('GET', '/folder/all/more?mailboxId=all&offset=0&limit=10');
+        self::assertResponseIsSuccessful();
+
+        $this->client->request('GET', sprintf('/folder/all/more?mailboxId=%s&offset=0&limit=10', $mailboxId));
+        self::assertResponseIsSuccessful();
+    }
+
+    public function testAllMailsMoreDeniesForeignMailboxScope(): void
+    {
+        $this->loginGuestUser();
+
+        $this->client->request('GET', sprintf('/folder/all/more?mailboxId=%s&offset=0&limit=10', $this->mailbox->getId()));
+        self::assertResponseStatusCodeSame(403);
     }
 
     public function testFolderResetsActiveFolderWhenNotLinkedToMailbox(): void

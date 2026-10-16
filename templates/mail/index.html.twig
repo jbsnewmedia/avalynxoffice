@@ -31,7 +31,7 @@
         <aside class="bg-body">
             {% include 'mail/_mailboxes.html.twig' with { mailboxes: mailboxes, activeMailbox: activeMailbox } %}
             <div id="folders-container">
-                {% include 'mail/_folders.html.twig' with { folders: folders, activeFolder: activeFolder, activeMailbox: activeMailbox, folderEmailCounts: folderEmailCounts } %}
+                {% include 'mail/_folders.html.twig' with { folders: folders, activeFolder: activeFolder, activeMailbox: activeMailbox, folderEmailCounts: folderEmailCounts, allMails: allMails } %}
             </div>
         </aside>
     </div>
@@ -43,7 +43,7 @@
     </div>
     <div class="offcanvas-body p-0">
         <section class="bg-body">
-            {% include 'mail/_email_list.html.twig' with { emails: emails, activeEmail: activeEmail, activeMailbox: activeMailbox, activeFolder: activeFolder } %}
+            {% include 'mail/_email_list.html.twig' with { emails: emails, activeEmail: activeEmail, activeMailbox: activeMailbox, activeFolder: activeFolder, allMails: allMails } %}
         </section>
     </div>
 </div>
@@ -51,10 +51,10 @@
     <div class="row">
         <aside class="col-xxl-2 d-none d-xxl-block mail-body-height overflow-auto bg-body shadow-sm p-0 border-end">
             {% include 'mail/_mailboxes.html.twig' with { mailboxes: mailboxes, activeMailbox: activeMailbox } %}
-            {% include 'mail/_folders.html.twig' with { folders: folders, activeFolder: activeFolder, activeMailbox: activeMailbox, folderEmailCounts: folderEmailCounts } %}
+            {% include 'mail/_folders.html.twig' with { folders: folders, activeFolder: activeFolder, activeMailbox: activeMailbox, folderEmailCounts: folderEmailCounts, allMails: allMails } %}
         </aside>
         <section class="col-xxl-3 d-none d-xxl-block mail-body-height overflow-auto p-0 bg-body border-end">
-            {% include 'mail/_email_list.html.twig' with { emails: emails, activeEmail: activeEmail, activeMailbox: activeMailbox, activeFolder: activeFolder } %}
+            {% include 'mail/_email_list.html.twig' with { emails: emails, activeEmail: activeEmail, activeMailbox: activeMailbox, activeFolder: activeFolder, allMails: allMails } %}
         </section>
         <main class="col-xxl-7 col-12 mail-body-height overflow-auto bg-body p-0">
             <div id="email-detail">

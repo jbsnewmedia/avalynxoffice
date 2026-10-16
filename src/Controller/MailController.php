@@ -56,61 +56,39 @@ class MailController extends AbstractController
             $this->folderManager->ensureDefaultFolders($mb);
         }
         $firstFolderByMailbox = $this->mailService->getFirstFolderByMailbox($mailboxes);
-        $activeMailbox = null;
         if (0 === count($mailboxes)) {
             return $this->renderMailIndex([
                 'mailboxes' => $mailboxes,
                 'firstFolderByMailbox' => $firstFolderByMailbox,
+                'allMails' => true,
             ]);
         }
         $rawFolders = $this->folderRepo->findFoldersLinkedToMailboxes($mailboxes);
         $rawCounts = $this->mailService->countEmailsPerFolder($rawFolders);
         $grouped = $this->mailService->groupFoldersByName($rawFolders, $rawCounts);
-        $folders = $grouped['folders'];
-        $folderEmailCounts = $grouped['counts'];
-        $activeFolder = null;
-        foreach ($folders as $f) {
-            $fid = (string) $f->getId();
-            if (($folderEmailCounts[$fid] ?? 0) > 0) {
-                $activeFolder = $f;
-                break;
-            }
-        }
-        if (!$activeFolder) {
-            $activeFolder = $folders[0] ?? null;
-        }
-        $emails = [];
-        $totalEmails = 0;
+        $emails = $this->allMailsInFolders($rawFolders);
+        $totalEmails = count($emails);
         $limit = self::DEFAULT_LIMIT;
-        $offset = 0;
-        if ($activeFolder) {
-            $emails = $this->mailService->sortByDateDescending(
-                $this->mailService->collectEmails(
-                    $this->mailService->foldersInSameGroup($rawFolders, $activeFolder),
-                ),
-            );
-            $totalEmails = count($emails);
-            $emails = array_slice($emails, $offset, $limit);
-        }
-        $activeEmail = $emails[0] ?? null;
+        $emails = array_slice($emails, 0, $limit);
 
         return $this->renderMailIndex([
             'mailboxes' => $mailboxes,
-            'activeMailbox' => $activeMailbox,
-            'folders' => $folders,
-            'activeFolder' => $activeFolder,
+            'activeMailbox' => null,
+            'folders' => $grouped['folders'],
+            'activeFolder' => null,
+            'allMails' => true,
             'emails' => $emails,
-            'activeEmail' => $activeEmail,
-            'folderEmailCounts' => $folderEmailCounts,
+            'activeEmail' => $emails[0] ?? null,
+            'folderEmailCounts' => $grouped['counts'],
             'firstFolderByMailbox' => $firstFolderByMailbox,
             'totalEmails' => $totalEmails,
             'limit' => $limit,
-            'offset' => $offset + count($emails),
+            'offset' => count($emails),
         ]);
     }
 
-    #[Route(path: '/mails/{mailboxId}/{folderId}/{emailId}', name: 'mail_folder_email', requirements: ['mailboxId' => 'all|[0-9a-fA-F\-]{36}', 'folderId' => '[0-9a-fA-F\-]{36}', 'emailId' => '[0-9a-fA-F\-]{36}'])]
-    #[Route(path: '/mails/{mailboxId}/{folderId}', name: 'mail_folder', requirements: ['mailboxId' => 'all|[0-9a-fA-F\-]{36}', 'folderId' => '[0-9a-fA-F\-]{36}'])]
+    #[Route(path: '/mails/{mailboxId}/{folderId}/{emailId}', name: 'mail_folder_email', requirements: ['mailboxId' => 'all|[0-9a-fA-F\-]{36}', 'folderId' => 'all|[0-9a-fA-F\-]{36}', 'emailId' => '[0-9a-fA-F\-]{36}'])]
+    #[Route(path: '/mails/{mailboxId}/{folderId}', name: 'mail_folder', requirements: ['mailboxId' => 'all|[0-9a-fA-F\-]{36}', 'folderId' => 'all|[0-9a-fA-F\-]{36}'])]
     public function folder(string $mailboxId, string $folderId, ?string $emailId = null): Response
     {
         $mailboxes = $this->mailboxesForUser();
@@ -122,11 +100,13 @@ class MailController extends AbstractController
         if (null !== $activeMailbox && !in_array($activeMailbox, $this->mailboxesForUser(), true)) {
             throw $this->createAccessDeniedException();
         }
-        $activeFolder = $this->folderRepo->find($folderId);
+        $allMails = 'all' === $folderId;
+        $activeFolder = $allMails ? null : $this->folderRepo->find($folderId);
         if (0 === count($mailboxes)) {
             return $this->renderMailIndex([
                 'mailboxes' => $mailboxes,
                 'firstFolderByMailbox' => $firstFolderByMailbox,
+                'allMails' => $allMails,
             ]);
         }
         if ($activeMailbox) {
@@ -140,7 +120,7 @@ class MailController extends AbstractController
             $folders = $grouped['folders'];
             $folderEmailCounts = $grouped['counts'];
         }
-        if ($activeFolder) {
+        if (!$allMails && $activeFolder) {
             $allowedIds = array_map(static fn (Folder $f) => (string) $f->getId(), $folders);
             if (!in_array((string) $activeFolder->getId(), $allowedIds, true)) {
                 $activeFolder = $folders[0] ?? null;
@@ -151,7 +131,10 @@ class MailController extends AbstractController
         $emails = [];
         $totalEmails = 0;
         $activeEmail = null;
-        if ($activeFolder) {
+        if ($allMails) {
+            $emails = $this->allMailsInFolders($rawFolders);
+            $totalEmails = count($emails);
+        } elseif ($activeFolder) {
             if (!$activeMailbox) {
                 $emails = $this->mailService->collectEmails(
                     $this->mailService->foldersInSameGroup($rawFolders, $activeFolder),
@@ -161,29 +144,29 @@ class MailController extends AbstractController
             }
             $emails = $this->mailService->sortByDateDescending($emails);
             $totalEmails = count($emails);
+        }
 
-            if (null !== $emailId) {
-                foreach ($emails as $index => $email) {
-                    if ((string) $email->getId() !== $emailId) {
-                        continue;
-                    }
+        if (null !== $emailId) {
+            foreach ($emails as $index => $email) {
+                if ((string) $email->getId() !== $emailId) {
+                    continue;
+                }
 
+                $activeEmail = $email;
+                $offset = intdiv($index, $limit) * $limit;
+
+                break;
+            }
+        }
+
+        $emails = array_slice($emails, $offset, $limit);
+
+        if (null !== $activeEmail) {
+            foreach ($emails as $email) {
+                if ((string) $email->getId() === $emailId) {
                     $activeEmail = $email;
-                    $offset = intdiv($index, $limit) * $limit;
 
                     break;
-                }
-            }
-
-            $emails = array_slice($emails, $offset, $limit);
-
-            if (null !== $activeEmail) {
-                foreach ($emails as $email) {
-                    if ((string) $email->getId() === $emailId) {
-                        $activeEmail = $email;
-
-                        break;
-                    }
                 }
             }
         }
@@ -194,6 +177,7 @@ class MailController extends AbstractController
             'activeMailbox' => $activeMailbox,
             'folders' => $folders,
             'activeFolder' => $activeFolder,
+            'allMails' => $allMails,
             'emails' => $emails,
             'activeEmail' => $activeEmail,
             'folderEmailCounts' => $folderEmailCounts,
@@ -265,13 +249,9 @@ class MailController extends AbstractController
         return new JsonResponse(['success' => true, 'favorite' => $email->isFavorite()]);
     }
 
-    #[Route(path: '/folder/{folderId}/more', name: 'mail_folder_more', requirements: ['folderId' => '[0-9a-fA-F\-]{36}'])]
+    #[Route(path: '/folder/{folderId}/more', name: 'mail_folder_more', requirements: ['folderId' => 'all|[0-9a-fA-F\-]{36}'])]
     public function folderMore(string $folderId, Request $request): Response
     {
-        $folder = $this->folderRepo->find($folderId);
-        if (!$folder) {
-            return new Response($this->translator->trans('folder.not_found'), Response::HTTP_NOT_FOUND);
-        }
         $offset = (int) $request->query->get('offset', '0');
         $limit = (int) $request->query->get('limit', (string) self::DEFAULT_LIMIT);
         if ($limit <= 0) {
@@ -280,18 +260,31 @@ class MailController extends AbstractController
         if ($offset < 0) {
             $offset = 0;
         }
-        $mailboxId = $request->query->get('mailboxId');
+        $mailboxId = (string) $request->query->get('mailboxId', 'all');
         $activeMailbox = 'all' === $mailboxId ? null : $this->mailboxRepo->find($mailboxId);
+        $folder = null;
 
-        if ('all' === $mailboxId) {
-            $emails = $this->mailService->collectEmails(
-                $this->mailService->foldersInSameGroup(
-                    $this->folderRepo->findFoldersLinkedToMailboxes($this->mailboxesForUser()),
-                    $folder,
-                ),
-            );
+        if ('all' === $folderId) {
+            if (null !== $activeMailbox && !in_array($activeMailbox, $this->mailboxesForUser(), true)) {
+                return new Response($this->translator->trans('common.access_denied'), Response::HTTP_FORBIDDEN);
+            }
+            $scopeFolders = $activeMailbox
+                ? $this->folderRepo->findByMailboxOrderByAssignment($activeMailbox)
+                : $this->folderRepo->findFoldersLinkedToMailboxes($this->mailboxesForUser());
+            $emails = $this->mailService->collectEmails($scopeFolders);
         } else {
-            $emails = $this->mailService->collectEmails([$folder], false);
+            $folder = $this->folderRepo->find($folderId);
+            if (!$folder) {
+                return new Response($this->translator->trans('folder.not_found'), Response::HTTP_NOT_FOUND);
+            }
+            $emails = 'all' === $mailboxId
+                ? $this->mailService->collectEmails(
+                    $this->mailService->foldersInSameGroup(
+                        $this->folderRepo->findFoldersLinkedToMailboxes($this->mailboxesForUser()),
+                        $folder,
+                    ),
+                )
+                : $this->mailService->collectEmails([$folder], false);
         }
         $emails = $this->mailService->sortByDateDescending($emails);
         $slice = array_slice($emails, $offset, $limit);
@@ -306,6 +299,20 @@ class MailController extends AbstractController
     }
 
     /**
+     * All emails of the given folders, deduplicated and sorted by date descending.
+     *
+     * @param array<Folder> $folders
+     *
+     * @return array<Email>
+     */
+    private function allMailsInFolders(array $folders): array
+    {
+        return $this->mailService->sortByDateDescending(
+            $this->mailService->collectEmails($folders),
+        );
+    }
+
+    /**
      * @param array<string, mixed> $params
      */
     private function renderMailIndex(array $params): Response
@@ -315,6 +322,7 @@ class MailController extends AbstractController
             'activeMailbox' => null,
             'folders' => [],
             'activeFolder' => null,
+            'allMails' => false,
             'emails' => [],
             'activeEmail' => null,
             'folderEmailCounts' => [],
