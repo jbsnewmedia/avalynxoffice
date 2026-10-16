@@ -1,216 +1,193 @@
 # AvalynxOffice
 
-Ein Symfony 8 basiertes System zum Abrufen (POP3), Verwalten und Versenden (SMTP) von E-Mails.
+[Deutsch](README.de.md)
 
-## Lizenz
+A self-hosted mail office built on Symfony 8: fetch (POP3), manage and send (SMTP)
+email — with a web client, calendar, contacts, an admin area, a licensing system
+and a plugin architecture.
 
-AvalynxOffice ist **Source-Available** lizenziert (`LICENSE`, `LICENSING.md`):
+## License
 
-- Die Nutzung mit **bis zu 3 aktivierten Benutzerkonten ist kostenlos** (Community).
-- Ab 4 Benutzerkonten ist eine **kommerzielle Lizenz** erforderlich (`COMMERCIAL-LICENSE.md`).
-- Lizenzschlüssel werden über die Administrationsoberfläche (*Lizenz & Nutzung*)
-  oder per ENV (`AVALYNXOFFICE_LICENSE_KEYS`, `AVALYNXOFFICE_LICENSE_FILE`) konfiguriert;
-  die technische Dokumentation steht in `docs/licensing.md`.
-- Exchange ActiveSync (iOS/Android/Outlook-Sync) ist ein **separates, optional
-  installierbares Plugin** (`avalynxofficeeas`, AGPL-3.0, eigenes Repository)
-  und kein Bestandteil dieses Projekts.
+AvalynxOffice is **source-available** (`LICENSE`, `LICENSING.md`):
+
+- Usage with **up to 3 activated user accounts is free** (community).
+- From 4 user accounts a **commercial license is required** (`COMMERCIAL-LICENSE.md`).
+- License keys are configured in the admin area (*License & Usage*) or via ENV
+  (`AVALYNXOFFICE_LICENSE_KEYS`, `AVALYNXOFFICE_LICENSE_FILE`); technical
+  documentation lives in `docs/licensing.md`.
+- Exchange ActiveSync (iOS/Android/Outlook sync) is a **separate, optionally
+  installable project** ([avalynxofficeeas](https://github.com/jbsnewmedia/avalynxofficeeas),
+  AGPL-3.0) and not part of this repository.
 
 ## Features
 
-- **POP3 Import**: Automatischer Abruf von E-Mails aus konfigurierten Postfächern.
-- **SMTP Versand**: Versenden von ausgehenden E-Mails über konfigurierbare SMTP-Server.
-- **Datenbank-Struktur**: Umfassendes Datenmodell für E-Mails, Anhänge, Ordner und Kontakte.
-- **Docker Ready**: Vorkonfigurierte Umgebung mit PHP und PostgreSQL.
+- **Web client**: mail reader with mailboxes/folders, reading, composing and
+  attachments; dark mode and multi-language UI.
+- **Mail engine**: POP3 fetch worker for configured mailboxes, SMTP sending via
+  per-mailbox connectors, duplicate detection, header sanitization for broken
+  messages.
+- **Calendar**: events with an extensible action-plugin system (edit, delete, ...).
+- **Contacts**: shared address pool used by mail and device synchronization.
+- **Admin area**: mailbox and connector management, license & usage, settings,
+  database setup.
+- **Plugin system**: Symfony bundles plus a `plugins.json` manifest
+  (mail-action-bundle, mail-view-bundle, bootstrap-bundle).
+- **Licensing**: seat accounting with read-only enforcement — in restricted mode
+  outgoing mail is held (`license_hold`) and released via `app:license:release-mail`.
+- **Production image**: waits for the database, runs the bundled migrations and
+  creates the env-defined administrator on start-up (see below).
+- **Quality gates**: PHPStan (level max), ECS, Rector, PHPUnit suite (649 tests)
+  enforced by a GitHub Actions workflow with a PostgreSQL service.
 
-## Voraussetzungen
+## Requirements
 
 - Docker & Docker Compose
-- PHP 8.5+ (falls lokal ausgeführt)
-- Composer
+- PHP 8.5+ and Composer (only if running locally)
 
-## Installation
+## Quick start (development)
 
-1. Repository klonen
-2. Docker Container starten:
-   ```bash
-   docker-compose up -d
-   ```
-3. Abhängigkeiten installieren:
-   ```bash
-   docker-compose exec web composer install
-   ```
-4. Datenbank-Migrationen ausführen:
-    ```bash
-    docker-compose exec web bin/console doctrine:migrations:migrate
-    ```
-5. Fixture-Daten laden:
-    ```bash
-    docker exec --user=application -w /app avalynxoffice-web-1 bash -lc "php bin/console doctrine:fixtures:load --no-interaction"
-    ```
+```bash
+docker compose up -d
+docker compose exec web composer install
+docker compose exec web php bin/console doctrine:migrations:migrate --no-interaction
+docker compose exec web php bin/console app:user:create --email=admin@example.com --password=admin
+```
 
-## Production-Image
+The web UI is then available at `http://localhost/`. For demo data (mailboxes,
+emails, calendar, contacts — login `admin@example.com` / `admin`) load the
+fixtures instead of creating the user manually:
 
-Das Produktiv-Image (`docker/prod/Dockerfile`, gebaut vom `docker-image`
-Workflow als `jbsnewmedia/avalynxoffice`) bringt einen eigenen
-Container-Startablauf mit:
+```bash
+docker compose exec web php bin/console doctrine:fixtures:load --no-interaction
+```
 
-1. Warten bis die über `DATABASE_URL` konfigurierte Datenbank erreichbar ist
-2. Ausführen der mit dieser Image-Version ausgelieferten Migrationen
-   (idempotent – Doctrine wendet nur ausstehende Versionen an)
-3. Anlegen des Administrators, wenn `OFFICE_ADMIN_EMAIL` und
-   `OFFICE_ADMIN_PASSWORD` gesetzt sind (idempotent – existiert der
-   Benutzer bereits, wird er übersprungen)
-4. Start des Webservers
+## Production image
 
-| Variable | Bedeutung |
+The production image (`docker/prod/Dockerfile`, built by the `docker-image`
+workflow as [`jbsnewmedia/avalynxoffice`](https://hub.docker.com/r/jbsnewmedia/avalynxoffice))
+ships its own start-up sequence:
+
+1. Wait until the database configured via `DATABASE_URL` is reachable
+2. Run the migrations bundled with this image version (idempotent — Doctrine
+   only applies pending versions)
+3. Create the administrator when `OFFICE_ADMIN_EMAIL` and
+   `OFFICE_ADMIN_PASSWORD` are set (idempotent — an existing user is skipped)
+4. Start the web server
+
+| Variable | Meaning |
 |---|---|
-| `DATABASE_URL` | PostgreSQL-Verbindung (zwingend) |
-| `APP_SECRET` | Symfony-Secret, zwingend (z. B. `openssl rand -hex 16`) |
-| `OFFICE_ADMIN_EMAIL` | E-Mail des Administrators, der beim Start angelegt wird (optional) |
-| `OFFICE_ADMIN_PASSWORD` | Passwort des Administrators (optional, nur zusammen mit der E-Mail) |
+| `DATABASE_URL` | PostgreSQL connection (required) |
+| `APP_SECRET` | Symfony app secret, required (e.g. `openssl rand -hex 16`) |
+| `OFFICE_ADMIN_EMAIL` | Email of the administrator created on start-up (optional) |
+| `OFFICE_ADMIN_PASSWORD` | Administrator password (optional, only together with the email) |
 
-## Command Referenz
+The dev variant `jbsnewmedia/avalynxoffice-dev` additionally ships the dev
+dependencies and the composer-bin tooling, so the full quality gate set runs
+against a mounted working copy.
 
-Das System bietet verschiedene Konsolenbefehle zur Verwaltung der Mailboxen und E-Mails.
+## Command reference
 
-### 1. Mailbox hinzufügen
-Legt eine neue Mailbox für POP3-Abruf und SMTP-Versand an.
+### Mailboxes
 
 ```bash
+# Add a mailbox for POP3 fetch and SMTP sending (SMTP falls back to the POP3
+# credentials when no SMTP options are given)
 bin/console app:mailbox:add <EMAIL> <PASSWORD> --host=<HOST> --user=<USER> --name="<NAME>" --port=995 --security=ssl
+
+# Adjust the SMTP settings of an existing mailbox
+bin/console app:mailbox:configure-smtp <ID-or-email> --host=<SMTP-HOST> --port=465 --user=<USER> --password=**** --security=ssl
 ```
 
-**Beispiel All-Inkl:**
-```bash
-bin/console app:mailbox:add test@jbs-newmedia.de "WZ6TA7auCZjieu@KXQbP" --host=w019df8c.kasserver.com --user=m079cb9d --name="JBS Newmedia Test" --port=995 --security=ssl
-```
-*Hinweis: Wenn keine spezifischen SMTP-Optionen angegeben werden, übernimmt das System automatisch die POP3-Daten für SMTP.*
-
-### 2. SMTP Konfiguration anpassen
-Aktualisiert die SMTP-Einstellungen einer bestehenden Mailbox.
+### Fetch and send mail
 
 ```bash
-bin/console app:mailbox:configure-smtp <ID-oder-Email> --host=<SMTP-HOST> --port=465 --user=<USER> --password=**** --security=ssl
-```
-
-### 3. E-Mails abrufen (POP3)
-Ruft neue E-Mails ab.
-
-```bash
-# Alle Mailboxen abrufen
+# Fetch all mailboxes (or a single one, optionally with a limit)
 bin/console app:mail:fetch
+bin/console app:mail:fetch --mailbox=test@example.com --limit=50
 
-# Bestimmte Mailbox abrufen
-bin/console app:mail:fetch --mailbox=test@jbs-newmedia.de
-
-# Mit Limit und Löschen auf dem Server
-bin/console app:mail:fetch --limit=50 --delete-after
-```
-
-### 4. E-Mails versenden (SMTP)
-Versendet alle Mails, die in der Datenbank als "ausgehend" (isOutgoing) markiert, aber noch nicht versendet sind. Im lizenzbedingten Read-Only-Modus werden wartende Nachrichten angehalten (`license_hold`) und erst nach Freigabe versendet.
-
-```bash
+# Send every mail marked as outgoing; delete on the server after import
 bin/console app:mail:send
+bin/console app:mail:fetch --delete-after
 
-# Angehaltene Nachrichten nach Lizenzwiederherstellung freigeben
+# Release messages held by the license restricted mode
 bin/console app:license:release-mail
 ```
 
-### 5. Datenbank bereinigen
-Löscht alle E-Mail-bezogenen Daten aus der Datenbank (Vorsicht!).
+### Maintenance
 
 ```bash
+# Interactive initialization (migrations + first user)
+bin/console app:init
+
+# Create an administrator non-interactively (used by the container bootstrap)
+bin/console app:user:create --email=admin@example.com --password=...
+
+# Delete all mail-related data (careful!)
 bin/console app:mail:clear
+
+# Assets
+bin/console assets:scss-compile
+bin/console app:list-css-classes
+bin/console app:purge-css
 ```
 
-## Entwicklungstools (Docker)
-
-Die Entwicklungstools können direkt über Docker ausgeführt werden. Es wird empfohlen, `docker-compose exec` zu verwenden:
+## Development tools (Docker)
 
 ```bash
-# Code Style Fixer (ECS) ausführen
-docker-compose exec web composer run bin-ecs-fix
-
-# Statische Analyse (PHPStan)
-docker-compose exec web composer run bin-phpstan
-
-# Tests ausführen
-docker-compose exec web composer run test
-
-# Alle CI-Checks (Fix)
-docker-compose exec web composer run ci-fix
+docker compose exec web composer run bin-ecs-fix   # code style fixer
+docker compose exec web composer run bin-phpstan   # static analysis (level max)
+docker compose exec web composer run test          # tests (re-loads fixtures afterwards)
+docker compose exec web composer run ci-fix        # all CI checks with fixes
 ```
 
-Hinweis: Die Test-Kommandos laden nach jedem Lauf automatisch wieder die Doctrine-Fixtures, damit die gemeinsam genutzte lokale Datenbank danach direkt wieder mit Demo-Daten gefuellt ist.
+The test commands automatically re-load the Doctrine fixtures after every run,
+so the shared local database is filled with demo data again.
 
-## Live-Test mit echtem Postfach
+## Live test against a real mailbox
 
-Wenn du den aktuellen Stand gegen ein echtes Postfach pruefen willst, nimm am besten **ein eigenes Test-Postfach** und **arbeite anfangs nie mit `--delete-after`**.
+Use a dedicated test mailbox and **never start with `--delete-after`**.
 
-1. **Container starten und Grunddaten herstellen**
+1. Start the stack, migrate and load fixtures:
    ```bash
    docker compose up -d
-   docker exec --user=application -w /app avalynxoffice-web-1 bash -lc "php bin/console doctrine:migrations:migrate --no-interaction"
-   docker exec --user=application -w /app avalynxoffice-web-1 bash -lc "php bin/console doctrine:fixtures:load --no-interaction"
+   docker compose exec web php bin/console doctrine:migrations:migrate --no-interaction
+   docker compose exec web php bin/console doctrine:fixtures:load --no-interaction
    ```
-2. **Im Browser anmelden**
-   - URL: `http://localhost/`
-   - Login aus den Fixtures: `admin@example.com`
-   - Passwort: `admin`
-3. **Echtes Test-Postfach als Mailbox anlegen**
+2. Log in at `http://localhost/` (`admin@example.com` / `admin`).
+3. Add the real test mailbox:
    ```bash
-   docker exec --user=application -w /app avalynxoffice-web-1 bash -lc 'php bin/console app:mailbox:add mailbox@example.com "MAILBOX_PASSWORT" --name="Live Test" --host=pop.example.com --user=mailbox@example.com --port=995 --security=ssl'
+   docker compose exec web php bin/console app:mailbox:add mailbox@example.com "MAILBOX-PASSWORD" --name="Live test" --host=pop.example.com --user=mailbox@example.com --port=995 --security=ssl
    ```
-4. **Falls SMTP andere Zugangsdaten oder einen anderen Host hat, SMTP separat setzen**
+4. If SMTP uses different credentials, configure it separately:
    ```bash
-   docker exec --user=application -w /app avalynxoffice-web-1 bash -lc 'php bin/console app:mailbox:configure-smtp mailbox@example.com --host=smtp.example.com --port=465 --user=mailbox@example.com --password="SMTP_PASSWORT" --security=ssl'
+   docker compose exec web php bin/console app:mailbox:configure-smtp mailbox@example.com --host=smtp.example.com --port=465 --user=mailbox@example.com --password="SMTP-PASSWORD" --security=ssl
    ```
-5. **Ersten Abruf vorsichtig mit Limit testen**
+5. First fetch, carefully limited:
    ```bash
-   docker exec --user=application -w /app avalynxoffice-web-1 bash -lc 'php bin/console app:mail:fetch --mailbox=mailbox@example.com --limit=10'
+   docker compose exec web php bin/console app:mail:fetch --mailbox=mailbox@example.com --limit=10
    ```
-6. **Import im UI pruefen**
-   - Browser neu laden
-   - In der linken Spalte die neue Mailbox auswaehlen
-   - Inbox, Mailbox und Anhaenge pruefen
-7. **Eine echte Testmail versenden**
-   - Im UI auf **Neue E-Mail** gehen
-   - An eine zweite, externe Testadresse senden
-   - Danach den Versand anstossen:
-     ```bash
-     docker exec --user=application -w /app avalynxoffice-web-1 bash -lc "php bin/console app:mail:send"
-     ```
-8. **Rueckweg testen**
-   - Auf die gesendete Mail von der externen Adresse antworten
-   - Danach erneut abrufen:
-     ```bash
-     docker exec --user=application -w /app avalynxoffice-web-1 bash -lc 'php bin/console app:mail:fetch --mailbox=mailbox@example.com --limit=10'
-     ```
-   - Im UI pruefen, ob Antwort, Absender, Empfaenger und Zuordnung zur Mailbox stimmen
-9. **Erst ganz zum Schluss optional mit Server-Loeschung testen**
-   ```bash
-   docker exec --user=application -w /app avalynxoffice-web-1 bash -lc 'php bin/console app:mail:fetch --mailbox=mailbox@example.com --limit=10 --delete-after'
-   ```
+6. Reload the browser, select the new mailbox and check inbox, mail detail and
+   attachments. Send a real test mail from the UI (**New email**) to an external
+   address, then trigger delivery with `app:mail:send`.
+7. Reply from the external address, fetch again and verify sender, recipients
+   and mailbox assignment in the UI.
+8. Only at the very end, optionally test server deletion with `--delete-after`.
 
-Empfohlene Reihenfolge fuer den Live-Test: zuerst **Abruf**, dann **Anzeige im UI**, dann **Versand**, dann **Antwort auf Versand**, und `--delete-after` wirklich erst am Ende.
+Recommended order: **fetch** → **UI** → **send** → **reply** → `--delete-after` last.
 
-## Projektstruktur
+## Project structure
 
-- `src/Entity/`: Datenmodelle (Email, Mailbox, Address, Attachment, etc.)
-- `src/Command/`: Konsolenbefehle für die Verwaltung (`app:license:release-mail` inklusive).
-- `src/Service/Mail/`: Logik für POP3-Abruf (`Pop3Fetcher`) und Ordnerverwaltung (`FolderManager`).
-- `src/Licensing/`: Lizenzsystem (Key-Validierung, Kontingente, Kulanzfrist, Read-Only-Durchsetzung).
-- `docker/`: Docker-Konfigurationen für Webserver und Datenbank (`docker/web` = Dev, `docker/prod` = Produktions-Image).
+- `src/Controller/`: web client, calendar, contacts, admin area
+- `src/Command/`: console commands (mailboxes, mail engine, assets, licensing)
+- `src/Service/Mail/`: POP3 fetch (`Pop3Fetcher`), folder management (`FolderManager`), SMTP factory, attachment storage
+- `src/Licensing/`: license system (key validation, seat accounting, grace period, read-only enforcement)
+- `src/Plugin/` + `plugins/jbsnewmedia/`: plugin loading and first-party bundles
+- `docs/`: technical documentation (e.g. `docs/licensing.md`)
+- `docker/`: `docker/web` = dev stack, `docker/prod` = production image, `docker/postgres` = database
 
-## Wichtige Pfade
+## Attachment storage
 
-- **Anhänge**: Werden als echte Dateien im konfigurierten Attachment-Verzeichnis gespeichert (`ATTACHMENT_STORAGE_DIR`, standardmäßig `data/attachments`) und per UUID in drei Ebenen segmentiert.
-- **Mail Dumps**: Original-E-Mails können zur Fehlersuche in `mail_dumps/` gespeichert werden.
-
-## Attachment-Konfiguration
-
-Die Attachment-Ablage wird über `.env` gesteuert:
+Configured via `.env`:
 
 ```dotenv
 ATTACHMENT_STORAGE_DIR=data/attachments
@@ -219,4 +196,5 @@ ATTACHMENT_STORAGE_SEGMENT_DEPTH=3
 ATTACHMENT_STORAGE_MAX_BYTES=65536
 ```
 
-Standardmäßig entsteht damit eine Struktur wie `data/attachments/abc/def/ghi/<uuid>.pdf`. Größere Anhänge als das konfigurierte Limit werden beim Import übersprungen.
+This produces a structure like `data/attachments/abc/def/ghi/<uuid>.pdf`.
+Attachments larger than the configured limit are skipped during import.
