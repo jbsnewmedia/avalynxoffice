@@ -8,10 +8,14 @@ and a plugin architecture.
 
 ## License
 
-AvalynxOffice is **source-available** (`LICENSE`, `LICENSING.md`):
+AvalynxOffice is licensed under the **AvalynxOffice Public License (APL)
+version 1.0** (`LICENSE`, `LICENSING.md`):
 
-- Usage with **up to 3 activated user accounts is free** (community).
-- From 4 user accounts a **commercial license is required** (`COMMERCIAL-LICENSE.md`).
+- Usage with **up to 3 Active Seats is free** (community). An Active Seat is
+  an activated user account with at least one successful authentication
+  (login or device sync) within the last 30 calendar days.
+- From the 4th Active Seat a **commercial license is required**
+  (`COMMERCIAL-LICENSE.md`).
 - License keys are configured in the admin area (*License & Usage*) or via ENV
   (`AVALYNXOFFICE_LICENSE_KEYS`, `AVALYNXOFFICE_LICENSE_FILE`); technical
   documentation lives in `docs/licensing.md`.
@@ -180,7 +184,7 @@ Recommended order: **fetch** → **UI** → **send** → **reply** → `--delete
 - `src/Controller/`: web client, calendar, contacts, admin area
 - `src/Command/`: console commands (mailboxes, mail engine, assets, licensing)
 - `src/Service/Mail/`: POP3 fetch (`Pop3Fetcher`), folder management (`FolderManager`), SMTP factory, attachment storage
-- `src/Licensing/`: license system (key validation, seat accounting, grace period, read-only enforcement)
+- `src/Licensing/`: license system (key validation, Active Seat accounting, grace period, read-only enforcement)
 - `src/Plugin/` + `plugins/jbsnewmedia/`: plugin loading and first-party bundles
 - `docs/`: technical documentation (e.g. `docs/licensing.md`)
 - `docker/`: `docker/web` = dev stack, `docker/prod` = production image, `docker/postgres` = database

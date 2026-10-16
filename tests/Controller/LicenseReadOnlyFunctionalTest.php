@@ -81,12 +81,14 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
         $this->admin->setEmail('admin@example.com');
         $this->admin->setRoles(['ROLE_ADMIN']);
         $this->admin->setPassword($hasher->hashPassword($this->admin, 'admin'));
+        $this->admin->setLastAuthAt(new \DateTimeImmutable('now'));
         $this->em->persist($this->admin);
 
         for ($i = 1; $i <= 4; ++$i) {
             $extra = new User();
             $extra->setEmail(sprintf('extra-%d@example.com', $i));
             $extra->setPassword('x');
+            $extra->setLastAuthAt(new \DateTimeImmutable('now'));
             $this->em->persist($extra);
         }
 

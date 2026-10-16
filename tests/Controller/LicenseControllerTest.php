@@ -63,10 +63,12 @@ final class LicenseControllerTest extends WebTestCase
         $this->admin->setEmail('admin@example.com');
         $this->admin->setRoles(['ROLE_ADMIN']);
         $this->admin->setPassword($hasher->hashPassword($this->admin, 'admin'));
+        $this->admin->setLastAuthAt(new \DateTimeImmutable('-1 hour'));
 
         $this->user = new User();
         $this->user->setEmail('user@example.com');
         $this->user->setPassword($hasher->hashPassword($this->user, 'user'));
+        $this->user->setLastAuthAt(new \DateTimeImmutable('-1 hour'));
 
         $this->em->persist($this->admin);
         $this->em->persist($this->user);
@@ -80,7 +82,7 @@ final class LicenseControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('body', 'Community');
-        self::assertSelectorTextContains('body', 'Used user accounts');
+        self::assertSelectorTextContains('body', 'Active Seats (last 30 days)');
     }
 
     public function testLicenseInfoPageShowsValidLicenseAndSeats(): void
@@ -121,10 +123,11 @@ final class LicenseControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $content = (string) $this->client->getResponse()->getContent();
         self::assertStringContainsString('License &amp; Usage', $content);
-        self::assertStringContainsString('Licensed user accounts', $content);
+        self::assertStringContainsString('Licensed seats', $content);
         self::assertStringContainsString('LIC-TEST-000001', $content);
         self::assertStringContainsString('Invalid format', $content);
         self::assertStringContainsString('admin@example.com', $content);
+        self::assertStringContainsString('Last authentication', $content);
         self::assertStringNotContainsString($key, $content);
     }
 
@@ -233,6 +236,45 @@ final class LicenseControllerTest extends WebTestCase
 
         $this->client->request('GET', '/mails');
         self::assertResponseRedirects('/login');
+    }
+
+    public function testSuccessfulLoginRecordsSeatActivity(): void
+    {
+        $this->user->setLastAuthAt(null);
+        $this->em->flush();
+        $userId = $this->user->getId();
+
+        $this->client->request('GET', '/login');
+        $this->client->submitForm('Sign in', [
+            '_username' => 'user@example.com',
+            '_password' => 'user',
+        ]);
+
+        $this->client->request('GET', '/mails');
+        self::assertResponseIsSuccessful();
+
+        $this->em->clear();
+        /** @var User $reloaded */
+        $reloaded = $this->em->find(User::class, $userId);
+        self::assertNotNull($reloaded->getLastAuthAt());
+    }
+
+    public function testFailedLoginDoesNotRecordSeatActivity(): void
+    {
+        $this->user->setLastAuthAt(null);
+        $this->em->flush();
+        $userId = $this->user->getId();
+
+        $this->client->request('GET', '/login');
+        $this->client->submitForm('Sign in', [
+            '_username' => 'user@example.com',
+            '_password' => 'wrong',
+        ]);
+
+        $this->em->clear();
+        /** @var User $reloaded */
+        $reloaded = $this->em->find(User::class, $userId);
+        self::assertNull($reloaded->getLastAuthAt());
     }
 
     public function testDeactivatedUserCountsNoSeats(): void

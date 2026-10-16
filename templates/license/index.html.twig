@@ -31,6 +31,7 @@
                         <th>{{ 'profile.email'|trans }}</th>
                         <th>{{ 'license.users.roles'|trans }}</th>
                         <th>{{ 'license.users.state'|trans }}</th>
+                        <th>{{ 'license.users.last_auth'|trans }}</th>
                         <th class="text-end">{{ 'mailbox.actions'|trans }}</th>
                     </tr>
                 </thead>
@@ -48,6 +49,13 @@
                                 <span class="badge bg-success-subtle text-body"><i class="fa-solid fa-check me-1" aria-hidden="true"></i>{{ 'license.users.active'|trans }}</span>
                             {% else %}
                                 <span class="badge bg-secondary"><i class="fa-solid fa-ban me-1" aria-hidden="true"></i>{{ 'license.users.inactive'|trans }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if user.lastAuthAt %}
+                                {{ user.lastAuthAt|date('Y-m-d H:i') }}
+                            {% else %}
+                                <span class="text-body-secondary">—</span>
                             {% endif %}
                         </td>
                         <td class="text-end">

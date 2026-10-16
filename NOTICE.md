@@ -1,8 +1,8 @@
 # NOTICE — Third-party components
 
-This project (AvalynxOffice) is proprietary/source-available
-licensed; see `LICENSE` and `LICENSING.md`. It is **not** MIT-licensed as a
-whole.
+This project (AvalynxOffice) is licensed under the **AvalynxOffice Public
+License (APL) version 1.0**; see `LICENSE` and `LICENSING.md`. It is **not**
+MIT-licensed as a whole.
 
 The project builds on third-party software. Each component keeps its own
 license and copyright; the list below documents the most relevant components

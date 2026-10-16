@@ -149,7 +149,7 @@ final class LicenseManager
             $allowedSeats += $license->additionalSeats;
         }
 
-        $usedSeats = $this->seatCounter->countUsedSeats();
+        $usedSeats = $this->seatCounter->countUsedSeats($now);
 
         $resolution = $this->statusResolver->resolve(
             $state,

@@ -1,31 +1,29 @@
 # Commercial License
 
-**Status: LEGAL_REVIEW_REQUIRED — draft for review by legal counsel. This is
-not a binding offer.**
+> This is not a binding offer. The individually agreed commercial terms take
+> precedence.
 
-## Overview
-
-The commercial license extends the free Community use (3 user accounts) with
-additive seat packages:
+The basis for all licensing is the **AvalynxOffice Public License (APL),
+version 1.0** (see `LICENSE`). The commercial license extends the free
+Community use (3 Active Seats) with additive seat packages:
 
 | Package | Additional seats | Total seats |
 |---|---|---|
-| Community | — | 3 |
+| Community | — | 3 Active Seats |
 | Team 5 | +2 | 5 |
 | Team 10 | +7 | 10 |
 | Team 20 | +17 | 20 |
 | Individual | any | on request |
 
-Several valid licenses of the same organization can be combined; the seats are
-added together. Licenses of different organizations must not be combined.
+Seats are counted as **Active Seats** (APL 1.0 § 1): activated user accounts
+with at least one successful authentication (login or device sync) within the
+last 30 calendar days. Several valid licenses of the same organization can be
+combined; the seats are added together. Licenses of different organizations
+must not be combined.
 
 ## What a commercial subscription includes
 
-> **LEGAL_REVIEW_REQUIRED:** The following points are a proposal for the
-> commercial terms and must be reviewed and completed by counsel before any
-> offer is made.
-
-- Right to operate AvalynxOffice with more than three counted user accounts for
+- Right to operate AvalynxOffice with more than three Active Seats for
   the term of the agreement.
 - Access to license keys signed by the copyright holder
   (`WOL1.PAYLOAD.SIGNATURE`, Ed25519).
@@ -37,9 +35,9 @@ A commercial license key contains an exclusive expiry date
 (`expires_at`). After expiry the key no longer contributes seats; the
 installation automatically re-evaluates the remaining entitlement:
 
-- If at most three seats are used, Community use continues without
+- If at most three Active Seats are used, Community use continues without
   interruption.
-- If more seats are used than licensed, the 30-day grace period begins
+- If more Active Seats are used than licensed, the 30-day grace period begins
   (the software remains fully functional during the grace period).
 - If the over-usage persists after the grace period, the software switches to
   the restricted (READ-ONLY) mode: user-initiated write operations (sending
@@ -48,22 +46,17 @@ installation automatically re-evaluates the remaining entitlement:
 
 **Important distinction — subscription vs. copyright:**
 
-> **LEGAL_REVIEW_REQUIRED:** An expired commercial subscription must not be
-> equated with the expiry of all copyright usage rights. The urheberrechtlich
-> granted rights under the source license remain unaffected; only the
-> additional seats of the expired commercial key cease. The technical
-> READ-ONLY rule must be reconciled with the actually agreed contract terms:
-> contractually, an expired subscription should instead trigger a duty to
-> reduce the number of active accounts or to renew, with a separately agreed
-> remedy — not a unilateral technical lockdown that may conflict with the
-> granted usage rights. The technical implementation follows the intended
-> product policy documented in `docs/licensing.md` and must be adjusted if
-> counsel requires different contract terms.
+An expired commercial subscription must not be equated with the expiry of all
+copyright usage rights. The urheberrechtlich granted rights under the APL 1.0
+remain unaffected; only the additional seats of the expired commercial key
+cease. Contractually, an expired subscription triggers a duty to reduce the
+number of Active Seats or to renew, with a separately agreed remedy. The
+technical implementation follows the product policy documented in
+`docs/licensing.md`.
 
 ## How to order
 
-Contact **licensing@jbs-newmedia.com** (placeholder — **LEGAL_REVIEW_REQUIRED**:
-confirm the actual contact channel) with:
+Contact **licensing@jbs-newmedia.com** with:
 
 - your organization name and the `organization_id` of your installation
   (shown on the page *Lizenz & Nutzung* in the administration area),

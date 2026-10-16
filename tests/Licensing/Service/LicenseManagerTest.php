@@ -61,7 +61,7 @@ final class LicenseManagerTest extends KernelTestCase
     /**
      * @return list<User>
      */
-    private function createUsers(int $count, bool $active = true): array
+    private function createUsers(int $count, bool $active = true, bool $authenticated = true): array
     {
         $hasher = static::getContainer()->get(UserPasswordHasherInterface::class);
         $users = [];
@@ -70,6 +70,9 @@ final class LicenseManagerTest extends KernelTestCase
             $user->setEmail(sprintf('user-%d-%s@example.com', $i, bin2hex(random_bytes(4))));
             $user->setPassword($hasher->hashPassword($user, 'password'));
             $user->setActive($active);
+            if ($authenticated) {
+                $user->setLastAuthAt(new \DateTimeImmutable('now'));
+            }
             $this->em->persist($user);
             $users[] = $user;
         }
@@ -123,6 +126,52 @@ final class LicenseManagerTest extends KernelTestCase
 
         self::assertSame(0, $manager->getUsedSeats());
         self::assertSame(LicenseStatus::COMMUNITY, $manager->getStatus());
+    }
+
+    public function testUsersWithoutAuthenticationDoNotCountAsSeats(): void
+    {
+        // Accounts that never authenticated are not Active Seats yet (APL
+        // 1.2 § 1): they start consuming a seat with their first login.
+        $this->createUsers(5, true, false);
+
+        $manager = $this->manager();
+        self::assertSame(0, $manager->getUsedSeats());
+        self::assertSame(LicenseStatus::COMMUNITY, $manager->getStatus());
+    }
+
+    public function testStaleAuthenticationsDoNotCountAsSeats(): void
+    {
+        // The seat activity window is 30 calendar days; authentications
+        // outside the window and missing authentications do not count.
+        $this->createUsers(4);
+        $users = $this->em->getRepository(User::class)->findAll();
+        $users[0]->setLastAuthAt(new \DateTimeImmutable('-45 days'));
+        $users[1]->setLastAuthAt(new \DateTimeImmutable('-31 days'));
+        $users[2]->setLastAuthAt(null);
+        $this->em->flush();
+        $manager = $this->manager();
+        $manager->reset();
+
+        self::assertSame(1, $manager->getUsedSeats());
+        self::assertSame(LicenseStatus::COMMUNITY, $manager->getStatus());
+    }
+
+    public function testSeatWindowBoundaryIsInclusive(): void
+    {
+        $this->createUsers(3);
+        $users = $this->em->getRepository(User::class)->findAll();
+        $now = new \DateTimeImmutable('2026-10-16 12:00:00');
+        $users[0]->setLastAuthAt($now->modify('-30 days'));
+        $users[1]->setLastAuthAt($now->modify('-30 days')->modify('-1 second'));
+        $users[2]->setLastAuthAt(null);
+        $this->em->flush();
+
+        /** @var UserRepository $repository */
+        $repository = $this->em->getRepository(User::class);
+
+        // Exactly 30 days is still inside (inclusive boundary), one second
+        // more is outside.
+        self::assertSame(1, $repository->countActiveSeats($now));
     }
 
     public function testExceedingQuotaStartsGracePeriod(): void
@@ -468,13 +517,71 @@ final class LicenseManagerTest extends KernelTestCase
         $_SERVER['AVALYNXOFFICE_ORGANIZATION_ID'] = 'test-organization';
     }
 
-    public function testUserRepositoryCountsOnlyActiveUsers(): void
+    public function testUserRepositoryCountsOnlyActiveSeats(): void
     {
         $this->createUsers(3);
         $this->createUsers(2, false);
+        $this->createUsers(1, true, false);
         /** @var UserRepository $repository */
         $repository = $this->em->getRepository(User::class);
+        $now = new \DateTimeImmutable('now');
 
-        self::assertSame(3, $repository->countActiveUsers());
+        self::assertSame(3, $repository->countActiveSeats($now));
+    }
+
+    public function testRecordAuthenticationSkipsRecentActivity(): void
+    {
+        $user = $this->createUsers(1)[0];
+        $now = new \DateTimeImmutable('now');
+        /** @var UserRepository $repository */
+        $repository = $this->em->getRepository(User::class);
+        $repository->recordAuthentication($user, $now);
+        $this->em->clear();
+
+        /** @var User $reloaded */
+        $reloaded = $this->em->find(User::class, $user->getId());
+        self::assertSame(
+            $now->format('Y-m-d H:i:s'),
+            $reloaded->getLastAuthAt()?->format('Y-m-d H:i:s'),
+        );
+
+        // Within the refresh interval the stored value is not overwritten.
+        $repository->recordAuthentication($reloaded, $now->modify('+10 minutes'));
+        $this->em->clear();
+
+        /** @var User $unchanged */
+        $unchanged = $this->em->find(User::class, $user->getId());
+        self::assertSame(
+            $now->format('Y-m-d H:i:s'),
+            $unchanged->getLastAuthAt()?->format('Y-m-d H:i:s'),
+        );
+    }
+
+    public function testRecordAuthenticationRefreshesStaleValue(): void
+    {
+        $user = $this->createUsers(1)[0];
+        $user->setLastAuthAt(new \DateTimeImmutable('-2 hours'));
+        $this->em->flush();
+
+        $now = new \DateTimeImmutable('now');
+        /** @var UserRepository $repository */
+        $repository = $this->em->getRepository(User::class);
+        $repository->recordAuthentication($user, $now);
+        $this->em->clear();
+
+        /** @var User $reloaded */
+        $reloaded = $this->em->find(User::class, $user->getId());
+        self::assertSame(
+            $now->format('Y-m-d H:i:s'),
+            $reloaded->getLastAuthAt()?->format('Y-m-d H:i:s'),
+        );
+    }
+
+    public function testRecordAuthenticationIgnoresUnsavedUser(): void
+    {
+        $repository = $this->em->getRepository(User::class);
+        $repository->recordAuthentication(new User(), new \DateTimeImmutable('now'));
+
+        self::assertSame(0, $repository->countActiveSeats(new \DateTimeImmutable('now')));
     }
 }

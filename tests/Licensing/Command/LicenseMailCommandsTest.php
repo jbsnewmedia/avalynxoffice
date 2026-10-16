@@ -56,7 +56,8 @@ final class LicenseMailCommandsTest extends KernelTestCase
         for ($i = 1; $i <= 5; ++$i) {
             $users[] = (new \App\Entity\User())
                 ->setEmail(sprintf('readonly-%d-%s@example.com', $i, bin2hex(random_bytes(4))))
-                ->setPassword('x');
+                ->setPassword('x')
+                ->setLastAuthAt(new \DateTimeImmutable('now'));
         }
         foreach ($users as $user) {
             $this->em->persist($user);

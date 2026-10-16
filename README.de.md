@@ -8,10 +8,15 @@ Kontakten, Admin-Bereich, Lizenzsystem und Plugin-Architektur.
 
 ## Lizenz
 
-AvalynxOffice ist **Source-Available** lizenziert (`LICENSE`, `LICENSING.md`):
+AvalynxOffice ist unter der **AvalynxOffice Public License (APL) Version 1.0**
+lizenziert (`LICENSE`, `LICENSING.md`):
 
-- Die Nutzung mit **bis zu 3 aktivierten Benutzerkonten ist kostenlos** (Community).
-- Ab 4 Benutzerkonten ist eine **kommerzielle Lizenz erforderlich** (`COMMERCIAL-LICENSE.md`).
+- Die Nutzung mit **bis zu 3 Active Seats ist kostenlos** (Community). Ein
+  Active Seat ist ein aktiviertes Benutzerkonto mit mindestens einer
+  erfolgreichen Authentifizierung (Login oder Geräte-Sync) innerhalb der
+  letzten 30 Kalendertage.
+- Ab dem 4. Active Seat ist eine **kommerzielle Lizenz erforderlich**
+  (`COMMERCIAL-LICENSE.md`).
 - Lizenzschlüssel werden über die Administrationsoberfläche (*Lizenz & Nutzung*)
   oder per ENV (`AVALYNXOFFICE_LICENSE_KEYS`, `AVALYNXOFFICE_LICENSE_FILE`) konfiguriert;
   die technische Dokumentation steht in `docs/licensing.md`.
@@ -184,7 +189,7 @@ Empfohlene Reihenfolge: **Abruf** → **UI** → **Versand** → **Antwort** →
 - `src/Controller/`: Web-Client, Kalender, Kontakte, Admin-Bereich
 - `src/Command/`: Konsolenbefehle (Postfächer, Mail-Engine, Assets, Lizenzierung)
 - `src/Service/Mail/`: POP3-Abruf (`Pop3Fetcher`), Ordnerverwaltung (`FolderManager`), SMTP-Factory, Attachment-Speicher
-- `src/Licensing/`: Lizenzsystem (Key-Validierung, Sitzungskontingente, Kulanzfrist, Read-Only-Durchsetzung)
+- `src/Licensing/`: Lizenzsystem (Key-Validierung, Active Seats, Kulanzfrist, Read-Only-Durchsetzung)
 - `src/Plugin/` + `plugins/jbsnewmedia/`: Plugin-Loading und First-Party-Bundles
 - `docs/`: technische Dokumentation (z. B. `docs/licensing.md`)
 - `docker/`: `docker/web` = Dev-Stack, `docker/prod` = Produktiv-Image, `docker/postgres` = Datenbank

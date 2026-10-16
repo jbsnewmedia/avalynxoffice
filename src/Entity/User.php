@@ -35,6 +35,13 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(type: 'boolean', options: ['default' => true])]
     private bool $active = true;
     /**
+     * Last successful authentication (web login or device sync). Part of the
+     * Active Seat definition (APL 1.0): only accounts that authenticated
+     * within the last 30 calendar days consume a license seat.
+     */
+    #[ORM\Column(type: 'datetime_immutable', nullable: true)]
+    private ?\DateTimeImmutable $lastAuthAt = null;
+    /**
      * @var Collection<int, UserMailbox>
      */
     #[ORM\OneToMany(mappedBy: 'user', targetEntity: UserMailbox::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
@@ -114,8 +121,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     /**
-     * Whether the account is activated and therefore counted against the
-     * license seats. Deactivated accounts do not consume a seat.
+     * Whether the account is activated. An activated account is a necessary
+     * condition of the Active Seat definition; deactivated accounts never
+     * consume a seat.
      */
     public function isActive(): bool
     {
@@ -125,6 +133,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setActive(bool $active): self
     {
         $this->active = $active;
+
+        return $this;
+    }
+
+    public function getLastAuthAt(): ?\DateTimeImmutable
+    {
+        return $this->lastAuthAt;
+    }
+
+    public function setLastAuthAt(?\DateTimeImmutable $lastAuthAt): self
+    {
+        $this->lastAuthAt = $lastAuthAt;
 
         return $this;
     }

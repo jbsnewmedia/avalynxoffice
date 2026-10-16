@@ -52,14 +52,15 @@ final class LicenseEnforcementServiceTest extends KernelTestCase
             $user = new User();
             $user->setEmail('tx-user@example.com');
             $user->setPassword($hasher->hashPassword($user, 'password'));
+            $user->setLastAuthAt(new \DateTimeImmutable('now'));
             $this->em->persist($user);
             $this->em->flush();
 
             // Within the same transaction the new seat is already counted.
-            self::assertSame(1, $this->em->getRepository(User::class)->countActiveUsers());
+            self::assertSame(1, $this->em->getRepository(User::class)->countActiveSeats(new \DateTimeImmutable('now')));
         });
 
-        self::assertSame(1, $this->em->getRepository(User::class)->countActiveUsers());
+        self::assertSame(1, $this->em->getRepository(User::class)->countActiveSeats(new \DateTimeImmutable('now')));
     }
 
     public function testConcurrentActivationsAreSerializedByLicenseStateRowLock(): void
@@ -107,6 +108,7 @@ final class LicenseEnforcementServiceTest extends KernelTestCase
                 $user = new User();
                 $user->setEmail(sprintf('seat-%d@example.com', $i));
                 $user->setPassword($hasher->hashPassword($user, 'password'));
+                $user->setLastAuthAt(new \DateTimeImmutable('now'));
                 $this->em->persist($user);
                 $this->em->flush();
             });
@@ -114,7 +116,7 @@ final class LicenseEnforcementServiceTest extends KernelTestCase
 
         $manager = static::getContainer()->get(\App\Licensing\Service\LicenseManager::class);
         $manager->reset();
-        self::assertSame(4, $this->em->getRepository(User::class)->countActiveUsers());
+        self::assertSame(4, $this->em->getRepository(User::class)->countActiveSeats(new \DateTimeImmutable('now')));
         self::assertSame(\App\Licensing\Model\LicenseStatus::GRACE_PERIOD, $manager->getStatus());
     }
 

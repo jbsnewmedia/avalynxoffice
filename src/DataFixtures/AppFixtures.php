@@ -123,6 +123,7 @@ class AppFixtures extends Fixture
         $user->setEmail('admin@example.com');
         $user->setRoles(['ROLE_ADMIN']);
         $user->setPassword($this->passwordHasher->hashPassword($user, 'admin'));
+        $user->setLastAuthAt(new \DateTimeImmutable('now'));
         foreach ($mailboxes as $mailbox) {
             $user->addMailbox($mailbox);
         }

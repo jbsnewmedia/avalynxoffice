@@ -6,15 +6,34 @@ Diese Seite dokumentiert die technische Umsetzung des Lizenzsystems.
 
 ```
 allowedSeats = 3 + sum(validLicenses.additionalSeats)
+usedSeats    = count(active users with last_auth_at >= now - 30 days)
 ```
 
-- Gezählt werden **aktivierte persönliche Benutzerkonten** (`app_user.active = true`).
-  Deaktivierte und gelöschte Konten zählen nicht. E-Mail-Adressen, Postfächer,
-  Kalender und Kontakte zählen nicht.
+- Gezählt werden **Active Seats** (APL 1.0, § 1): aktivierte persönliche
+  Benutzerkonten (`app_user.active = true`), die innerhalb der letzten 30
+  Kalendertage mindestens eine erfolgreiche Authentifizierung (Login/Sync)
+  durchgeführt haben (`app_user.last_auth_at`). Das Fenster rolliert und ist
+  an der 30-Tage-Grenze inklusiv (`>= cutoff`).
+- E-Mail-Adressen, Postfächer, Kalender und Kontakte zählen nicht; ein Account
+  zählt als genau ein Seat, unabhängig von der Anzahl verknüpfter Postfächer.
+- Konten, die sich noch nie angemeldet haben (z. B. frisch angelegte Konten),
+  verbrauchen noch keinen Sitzplatz; der Sitz entsteht mit der ersten
+  erfolgreichen Authentifizierung.
+- Die Spalte `app_user.last_auth_at` wird geschrieben von:
+    - `App\EventSubscriber\LastAuthenticationSubscriber` bei jedem
+      erfolgreichen Web-Login (inklusive Remember-me, Event
+      `security.interactive_login`),
+    - `AvalynxOfficeEas\Service\LastAuthenticationRecorder` im
+      ActiveSync-Projekt nach jedem erfolgreichen Geräte-Login (`Logon()`),
+      d. h. jeder Geräte-Sync hält den Sitz aktiv.
+  Beide schreiben gedrosselt (höchstens einmal pro Stunde), Geräte-Syncs
+  erzeugen also keine Schreiblast pro Request. Das Schreiben des Zeitstempels
+  ist keine lizenzrechtlich relevante Schreiboperation und bleibt auch im
+  Read-Only-Modus aktiv.
 - Technische Servicekonten ohne persönlichen Zugang sind ausgenommen; das
   bestehende Datenmodell enthält noch kein unterscheidbares Servicekonto-Konzept.
   Existiert später eines (z. B. Flag `isServiceAccount`), ist es in
-  `UserRepository::countActiveUsers()` zu ergänzen.
+  `UserRepository::countActiveSeats()` zu ergänzen.
 - Lizenzen unterschiedlicher Organisationen werden nicht kombiniert; Schlüssel
   mit identischer `license_id` werden nur einmal gezählt.
 
@@ -87,7 +106,7 @@ AVALYNXOFFICE_ORGANIZATION_ID=""       # Organisation der Installation
 
 `App\Licensing\Service\LicenseStatusResolver`:
 
-- `COMMUNITY` – höchstens 3 Konten, keine kommerzielle Lizenz nötig.
+- `COMMUNITY` – höchstens 3 Active Seats, keine kommerzielle Lizenz nötig.
 - `VALID` – Nutzung innerhalb der lizenzierten Plätze.
 - `GRACE_PERIOD` – Kontingent überschritten; Frist 30 Tage ab erster
   Feststellung der Überschreitung. Wiederholtes kurzzeitiges Hin- und Her
@@ -130,13 +149,14 @@ Bei blockierter Operation wird `LicenseReadOnlyException` geworfen; der
 
 **Erlaubt (auch im Read-Only-Modus):**
 
+- Login/Logout und die Aufzeichnung der Sitzplatzaktivität
+  (`app_user.last_auth_at`), Passwortänderungen, Lizenzschlüsselverwaltung,
+  Deaktivierung von Benutzerkonten, technische Systemoperationen.
 - Abruf externer Mailkonten (POP3), MIME-Verarbeitung, lokale Speicherung von
   Nachrichten und Anhängen, Duplikaterkennung, Ordner-Synchronisation —
   der Mail-Import ist von der Lizenzprüfung **bewusst nicht** betroffen.
 - Lesen, Durchsuchen, Anzeigen von E-Mails, Kalendern und Kontakten.
 - Anhang-Download, Druckansicht, Suche, Export vorhandener Daten.
-- Login/Logout, Passwortänderungen, Lizenzschlüsselverwaltung,
-  Deaktivierung von Benutzerkonten, technische Systemoperationen.
 
 **Gesperrt (Read-Only):** Mailversand (Web-UI und Queue-Worker
 `app:mail:send`), Antworten/Weiterleiten, Entwürfe erstellen oder
@@ -151,6 +171,9 @@ liest das Plugin `license_state.last_known_status` und lehnt Mutationen im
 Read-Only-Modus ab. Der eigentliche Mailversand läuft auch dort nie direkt —
 das Plugin legt die Nachricht nur in die Core-Queue; der Core-Worker prüft die
 Lizenz erneut unmittelbar vor der SMTP-Übergabe (zweite Verteidigungslinie).
+Zusätzlich zeichnet das Plugin nach jedem erfolgreichen Geräte-Login die
+Sitzplatzaktivität auf (`app_user.last_auth_at`, siehe „Modell“); ein Account,
+der nur über das Gerät synchronisiert, bleibt damit ein Active Seat.
 
 Der Gelesen-Status wird beim Öffnen einer E-Mail **nicht** automatisch
 gesetzt (auch außerhalb des Read-Only-Modus nicht) — Markierungen erfolgen nur
@@ -191,9 +214,9 @@ erhalten. Die Lizenzierung greift an dieser Stelle nicht ein.
 
 ## Administrationsoberfläche
 
-- Route `/admin/license` (`ROLE_ADMIN`): Status, Seats, erkannte Lizenzen mit
-  Diagnose, Kulanzfrist, Schlüsselverwaltung (Datenbank), Benutzerkonten mit
-  Aktivieren/Deaktivieren.
+- Route `/admin/license` (`ROLE_ADMIN`): Status, Active Seats, erkannte
+  Lizenzen mit Diagnose, Kulanzfrist, Schlüsselverwaltung (Datenbank),
+  Benutzerkonten mit Aktivieren/Deaktivieren und letzter Authentifizierung.
 - Route `/license` (angemeldet): Status- und Lizenzinformationen für Benutzer.
 - Vollständige Lizenzschlüssel werden niemals angezeigt; Diagnose nutzt nur
   Vorschauen (`WOL1.erste24Zeichen…`).
@@ -245,10 +268,14 @@ Deployment über den Compose-Stack im Projekt `avalynxofficedocker`
 `Version20261013080000`: Tabellen `license_state`, `license_key`,
 Spalte `app_user.active`, Spalte `email.license_hold`.
 
+`Version20261016080000`: Spalte `app_user.last_auth_at` für die
+Active-Seat-Definition (APL 1.0). Bestehende Konten starten ohne Zeitstempel
+und werden mit ihrer nächsten erfolgreichen Authentifizierung wieder als
+Active Seat gezählt.
+
 ## Rechtlicher Hinweis
 
-`LEGAL_REVIEW_REQUIRED`: Alle Lizenztexte (`LICENSE`, `LICENSING.md`,
-`COMMERCIAL-LICENSE.md`, `NOTICE.md`) sind Entwürfe und vor Veröffentlichung
-juristisch zu prüfen. Die technische Durchsetzung muss mit den final
-vereinbarten Vertragsbedingungen übereinstimmen (siehe
+Grundlage ist die AvalynxOffice Public License (APL) Version 1.0 (`LICENSE`;
+deutsche Fassung rechtlich maßgeblich für den DACH-Raum). Die technische
+Durchsetzung entspricht den dort vereinbarten Bedingungen (siehe
 `COMMERCIAL-LICENSE.md`, Abschnitt „Term, expiry and the READ-ONLY rule“).

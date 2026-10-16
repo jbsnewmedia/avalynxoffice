@@ -9,11 +9,13 @@ use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
- * Counts the user accounts that consume license seats.
+ * Counts the Active Seats that consume license seats (APL 1.0 § 1).
  *
- * Only activated personal accounts are counted. Deactivated accounts are
- * not counted. The count is executed inside the seat accounting
- * transaction so that concurrent activations are serialized by the
+ * An Active Seat is an activated personal user account that performed at
+ * least one successful authentication (web login or device sync) within the
+ * last 30 calendar days. Deactivated accounts and accounts without recent
+ * authentication are not counted. The count is executed inside the seat
+ * accounting transaction so that concurrent changes are serialized by the
  * license state row lock.
  */
 final readonly class UserSeatCounter
@@ -24,9 +26,9 @@ final readonly class UserSeatCounter
     ) {
     }
 
-    public function countUsedSeats(): int
+    public function countUsedSeats(\DateTimeImmutable $now): int
     {
-        return $this->userRepository->countActiveUsers();
+        return $this->userRepository->countActiveSeats($now);
     }
 
     /**
