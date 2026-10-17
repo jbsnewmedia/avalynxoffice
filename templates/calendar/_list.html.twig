@@ -1,20 +1,21 @@
 {% set scopeParams = activeMailboxId is defined and activeMailboxId != 'all' ? {mailbox: activeMailboxId} : {} %}
 {% set calendarBasePath = path('calendar_month', {monthKey: activeMonth}|merge(scopeParams)) %}
 <div class="sticky-top bg-body border-bottom shadow-sm">
-    <form class="input-group p-3" method="get" action="{{ calendarBasePath }}" role="search">
+    <form class="p-3" method="get" action="{{ calendarBasePath }}" role="search">
         {% if activeMailboxId is defined and activeMailboxId != 'all' %}
             <input type="hidden" name="mailbox" value="{{ activeMailboxId }}">
         {% endif %}
-        <label class="visually-hidden" for="calendar-search-input">{{ 'calendar.search'|trans }}</label>
-        <input type="search" class="form-control" id="calendar-search-input" name="q" value="{{ search }}" placeholder="{{ 'search.placeholder'|trans }}" aria-label="{{ 'calendar.search'|trans }}">
-        {% if search is not empty %}
-            <a class="btn btn-outline-secondary" type="button" href="{{ calendarBasePath }}" aria-label="{{ 'search.clear'|trans }}" title="{{ 'search.clear'|trans }}">
-                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
-            </a>
-        {% endif %}
-        <button class="btn btn-primary" type="submit" aria-label="{{ 'search.search'|trans }}" title="{{ 'search.search'|trans }}">
-            <i class="fa-solid fa-search" aria-hidden="true"></i>
-        </button>
+        <div class="input-group search-group">
+            <input type="search" class="form-control" id="calendar-search-input" name="q" value="{{ search }}" placeholder="{{ 'search.placeholder'|trans }}" aria-label="{{ 'calendar.search'|trans }}">
+            {% if search is not empty %}
+                <a class="btn btn-outline-secondary" type="button" href="{{ calendarBasePath }}" aria-label="{{ 'search.clear'|trans }}" title="{{ 'search.clear'|trans }}">
+                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                </a>
+            {% endif %}
+            <button class="btn btn-primary" type="submit" aria-label="{{ 'search.search'|trans }}" title="{{ 'search.search'|trans }}">
+                <i class="fa-solid fa-search" aria-hidden="true"></i>
+            </button>
+        </div>
     </form>
 </div>
 <div class="email-list-container">

@@ -141,6 +141,23 @@ body {
     border-top-right-radius: 0.375rem !important;
     border-bottom-right-radius: 0.375rem !important;
 }
+
+/* Unified focus glow around search groups (input + buttons), like the
+   login password field: one glow on the group instead of one per element,
+   so the shadows cannot overlap and paint a darker seam. */
+.search-group {
+    border-radius: var(--bs-border-radius);
+}
+.search-group.input-group-sm {
+    border-radius: var(--bs-border-radius-sm);
+}
+.search-group:focus-within {
+    box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.25);
+}
+.search-group .form-control:focus,
+.search-group .btn:focus-visible {
+    box-shadow: none;
+}
 @media (min-width: 1400px) {
     #actionModal .modal-dialog.modal-xl {
         max-width: min(1320px, calc(100vw - 3rem));
