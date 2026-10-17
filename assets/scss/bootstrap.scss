@@ -39,3 +39,28 @@ $font-family-sans-serif: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, 
 @import "../../vendor/twbs/bootstrap/scss/placeholders";
 @import "../../vendor/twbs/bootstrap/scss/helpers";
 @import "../../vendor/twbs/bootstrap/scss/utilities/api";
+
+// Brand look: primary buttons keep white text in light and dark color modes.
+// Bootstraps automatic contrast decision flips the text to black for bright
+// primaries (e.g. orange). Passing an explicit white text color also makes
+// Bootstrap shade (darken) the hover/active backgrounds instead of tinting
+// them, which keeps the white text readable.
+.btn-primary {
+  @include button-variant(
+    $primary,
+    $primary,
+    $color: $white,
+    $hover-color: $white,
+    $active-color: $white,
+    $disabled-color: $white
+  );
+}
+.btn-outline-primary {
+  @include button-outline-variant(
+    $primary,
+    $color-hover: $white,
+    $active-background: $primary,
+    $active-border: $primary,
+    $active-color: $white
+  );
+}

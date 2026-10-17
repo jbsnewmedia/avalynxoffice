@@ -123,21 +123,6 @@ body {
     background-color: var(--bs-tertiary-bg);
 }
 
-/* Keep button text white on primary backgrounds, like the badges. Bootstraps
-   automatic contrast decision flips the text to black for bright custom
-   theme colors (admin-selectable primary color); this pins it to white.
-   Same rule as in app.css - the guest layout does not load app.css. */
-.btn-primary {
-    --bs-btn-color: #fff;
-    --bs-btn-hover-color: #fff;
-    --bs-btn-active-color: #fff;
-    --bs-btn-disabled-color: #fff;
-}
-.btn-outline-primary {
-    --bs-btn-hover-color: #fff;
-    --bs-btn-active-color: #fff;
-}
-
 /* Handle danger/error state for password toggle button */
 .form-control.is-invalid + .btn-outline-input,
 .was-validated .form-control:invalid + .btn-outline-input {
