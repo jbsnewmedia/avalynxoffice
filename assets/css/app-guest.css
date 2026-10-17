@@ -41,6 +41,29 @@ body {
     border-radius: 0 var(--bs-border-radius) var(--bs-border-radius) 0 !important;
 }
 
+/* One unified focus glow around the whole input group. The per-element
+   glows below are disabled inside the group, otherwise the input and
+   toggle button shadows would overlap and paint a darker seam. */
+#passwordGroup {
+    border-radius: var(--bs-border-radius);
+}
+#passwordGroup:focus-within {
+    box-shadow: 0 0 0 0.25rem rgba(37, 99, 235, 0.25);
+}
+#passwordGroup:focus-within:has(.form-control.is-invalid),
+#passwordGroup:focus-within:has(.was-validated .form-control:invalid) {
+    box-shadow: 0 0 0 0.25rem rgba(var(--bs-danger-rgb), 0.25);
+}
+#passwordGroup:focus-within:has(.form-control.is-valid),
+#passwordGroup:focus-within:has(.was-validated .form-control:valid) {
+    box-shadow: 0 0 0 0.25rem rgba(var(--bs-success-rgb), 0.25);
+}
+#passwordGroup .form-control:focus,
+#passwordGroup .btn-outline-input:focus-visible,
+#passwordGroup .form-control:focus + .btn-outline-input {
+    box-shadow: none;
+}
+
 /* Custom button style to match input field color */
 .btn-outline-input {
     background-color: var(--bs-body-bg);
@@ -72,11 +95,11 @@ body {
     border-color: var(--bs-border-color);
 }
 
-.btn-outline-input:focus,
+.btn-outline-input:focus-visible,
 .form-control:focus + .btn-outline-input {
     background-color: var(--bs-body-bg);
     color: var(--bs-body-color);
-    box-shadow: none;
+    box-shadow: 0 0 0 0.25rem rgba(37, 99, 235, 0.25);
     border-color: var(--bs-primary-border-subtle);
     z-index: 5;
 }
@@ -96,7 +119,7 @@ body {
     z-index: 2;
 }
 
-/* Ensure border remains red on focus when invalid */
+/* Ensure border remains red on focus when invalid (glow comes from the group) */
 #passwordGroup .form-control.is-invalid:focus + .btn-outline-input,
 #passwordGroup .was-validated .form-control:invalid:focus + .btn-outline-input {
     border-color: var(--bs-form-invalid-border-color);
@@ -121,7 +144,7 @@ body {
     z-index: 2;
 }
 
-/* Ensure border remains green on focus when valid */
+/* Ensure border remains green on focus when valid (glow comes from the group) */
 #passwordGroup .form-control.is-valid:focus + .btn-outline-input,
 #passwordGroup .was-validated .form-control:valid:focus + .btn-outline-input {
     border-color: var(--bs-form-valid-border-color);

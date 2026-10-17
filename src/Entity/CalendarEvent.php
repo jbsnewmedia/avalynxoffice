@@ -11,6 +11,7 @@ use Symfony\Component\Uid\UuidV7;
 
 #[ORM\Entity(repositoryClass: CalendarEventRepository::class)]
 #[ORM\Table(name: 'calendar_event')]
+#[ORM\Index(name: 'idx_calendar_event_uid', columns: ['uid'])]
 #[ORM\HasLifecycleCallbacks]
 class CalendarEvent
 {

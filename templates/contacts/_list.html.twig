@@ -24,15 +24,17 @@
                class="email-item border-bottom d-block text-decoration-none {{ activeContact and activeContact.id == contact.id ? 'email-active' : '' }}"
                data-contact="{{ contact.id }}"
                {% if activeContact and activeContact.id == contact.id %}aria-current="true"{% endif %}
-               aria-label="{{ 'contact.item_aria'|trans({'%name%': contact.displayName, '%email%': contact.email}) }}">
+               aria-label="{{ 'contact.item_aria'|trans({'%name%': contact.displayName, '%email%': contact.email == fallbackEmail ? '' : contact.email}) }}">
                 <div class="email-item-content px-3 py-3 d-flex align-items-center gap-3">
                     <span class="rounded-circle text-bg-primary d-inline-flex align-items-center justify-content-center fw-semibold flex-shrink-0" style="width:2.5rem;height:2.5rem;" aria-hidden="true">{{ contact.displayName|slice(0, 1)|upper }}</span>
                     <span class="flex-grow-1 min-w-0">
                         <span class="d-block fw-semibold text-truncate">{{ contact.displayName }}</span>
                         <span class="d-block small text-body-secondary text-truncate">
-                            <i class="fa-solid fa-envelope me-1" aria-hidden="true"></i>{{ contact.email }}
+                            {% if contact.email != fallbackEmail %}
+                                <i class="fa-solid fa-envelope me-1" aria-hidden="true"></i>{{ contact.email }}
+                            {% endif %}
                             {% if contact.company is not empty %}
-                                <span class="mx-1" aria-hidden="true">&middot;</span><i class="fa-solid fa-building me-1" aria-hidden="true"></i>{{ contact.company }}
+                                {% if contact.email != fallbackEmail %}<span class="mx-1" aria-hidden="true">&middot;</span>{% endif %}<i class="fa-solid fa-building me-1" aria-hidden="true"></i>{{ contact.company }}
                             {% endif %}
                         </span>
                     </span>
