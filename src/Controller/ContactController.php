@@ -218,6 +218,20 @@ final class ContactController extends AbstractController
             static fn (Mailbox $mailbox): bool => $mailbox->getAddresses()->contains($activeContact),
         ));
 
+        // When all mailboxes are shown, every list item is tagged with the
+        // mailbox(es) its contact belongs to (like the mail list does).
+        $contactMailboxes = [];
+        if (null === $activeMailbox) {
+            foreach ($mailboxes as $mailbox) {
+                foreach ($mailbox->getAddresses() as $address) {
+                    $id = $address->getId();
+                    if (null !== $id) {
+                        $contactMailboxes[$id->toRfc4122()][] = $mailbox;
+                    }
+                }
+            }
+        }
+
         return $this->render('contacts/index.html.twig', [
             'mailboxes' => $mailboxes,
             'activeMailbox' => $activeMailbox,
@@ -227,6 +241,7 @@ final class ContactController extends AbstractController
             'contacts' => $contacts,
             'activeContact' => $activeContact,
             'activeContactMailboxes' => $activeContactMailboxes,
+            'contactMailboxes' => $contactMailboxes,
             'search' => $search,
             'totalContacts' => count($allContacts),
             'fallbackEmail' => 'unknown@localhost',

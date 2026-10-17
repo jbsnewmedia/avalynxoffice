@@ -48,15 +48,27 @@ body {
     border-radius: var(--bs-border-radius);
 }
 #passwordGroup:focus-within {
-    box-shadow: 0 0 0 0.25rem rgba(37, 99, 235, 0.25);
+    box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.25);
 }
-#passwordGroup:focus-within:has(.form-control.is-invalid),
-#passwordGroup:focus-within:has(.was-validated .form-control:invalid) {
+#passwordGroup:focus-within:has(.form-control.is-invalid) {
     box-shadow: 0 0 0 0.25rem rgba(var(--bs-danger-rgb), 0.25);
 }
-#passwordGroup:focus-within:has(.form-control.is-valid),
-#passwordGroup:focus-within:has(.was-validated .form-control:valid) {
+#passwordGroup:focus-within:has(.form-control.is-valid) {
     box-shadow: 0 0 0 0.25rem rgba(var(--bs-success-rgb), 0.25);
+}
+/* Validation colors are scoped to the form: the .was-validated class is
+   set on the form element, which is outside the group itself. */
+.was-validated:has(#inputPassword:invalid) #passwordGroup:focus-within {
+    box-shadow: 0 0 0 0.25rem rgba(var(--bs-danger-rgb), 0.25);
+}
+.was-validated:has(#inputPassword:valid) #passwordGroup:focus-within {
+    box-shadow: 0 0 0 0.25rem rgba(var(--bs-success-rgb), 0.25);
+}
+/* The password feedback lives outside the group so the glow only wraps
+   input + button. Bootstrap's sibling selector no longer applies, so
+   reveal it with :has(). */
+.was-validated:has(#inputPassword:invalid) .password-feedback {
+    display: block;
 }
 #passwordGroup .form-control:focus,
 #passwordGroup .btn-outline-input:focus-visible,
@@ -99,7 +111,7 @@ body {
 .form-control:focus + .btn-outline-input {
     background-color: var(--bs-body-bg);
     color: var(--bs-body-color);
-    box-shadow: 0 0 0 0.25rem rgba(37, 99, 235, 0.25);
+    box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.25);
     border-color: var(--bs-primary-border-subtle);
     z-index: 5;
 }
@@ -109,6 +121,21 @@ body {
 [data-bs-theme=dark] .form-control:focus + .btn-outline-input:hover,
 [data-bs-theme=dark] .form-control:focus + .btn-outline-input.active {
     background-color: var(--bs-tertiary-bg);
+}
+
+/* Keep button text white on primary backgrounds, like the badges. Bootstraps
+   automatic contrast decision flips the text to black for bright custom
+   theme colors (admin-selectable primary color); this pins it to white.
+   Same rule as in app.css - the guest layout does not load app.css. */
+.btn-primary {
+    --bs-btn-color: #fff;
+    --bs-btn-hover-color: #fff;
+    --bs-btn-active-color: #fff;
+    --bs-btn-disabled-color: #fff;
+}
+.btn-outline-primary {
+    --bs-btn-hover-color: #fff;
+    --bs-btn-active-color: #fff;
 }
 
 /* Handle danger/error state for password toggle button */

@@ -45,7 +45,7 @@ run_as_application 'php bin/console cache:warmup --quiet 2>&1' || true
 
 if [ -n "${OFFICE_ADMIN_EMAIL:-}" ] && [ -n "${OFFICE_ADMIN_PASSWORD:-}" ]; then
     echo '[avalynxoffice] Ensuring the configured administrator exists ...'
-    run_as_application 'php bin/console app:user:create --email="$OFFICE_ADMIN_EMAIL" --password="$OFFICE_ADMIN_PASSWORD"'
+    run_as_application 'php bin/console app:user:create --admin --email="$OFFICE_ADMIN_EMAIL" --password="$OFFICE_ADMIN_PASSWORD"'
 fi
 
 echo '[avalynxoffice] Starting web server ...'

@@ -48,6 +48,28 @@
                 </div>
             </div>
         </div>
+        {% if is_granted('ROLE_ADMIN') %}
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-body">
+                        <strong>{{ 'settings.appearance.title'|trans }}</strong>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-body-secondary">{{ 'settings.appearance.help'|trans }}</p>
+                        <form method="post" action="{{ path('app_settings_appearance') }}">
+                            <input type="hidden" name="_token" value="{{ csrf_token('save_appearance') }}">
+                            <div class="input-group" style="max-width: 20rem;">
+                                <input type="color" class="form-control form-control-color" id="primaryColorPicker" name="primary_color" value="{{ primary_color }}" aria-label="{{ 'settings.appearance.primary_color'|trans }}" required>
+                                <label class="input-group-text" for="primaryColorPicker">{{ primary_color }}</label>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fa-solid fa-floppy-disk me-1" aria-hidden="true"></i>{{ 'settings.appearance.save'|trans }}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
         <div class="col-12">
             <div class="card shadow-sm">
                 <div class="card-header bg-body">

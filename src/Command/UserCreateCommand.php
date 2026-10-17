@@ -11,6 +11,7 @@ namespace AvalynxOffice\Command;
 
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Licensing\Service\LicenseEnforcementInterface;
+use AvalynxOffice\Service\UserService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -21,16 +22,19 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 /**
- * Creates an administrator user non-interactively, intended for container
- * start-ups: the production entrypoint calls this after the migrations when
+ * Creates a user non-interactively, intended for container start-ups: the
+ * production entrypoint calls this (with --admin) after the migrations when
  * OFFICE_ADMIN_EMAIL and OFFICE_ADMIN_PASSWORD are provided.
+ *
+ * The first user automatically becomes the administrator; further users
+ * start as regular users unless --admin is given.
  *
  * The command is idempotent: an existing user with the same email is left
  * untouched, so restarts never duplicate the administrator.
  */
 #[AsCommand(
     name: 'app:user:create',
-    description: 'Creates an administrator user non-interactively (container bootstrap).',
+    description: 'Creates a user non-interactively; the first user becomes administrator (container bootstrap).',
 )]
 class UserCreateCommand extends Command
 {
@@ -38,6 +42,7 @@ class UserCreateCommand extends Command
         private readonly EntityManagerInterface $entityManager,
         private readonly UserPasswordHasherInterface $passwordHasher,
         private readonly LicenseEnforcementInterface $licenseEnforcement,
+        private readonly UserService $userService,
     ) {
         parent::__construct();
     }
@@ -46,8 +51,9 @@ class UserCreateCommand extends Command
     protected function configure(): void
     {
         $this
-            ->addOption('email', null, InputOption::VALUE_REQUIRED, 'Administrator email address')
-            ->addOption('password', null, InputOption::VALUE_REQUIRED, 'Administrator password')
+            ->addOption('email', null, InputOption::VALUE_REQUIRED, 'User email address')
+            ->addOption('password', null, InputOption::VALUE_REQUIRED, 'User password')
+            ->addOption('admin', null, InputOption::VALUE_NONE, 'Force the administrator role (otherwise the first user becomes administrator automatically)')
         ;
     }
 
@@ -82,7 +88,12 @@ class UserCreateCommand extends Command
 
         $user = new User();
         $user->setEmail($email);
-        $user->setRoles(['ROLE_ADMIN']);
+        $forceAdmin = (bool) $input->getOption('admin');
+        if ($forceAdmin) {
+            $user->setRoles(['ROLE_ADMIN']);
+        } else {
+            $this->userService->applyInitialRoles($user);
+        }
         $user->setPassword($this->passwordHasher->hashPassword($user, $password));
 
         // Seat accounting and the user insert must share one transaction so
@@ -94,7 +105,8 @@ class UserCreateCommand extends Command
             $this->entityManager->flush();
         });
 
-        $io->success(sprintf('Administrator %s created successfully.', $email));
+        $role = in_array('ROLE_ADMIN', $user->getRoles(), true) ? 'administrator' : 'user';
+        $io->success(sprintf('User %s created successfully (%s).', $email, $role));
 
         return Command::SUCCESS;
     }

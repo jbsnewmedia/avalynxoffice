@@ -7,6 +7,8 @@ namespace AvalynxOffice\Tests\Command;
 use AvalynxOffice\Command\InitCommand;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Service\DatabasePurger;
+use AvalynxOffice\Repository\UserRepository;
+use AvalynxOffice\Service\UserService;
 use AvalynxOffice\Tests\Support\AllowAllLicenseEnforcement;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
@@ -351,6 +353,8 @@ final class InitCommandTest extends TestCase
     public function testRunSymfonyCommandExecutesRegisteredApplicationCommand(): void
     {
         $kernel = $this->createStub(KernelInterface::class);
+        $userRepository = $this->createStub(UserRepository::class);
+        $userRepository->method('findActiveAdmins')->willReturn([]);
 
         $command = new class(
             $this->createStub(EntityManagerInterface::class),
@@ -358,6 +362,7 @@ final class InitCommandTest extends TestCase
             $kernel,
             $this->createStub(DatabasePurger::class),
             new AllowAllLicenseEnforcement(),
+            new UserService($userRepository),
         ) extends InitCommand {
             public function exposeRun(string $name, array $arguments, OutputInterface $output): int
             {
@@ -388,6 +393,7 @@ final class InitCommandTest extends TestCase
             $this->createStub(KernelInterface::class),
             $databasePurger ?? $this->createStub(DatabasePurger::class),
             new AllowAllLicenseEnforcement(),
+            new UserService($this->createStub(UserRepository::class)),
             $migrateResult,
             $fixturesResult,
             $migrationSync,
@@ -400,13 +406,14 @@ final class InitCommandTest extends TestCase
                 KernelInterface $kernel,
                 DatabasePurger $databasePurger,
                 AllowAllLicenseEnforcement $licenseEnforcement,
+                UserService $userService,
                 private readonly int $migrateResult,
                 private readonly int $fixturesResult,
                 private readonly bool $migrationSync,
                 private readonly int $versionResult,
                 private readonly int $metadataResult,
             ) {
-                parent::__construct($entityManager, $passwordHasher, $kernel, $databasePurger, $licenseEnforcement);
+                parent::__construct($entityManager, $passwordHasher, $kernel, $databasePurger, $licenseEnforcement, $userService);
             }
 
             #[\Override]
@@ -449,12 +456,16 @@ final class InitCommandTest extends TestCase
         $entityManager = $this->createStub(EntityManagerInterface::class);
         $entityManager->method('getConnection')->willReturn($connection);
 
+        $userRepository = $this->createStub(UserRepository::class);
+        $userRepository->method('findActiveAdmins')->willReturn([]);
+
         return new InitCommand(
             $entityManager,
             $this->createStub(UserPasswordHasherInterface::class),
             $this->createStub(KernelInterface::class),
             $this->createStub(DatabasePurger::class),
             new AllowAllLicenseEnforcement(),
+            new UserService($userRepository),
         );
     }
 

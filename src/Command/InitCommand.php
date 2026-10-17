@@ -12,6 +12,7 @@ namespace AvalynxOffice\Command;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Licensing\Service\LicenseEnforcementInterface;
 use AvalynxOffice\Service\DatabasePurger;
+use AvalynxOffice\Service\UserService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -35,6 +36,7 @@ class InitCommand extends Command
         private readonly KernelInterface $kernel,
         private readonly DatabasePurger $databasePurger,
         private readonly LicenseEnforcementInterface $licenseEnforcement,
+        private readonly UserService $userService,
     ) {
         parent::__construct();
     }
@@ -229,7 +231,9 @@ HELP);
 
         $user = new User();
         $user->setEmail($email);
-        $user->setRoles(['ROLE_ADMIN']);
+        // The first user of an installation without any administrator
+        // automatically becomes the administrator.
+        $this->userService->applyInitialRoles($user);
         $user->setPassword($this->passwordHasher->hashPassword($user, $password));
 
         // Seat accounting and the user insert must share one transaction so

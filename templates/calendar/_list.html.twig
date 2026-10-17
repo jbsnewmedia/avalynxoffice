@@ -28,7 +28,12 @@
                data-event="{{ event.id }}"
                {% if activeEvent and activeEvent.id == event.id %}aria-current="true"{% endif %}
                aria-label="{{ 'calendar.item_aria'|trans({'%title%': event.title, '%date%': event.startAt|date('d.m.Y')}) }}">
-                <div class="email-item-content px-3 py-3 d-flex align-items-center gap-3">
+                {% if (activeMailbox is not defined or not activeMailbox) and event.mailbox %}
+                    <div class="mailbox-tag bg-body-tertiary text-body-secondary small px-3 py-1 border-bottom" style="font-size: 0.75rem;">
+                        <i class="fa-solid fa-inbox me-1 small"></i> {{ event.mailbox.name }}
+                    </div>
+                {% endif %}
+                <div class="email-item-content px-3 {{ (activeMailbox is not defined or not activeMailbox) and event.mailbox ? 'pt-2 pb-3' : 'py-3' }} d-flex align-items-center gap-3">
                     <span class="border border-primary-subtle bg-primary-subtle rounded d-inline-flex flex-column align-items-center justify-content-center flex-shrink-0 text-center" style="width:2.75rem;height:2.75rem;" aria-hidden="true">
                         <span class="fw-bold lh-1 text-primary-emphasis">{{ event.startAt|date('d') }}</span>
                         <span class="text-uppercase text-primary-emphasis" style="font-size:0.65rem;">{{ event.startAt|date('M') }}</span>

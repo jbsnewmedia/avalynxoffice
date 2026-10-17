@@ -37,6 +37,29 @@ class UserRepository extends ServiceEntityRepository
     }
 
     /**
+     * Returns all activated users that carry the administrator role. The
+     * roles are stored as a JSON array, so the filter happens in PHP after
+     * loading the (small) set of active users.
+     *
+     * @return list<User>
+     */
+    public function findActiveAdmins(): array
+    {
+        $result = $this->createQueryBuilder('u')
+            ->where('u.active = true')
+            ->getQuery()
+            ->getResult();
+        \assert(is_array($result));
+
+        return array_values(array_filter(
+            $result,
+            static fn (mixed $user): bool => $user instanceof User
+                && $user->isActive()
+                && in_array('ROLE_ADMIN', $user->getRoles(), true),
+        ));
+    }
+
+    /**
      * Counts the Active Seats: activated user accounts with a successful
      * authentication within the last 30 calendar days. Deactivated accounts
      * and accounts that never (or not recently) authenticated do not consume

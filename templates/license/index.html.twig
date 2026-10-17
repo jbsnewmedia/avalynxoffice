@@ -59,10 +59,22 @@
                             {% endif %}
                         </td>
                         <td class="text-end">
+                            <form method="post" action="{{ path('license_admin_toggle_role', {id: user.id}) }}" class="d-inline modal-form-ajax">
+                                <input type="hidden" name="_token" value="{{ csrf_token('toggle_user_admin_' ~ user.id) }}">
+                                {% if 'ROLE_ADMIN' in user.roles %}
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary" {{ lastActiveAdminId == user.id or entitlement.isReadOnly ? 'disabled' }} title="{{ 'license.users.revoke_admin'|trans }}" aria-label="{{ 'license.users.revoke_admin'|trans }}">
+                                        <i class="fa-solid fa-user-shield" aria-hidden="true"></i>
+                                    </button>
+                                {% else %}
+                                    <button type="submit" class="btn btn-sm btn-outline-primary" {{ entitlement.isReadOnly ? 'disabled' }} title="{{ 'license.users.grant_admin'|trans }}" aria-label="{{ 'license.users.grant_admin'|trans }}">
+                                        <i class="fa-solid fa-user-shield" aria-hidden="true"></i>
+                                    </button>
+                                {% endif %}
+                            </form>
                             <form method="post" action="{{ path('license_admin_toggle_user', {id: user.id}) }}" class="d-inline modal-form-ajax">
                                 <input type="hidden" name="_token" value="{{ csrf_token('toggle_user_active_' ~ user.id) }}">
                                 {% if user.isActive() %}
-                                    <button type="button" class="btn btn-sm btn-outline-danger confirm-action" data-confirm="{{ 'license.users.confirm_deactivate'|trans }}" title="{{ 'license.users.deactivate'|trans }}" aria-label="{{ 'license.users.deactivate'|trans }}">
+                                    <button type="button" class="btn btn-sm btn-outline-danger confirm-action" data-confirm="{{ 'license.users.confirm_deactivate'|trans }}" title="{{ 'license.users.deactivate'|trans }}" aria-label="{{ 'license.users.deactivate'|trans }}" {{ lastActiveAdminId == user.id ? 'disabled' }}>
                                         <i class="fa-solid fa-user-slash" aria-hidden="true"></i>
                                     </button>
                                 {% else %}

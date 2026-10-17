@@ -839,8 +839,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     });
                 });
             };
-            fetch(url, {
-                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            fetch(url + (url.includes('?') ? '&' : '?') + '_=' + Date.now(), {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                cache: 'no-store'
             })
             .then(response => response.text())
             .then(html => {

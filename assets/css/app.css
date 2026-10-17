@@ -142,6 +142,20 @@ body {
     border-bottom-right-radius: 0.375rem !important;
 }
 
+/* Keep button text white on primary backgrounds, like the badges. Bootstraps
+   automatic contrast decision flips the text to black for bright custom
+   theme colors (admin-selectable primary color); this pins it to white. */
+.btn-primary {
+    --bs-btn-color: #fff;
+    --bs-btn-hover-color: #fff;
+    --bs-btn-active-color: #fff;
+    --bs-btn-disabled-color: #fff;
+}
+.btn-outline-primary {
+    --bs-btn-hover-color: #fff;
+    --bs-btn-active-color: #fff;
+}
+
 /* Unified focus glow around search groups (input + buttons), like the
    login password field: one glow on the group instead of one per element,
    so the shadows cannot overlap and paint a darker seam. */

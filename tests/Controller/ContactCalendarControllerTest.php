@@ -215,6 +215,46 @@ final class ContactCalendarControllerTest extends WebTestCase
         self::assertStringContainsString('jane@example.com', $content);
     }
 
+    public function testContactListTagsItemsWithMailboxWhenAllAccountsSelected(): void
+    {
+        $this->client->loginUser($this->adminUser);
+
+        $this->client->request('GET', '/contacts');
+        self::assertResponseIsSuccessful();
+
+        self::assertSelectorExists('.email-list-container .mailbox-tag');
+        self::assertSelectorTextContains('.email-list-container .mailbox-tag', 'Support');
+    }
+
+    public function testContactListHidesMailboxTagWhenMailboxIsScoped(): void
+    {
+        $this->client->loginUser($this->adminUser);
+
+        $secondMailboxId = (string) $this->secondMailbox->getId();
+        $this->client->request('GET', '/contacts', ['mailbox' => $secondMailboxId]);
+        self::assertResponseIsSuccessful();
+
+        self::assertSelectorNotExists('.email-list-container .mailbox-tag');
+    }
+
+    public function testCalendarListTagsItemsWithMailboxWhenAllAccountsSelected(): void
+    {
+        $event = new \AvalynxOffice\Entity\CalendarEvent();
+        $event->setTitle('Tagged Event');
+        $event->setStartAt(new \DateTimeImmutable('now'));
+        $event->setMailbox($this->mailbox);
+        $this->entityManager->persist($event);
+        $this->entityManager->flush();
+
+        $this->client->loginUser($this->adminUser);
+
+        $this->client->request('GET', '/calendar');
+        self::assertResponseIsSuccessful();
+
+        self::assertSelectorExists('.email-list-container .mailbox-tag');
+        self::assertSelectorTextContains('.email-list-container .mailbox-tag', 'Support');
+    }
+
     public function testForeignMailboxScopeIsDenied(): void
     {
         $foreignMailbox = (new Mailbox())

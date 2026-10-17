@@ -8,6 +8,7 @@ use AvalynxOffice\Command\UserCreateCommand;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Licensing\Service\LicenseEnforcementInterface;
 use AvalynxOffice\Repository\UserRepository;
+use AvalynxOffice\Service\UserService;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Command\Command;
@@ -56,6 +57,14 @@ final class UserCreateCommandTest extends TestCase
         return $hasher;
     }
 
+    private function createUserService(array $activeAdmins): UserService
+    {
+        $repository = $this->createStub(UserRepository::class);
+        $repository->method('findActiveAdmins')->willReturn($activeAdmins);
+
+        return new UserService($repository);
+    }
+
     public function testCreatesAdministratorWhenEmailIsUnknown(): void
     {
         $entityManager = $this->createMock(EntityManagerInterface::class);
@@ -76,20 +85,60 @@ final class UserCreateCommandTest extends TestCase
         $licenseEnforcement = $this->createMock(LicenseEnforcementInterface::class);
         $licenseEnforcement->expects(self::once())->method('assertUserSeatAvailable');
 
-        $command = new UserCreateCommand($entityManager, $this->createHasherStub(), $licenseEnforcement);
+        $command = new UserCreateCommand($entityManager, $this->createHasherStub(), $licenseEnforcement, $this->createUserService([]));
         $tester = new CommandTester($command);
 
         self::assertSame(Command::SUCCESS, $tester->execute([
             '--email' => 'admin@example.com',
             '--password' => 'secret',
         ]));
-        self::assertStringContainsString('Administrator admin@example.com created successfully.', $tester->getDisplay());
+        self::assertStringContainsString('User admin@example.com created successfully (administrator).', $tester->getDisplay());
 
         self::assertCount(1, $this->persistedUsers);
         $user = $this->persistedUsers[0];
         self::assertSame('admin@example.com', $user->getEmail());
         self::assertSame(['ROLE_ADMIN', 'ROLE_USER'], $user->getRoles());
         self::assertSame('hashed:secret', $user->getPassword());
+    }
+
+    public function testCreatesRegularUserWhenAnAdminAlreadyExists(): void
+    {
+        $command = new UserCreateCommand(
+            $this->createEntityManagerStub(),
+            $this->createHasherStub(),
+            $this->createStub(LicenseEnforcementInterface::class),
+            $this->createUserService([new User()]),
+        );
+        $tester = new CommandTester($command);
+
+        self::assertSame(Command::SUCCESS, $tester->execute([
+            '--email' => 'user@example.com',
+            '--password' => 'secret',
+        ]));
+        self::assertStringContainsString('User user@example.com created successfully (user).', $tester->getDisplay());
+
+        self::assertCount(1, $this->persistedUsers);
+        self::assertSame(['ROLE_USER'], $this->persistedUsers[0]->getRoles());
+    }
+
+    public function testForcesAdministratorRoleWithAdminFlag(): void
+    {
+        $command = new UserCreateCommand(
+            $this->createEntityManagerStub(),
+            $this->createHasherStub(),
+            $this->createStub(LicenseEnforcementInterface::class),
+            $this->createUserService([new User()]),
+        );
+        $tester = new CommandTester($command);
+
+        self::assertSame(Command::SUCCESS, $tester->execute([
+            '--admin' => true,
+            '--email' => 'admin@example.com',
+            '--password' => 'secret',
+        ]));
+
+        self::assertCount(1, $this->persistedUsers);
+        self::assertSame(['ROLE_ADMIN', 'ROLE_USER'], $this->persistedUsers[0]->getRoles());
     }
 
     public function testSkipsCreationWhenEmailAlreadyExists(): void
@@ -107,7 +156,7 @@ final class UserCreateCommandTest extends TestCase
         $licenseEnforcement = $this->createMock(LicenseEnforcementInterface::class);
         $licenseEnforcement->expects(self::never())->method('assertUserSeatAvailable');
 
-        $command = new UserCreateCommand($entityManager, $this->createHasherStub(), $licenseEnforcement);
+        $command = new UserCreateCommand($entityManager, $this->createHasherStub(), $licenseEnforcement, $this->createUserService([]));
         $tester = new CommandTester($command);
 
         self::assertSame(Command::SUCCESS, $tester->execute([
@@ -123,6 +172,7 @@ final class UserCreateCommandTest extends TestCase
             $this->createEntityManagerStub(),
             $this->createHasherStub(),
             $this->createStub(LicenseEnforcementInterface::class),
+            $this->createUserService([]),
         );
         $tester = new CommandTester($command);
 
@@ -139,6 +189,7 @@ final class UserCreateCommandTest extends TestCase
             $this->createEntityManagerStub(),
             $this->createHasherStub(),
             $this->createStub(LicenseEnforcementInterface::class),
+            $this->createUserService([]),
         );
         $tester = new CommandTester($command);
 
@@ -152,6 +203,7 @@ final class UserCreateCommandTest extends TestCase
             $this->createEntityManagerStub(),
             $this->createHasherStub(),
             $this->createStub(LicenseEnforcementInterface::class),
+            $this->createUserService([]),
         );
         $tester = new CommandTester($command);
 
@@ -168,6 +220,7 @@ final class UserCreateCommandTest extends TestCase
             $this->createEntityManagerStub(),
             $this->createHasherStub(),
             $this->createStub(LicenseEnforcementInterface::class),
+            $this->createUserService([]),
         );
         $tester = new CommandTester($command);
 

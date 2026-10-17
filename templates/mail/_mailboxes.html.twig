@@ -1,9 +1,9 @@
 <div class="p-3 border-bottom">
     <h6 class="text-uppercase text-body-secondary fw-bold small mb-2">{{ 'mail.mailboxes'|trans }}</h6>
     <div class="dropdown w-100 mb-3 mailbox-dropdown" data-bs-auto-close="outside">
-        {% set activeLabel = activeMailbox ? activeMailbox.email : ('mail.all'|trans) %}
+        {% set activeLabel = activeMailbox ? (activeMailbox.name ?: activeMailbox.email) : ('mail.all'|trans) %}
         <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start d-flex align-items-center" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ 'mail.switch_mailbox'|trans }}">
-            <i class="fa-solid fa-envelope me-2" aria-hidden="true"></i>
+            <i class="fa-solid fa-inbox me-2" aria-hidden="true"></i>
             <span class="flex-grow-1">{{ activeLabel }}</span>
         </button>
         <ul class="dropdown-menu w-100">
@@ -29,9 +29,9 @@
                 <li>
                     <a class="dropdown-item d-flex align-items-center mailbox-option {{ activeMailbox and activeMailbox.id == mb.id ? 'active' : '' }}"
                        href="{{ firstFolder ? path('mail_folder', {mailboxId: mb.id, folderId: firstFolder.id}) : path('mail_index') }}"
-                       aria-label="{{ 'mail.open_mailbox'|trans({'%email%': mb.email}) }}">
-                        <i class="fa-regular fa-envelope me-2" aria-hidden="true"></i>
-                        {{ mb.email }}
+                       aria-label="{{ 'mail.open_mailbox'|trans({'%name%': mb.name ?: mb.email}) }}">
+                        <i class="fa-solid fa-inbox me-2" aria-hidden="true"></i>
+                        {{ mb.name ?: mb.email }}
                     </a>
                 </li>
             {% else %}
