@@ -68,6 +68,7 @@ class MailController extends AbstractController
         $grouped = $this->mailService->groupFoldersByName($rawFolders, $rawCounts);
         $emails = $this->allMailsInFolders($rawFolders);
         $totalEmails = count($emails);
+        $totalMails = $totalEmails;
         $limit = self::DEFAULT_LIMIT;
         $emails = array_slice($emails, 0, $limit);
 
@@ -82,6 +83,7 @@ class MailController extends AbstractController
             'folderEmailCounts' => $grouped['counts'],
             'firstFolderByMailbox' => $firstFolderByMailbox,
             'totalEmails' => $totalEmails,
+            'totalMails' => $totalMails,
             'limit' => $limit,
             'offset' => count($emails),
         ]);
@@ -130,6 +132,7 @@ class MailController extends AbstractController
         $offset = 0;
         $emails = [];
         $totalEmails = 0;
+        $totalMails = count($this->mailService->collectEmails($rawFolders));
         $activeEmail = null;
         if ($allMails) {
             $emails = $this->allMailsInFolders($rawFolders);
@@ -183,6 +186,7 @@ class MailController extends AbstractController
             'folderEmailCounts' => $folderEmailCounts,
             'firstFolderByMailbox' => $firstFolderByMailbox,
             'totalEmails' => $totalEmails,
+            'totalMails' => $totalMails,
             'limit' => $limit,
             'offset' => $offset + count($emails),
         ]);
@@ -328,6 +332,7 @@ class MailController extends AbstractController
             'folderEmailCounts' => [],
             'firstFolderByMailbox' => [],
             'totalEmails' => 0,
+            'totalMails' => 0,
             'limit' => self::DEFAULT_LIMIT,
             'offset' => 0,
             'emailDetailTemplate' => $this->emailDetailTemplateResolver->resolveTemplate(),

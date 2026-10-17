@@ -143,6 +143,7 @@ final class MailControllerCoverageTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSelectorExists('a[href="/mails/all/all"]');
         self::assertSelectorExists(sprintf('.email-item[data-email="%s"]', $this->email->getId()));
+        self::assertSelectorTextContains('a[href="/mails/all/all"] .badge', '1');
     }
 
     public function testAllMailsViewsAndPaginationSupportAllScope(): void
@@ -155,6 +156,7 @@ final class MailControllerCoverageTest extends WebTestCase
         $this->client->request('GET', '/mails/all/all');
         self::assertResponseIsSuccessful();
         self::assertSelectorExists(sprintf('.email-item[data-email="%s"]', $emailId));
+        self::assertSelectorTextContains('a[href="/mails/all/all"] .badge', '1');
 
         $this->client->request('GET', sprintf('/mails/%s/all', $mailboxId));
         self::assertResponseIsSuccessful();
