@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Licensing\Service;
+namespace AvalynxOffice\Tests\Licensing\Service;
 
-use App\Entity\User;
-use App\Licensing\Entity\LicenseState;
-use App\Licensing\Model\License;
-use App\Licensing\Model\LicenseStatus;
-use App\Licensing\Service\LicenseManager;
-use App\Repository\UserRepository;
-use App\Tests\Licensing\Support\TestLicenseIssuer;
-use App\Tests\Support\RefreshDatabaseTrait;
+use AvalynxOffice\Entity\User;
+use AvalynxOffice\Licensing\Entity\LicenseState;
+use AvalynxOffice\Licensing\Model\License;
+use AvalynxOffice\Licensing\Model\LicenseStatus;
+use AvalynxOffice\Licensing\Service\LicenseManager;
+use AvalynxOffice\Repository\UserRepository;
+use AvalynxOffice\Tests\Licensing\Support\TestLicenseIssuer;
+use AvalynxOffice\Tests\Support\RefreshDatabaseTrait;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
@@ -234,7 +234,7 @@ final class LicenseManagerTest extends KernelTestCase
 
     public function testLicenseUpgradeEndsReadOnly(): void
     {
-        static::getContainer()->get(\App\Licensing\Service\LicenseGracePeriodManager::class)->getState(null);
+        static::getContainer()->get(\AvalynxOffice\Licensing\Service\LicenseGracePeriodManager::class)->getState(null);
         $this->createUsers(8);
         $state = $this->em->find(LicenseState::class, LicenseState::SINGLETON_ID);
         self::assertNotNull($state);
@@ -265,7 +265,7 @@ final class LicenseManagerTest extends KernelTestCase
 
     public function testDeactivatingExcessUsersEndsReadOnly(): void
     {
-        static::getContainer()->get(\App\Licensing\Service\LicenseGracePeriodManager::class)->getState(null);
+        static::getContainer()->get(\AvalynxOffice\Licensing\Service\LicenseGracePeriodManager::class)->getState(null);
         $this->createUsers(6);
         $state = $this->em->find(LicenseState::class, LicenseState::SINGLETON_ID);
         self::assertNotNull($state);
@@ -462,9 +462,9 @@ final class LicenseManagerTest extends KernelTestCase
 
     public function testLicenseKeysFromDatabaseAreLoaded(): void
     {
-        $storedRepository = $this->em->getRepository(\App\Licensing\Entity\StoredLicenseKey::class);
+        $storedRepository = $this->em->getRepository(\AvalynxOffice\Licensing\Entity\StoredLicenseKey::class);
         $key = self::$issuer->issue(['license_id' => 'LIC-DB', 'additional_seats' => 2]);
-        $this->em->persist(new \App\Licensing\Entity\StoredLicenseKey($key));
+        $this->em->persist(new \AvalynxOffice\Licensing\Entity\StoredLicenseKey($key));
         $this->em->flush();
         $manager = $this->manager();
 

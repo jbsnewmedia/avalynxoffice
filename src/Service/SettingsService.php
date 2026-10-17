@@ -2,7 +2,12 @@
 
 declare(strict_types=1);
 
-namespace App\Service;
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
+
+namespace AvalynxOffice\Service;
 
 use Symfony\Component\HttpFoundation\RequestStack;
 

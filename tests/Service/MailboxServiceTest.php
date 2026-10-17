@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Service;
+namespace AvalynxOffice\Tests\Service;
 
-use App\Entity\Address;
-use App\Entity\EmailFolder;
-use App\Entity\Enum\FolderFunction;
-use App\Entity\Folder;
-use App\Entity\Mailbox;
-use App\Repository\AddressRepository;
-use App\Service\Mail\FolderManager;
-use App\Service\MailboxService;
+use AvalynxOffice\Entity\Address;
+use AvalynxOffice\Entity\EmailFolder;
+use AvalynxOffice\Entity\Enum\FolderFunction;
+use AvalynxOffice\Entity\Folder;
+use AvalynxOffice\Entity\Mailbox;
+use AvalynxOffice\Repository\AddressRepository;
+use AvalynxOffice\Service\Mail\FolderManager;
+use AvalynxOffice\Service\MailboxService;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\EntityManagerInterface;
@@ -67,7 +67,7 @@ class MailboxServiceTest extends TestCase
     {
         $mailbox = new Mailbox();
         $folderLinks = new ArrayCollection([
-            new class extends \App\Entity\FolderMailbox {
+            new class extends \AvalynxOffice\Entity\FolderMailbox {
                 #[\Override]
                 public function getFolder(): ?Folder
                 {
@@ -175,7 +175,7 @@ class MailboxServiceTest extends TestCase
     {
         $mailbox = new Mailbox();
         $this->setMailboxProperty($mailbox, 'folderLinks', new ArrayCollection([
-            new class extends \App\Entity\FolderMailbox {
+            new class extends \AvalynxOffice\Entity\FolderMailbox {
                 #[\Override]
                 public function getFolder(): ?Folder
                 {
@@ -376,14 +376,14 @@ class MailboxServiceTest extends TestCase
             ->setEmail('support@example.com');
         $functionFolder = (new Folder())->setName('Old Mailbox')->setFunctions([FolderFunction::MAILBOX]);
 
-        $invalidExistingLink = new class extends \App\Entity\FolderMailbox {
+        $invalidExistingLink = new class extends \AvalynxOffice\Entity\FolderMailbox {
             #[\Override]
             public function getFolder(): ?Folder
             {
                 return null;
             }
         };
-        $matchingLink = new class($functionFolder) extends \App\Entity\FolderMailbox {
+        $matchingLink = new class($functionFolder) extends \AvalynxOffice\Entity\FolderMailbox {
             private int $calls = 0;
 
             public function __construct(
@@ -400,7 +400,7 @@ class MailboxServiceTest extends TestCase
                 return 1 === $this->calls ? $this->folder : null;
             }
         };
-        $invalidRemainingLink = new class extends \App\Entity\FolderMailbox {
+        $invalidRemainingLink = new class extends \AvalynxOffice\Entity\FolderMailbox {
             #[\Override]
             public function getFolder(): ?Folder
             {

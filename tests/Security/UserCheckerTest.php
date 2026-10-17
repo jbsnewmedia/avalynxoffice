@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Security;
+namespace AvalynxOffice\Tests\Security;
 
-use App\Entity\User;
-use App\Security\UserChecker;
+use AvalynxOffice\Entity\User;
+use AvalynxOffice\Security\UserChecker;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Security\Core\Exception\CustomUserMessageAccountStatusException;
 

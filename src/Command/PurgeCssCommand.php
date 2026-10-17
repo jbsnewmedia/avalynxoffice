@@ -2,10 +2,15 @@
 
 declare(strict_types=1);
 
-namespace App\Command;
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
 
-use App\Util\CssClassCollector;
-use App\Util\CssPurgerFactory;
+namespace AvalynxOffice\Command;
+
+use AvalynxOffice\Util\CssClassCollector;
+use AvalynxOffice\Util\CssPurgerFactory;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;

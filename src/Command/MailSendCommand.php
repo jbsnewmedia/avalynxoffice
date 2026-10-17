@@ -2,17 +2,22 @@
 
 declare(strict_types=1);
 
-namespace App\Command;
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
 
-use App\Entity\Email;
-use App\Entity\Enum\BodyContentType;
-use App\Entity\Enum\EmailAddressType;
-use App\Entity\MailboxConnector;
-use App\Licensing\Service\LicenseEnforcementInterface;
-use App\Repository\EmailRepository;
-use App\Service\Mail\AttachmentStorage;
-use App\Service\Mail\FolderManager;
-use App\Service\Mail\SmtpMailerFactory;
+namespace AvalynxOffice\Command;
+
+use AvalynxOffice\Entity\Email;
+use AvalynxOffice\Entity\Enum\BodyContentType;
+use AvalynxOffice\Entity\Enum\EmailAddressType;
+use AvalynxOffice\Entity\MailboxConnector;
+use AvalynxOffice\Licensing\Service\LicenseEnforcementInterface;
+use AvalynxOffice\Repository\EmailRepository;
+use AvalynxOffice\Service\Mail\AttachmentStorage;
+use AvalynxOffice\Service\Mail\FolderManager;
+use AvalynxOffice\Service\Mail\SmtpMailerFactory;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;

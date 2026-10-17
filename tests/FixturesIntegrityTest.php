@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace App\Tests;
+namespace AvalynxOffice\Tests;
 
-use App\DataFixtures\AppFixtures;
-use App\Entity\EmailFolder;
-use App\Entity\Mailbox;
-use App\Tests\Support\RefreshDatabaseTrait;
+use AvalynxOffice\DataFixtures\AppFixtures;
+use AvalynxOffice\Entity\EmailFolder;
+use AvalynxOffice\Entity\Mailbox;
+use AvalynxOffice\Tests\Support\RefreshDatabaseTrait;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\Group;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;

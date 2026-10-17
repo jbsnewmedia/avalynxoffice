@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Controller;
+namespace AvalynxOffice\Tests\Controller;
 
-use App\Controller\DatabaseSetupController;
+use AvalynxOffice\Controller\DatabaseSetupController;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\DependencyInjection\ServiceLocator;
 use Symfony\Component\HttpFoundation\Request;

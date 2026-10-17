@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Plugin\MailActionBundle\Plugin;
+namespace AvalynxOffice\Tests\Plugin\MailActionBundle\Plugin;
 
-use App\Entity\CalendarEvent;
+use AvalynxOffice\Entity\CalendarEvent;
 use JBSNewMedia\MailActionBundle\Plugin\CalendarAction\CalendarDeleteActionPlugin;
 use JBSNewMedia\MailActionBundle\Plugin\CalendarAction\CalendarEditActionPlugin;
 use PHPUnit\Framework\Attributes\DataProvider;

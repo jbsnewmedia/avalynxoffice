@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Twig;
+namespace AvalynxOffice\Tests\Twig;
 
-use App\Entity\Address;
-use App\Entity\CalendarEvent;
-use App\Entity\Email;
-use App\Twig\AppExtension;
+use AvalynxOffice\Entity\Address;
+use AvalynxOffice\Entity\CalendarEvent;
+use AvalynxOffice\Entity\Email;
+use AvalynxOffice\Twig\AppExtension;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ServiceLocator;
 

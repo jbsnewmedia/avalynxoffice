@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Plugin\MailActionBundle\Registry;
+namespace AvalynxOffice\Tests\Plugin\MailActionBundle\Registry;
 
-use App\Entity\Email;
+use AvalynxOffice\Entity\Email;
 use JBSNewMedia\MailActionBundle\Contract\EmailActionPluginInterface;
 use JBSNewMedia\MailActionBundle\Model\TemplateView;
 use JBSNewMedia\MailActionBundle\Registry\EmailActionRegistry;

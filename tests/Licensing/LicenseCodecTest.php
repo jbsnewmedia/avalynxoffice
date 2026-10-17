@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Licensing;
+namespace AvalynxOffice\Tests\Licensing;
 
-use App\Licensing\Security\LicenseCodec;
-use App\Licensing\Validation\LicenseKeyException;
+use AvalynxOffice\Licensing\Security\LicenseCodec;
+use AvalynxOffice\Licensing\Validation\LicenseKeyException;
 use PHPUnit\Framework\TestCase;
 
 final class LicenseCodecTest extends TestCase

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Plugin\MailActionBundle\Model;
+namespace AvalynxOffice\Tests\Plugin\MailActionBundle\Model;
 
 use JBSNewMedia\MailActionBundle\Model\TemplateView;
 use PHPUnit\Framework\TestCase;

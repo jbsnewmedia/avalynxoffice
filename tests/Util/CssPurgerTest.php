@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Util;
+namespace AvalynxOffice\Tests\Util;
 
-use App\Util\CssPurger;
+use AvalynxOffice\Util\CssPurger;
 use PHPUnit\Framework\TestCase;
 
 class CssPurgerTest extends TestCase

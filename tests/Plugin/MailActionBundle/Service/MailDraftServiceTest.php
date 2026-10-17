@@ -2,24 +2,24 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Plugin\MailActionBundle\Service;
+namespace AvalynxOffice\Tests\Plugin\MailActionBundle\Service;
 
-use App\Entity\Address;
-use App\Entity\Body;
-use App\Entity\Email;
-use App\Entity\EmailAddressLink;
-use App\Entity\EmailAttachmentLink;
-use App\Entity\EmailBodyLink;
-use App\Entity\EmailFolder;
-use App\Entity\Enum\BodyContentType;
-use App\Entity\Enum\EmailAddressType;
-use App\Entity\Folder;
-use App\Entity\FolderMailbox;
-use App\Entity\Mailbox;
-use App\Repository\MailboxRepository;
-use App\Service\Mail\AttachmentStorage;
-use App\Service\Mail\FolderManager;
-use App\Tests\Support\AllowAllLicenseEnforcement;
+use AvalynxOffice\Entity\Address;
+use AvalynxOffice\Entity\Body;
+use AvalynxOffice\Entity\Email;
+use AvalynxOffice\Entity\EmailAddressLink;
+use AvalynxOffice\Entity\EmailAttachmentLink;
+use AvalynxOffice\Entity\EmailBodyLink;
+use AvalynxOffice\Entity\EmailFolder;
+use AvalynxOffice\Entity\Enum\BodyContentType;
+use AvalynxOffice\Entity\Enum\EmailAddressType;
+use AvalynxOffice\Entity\Folder;
+use AvalynxOffice\Entity\FolderMailbox;
+use AvalynxOffice\Entity\Mailbox;
+use AvalynxOffice\Repository\MailboxRepository;
+use AvalynxOffice\Service\Mail\AttachmentStorage;
+use AvalynxOffice\Service\Mail\FolderManager;
+use AvalynxOffice\Tests\Support\AllowAllLicenseEnforcement;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
@@ -257,7 +257,7 @@ final class MailDraftServiceTest extends TestCase
             ->setName('Primary')
             ->setEmail('primary@example.com');
 
-        $attachment = (new \App\Entity\Attachment())
+        $attachment = (new \AvalynxOffice\Entity\Attachment())
             ->setName('offer.pdf')
             ->setMimeType('application/pdf')
             ->setSize(123)
@@ -650,13 +650,13 @@ final class MailDraftServiceTest extends TestCase
             ->setEmail($email)
             ->setAddress((new Address())->setEmail('old@example.com'))
             ->setType(EmailAddressType::SENDER);
-        $retainedAttachment = (new \App\Entity\Attachment())
+        $retainedAttachment = (new \AvalynxOffice\Entity\Attachment())
             ->setName('keep.txt')
             ->setMimeType('text/plain')
             ->setSize(4)
             ->setSha1('keep')
             ->setFilePath('keep.txt');
-        $removedAttachment = (new \App\Entity\Attachment())
+        $removedAttachment = (new \AvalynxOffice\Entity\Attachment())
             ->setName('remove.txt')
             ->setMimeType('text/plain')
             ->setSize(6)
@@ -699,7 +699,7 @@ final class MailDraftServiceTest extends TestCase
             $attachmentStorage
                 ->expects(self::once())
                 ->method('store')
-                ->with(self::isInstanceOf(\App\Entity\Attachment::class), 'payload')
+                ->with(self::isInstanceOf(\AvalynxOffice\Entity\Attachment::class), 'payload')
                 ->willReturn('stored/new.txt');
 
             $replaceAddresses = new \ReflectionMethod(MailDraftService::class, 'replaceAddresses');

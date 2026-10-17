@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Support;
+namespace AvalynxOffice\Tests\Support;
 
-use App\Licensing\Service\LicenseEnforcementInterface;
-use App\Licensing\Service\LicenseOperation;
+use AvalynxOffice\Licensing\Service\LicenseEnforcementInterface;
+use AvalynxOffice\Licensing\Service\LicenseOperation;
 
 /**
  * Test double that allows every operation (community mode, never read-only).

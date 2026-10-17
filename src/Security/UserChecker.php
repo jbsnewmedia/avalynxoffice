@@ -2,9 +2,14 @@
 
 declare(strict_types=1);
 
-namespace App\Security;
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
 
-use App\Entity\User;
+namespace AvalynxOffice\Security;
+
+use AvalynxOffice\Entity\User;
 use Symfony\Component\Security\Core\Exception\CustomUserMessageAccountStatusException;
 use Symfony\Component\Security\Core\User\UserCheckerInterface;
 use Symfony\Component\Security\Core\User\UserInterface;

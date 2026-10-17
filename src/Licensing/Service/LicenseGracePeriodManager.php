@@ -2,10 +2,15 @@
 
 declare(strict_types=1);
 
-namespace App\Licensing\Service;
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
 
-use App\Licensing\Entity\LicenseState;
-use App\Licensing\Model\LicenseStatus;
+namespace AvalynxOffice\Licensing\Service;
+
+use AvalynxOffice\Licensing\Entity\LicenseState;
+use AvalynxOffice\Licensing\Model\LicenseStatus;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
 

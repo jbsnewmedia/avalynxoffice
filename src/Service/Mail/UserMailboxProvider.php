@@ -2,11 +2,16 @@
 
 declare(strict_types=1);
 
-namespace App\Service\Mail;
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
 
-use App\Entity\Mailbox;
-use App\Entity\User;
-use App\Repository\MailboxRepository;
+namespace AvalynxOffice\Service\Mail;
+
+use AvalynxOffice\Entity\Mailbox;
+use AvalynxOffice\Entity\User;
+use AvalynxOffice\Repository\MailboxRepository;
 
 /**
  * Resolves the mailboxes visible to a user. Admins see every mailbox,

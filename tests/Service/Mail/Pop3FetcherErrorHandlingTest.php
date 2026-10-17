@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Service\Mail;
+namespace AvalynxOffice\Tests\Service\Mail;
 
-use App\Entity\MailboxConnector;
-use App\Repository\EmailRepository;
-use App\Service\Mail\AttachmentStorage;
-use App\Service\Mail\FolderManager;
-use App\Service\Mail\Pop3Fetcher;
-use App\Service\Mail\Pop3FetcherTestFunctionOverrides;
-use App\Service\Mail\Pop3StorageFactory;
+use AvalynxOffice\Entity\MailboxConnector;
+use AvalynxOffice\Repository\EmailRepository;
+use AvalynxOffice\Service\Mail\AttachmentStorage;
+use AvalynxOffice\Service\Mail\FolderManager;
+use AvalynxOffice\Service\Mail\Pop3Fetcher;
+use AvalynxOffice\Service\Mail\Pop3FetcherTestFunctionOverrides;
+use AvalynxOffice\Service\Mail\Pop3StorageFactory;
 use Doctrine\ORM\EntityManagerInterface;
 use Laminas\Mail\Storage\Message as StorageMessage;
 use Laminas\Mail\Storage\Pop3 as Pop3Storage;
@@ -203,7 +203,7 @@ final class Pop3FetcherErrorHandlingTest extends TestCase
 
         $textBody = '';
         $htmlBody = '';
-        $email = new \App\Entity\Email();
+        $email = new \AvalynxOffice\Entity\Email();
         $this->callPrivate('extractParts', [$multipart, &$textBody, &$htmlBody, $email]);
 
         self::assertSame('', $textBody);
@@ -244,10 +244,10 @@ final class Pop3FetcherErrorHandlingTest extends TestCase
 
     public function testFetchForConnectorSanitizesMessagesWithBrokenHeaders(): void
     {
-        $mailbox = (new \App\Entity\Mailbox())
+        $mailbox = (new \AvalynxOffice\Entity\Mailbox())
             ->setName('Support')
             ->setEmail('support@example.com');
-        $mailbox->setInboxFolder((new \App\Entity\Folder())->setName('Postfach'));
+        $mailbox->setInboxFolder((new \AvalynxOffice\Entity\Folder())->setName('Postfach'));
         $connector = $this->createConnector($mailbox);
 
         $storage = $this->createStorage();
@@ -265,7 +265,7 @@ final class Pop3FetcherErrorHandlingTest extends TestCase
         $addressRepository->method('findOneBy')->willReturn(null);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
-        $entityManager->method('getRepository')->with(\App\Entity\Address::class)->willReturn($addressRepository);
+        $entityManager->method('getRepository')->with(\AvalynxOffice\Entity\Address::class)->willReturn($addressRepository);
         $entityManager->expects(self::atLeastOnce())->method('persist');
         $entityManager->expects(self::once())->method('flush');
         $entityManager->method('isOpen')->willReturn(true);
@@ -285,7 +285,7 @@ final class Pop3FetcherErrorHandlingTest extends TestCase
 
     public function testFetchForConnectorReportsErrorAndClearsEntityManagerWhenSanitizationFails(): void
     {
-        $mailbox = (new \App\Entity\Mailbox())
+        $mailbox = (new \AvalynxOffice\Entity\Mailbox())
             ->setName('Support')
             ->setEmail('support@example.com');
         $connector = $this->createConnector($mailbox);
@@ -329,7 +329,7 @@ final class Pop3FetcherErrorHandlingTest extends TestCase
 
     public function testFetchForConnectorReportsErrorWhenRawMailIsUnreadable(): void
     {
-        $mailbox = (new \App\Entity\Mailbox())
+        $mailbox = (new \AvalynxOffice\Entity\Mailbox())
             ->setName('Support')
             ->setEmail('support@example.com');
         $connector = $this->createConnector($mailbox);
@@ -356,10 +356,10 @@ final class Pop3FetcherErrorHandlingTest extends TestCase
         self::assertSame(['imported' => 0, 'skipped' => 0, 'errors' => 1], $fetcher->fetchForConnector($connector));
     }
 
-    private function createConnector(?\App\Entity\Mailbox $mailbox = null): MailboxConnector
+    private function createConnector(?\AvalynxOffice\Entity\Mailbox $mailbox = null): MailboxConnector
     {
         return (new MailboxConnector())
-            ->setMailbox($mailbox ?? (new \App\Entity\Mailbox())->setName('Support')->setEmail('support@example.com'))
+            ->setMailbox($mailbox ?? (new \AvalynxOffice\Entity\Mailbox())->setName('Support')->setEmail('support@example.com'))
             ->setEmail('support@example.com')
             ->setPop3Host('mail.example.com')
             ->setPop3Port(110)

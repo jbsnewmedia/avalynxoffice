@@ -2,9 +2,14 @@
 
 declare(strict_types=1);
 
-namespace App\Licensing\Provider;
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
 
-use App\Licensing\Model\LicenseKeyReference;
+namespace AvalynxOffice\Licensing\Provider;
+
+use AvalynxOffice\Licensing\Model\LicenseKeyReference;
 
 /**
  * Provides license keys from the AVALYNXOFFICE_LICENSE_KEYS environment variable.
@@ -22,7 +27,7 @@ final readonly class EnvLicenseKeyProvider implements LicenseKeyProviderInterfac
     {
         $references = [];
         foreach ($this->split($this->keys) as $key) {
-            $references[] = new LicenseKeyReference($key, \App\Licensing\Model\LicenseSource::ENV);
+            $references[] = new LicenseKeyReference($key, \AvalynxOffice\Licensing\Model\LicenseSource::ENV);
         }
 
         return $references;

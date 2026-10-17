@@ -19,13 +19,13 @@ doctrine:
                 type: attribute
                 is_bundle: false
                 dir: '%kernel.project_dir%/src/Entity'
-                prefix: 'App\Entity'
-                alias: App
+                prefix: 'AvalynxOffice\Entity'
+                alias: AvalynxOffice
             Licensing:
                 type: attribute
                 is_bundle: false
                 dir: '%kernel.project_dir%/src/Licensing/Entity'
-                prefix: 'App\Licensing\Entity'
+                prefix: 'AvalynxOffice\Licensing\Entity'
                 alias: Licensing
         controller_resolver:
             auto_mapping: false

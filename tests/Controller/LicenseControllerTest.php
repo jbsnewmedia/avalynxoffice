@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Controller;
+namespace AvalynxOffice\Tests\Controller;
 
-use App\Entity\User;
-use App\Licensing\Entity\StoredLicenseKey;
-use App\Licensing\Service\LicenseManager;
-use App\Tests\Licensing\Support\TestLicenseIssuer;
-use App\Tests\Support\RefreshDatabaseTrait;
+use AvalynxOffice\Entity\User;
+use AvalynxOffice\Licensing\Entity\StoredLicenseKey;
+use AvalynxOffice\Licensing\Service\LicenseManager;
+use AvalynxOffice\Tests\Licensing\Support\TestLicenseIssuer;
+use AvalynxOffice\Tests\Support\RefreshDatabaseTrait;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;

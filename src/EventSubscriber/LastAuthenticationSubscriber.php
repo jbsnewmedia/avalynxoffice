@@ -2,10 +2,15 @@
 
 declare(strict_types=1);
 
-namespace App\EventSubscriber;
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
 
-use App\Entity\User;
-use App\Repository\UserRepository;
+namespace AvalynxOffice\EventSubscriber;
+
+use AvalynxOffice\Entity\User;
+use AvalynxOffice\Repository\UserRepository;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\Security\Http\Event\InteractiveLoginEvent;
 use Symfony\Component\Security\Http\SecurityEvents;

@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Service\Mail;
+namespace AvalynxOffice\Tests\Service\Mail;
 
-use App\Entity\Enum\FolderFunction;
-use App\Entity\Folder;
-use App\Entity\Mailbox;
-use App\Service\Mail\FolderManager;
-use App\Service\Mail\Pop3Fetcher;
-use App\Tests\Support\RefreshDatabaseTrait;
+use AvalynxOffice\Entity\Enum\FolderFunction;
+use AvalynxOffice\Entity\Folder;
+use AvalynxOffice\Entity\Mailbox;
+use AvalynxOffice\Service\Mail\FolderManager;
+use AvalynxOffice\Service\Mail\Pop3Fetcher;
+use AvalynxOffice\Tests\Support\RefreshDatabaseTrait;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\Group;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;

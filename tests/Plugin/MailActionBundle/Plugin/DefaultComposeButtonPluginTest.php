@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Plugin\MailActionBundle\Plugin;
+namespace AvalynxOffice\Tests\Plugin\MailActionBundle\Plugin;
 
 use JBSNewMedia\MailActionBundle\Plugin\DefaultComposeButtonPlugin;
 use PHPUnit\Framework\TestCase;

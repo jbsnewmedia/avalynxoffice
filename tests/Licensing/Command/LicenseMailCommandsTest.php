@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Licensing\Command;
+namespace AvalynxOffice\Tests\Licensing\Command;
 
-use App\Command\LicenseReleaseMailCommand;
-use App\Command\MailSendCommand;
-use App\Entity\Email;
-use App\Entity\Mailbox;
-use App\Licensing\Service\LicenseManager;
-use App\Repository\EmailRepository;
-use App\Tests\Support\RefreshDatabaseTrait;
+use AvalynxOffice\Command\LicenseReleaseMailCommand;
+use AvalynxOffice\Command\MailSendCommand;
+use AvalynxOffice\Entity\Email;
+use AvalynxOffice\Entity\Mailbox;
+use AvalynxOffice\Licensing\Service\LicenseManager;
+use AvalynxOffice\Repository\EmailRepository;
+use AvalynxOffice\Tests\Support\RefreshDatabaseTrait;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Console\Command\Command;
@@ -54,7 +54,7 @@ final class LicenseMailCommandsTest extends KernelTestCase
     {
         $users = [];
         for ($i = 1; $i <= 5; ++$i) {
-            $users[] = (new \App\Entity\User())
+            $users[] = (new \AvalynxOffice\Entity\User())
                 ->setEmail(sprintf('readonly-%d-%s@example.com', $i, bin2hex(random_bytes(4))))
                 ->setPassword('x')
                 ->setLastAuthAt(new \DateTimeImmutable('now'));
@@ -63,7 +63,7 @@ final class LicenseMailCommandsTest extends KernelTestCase
             $this->em->persist($user);
         }
 
-        $state = static::getContainer()->get(\App\Licensing\Service\LicenseGracePeriodManager::class)->getState(null);
+        $state = static::getContainer()->get(\AvalynxOffice\Licensing\Service\LicenseGracePeriodManager::class)->getState(null);
         $state->setViolationStartedAt(new \DateTimeImmutable('-100 days', new \DateTimeZone('UTC')));
         $state->setGracePeriodEndsAt(new \DateTimeImmutable('-70 days', new \DateTimeZone('UTC')));
         $this->em->flush();
@@ -104,7 +104,7 @@ final class LicenseMailCommandsTest extends KernelTestCase
         (new CommandTester($command))->execute([]);
 
         // License restored by deactivating the excess users.
-        $users = $this->em->getRepository(\App\Entity\User::class)->findAll();
+        $users = $this->em->getRepository(\AvalynxOffice\Entity\User::class)->findAll();
         $kept = 0;
         foreach ($users as $user) {
             if ($kept < 3) {
@@ -186,10 +186,10 @@ final class LicenseMailCommandsTest extends KernelTestCase
         $command = new MailSendCommand(
             $repository,
             $entityManager,
-            $this->createStub(\App\Service\Mail\FolderManager::class),
-            $this->createStub(\App\Service\Mail\AttachmentStorage::class),
-            $this->createStub(\App\Service\Mail\SmtpMailerFactory::class),
-            new \App\Tests\Support\FlippingReadOnlyLicenseEnforcement(2),
+            $this->createStub(\AvalynxOffice\Service\Mail\FolderManager::class),
+            $this->createStub(\AvalynxOffice\Service\Mail\AttachmentStorage::class),
+            $this->createStub(\AvalynxOffice\Service\Mail\SmtpMailerFactory::class),
+            new \AvalynxOffice\Tests\Support\FlippingReadOnlyLicenseEnforcement(2),
         );
 
         $tester = new CommandTester($command);

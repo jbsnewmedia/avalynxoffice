@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Twig;
+namespace AvalynxOffice\Tests\Twig;
 
-use App\Entity\Email;
-use App\Twig\AppExtension;
+use AvalynxOffice\Entity\Email;
+use AvalynxOffice\Twig\AppExtension;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ServiceLocator;
 use Twig\Environment;
@@ -61,7 +61,7 @@ final class PluginFallbackExtensionTest extends TestCase
         ]));
         $twig->addExtension(new AppExtension(new ServiceLocator([
             'JBSNewMedia\\MailActionBundle\\Registry\\ContactActionRegistry' => static fn (): object => new class {
-                public function getActions(\App\Entity\Address $contact): array
+                public function getActions(\AvalynxOffice\Entity\Address $contact): array
                 {
                     return [
                         new \JBSNewMedia\MailActionBundle\Model\TemplateView('contact_action', ['contact' => $contact]),
@@ -70,6 +70,6 @@ final class PluginFallbackExtensionTest extends TestCase
             },
         ])));
 
-        self::assertSame('contact-action-button', $twig->render('template', ['contact' => new \App\Entity\Address()]));
+        self::assertSame('contact-action-button', $twig->render('template', ['contact' => new \AvalynxOffice\Entity\Address()]));
     }
 }

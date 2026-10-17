@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Plugin\MailActionBundle\Twig;
+namespace AvalynxOffice\Tests\Plugin\MailActionBundle\Twig;
 
-use App\Entity\Address;
-use App\Entity\CalendarEvent;
-use App\Entity\Email;
+use AvalynxOffice\Entity\Address;
+use AvalynxOffice\Entity\CalendarEvent;
+use AvalynxOffice\Entity\Email;
 use JBSNewMedia\MailActionBundle\Contract\CalendarActionPluginInterface;
 use JBSNewMedia\MailActionBundle\Contract\ComposeButtonPluginInterface;
 use JBSNewMedia\MailActionBundle\Contract\ContactActionPluginInterface;

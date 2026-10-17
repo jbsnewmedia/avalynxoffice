@@ -1,5 +1,5 @@
 {# Params:
-    event (App\Entity\CalendarEvent) — event to render as a grid chip
+    event (AvalynxOffice\Entity\CalendarEvent) — event to render as a grid chip
     monthKey (string) — month key used for the detail route
 #}
 <a href="{{ path('calendar_event_detail', {monthKey: monthKey, eventId: event.id}) }}"

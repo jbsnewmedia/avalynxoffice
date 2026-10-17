@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Support;
+namespace AvalynxOffice\Tests\Support;
 
-use App\Licensing\Exception\LicenseReadOnlyException;
-use App\Licensing\Service\LicenseEnforcementInterface;
-use App\Licensing\Service\LicenseOperation;
+use AvalynxOffice\Licensing\Exception\LicenseReadOnlyException;
+use AvalynxOffice\Licensing\Service\LicenseEnforcementInterface;
+use AvalynxOffice\Licensing\Service\LicenseOperation;
 
 /**
  * Test double that flips from permissive to read-only after a configured

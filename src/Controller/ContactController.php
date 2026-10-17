@@ -2,16 +2,21 @@
 
 declare(strict_types=1);
 
-namespace App\Controller;
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
 
-use App\Entity\Address;
-use App\Entity\Mailbox;
-use App\Entity\User;
-use App\Form\ContactFormType;
-use App\Repository\AddressRepository;
-use App\Repository\MailboxRepository;
-use App\Service\ContactService;
-use App\Service\Mail\UserMailboxProvider;
+namespace AvalynxOffice\Controller;
+
+use AvalynxOffice\Entity\Address;
+use AvalynxOffice\Entity\Mailbox;
+use AvalynxOffice\Entity\User;
+use AvalynxOffice\Form\ContactFormType;
+use AvalynxOffice\Repository\AddressRepository;
+use AvalynxOffice\Repository\MailboxRepository;
+use AvalynxOffice\Service\ContactService;
+use AvalynxOffice\Service\Mail\UserMailboxProvider;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;

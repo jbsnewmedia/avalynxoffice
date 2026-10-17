@@ -2,14 +2,19 @@
 
 declare(strict_types=1);
 
-namespace App\Controller;
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
 
-use App\Entity\MailboxConnector;
-use App\Form\MailboxConnectorType;
-use App\Licensing\Service\LicenseEnforcementInterface;
-use App\Licensing\Service\LicenseOperation;
-use App\Repository\MailboxConnectorRepository;
-use App\Service\MailboxConnectorService;
+namespace AvalynxOffice\Controller;
+
+use AvalynxOffice\Entity\MailboxConnector;
+use AvalynxOffice\Form\MailboxConnectorType;
+use AvalynxOffice\Licensing\Service\LicenseEnforcementInterface;
+use AvalynxOffice\Licensing\Service\LicenseOperation;
+use AvalynxOffice\Repository\MailboxConnectorRepository;
+use AvalynxOffice\Service\MailboxConnectorService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\Request;

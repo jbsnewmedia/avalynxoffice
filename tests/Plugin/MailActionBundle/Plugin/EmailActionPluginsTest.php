@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Plugin\MailActionBundle\Plugin;
+namespace AvalynxOffice\Tests\Plugin\MailActionBundle\Plugin;
 
-use App\Entity\Email;
+use AvalynxOffice\Entity\Email;
 use JBSNewMedia\MailActionBundle\Plugin\EmailAction\EmailDeleteActionPlugin;
 use JBSNewMedia\MailActionBundle\Plugin\EmailAction\EmailForwardActionPlugin;
 use JBSNewMedia\MailActionBundle\Plugin\EmailAction\EmailMarkSpamActionPlugin;

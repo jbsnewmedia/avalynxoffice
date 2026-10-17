@@ -2,13 +2,18 @@
 
 declare(strict_types=1);
 
-namespace App\Service;
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
 
-use App\Entity\Address;
-use App\Entity\Mailbox;
-use App\Entity\MailboxAddress;
-use App\Licensing\Service\LicenseEnforcementInterface;
-use App\Licensing\Service\LicenseOperation;
+namespace AvalynxOffice\Service;
+
+use AvalynxOffice\Entity\Address;
+use AvalynxOffice\Entity\Mailbox;
+use AvalynxOffice\Entity\MailboxAddress;
+use AvalynxOffice\Licensing\Service\LicenseEnforcementInterface;
+use AvalynxOffice\Licensing\Service\LicenseOperation;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**

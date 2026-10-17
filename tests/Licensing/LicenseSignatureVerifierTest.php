@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Licensing;
+namespace AvalynxOffice\Tests\Licensing;
 
-use App\Licensing\Security\LicenseSignatureVerifier;
+use AvalynxOffice\Licensing\Security\LicenseSignatureVerifier;
 use PHPUnit\Framework\TestCase;
 
 final class LicenseSignatureVerifierTest extends TestCase

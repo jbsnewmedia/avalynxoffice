@@ -2,21 +2,26 @@
 
 declare(strict_types=1);
 
-namespace App\Controller;
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
 
-use App\Entity\Email;
-use App\Entity\Folder;
-use App\Entity\Mailbox;
-use App\Entity\User;
-use App\Licensing\Service\LicenseEnforcementInterface;
-use App\Licensing\Service\LicenseOperation;
-use App\Repository\EmailRepository;
-use App\Repository\FolderRepository;
-use App\Repository\MailboxRepository;
-use App\Service\Mail\AttachmentStorage;
-use App\Service\Mail\EmailDetailTemplateResolver;
-use App\Service\Mail\FolderManager;
-use App\Service\Mail\MailService;
+namespace AvalynxOffice\Controller;
+
+use AvalynxOffice\Entity\Email;
+use AvalynxOffice\Entity\Folder;
+use AvalynxOffice\Entity\Mailbox;
+use AvalynxOffice\Entity\User;
+use AvalynxOffice\Licensing\Service\LicenseEnforcementInterface;
+use AvalynxOffice\Licensing\Service\LicenseOperation;
+use AvalynxOffice\Repository\EmailRepository;
+use AvalynxOffice\Repository\FolderRepository;
+use AvalynxOffice\Repository\MailboxRepository;
+use AvalynxOffice\Service\Mail\AttachmentStorage;
+use AvalynxOffice\Service\Mail\EmailDetailTemplateResolver;
+use AvalynxOffice\Service\Mail\FolderManager;
+use AvalynxOffice\Service\Mail\MailService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;

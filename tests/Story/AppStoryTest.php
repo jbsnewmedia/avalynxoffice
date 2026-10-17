@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Story;
+namespace AvalynxOffice\Tests\Story;
 
-use App\Story\AppStory;
+use AvalynxOffice\Story\AppStory;
 use PHPUnit\Framework\TestCase;
 use Zenstruck\Foundry\Attribute\AsFixture;
 

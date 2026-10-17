@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Plugin\MailActionBundle\DependencyInjection;
+namespace AvalynxOffice\Tests\Plugin\MailActionBundle\DependencyInjection;
 
 use JBSNewMedia\MailActionBundle\DependencyInjection\MailActionExtension;
 use JBSNewMedia\MailActionBundle\Registry\ComposeButtonRegistry;

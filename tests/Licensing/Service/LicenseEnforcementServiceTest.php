@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Licensing\Service;
+namespace AvalynxOffice\Tests\Licensing\Service;
 
-use App\Entity\User;
-use App\Licensing\Service\LicenseEnforcementInterface;
-use App\Licensing\Service\LicenseOperation;
-use App\Tests\Support\RefreshDatabaseTrait;
+use AvalynxOffice\Entity\User;
+use AvalynxOffice\Licensing\Service\LicenseEnforcementInterface;
+use AvalynxOffice\Licensing\Service\LicenseOperation;
+use AvalynxOffice\Tests\Support\RefreshDatabaseTrait;
 use Doctrine\DBAL\DriverManager;
 use Doctrine\DBAL\Exception\LockWaitTimeoutException;
 use Doctrine\ORM\EntityManagerInterface;
@@ -37,7 +37,7 @@ final class LicenseEnforcementServiceTest extends KernelTestCase
     private function createStateRow(): void
     {
         // Ensure the license state singleton exists before locking.
-        static::getContainer()->get(\App\Licensing\Service\LicenseGracePeriodManager::class)
+        static::getContainer()->get(\AvalynxOffice\Licensing\Service\LicenseGracePeriodManager::class)
             ->getState(null);
     }
 
@@ -91,7 +91,7 @@ final class LicenseEnforcementServiceTest extends KernelTestCase
         // After the first session finishes, the lock is free again.
         $this->em->rollBack();
         $this->em->wrapInTransaction(function (): void {
-            static::getContainer()->get(\App\Licensing\Service\LicenseGracePeriodManager::class)->lockStateForUpdate();
+            static::getContainer()->get(\AvalynxOffice\Licensing\Service\LicenseGracePeriodManager::class)->lockStateForUpdate();
             self::addToAssertionCount(1);
         });
     }
@@ -100,7 +100,7 @@ final class LicenseEnforcementServiceTest extends KernelTestCase
     {
         // Community mode: exceeding the quota starts the grace period instead
         // of throwing. Creation itself stays possible.
-        static::getContainer()->get(\App\Licensing\Service\LicenseManager::class)->reset();
+        static::getContainer()->get(\AvalynxOffice\Licensing\Service\LicenseManager::class)->reset();
         $hasher = static::getContainer()->get(UserPasswordHasherInterface::class);
         for ($i = 1; $i <= 4; ++$i) {
             $this->em->wrapInTransaction(function () use ($hasher, $i): void {
@@ -114,10 +114,10 @@ final class LicenseEnforcementServiceTest extends KernelTestCase
             });
         }
 
-        $manager = static::getContainer()->get(\App\Licensing\Service\LicenseManager::class);
+        $manager = static::getContainer()->get(\AvalynxOffice\Licensing\Service\LicenseManager::class);
         $manager->reset();
         self::assertSame(4, $this->em->getRepository(User::class)->countActiveSeats(new \DateTimeImmutable('now')));
-        self::assertSame(\App\Licensing\Model\LicenseStatus::GRACE_PERIOD, $manager->getStatus());
+        self::assertSame(\AvalynxOffice\Licensing\Model\LicenseStatus::GRACE_PERIOD, $manager->getStatus());
     }
 
     public function testOperationEnumCoversAllBlockedWrites(): void

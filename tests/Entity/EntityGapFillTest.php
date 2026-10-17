@@ -2,25 +2,25 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Entity;
+namespace AvalynxOffice\Tests\Entity;
 
-use App\Entity\Address;
-use App\Entity\Attachment;
-use App\Entity\Body;
-use App\Entity\Email;
-use App\Entity\EmailAddressLink;
-use App\Entity\EmailAttachmentLink;
-use App\Entity\EmailBodyLink;
-use App\Entity\EmailFolder;
-use App\Entity\Enum\BodyContentType;
-use App\Entity\Enum\EmailAddressType;
-use App\Entity\Folder;
-use App\Entity\FolderMailbox;
-use App\Entity\Mailbox;
-use App\Entity\MailboxAddress;
-use App\Entity\MailboxConnector;
-use App\Entity\User;
-use App\Entity\UserMailbox;
+use AvalynxOffice\Entity\Address;
+use AvalynxOffice\Entity\Attachment;
+use AvalynxOffice\Entity\Body;
+use AvalynxOffice\Entity\Email;
+use AvalynxOffice\Entity\EmailAddressLink;
+use AvalynxOffice\Entity\EmailAttachmentLink;
+use AvalynxOffice\Entity\EmailBodyLink;
+use AvalynxOffice\Entity\EmailFolder;
+use AvalynxOffice\Entity\Enum\BodyContentType;
+use AvalynxOffice\Entity\Enum\EmailAddressType;
+use AvalynxOffice\Entity\Folder;
+use AvalynxOffice\Entity\FolderMailbox;
+use AvalynxOffice\Entity\Mailbox;
+use AvalynxOffice\Entity\MailboxAddress;
+use AvalynxOffice\Entity\MailboxConnector;
+use AvalynxOffice\Entity\User;
+use AvalynxOffice\Entity\UserMailbox;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Uid\UuidV7;

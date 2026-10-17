@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Controller;
+namespace AvalynxOffice\Tests\Controller;
 
-use App\Entity\Email;
-use App\Entity\EmailFolder;
-use App\Entity\Folder;
-use App\Entity\Mailbox;
-use App\Entity\User;
-use App\Tests\Support\RefreshDatabaseTrait;
+use AvalynxOffice\Entity\Email;
+use AvalynxOffice\Entity\EmailFolder;
+use AvalynxOffice\Entity\Folder;
+use AvalynxOffice\Entity\Mailbox;
+use AvalynxOffice\Entity\User;
+use AvalynxOffice\Tests\Support\RefreshDatabaseTrait;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\Group;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;

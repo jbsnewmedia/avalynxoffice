@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\Tests;
+namespace AvalynxOffice\Tests;
 
-use App\Kernel;
-use App\Service\PluginManifestService;
+use AvalynxOffice\Kernel;
+use AvalynxOffice\Service\PluginManifestService;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\Config\Resource\DirectoryResource;
@@ -136,7 +136,7 @@ final class KernelTest extends TestCase
 
 declare(strict_types=1);
 
-use App\Kernel;
+use AvalynxOffice\Kernel;
 use Symfony\Component\Routing\Loader\Configurator\RoutingConfigurator;
 
 return static function (RoutingConfigurator $routes, Kernel $kernel): void {
@@ -180,7 +180,7 @@ PHP,
 
 declare(strict_types=1);
 
-use App\Kernel;
+use AvalynxOffice\Kernel;
 use Symfony\Component\Routing\Loader\Configurator\RoutingConfigurator;
 
 return static function (RoutingConfigurator $routes, Kernel $kernel): void {
@@ -280,7 +280,7 @@ PHP,
 
 declare(strict_types=1);
 
-use App\Kernel;
+use AvalynxOffice\Kernel;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 
 return static function (ContainerConfigurator $container, Kernel $kernel): void {

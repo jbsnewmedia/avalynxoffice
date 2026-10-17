@@ -2,9 +2,14 @@
 
 declare(strict_types=1);
 
-namespace App\Form;
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
 
-use App\Entity\Email;
+namespace AvalynxOffice\Form;
+
+use AvalynxOffice\Entity\Email;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;

@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Controller;
+namespace AvalynxOffice\Tests\Controller;
 
-use App\Tests\Support\AllowAllLicenseEnforcement;
-use App\Controller\MailboxAdminController;
+use AvalynxOffice\Tests\Support\AllowAllLicenseEnforcement;
+use AvalynxOffice\Controller\MailboxAdminController;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;

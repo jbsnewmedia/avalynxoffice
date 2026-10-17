@@ -2,20 +2,20 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Licensing;
+namespace AvalynxOffice\Tests\Licensing;
 
-use App\Licensing\Entity\LicenseState;
-use App\Licensing\Entity\StoredLicenseKey;
-use App\Licensing\EventSubscriber\LicenseExceptionSubscriber;
-use App\Licensing\Model\LicenseKeyReference;
-use App\Licensing\Model\LicenseSource;
-use App\Licensing\Security\LicenseCodec;
-use App\Licensing\Security\TrustedPublicKeyProvider;
-use App\Licensing\Service\LicenseEnforcementInterface;
-use App\Licensing\Service\LicenseGracePeriodManager;
-use App\Licensing\Service\LicenseManager;
-use App\Tests\Licensing\Support\TestLicenseIssuer;
-use App\Tests\Support\RefreshDatabaseTrait;
+use AvalynxOffice\Licensing\Entity\LicenseState;
+use AvalynxOffice\Licensing\Entity\StoredLicenseKey;
+use AvalynxOffice\Licensing\EventSubscriber\LicenseExceptionSubscriber;
+use AvalynxOffice\Licensing\Model\LicenseKeyReference;
+use AvalynxOffice\Licensing\Model\LicenseSource;
+use AvalynxOffice\Licensing\Security\LicenseCodec;
+use AvalynxOffice\Licensing\Security\TrustedPublicKeyProvider;
+use AvalynxOffice\Licensing\Service\LicenseEnforcementInterface;
+use AvalynxOffice\Licensing\Service\LicenseGracePeriodManager;
+use AvalynxOffice\Licensing\Service\LicenseManager;
+use AvalynxOffice\Tests\Licensing\Support\TestLicenseIssuer;
+use AvalynxOffice\Tests\Support\RefreshDatabaseTrait;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -96,7 +96,7 @@ final class CoverageGapsTest extends KernelTestCase
     {
         $codec = new LicenseCodec();
 
-        $this->expectException(\App\Licensing\Validation\LicenseKeyException::class);
+        $this->expectException(\AvalynxOffice\Licensing\Validation\LicenseKeyException::class);
         $codec->decode('WOL1.a');
     }
 
@@ -110,7 +110,7 @@ final class CoverageGapsTest extends KernelTestCase
 
     public function testEnforcementWithoutOpenTransactionSkipsTheRowLock(): void
     {
-        static::getContainer()->get(\App\Licensing\Service\LicenseGracePeriodManager::class)->getState(null);
+        static::getContainer()->get(\AvalynxOffice\Licensing\Service\LicenseGracePeriodManager::class)->getState(null);
 
         $enforcement = static::getContainer()->get(LicenseEnforcementInterface::class);
 
@@ -181,7 +181,7 @@ final class CoverageGapsTest extends KernelTestCase
         chmod($path, 0000);
 
         try {
-            $provider = new \App\Licensing\Provider\FileLicenseKeyProvider($path);
+            $provider = new \AvalynxOffice\Licensing\Provider\FileLicenseKeyProvider($path);
             self::assertSame([], $provider->getLicenseKeys());
         } finally {
             chmod($path, 0644);
@@ -199,7 +199,7 @@ final class CoverageGapsTest extends KernelTestCase
         $nested = new \RuntimeException(
             'outer',
             0,
-            new \App\Licensing\Exception\LicenseReadOnlyException(\App\Licensing\Service\LicenseOperation::MAIL_MODIFY),
+            new \AvalynxOffice\Licensing\Exception\LicenseReadOnlyException(\AvalynxOffice\Licensing\Service\LicenseOperation::MAIL_MODIFY),
         );
         $event = new \Symfony\Component\HttpKernel\Event\ExceptionEvent(
             static::getContainer()->get('kernel'),

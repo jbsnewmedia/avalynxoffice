@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Service;
+namespace AvalynxOffice\Tests\Service;
 
-use App\Service\PluginManifestService;
+use AvalynxOffice\Service\PluginManifestService;
 use PHPUnit\Framework\TestCase;
 
 final class PluginManifestServiceTest extends TestCase

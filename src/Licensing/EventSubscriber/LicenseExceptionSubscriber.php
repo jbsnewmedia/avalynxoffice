@@ -2,9 +2,14 @@
 
 declare(strict_types=1);
 
-namespace App\Licensing\EventSubscriber;
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
 
-use App\Licensing\Exception\LicenseReadOnlyException;
+namespace AvalynxOffice\Licensing\EventSubscriber;
+
+use AvalynxOffice\Licensing\Exception\LicenseReadOnlyException;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;

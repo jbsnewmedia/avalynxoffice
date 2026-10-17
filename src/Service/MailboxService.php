@@ -2,15 +2,20 @@
 
 declare(strict_types=1);
 
-namespace App\Service;
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
 
-use App\Entity\Address;
-use App\Entity\Enum\FolderFunction;
-use App\Entity\Folder;
-use App\Entity\FolderMailbox;
-use App\Entity\Mailbox;
-use App\Repository\AddressRepository;
-use App\Service\Mail\FolderManager;
+namespace AvalynxOffice\Service;
+
+use AvalynxOffice\Entity\Address;
+use AvalynxOffice\Entity\Enum\FolderFunction;
+use AvalynxOffice\Entity\Folder;
+use AvalynxOffice\Entity\FolderMailbox;
+use AvalynxOffice\Entity\Mailbox;
+use AvalynxOffice\Repository\AddressRepository;
+use AvalynxOffice\Service\Mail\FolderManager;
 use Doctrine\ORM\EntityManagerInterface;
 
 class MailboxService

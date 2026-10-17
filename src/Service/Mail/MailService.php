@@ -2,12 +2,17 @@
 
 declare(strict_types=1);
 
-namespace App\Service\Mail;
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
 
-use App\Entity\Email;
-use App\Entity\Folder;
-use App\Entity\Mailbox;
-use App\Repository\FolderRepository;
+namespace AvalynxOffice\Service\Mail;
+
+use AvalynxOffice\Entity\Email;
+use AvalynxOffice\Entity\Folder;
+use AvalynxOffice\Entity\Mailbox;
+use AvalynxOffice\Repository\FolderRepository;
 
 class MailService
 {

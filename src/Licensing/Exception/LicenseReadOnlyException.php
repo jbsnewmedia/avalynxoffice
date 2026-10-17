@@ -2,9 +2,14 @@
 
 declare(strict_types=1);
 
-namespace App\Licensing\Exception;
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
 
-use App\Licensing\Service\LicenseOperation;
+namespace AvalynxOffice\Licensing\Exception;
+
+use AvalynxOffice\Licensing\Service\LicenseOperation;
 
 /**
  * Thrown when a user-initiated write operation is blocked because the

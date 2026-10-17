@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Entity;
+namespace AvalynxOffice\Tests\Entity;
 
-use App\Entity\Enum\FolderFunction;
-use App\Entity\Folder;
-use App\Entity\FolderMailbox;
-use App\Entity\Mailbox;
+use AvalynxOffice\Entity\Enum\FolderFunction;
+use AvalynxOffice\Entity\Folder;
+use AvalynxOffice\Entity\FolderMailbox;
+use AvalynxOffice\Entity\Mailbox;
 use PHPUnit\Framework\TestCase;
 
 final class FolderExtendedTest extends TestCase

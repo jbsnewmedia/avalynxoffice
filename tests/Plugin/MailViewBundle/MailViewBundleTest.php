@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Plugin\MailViewBundle;
+namespace AvalynxOffice\Tests\Plugin\MailViewBundle;
 
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpKernel\Bundle\Bundle;

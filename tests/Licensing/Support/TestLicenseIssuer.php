@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Licensing\Support;
+namespace AvalynxOffice\Tests\Licensing\Support;
 
-use App\Licensing\Security\LicenseCodec;
+use AvalynxOffice\Licensing\Security\LicenseCodec;
 
 /**
  * Test helper that generates an Ed25519 keypair and issues valid license

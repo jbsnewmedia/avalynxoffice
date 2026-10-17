@@ -2,12 +2,17 @@
 
 declare(strict_types=1);
 
-namespace App\Controller;
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
 
-use App\Licensing\Service\LicenseEnforcementInterface;
-use App\Licensing\Service\LicenseOperation;
-use App\Repository\MailboxRepository;
-use App\Service\SettingsService;
+namespace AvalynxOffice\Controller;
+
+use AvalynxOffice\Licensing\Service\LicenseEnforcementInterface;
+use AvalynxOffice\Licensing\Service\LicenseOperation;
+use AvalynxOffice\Repository\MailboxRepository;
+use AvalynxOffice\Service\SettingsService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;

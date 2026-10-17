@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Plugin;
+namespace AvalynxOffice\Tests\Plugin;
 
-use App\Plugin\JsonPluginLoader;
-use App\Service\PluginManifestService;
+use AvalynxOffice\Plugin\JsonPluginLoader;
+use AvalynxOffice\Service\PluginManifestService;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\HttpKernel\Bundle\BundleInterface;

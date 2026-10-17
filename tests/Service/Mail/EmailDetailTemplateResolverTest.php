@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Service\Mail;
+namespace AvalynxOffice\Tests\Service\Mail;
 
-use App\Service\Mail\EmailDetailTemplateResolver;
+use AvalynxOffice\Service\Mail\EmailDetailTemplateResolver;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ServiceLocator;
 

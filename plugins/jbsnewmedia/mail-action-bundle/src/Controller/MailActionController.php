@@ -2,18 +2,23 @@
 
 declare(strict_types=1);
 
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
+
 namespace JBSNewMedia\MailActionBundle\Controller;
 
-use App\Entity\Email;
-use App\Entity\Enum\EmailAddressType;
-use App\Entity\Folder;
-use App\Entity\Mailbox;
-use App\Form\EmailReplyType;
-use App\Licensing\Service\LicenseEnforcementInterface;
-use App\Licensing\Service\LicenseOperation;
-use App\Repository\EmailRepository;
-use App\Repository\FolderRepository;
-use App\Service\Mail\MailService;
+use AvalynxOffice\Entity\Email;
+use AvalynxOffice\Entity\Enum\EmailAddressType;
+use AvalynxOffice\Entity\Folder;
+use AvalynxOffice\Entity\Mailbox;
+use AvalynxOffice\Form\EmailReplyType;
+use AvalynxOffice\Licensing\Service\LicenseEnforcementInterface;
+use AvalynxOffice\Licensing\Service\LicenseOperation;
+use AvalynxOffice\Repository\EmailRepository;
+use AvalynxOffice\Repository\FolderRepository;
+use AvalynxOffice\Service\Mail\MailService;
 use JBSNewMedia\MailActionBundle\Service\EmailActionService;
 use JBSNewMedia\MailActionBundle\Service\MailDraftService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;

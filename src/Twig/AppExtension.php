@@ -2,11 +2,16 @@
 
 declare(strict_types=1);
 
-namespace App\Twig;
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
 
-use App\Entity\Address;
-use App\Entity\CalendarEvent;
-use App\Entity\Email;
+namespace AvalynxOffice\Twig;
+
+use AvalynxOffice\Entity\Address;
+use AvalynxOffice\Entity\CalendarEvent;
+use AvalynxOffice\Entity\Email;
 use Psr\Container\ContainerInterface;
 use Symfony\Component\DependencyInjection\ServiceLocator;
 use Twig\Extension\AbstractExtension;

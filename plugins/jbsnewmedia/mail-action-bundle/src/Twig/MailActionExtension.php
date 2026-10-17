@@ -2,11 +2,16 @@
 
 declare(strict_types=1);
 
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
+
 namespace JBSNewMedia\MailActionBundle\Twig;
 
-use App\Entity\Address;
-use App\Entity\CalendarEvent;
-use App\Entity\Email;
+use AvalynxOffice\Entity\Address;
+use AvalynxOffice\Entity\CalendarEvent;
+use AvalynxOffice\Entity\Email;
 use JBSNewMedia\MailActionBundle\Model\TemplateView;
 use JBSNewMedia\MailActionBundle\Registry\CalendarActionRegistry;
 use JBSNewMedia\MailActionBundle\Registry\ComposeButtonRegistry;

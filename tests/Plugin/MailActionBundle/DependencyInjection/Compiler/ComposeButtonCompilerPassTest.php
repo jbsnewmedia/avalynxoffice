@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Plugin\MailActionBundle\DependencyInjection\Compiler;
+namespace AvalynxOffice\Tests\Plugin\MailActionBundle\DependencyInjection\Compiler;
 
 use JBSNewMedia\MailActionBundle\DependencyInjection\Compiler\ComposeButtonCompilerPass;
 use JBSNewMedia\MailActionBundle\DependencyInjection\MailActionTags;

@@ -2,10 +2,15 @@
 
 declare(strict_types=1);
 
-namespace App\Command;
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
 
-use App\Entity\User;
-use App\Licensing\Service\LicenseEnforcementInterface;
+namespace AvalynxOffice\Command;
+
+use AvalynxOffice\Entity\User;
+use AvalynxOffice\Licensing\Service\LicenseEnforcementInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;

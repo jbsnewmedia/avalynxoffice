@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Service\Mail;
+namespace AvalynxOffice\Tests\Service\Mail;
 
-use App\Service\Mail\Pop3StorageFactory;
+use AvalynxOffice\Service\Mail\Pop3StorageFactory;
 use Laminas\Mail\Protocol\Exception\RuntimeException;
 use PHPUnit\Framework\TestCase;
 

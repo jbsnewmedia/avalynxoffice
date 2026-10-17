@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Plugin\MailActionBundle\Plugin;
+namespace AvalynxOffice\Tests\Plugin\MailActionBundle\Plugin;
 
-use App\Entity\Address;
+use AvalynxOffice\Entity\Address;
 use JBSNewMedia\MailActionBundle\Plugin\ContactAction\ContactDeleteActionPlugin;
 use JBSNewMedia\MailActionBundle\Plugin\ContactAction\ContactEditActionPlugin;
 use PHPUnit\Framework\Attributes\DataProvider;

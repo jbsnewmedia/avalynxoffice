@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Service\Mail;
+namespace AvalynxOffice\Service\Mail;
 
 final class Pop3FetcherTestFunctionOverrides
 {
@@ -43,20 +43,20 @@ function mb_detect_encoding(string $string, array|string|null $encodings = null,
     return \mb_detect_encoding($string, $encodings, $strict);
 }
 
-namespace App\Tests\Service\Mail;
+namespace AvalynxOffice\Tests\Service\Mail;
 
-use App\Entity\Address;
-use App\Entity\Email;
-use App\Entity\Enum\EmailAddressType;
-use App\Entity\Folder;
-use App\Entity\Mailbox;
-use App\Entity\MailboxConnector;
-use App\Repository\EmailRepository;
-use App\Service\Mail\AttachmentStorage;
-use App\Service\Mail\FolderManager;
-use App\Service\Mail\Pop3Fetcher;
-use App\Service\Mail\Pop3FetcherTestFunctionOverrides;
-use App\Service\Mail\Pop3StorageFactory;
+use AvalynxOffice\Entity\Address;
+use AvalynxOffice\Entity\Email;
+use AvalynxOffice\Entity\Enum\EmailAddressType;
+use AvalynxOffice\Entity\Folder;
+use AvalynxOffice\Entity\Mailbox;
+use AvalynxOffice\Entity\MailboxConnector;
+use AvalynxOffice\Repository\EmailRepository;
+use AvalynxOffice\Service\Mail\AttachmentStorage;
+use AvalynxOffice\Service\Mail\FolderManager;
+use AvalynxOffice\Service\Mail\Pop3Fetcher;
+use AvalynxOffice\Service\Mail\Pop3FetcherTestFunctionOverrides;
+use AvalynxOffice\Service\Mail\Pop3StorageFactory;
 use Doctrine\ORM\EntityManagerInterface;
 use Laminas\Mail\Header\HeaderInterface;
 use Laminas\Mail\Headers;

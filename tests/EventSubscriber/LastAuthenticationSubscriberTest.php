@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\EventSubscriber;
+namespace AvalynxOffice\Tests\EventSubscriber;
 
-use App\Entity\User;
-use App\EventSubscriber\LastAuthenticationSubscriber;
-use App\Tests\Support\RefreshDatabaseTrait;
+use AvalynxOffice\Entity\User;
+use AvalynxOffice\EventSubscriber\LastAuthenticationSubscriber;
+use AvalynxOffice\Tests\Support\RefreshDatabaseTrait;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\HttpFoundation\Request;
@@ -83,7 +83,7 @@ final class LastAuthenticationSubscriberTest extends KernelTestCase
 }
 
 /**
- * Security user that is deliberately not an App\Entity\User, so the
+ * Security user that is deliberately not an AvalynxOffice\Entity\User, so the
  * subscriber's instanceof guard can be tested.
  */
 final class ForeignUser implements UserInterface

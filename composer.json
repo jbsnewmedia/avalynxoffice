@@ -91,12 +91,12 @@
     ],
     "autoload": {
         "psr-4": {
-            "App\\": "src/"
+            "AvalynxOffice\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "App\\Tests\\": "tests/"
+            "AvalynxOffice\\Tests\\": "tests/"
         }
     },
     "replace": {

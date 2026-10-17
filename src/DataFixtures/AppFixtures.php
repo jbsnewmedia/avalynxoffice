@@ -2,32 +2,37 @@
 
 declare(strict_types=1);
 
-namespace App\DataFixtures;
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
 
-use App\Entity\Address;
-use App\Entity\Attachment;
-use App\Entity\Body;
-use App\Entity\CalendarEvent;
-use App\Entity\Email;
-use App\Entity\EmailAddressLink;
-use App\Entity\EmailAttachmentLink;
-use App\Entity\EmailBodyLink;
-use App\Entity\EmailFolder;
-use App\Entity\Enum\BodyContentType;
-use App\Entity\Enum\EmailAddressType;
-use App\Entity\Enum\FolderFunction;
-use App\Entity\Folder;
-use App\Entity\FolderMailbox;
-use App\Entity\Mailbox;
-use App\Entity\MailboxConnector;
-use App\Entity\User;
-use App\Factory\AddressFactory;
-use App\Factory\AttachmentFactory;
-use App\Factory\BodyFactory;
-use App\Factory\EmailFactory;
-use App\Factory\FolderFactory;
-use App\Service\Mail\AttachmentStorage;
-use App\Service\Mail\FolderManager;
+namespace AvalynxOffice\DataFixtures;
+
+use AvalynxOffice\Entity\Address;
+use AvalynxOffice\Entity\Attachment;
+use AvalynxOffice\Entity\Body;
+use AvalynxOffice\Entity\CalendarEvent;
+use AvalynxOffice\Entity\Email;
+use AvalynxOffice\Entity\EmailAddressLink;
+use AvalynxOffice\Entity\EmailAttachmentLink;
+use AvalynxOffice\Entity\EmailBodyLink;
+use AvalynxOffice\Entity\EmailFolder;
+use AvalynxOffice\Entity\Enum\BodyContentType;
+use AvalynxOffice\Entity\Enum\EmailAddressType;
+use AvalynxOffice\Entity\Enum\FolderFunction;
+use AvalynxOffice\Entity\Folder;
+use AvalynxOffice\Entity\FolderMailbox;
+use AvalynxOffice\Entity\Mailbox;
+use AvalynxOffice\Entity\MailboxConnector;
+use AvalynxOffice\Entity\User;
+use AvalynxOffice\Factory\AddressFactory;
+use AvalynxOffice\Factory\AttachmentFactory;
+use AvalynxOffice\Factory\BodyFactory;
+use AvalynxOffice\Factory\EmailFactory;
+use AvalynxOffice\Factory\FolderFactory;
+use AvalynxOffice\Service\Mail\AttachmentStorage;
+use AvalynxOffice\Service\Mail\FolderManager;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Persistence\ObjectManager;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;

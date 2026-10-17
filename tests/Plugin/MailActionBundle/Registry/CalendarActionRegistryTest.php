@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Plugin\MailActionBundle\Registry;
+namespace AvalynxOffice\Tests\Plugin\MailActionBundle\Registry;
 
-use App\Entity\CalendarEvent;
+use AvalynxOffice\Entity\CalendarEvent;
 use JBSNewMedia\MailActionBundle\Contract\CalendarActionPluginInterface;
 use JBSNewMedia\MailActionBundle\Model\TemplateView;
 use JBSNewMedia\MailActionBundle\Registry\CalendarActionRegistry;

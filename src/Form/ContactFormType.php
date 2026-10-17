@@ -2,10 +2,15 @@
 
 declare(strict_types=1);
 
-namespace App\Form;
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
 
-use App\Entity\Address;
-use App\Entity\Mailbox;
+namespace AvalynxOffice\Form;
+
+use AvalynxOffice\Entity\Address;
+use AvalynxOffice\Entity\Mailbox;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\EmailType;

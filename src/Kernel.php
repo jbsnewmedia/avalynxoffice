@@ -2,10 +2,15 @@
 
 declare(strict_types=1);
 
-namespace App;
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
 
-use App\Plugin\JsonPluginLoader;
-use App\Service\PluginManifestService;
+namespace AvalynxOffice;
+
+use AvalynxOffice\Plugin\JsonPluginLoader;
+use AvalynxOffice\Service\PluginManifestService;
 use Symfony\Bundle\FrameworkBundle\Kernel\MicroKernelTrait;
 use Symfony\Component\Config\Resource\DirectoryResource;
 use Symfony\Component\Config\Resource\FileResource;

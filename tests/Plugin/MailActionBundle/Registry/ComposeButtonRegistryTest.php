@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Plugin\MailActionBundle\Registry;
+namespace AvalynxOffice\Tests\Plugin\MailActionBundle\Registry;
 
 use JBSNewMedia\MailActionBundle\Contract\ComposeButtonPluginInterface;
 use JBSNewMedia\MailActionBundle\Model\TemplateView;

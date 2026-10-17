@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Service\Mail;
+namespace AvalynxOffice\Tests\Service\Mail;
 
-use App\Entity\Attachment;
-use App\Service\Mail\AttachmentStorage;
+use AvalynxOffice\Entity\Attachment;
+use AvalynxOffice\Service\Mail\AttachmentStorage;
 use PHPUnit\Framework\TestCase;
 
 class AttachmentStorageTest extends TestCase

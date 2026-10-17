@@ -2,16 +2,21 @@
 
 declare(strict_types=1);
 
-namespace App\Licensing\Service;
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
 
-use App\Licensing\Entity\LicenseState;
-use App\Licensing\Model\License;
-use App\Licensing\Model\LicenseEntitlement;
-use App\Licensing\Model\LicenseKeyDiagnostic;
-use App\Licensing\Model\LicenseKeyStatus;
-use App\Licensing\Model\LicenseStatus;
-use App\Licensing\Provider\CompositeLicenseKeyProvider;
-use App\Licensing\Security\TrustedPublicKeyProvider;
+namespace AvalynxOffice\Licensing\Service;
+
+use AvalynxOffice\Licensing\Entity\LicenseState;
+use AvalynxOffice\Licensing\Model\License;
+use AvalynxOffice\Licensing\Model\LicenseEntitlement;
+use AvalynxOffice\Licensing\Model\LicenseKeyDiagnostic;
+use AvalynxOffice\Licensing\Model\LicenseKeyStatus;
+use AvalynxOffice\Licensing\Model\LicenseStatus;
+use AvalynxOffice\Licensing\Provider\CompositeLicenseKeyProvider;
+use AvalynxOffice\Licensing\Security\TrustedPublicKeyProvider;
 
 /**
  * Aggregates all configured licenses into the effective entitlement:

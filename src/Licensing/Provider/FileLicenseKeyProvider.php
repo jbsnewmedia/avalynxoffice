@@ -2,10 +2,15 @@
 
 declare(strict_types=1);
 
-namespace App\Licensing\Provider;
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
 
-use App\Licensing\Model\LicenseKeyReference;
-use App\Licensing\Model\LicenseSource;
+namespace AvalynxOffice\Licensing\Provider;
+
+use AvalynxOffice\Licensing\Model\LicenseKeyReference;
+use AvalynxOffice\Licensing\Model\LicenseSource;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 

@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Command;
+namespace AvalynxOffice\Tests\Command;
 
-use App\Command\InitCommand;
-use App\Entity\User;
-use App\Service\DatabasePurger;
-use App\Tests\Support\AllowAllLicenseEnforcement;
+use AvalynxOffice\Command\InitCommand;
+use AvalynxOffice\Entity\User;
+use AvalynxOffice\Service\DatabasePurger;
+use AvalynxOffice\Tests\Support\AllowAllLicenseEnforcement;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
 use PHPUnit\Framework\TestCase;

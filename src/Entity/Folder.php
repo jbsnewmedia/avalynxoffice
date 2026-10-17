@@ -2,10 +2,15 @@
 
 declare(strict_types=1);
 
-namespace App\Entity;
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
 
-use App\Entity\Enum\FolderFunction;
-use App\Repository\FolderRepository;
+namespace AvalynxOffice\Entity;
+
+use AvalynxOffice\Entity\Enum\FolderFunction;
+use AvalynxOffice\Repository\FolderRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;

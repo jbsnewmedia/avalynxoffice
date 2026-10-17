@@ -2,11 +2,16 @@
 
 declare(strict_types=1);
 
-namespace App\Repository;
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
 
-use App\Entity\Address;
-use App\Entity\Mailbox;
-use App\Entity\MailboxAddress;
+namespace AvalynxOffice\Repository;
+
+use AvalynxOffice\Entity\Address;
+use AvalynxOffice\Entity\Mailbox;
+use AvalynxOffice\Entity\MailboxAddress;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 

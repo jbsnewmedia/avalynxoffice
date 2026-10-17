@@ -2,22 +2,27 @@
 
 declare(strict_types=1);
 
-namespace App\Service\Mail;
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
 
-use App\Entity\Address;
-use App\Entity\Attachment;
-use App\Entity\Body;
-use App\Entity\Email;
-use App\Entity\EmailAddressLink;
-use App\Entity\EmailAttachmentLink;
-use App\Entity\EmailBodyLink;
-use App\Entity\EmailFolder;
-use App\Entity\Enum\BodyContentType;
-use App\Entity\Enum\EmailAddressType;
-use App\Entity\Enum\FolderFunction;
-use App\Entity\Mailbox;
-use App\Entity\MailboxConnector;
-use App\Repository\EmailRepository;
+namespace AvalynxOffice\Service\Mail;
+
+use AvalynxOffice\Entity\Address;
+use AvalynxOffice\Entity\Attachment;
+use AvalynxOffice\Entity\Body;
+use AvalynxOffice\Entity\Email;
+use AvalynxOffice\Entity\EmailAddressLink;
+use AvalynxOffice\Entity\EmailAttachmentLink;
+use AvalynxOffice\Entity\EmailBodyLink;
+use AvalynxOffice\Entity\EmailFolder;
+use AvalynxOffice\Entity\Enum\BodyContentType;
+use AvalynxOffice\Entity\Enum\EmailAddressType;
+use AvalynxOffice\Entity\Enum\FolderFunction;
+use AvalynxOffice\Entity\Mailbox;
+use AvalynxOffice\Entity\MailboxConnector;
+use AvalynxOffice\Repository\EmailRepository;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Laminas\Mail\Storage\Message as StorageMessage;

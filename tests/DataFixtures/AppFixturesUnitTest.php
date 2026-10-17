@@ -2,21 +2,21 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\DataFixtures;
+namespace AvalynxOffice\Tests\DataFixtures;
 
-use App\DataFixtures\AppFixtures;
-use App\Entity\Address;
-use App\Entity\Attachment;
-use App\Entity\Body;
-use App\Entity\Email;
-use App\Entity\EmailAddressLink;
-use App\Entity\EmailBodyLink;
-use App\Entity\Enum\BodyContentType;
-use App\Entity\Enum\EmailAddressType;
-use App\Entity\Mailbox;
-use App\Entity\MailboxConnector;
-use App\Service\Mail\AttachmentStorage;
-use App\Service\Mail\FolderManager;
+use AvalynxOffice\DataFixtures\AppFixtures;
+use AvalynxOffice\Entity\Address;
+use AvalynxOffice\Entity\Attachment;
+use AvalynxOffice\Entity\Body;
+use AvalynxOffice\Entity\Email;
+use AvalynxOffice\Entity\EmailAddressLink;
+use AvalynxOffice\Entity\EmailBodyLink;
+use AvalynxOffice\Entity\Enum\BodyContentType;
+use AvalynxOffice\Entity\Enum\EmailAddressType;
+use AvalynxOffice\Entity\Mailbox;
+use AvalynxOffice\Entity\MailboxConnector;
+use AvalynxOffice\Service\Mail\AttachmentStorage;
+use AvalynxOffice\Service\Mail\FolderManager;
 use Doctrine\Persistence\ObjectManager;
 use Doctrine\Persistence\ObjectRepository;
 use PHPUnit\Framework\TestCase;

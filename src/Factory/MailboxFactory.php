@@ -2,9 +2,14 @@
 
 declare(strict_types=1);
 
-namespace App\Factory;
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
 
-use App\Entity\Mailbox;
+namespace AvalynxOffice\Factory;
+
+use AvalynxOffice\Entity\Mailbox;
 use Zenstruck\Foundry\Persistence\PersistentObjectFactory;
 
 /**

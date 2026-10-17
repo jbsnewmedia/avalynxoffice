@@ -2,9 +2,14 @@
 
 declare(strict_types=1);
 
-namespace App\Service\Mail;
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
 
-use App\Entity\MailboxConnector;
+namespace AvalynxOffice\Service\Mail;
+
+use AvalynxOffice\Entity\MailboxConnector;
 use Symfony\Component\Mailer\Mailer;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Mailer\Transport;

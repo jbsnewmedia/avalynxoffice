@@ -2,10 +2,15 @@
 
 declare(strict_types=1);
 
-namespace App\Licensing\Security;
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
 
-use App\Licensing\Model\LicenseKeyStatus;
-use App\Licensing\Validation\LicenseKeyException;
+namespace AvalynxOffice\Licensing\Security;
+
+use AvalynxOffice\Licensing\Model\LicenseKeyStatus;
+use AvalynxOffice\Licensing\Validation\LicenseKeyException;
 
 /**
  * Encodes and decodes license keys of the format.

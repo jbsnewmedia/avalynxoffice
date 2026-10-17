@@ -2,18 +2,23 @@
 
 declare(strict_types=1);
 
-namespace App\Service;
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
 
-use App\Entity\Address;
-use App\Entity\Email;
-use App\Entity\EmailAddressLink;
-use App\Entity\EmailAttachmentLink;
-use App\Entity\EmailBodyLink;
-use App\Entity\Folder;
-use App\Entity\Mailbox;
-use App\Entity\MailboxConnector;
-use App\Repository\FolderRepository;
-use App\Repository\MailboxRepository;
+namespace AvalynxOffice\Service;
+
+use AvalynxOffice\Entity\Address;
+use AvalynxOffice\Entity\Email;
+use AvalynxOffice\Entity\EmailAddressLink;
+use AvalynxOffice\Entity\EmailAttachmentLink;
+use AvalynxOffice\Entity\EmailBodyLink;
+use AvalynxOffice\Entity\Folder;
+use AvalynxOffice\Entity\Mailbox;
+use AvalynxOffice\Entity\MailboxConnector;
+use AvalynxOffice\Repository\FolderRepository;
+use AvalynxOffice\Repository\MailboxRepository;
 
 class DataService
 {

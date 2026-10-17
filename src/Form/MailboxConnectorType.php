@@ -2,11 +2,16 @@
 
 declare(strict_types=1);
 
-namespace App\Form;
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
 
-use App\Entity\Mailbox;
-use App\Entity\MailboxConnector;
-use App\Repository\MailboxRepository;
+namespace AvalynxOffice\Form;
+
+use AvalynxOffice\Entity\Mailbox;
+use AvalynxOffice\Entity\MailboxConnector;
+use AvalynxOffice\Repository\MailboxRepository;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;

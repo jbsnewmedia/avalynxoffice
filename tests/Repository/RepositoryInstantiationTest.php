@@ -2,24 +2,24 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Repository;
+namespace AvalynxOffice\Tests\Repository;
 
-use App\Entity\Attachment;
-use App\Entity\Body;
-use App\Entity\EmailAddressLink;
-use App\Entity\EmailAttachmentLink;
-use App\Entity\EmailBodyLink;
-use App\Entity\Folder;
-use App\Entity\Mailbox;
-use App\Entity\MailboxConnector;
-use App\Repository\AttachmentRepository;
-use App\Repository\BodyRepository;
-use App\Repository\EmailAddressLinkRepository;
-use App\Repository\EmailAttachmentLinkRepository;
-use App\Repository\EmailBodyLinkRepository;
-use App\Repository\FolderRepository;
-use App\Repository\MailboxConnectorRepository;
-use App\Repository\MailboxRepository;
+use AvalynxOffice\Entity\Attachment;
+use AvalynxOffice\Entity\Body;
+use AvalynxOffice\Entity\EmailAddressLink;
+use AvalynxOffice\Entity\EmailAttachmentLink;
+use AvalynxOffice\Entity\EmailBodyLink;
+use AvalynxOffice\Entity\Folder;
+use AvalynxOffice\Entity\Mailbox;
+use AvalynxOffice\Entity\MailboxConnector;
+use AvalynxOffice\Repository\AttachmentRepository;
+use AvalynxOffice\Repository\BodyRepository;
+use AvalynxOffice\Repository\EmailAddressLinkRepository;
+use AvalynxOffice\Repository\EmailAttachmentLinkRepository;
+use AvalynxOffice\Repository\EmailBodyLinkRepository;
+use AvalynxOffice\Repository\FolderRepository;
+use AvalynxOffice\Repository\MailboxConnectorRepository;
+use AvalynxOffice\Repository\MailboxRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\Persistence\ManagerRegistry;

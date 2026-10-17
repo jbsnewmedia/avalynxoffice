@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Controller;
+namespace AvalynxOffice\Tests\Controller;
 
-use App\Controller\DataController;
-use App\Entity\Address;
-use App\Entity\User;
-use App\Repository\AddressRepository;
-use App\Service\DataService;
+use AvalynxOffice\Controller\DataController;
+use AvalynxOffice\Entity\Address;
+use AvalynxOffice\Entity\User;
+use AvalynxOffice\Repository\AddressRepository;
+use AvalynxOffice\Service\DataService;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ServiceLocator;
 use Symfony\Component\HttpFoundation\Request;

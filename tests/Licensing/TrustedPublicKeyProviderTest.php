@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Licensing;
+namespace AvalynxOffice\Tests\Licensing;
 
-use App\Licensing\Security\TrustedPublicKeyProvider;
+use AvalynxOffice\Licensing\Security\TrustedPublicKeyProvider;
 use PHPUnit\Framework\TestCase;
 
 final class TrustedPublicKeyProviderTest extends TestCase

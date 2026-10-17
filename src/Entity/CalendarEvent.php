@@ -2,9 +2,14 @@
 
 declare(strict_types=1);
 
-namespace App\Entity;
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
 
-use App\Repository\CalendarEventRepository;
+namespace AvalynxOffice\Entity;
+
+use AvalynxOffice\Repository\CalendarEventRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Uid\UuidV7;

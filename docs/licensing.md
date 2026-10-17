@@ -20,7 +20,7 @@ usedSeats    = count(active users with last_auth_at >= now - 30 days)
   verbrauchen noch keinen Sitzplatz; der Sitz entsteht mit der ersten
   erfolgreichen Authentifizierung.
 - Die Spalte `app_user.last_auth_at` wird geschrieben von:
-    - `App\EventSubscriber\LastAuthenticationSubscriber` bei jedem
+    - `AvalynxOffice\EventSubscriber\LastAuthenticationSubscriber` bei jedem
       erfolgreichen Web-Login (inklusive Remember-me, Event
       `security.interactive_login`),
     - `AvalynxOfficeEas\Service\LastAuthenticationRecorder` im
@@ -95,7 +95,7 @@ AVALYNXOFFICE_ORGANIZATION_ID=""       # Organisation der Installation
 
 ## Lizenzquellen
 
-`App\Licensing\Provider\LicenseKeyProviderInterface` mit:
+`AvalynxOffice\Licensing\Provider\LicenseKeyProviderInterface` mit:
 
 - `EnvLicenseKeyProvider` (ENV)
 - `FileLicenseKeyProvider` (Datei)
@@ -104,7 +104,7 @@ AVALYNXOFFICE_ORGANIZATION_ID=""       # Organisation der Installation
 
 ## Zustände und Kulanzfrist
 
-`App\Licensing\Service\LicenseStatusResolver`:
+`AvalynxOffice\Licensing\Service\LicenseStatusResolver`:
 
 - `COMMUNITY` – höchstens 3 Active Seats, keine kommerzielle Lizenz nötig.
 - `VALID` – Nutzung innerhalb der lizenzierten Plätze.
@@ -139,7 +139,7 @@ Transaktion mit pessimistischem Zeilenschloss (`SELECT … FOR UPDATE` auf
 
 ## Read-Only-Durchsetzung
 
-Zentrale Prüfstelle: `App\Licensing\Service\LicenseEnforcementService` mit dem
+Zentrale Prüfstelle: `AvalynxOffice\Licensing\Service\LicenseEnforcementService` mit dem
 Enum `LicenseOperation` (`MAIL_SEND`, `MAIL_MODIFY`, `MAIL_DELETE`,
 `CALENDAR_WRITE`, `CONTACT_WRITE`, `USER_CREATE`, `SETTINGS_WRITE`).
 

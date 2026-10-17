@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Licensing\Service;
+namespace AvalynxOffice\Tests\Licensing\Service;
 
-use App\Licensing\Entity\LicenseState;
-use App\Licensing\Model\LicenseStatus;
-use App\Licensing\Service\LicenseStatusResolver;
+use AvalynxOffice\Licensing\Entity\LicenseState;
+use AvalynxOffice\Licensing\Model\LicenseStatus;
+use AvalynxOffice\Licensing\Service\LicenseStatusResolver;
 use PHPUnit\Framework\TestCase;
 
 final class LicenseStatusResolverTest extends TestCase

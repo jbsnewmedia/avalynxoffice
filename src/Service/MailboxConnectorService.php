@@ -2,9 +2,14 @@
 
 declare(strict_types=1);
 
-namespace App\Service;
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
 
-use App\Entity\MailboxConnector;
+namespace AvalynxOffice\Service;
+
+use AvalynxOffice\Entity\MailboxConnector;
 use Doctrine\ORM\EntityManagerInterface;
 
 class MailboxConnectorService

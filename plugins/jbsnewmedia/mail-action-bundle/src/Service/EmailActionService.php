@@ -2,12 +2,17 @@
 
 declare(strict_types=1);
 
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
+
 namespace JBSNewMedia\MailActionBundle\Service;
 
-use App\Entity\Email;
-use App\Entity\EmailFolder;
-use App\Entity\Folder;
-use App\Repository\EmailFolderRepository;
+use AvalynxOffice\Entity\Email;
+use AvalynxOffice\Entity\EmailFolder;
+use AvalynxOffice\Entity\Folder;
+use AvalynxOffice\Repository\EmailFolderRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 final readonly class EmailActionService

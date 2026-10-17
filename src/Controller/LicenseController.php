@@ -2,12 +2,17 @@
 
 declare(strict_types=1);
 
-namespace App\Controller;
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
 
-use App\Entity\User;
-use App\Licensing\Entity\StoredLicenseKey;
-use App\Licensing\Service\LicenseManager;
-use App\Licensing\Service\UserSeatCounter;
+namespace AvalynxOffice\Controller;
+
+use AvalynxOffice\Entity\User;
+use AvalynxOffice\Licensing\Entity\StoredLicenseKey;
+use AvalynxOffice\Licensing\Service\LicenseManager;
+use AvalynxOffice\Licensing\Service\UserSeatCounter;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;

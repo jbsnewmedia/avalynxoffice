@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Command;
+namespace AvalynxOffice\Tests\Command;
 
-use App\Command\UserCreateCommand;
-use App\Entity\User;
-use App\Licensing\Service\LicenseEnforcementInterface;
-use App\Repository\UserRepository;
+use AvalynxOffice\Command\UserCreateCommand;
+use AvalynxOffice\Entity\User;
+use AvalynxOffice\Licensing\Service\LicenseEnforcementInterface;
+use AvalynxOffice\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Command\Command;

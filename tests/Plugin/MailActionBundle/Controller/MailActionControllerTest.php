@@ -2,29 +2,29 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Plugin\MailActionBundle\Controller;
+namespace AvalynxOffice\Tests\Plugin\MailActionBundle\Controller;
 
-use App\Entity\Address;
-use App\Entity\Attachment;
-use App\Entity\Body;
-use App\Entity\Email;
-use App\Entity\EmailAddressLink;
-use App\Entity\EmailAttachmentLink;
-use App\Entity\EmailBodyLink;
-use App\Entity\EmailFolder;
-use App\Entity\Enum\BodyContentType;
-use App\Entity\Enum\EmailAddressType;
-use App\Entity\Folder;
-use App\Entity\Mailbox;
-use App\Entity\User;
-use App\Repository\EmailFolderRepository;
-use App\Repository\EmailRepository;
-use App\Repository\FolderRepository;
-use App\Repository\MailboxRepository;
-use App\Service\Mail\AttachmentStorage;
-use App\Service\Mail\FolderManager;
-use App\Service\Mail\MailService;
-use App\Tests\Support\RefreshDatabaseTrait;
+use AvalynxOffice\Entity\Address;
+use AvalynxOffice\Entity\Attachment;
+use AvalynxOffice\Entity\Body;
+use AvalynxOffice\Entity\Email;
+use AvalynxOffice\Entity\EmailAddressLink;
+use AvalynxOffice\Entity\EmailAttachmentLink;
+use AvalynxOffice\Entity\EmailBodyLink;
+use AvalynxOffice\Entity\EmailFolder;
+use AvalynxOffice\Entity\Enum\BodyContentType;
+use AvalynxOffice\Entity\Enum\EmailAddressType;
+use AvalynxOffice\Entity\Folder;
+use AvalynxOffice\Entity\Mailbox;
+use AvalynxOffice\Entity\User;
+use AvalynxOffice\Repository\EmailFolderRepository;
+use AvalynxOffice\Repository\EmailRepository;
+use AvalynxOffice\Repository\FolderRepository;
+use AvalynxOffice\Repository\MailboxRepository;
+use AvalynxOffice\Service\Mail\AttachmentStorage;
+use AvalynxOffice\Service\Mail\FolderManager;
+use AvalynxOffice\Service\Mail\MailService;
+use AvalynxOffice\Tests\Support\RefreshDatabaseTrait;
 use Doctrine\ORM\EntityManagerInterface;
 use JBSNewMedia\MailActionBundle\Controller\MailActionController;
 use JBSNewMedia\MailActionBundle\Service\EmailActionService;
@@ -41,7 +41,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Session\Session;
 use Symfony\Component\HttpFoundation\Session\Storage\MockArraySessionStorage;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
-use App\Tests\Support\AllowAllLicenseEnforcement;
+use AvalynxOffice\Tests\Support\AllowAllLicenseEnforcement;
 
 #[Group('integration')]
 final class MailActionControllerTest extends KernelTestCase

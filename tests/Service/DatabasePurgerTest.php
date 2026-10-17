@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Service;
+namespace AvalynxOffice\Tests\Service;
 
-use App\Entity\User;
-use App\Service\DatabasePurger;
+use AvalynxOffice\Entity\User;
+use AvalynxOffice\Service\DatabasePurger;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Platforms\MySQLPlatform;
 use Doctrine\DBAL\Platforms\PostgreSQLPlatform;

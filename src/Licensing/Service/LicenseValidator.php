@@ -2,16 +2,21 @@
 
 declare(strict_types=1);
 
-namespace App\Licensing\Service;
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
 
-use App\Licensing\Model\License;
-use App\Licensing\Model\LicenseKeyDiagnostic;
-use App\Licensing\Model\LicenseKeyStatus;
-use App\Licensing\Model\LicenseSource;
-use App\Licensing\Security\LicenseCodec;
-use App\Licensing\Security\LicenseSignatureVerifier;
-use App\Licensing\Security\TrustedPublicKeyProvider;
-use App\Licensing\Validation\LicenseKeyException;
+namespace AvalynxOffice\Licensing\Service;
+
+use AvalynxOffice\Licensing\Model\License;
+use AvalynxOffice\Licensing\Model\LicenseKeyDiagnostic;
+use AvalynxOffice\Licensing\Model\LicenseKeyStatus;
+use AvalynxOffice\Licensing\Model\LicenseSource;
+use AvalynxOffice\Licensing\Security\LicenseCodec;
+use AvalynxOffice\Licensing\Security\LicenseSignatureVerifier;
+use AvalynxOffice\Licensing\Security\TrustedPublicKeyProvider;
+use AvalynxOffice\Licensing\Validation\LicenseKeyException;
 
 /**
  * Validates a single license key: format, signature, schema, time window,

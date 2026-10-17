@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Controller;
+namespace AvalynxOffice\Tests\Controller;
 
-use App\Entity\CalendarEvent;
-use App\Entity\Mailbox;
-use App\Entity\User;
-use App\Tests\Support\RefreshDatabaseTrait;
+use AvalynxOffice\Entity\CalendarEvent;
+use AvalynxOffice\Entity\Mailbox;
+use AvalynxOffice\Entity\User;
+use AvalynxOffice\Tests\Support\RefreshDatabaseTrait;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\Group;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;

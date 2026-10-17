@@ -2,24 +2,24 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Form;
+namespace AvalynxOffice\Tests\Form;
 
-use App\Entity\Address;
-use App\Entity\Attachment;
-use App\Entity\Body;
-use App\Entity\Email;
-use App\Entity\Folder;
-use App\Entity\Mailbox;
-use App\Entity\MailboxConnector;
-use App\Factory\AddressFactory;
-use App\Factory\AttachmentFactory;
-use App\Factory\BodyFactory;
-use App\Factory\EmailFactory;
-use App\Factory\FolderFactory;
-use App\Factory\MailboxFactory;
-use App\Form\EmailReplyType;
-use App\Form\MailboxConnectorType;
-use App\Form\MailboxType;
+use AvalynxOffice\Entity\Address;
+use AvalynxOffice\Entity\Attachment;
+use AvalynxOffice\Entity\Body;
+use AvalynxOffice\Entity\Email;
+use AvalynxOffice\Entity\Folder;
+use AvalynxOffice\Entity\Mailbox;
+use AvalynxOffice\Entity\MailboxConnector;
+use AvalynxOffice\Factory\AddressFactory;
+use AvalynxOffice\Factory\AttachmentFactory;
+use AvalynxOffice\Factory\BodyFactory;
+use AvalynxOffice\Factory\EmailFactory;
+use AvalynxOffice\Factory\FolderFactory;
+use AvalynxOffice\Factory\MailboxFactory;
+use AvalynxOffice\Form\EmailReplyType;
+use AvalynxOffice\Form\MailboxConnectorType;
+use AvalynxOffice\Form\MailboxType;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Form\FormBuilderInterface;

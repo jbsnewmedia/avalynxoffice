@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Service\Mail;
+namespace AvalynxOffice\Tests\Service\Mail;
 
-use App\Entity\Email;
-use App\Entity\Folder;
-use App\Entity\Mailbox;
-use App\Repository\FolderRepository;
-use App\Service\Mail\FolderManager;
+use AvalynxOffice\Entity\Email;
+use AvalynxOffice\Entity\Folder;
+use AvalynxOffice\Entity\Mailbox;
+use AvalynxOffice\Repository\FolderRepository;
+use AvalynxOffice\Service\Mail\FolderManager;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 

@@ -2,20 +2,20 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Controller;
+namespace AvalynxOffice\Tests\Controller;
 
-use App\Controller\MailController;
-use App\Entity\Email;
-use App\Repository\EmailRepository;
-use App\Repository\FolderRepository;
-use App\Repository\MailboxRepository;
-use App\Service\Mail\EmailDetailTemplateResolver;
-use App\Service\Mail\FolderManager;
-use App\Service\Mail\MailService;
+use AvalynxOffice\Controller\MailController;
+use AvalynxOffice\Entity\Email;
+use AvalynxOffice\Repository\EmailRepository;
+use AvalynxOffice\Repository\FolderRepository;
+use AvalynxOffice\Repository\MailboxRepository;
+use AvalynxOffice\Service\Mail\EmailDetailTemplateResolver;
+use AvalynxOffice\Service\Mail\FolderManager;
+use AvalynxOffice\Service\Mail\MailService;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
-use App\Tests\Support\AllowAllLicenseEnforcement;
+use AvalynxOffice\Tests\Support\AllowAllLicenseEnforcement;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 

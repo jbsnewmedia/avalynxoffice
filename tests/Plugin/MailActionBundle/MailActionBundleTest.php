@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Plugin\MailActionBundle;
+namespace AvalynxOffice\Tests\Plugin\MailActionBundle;
 
 use JBSNewMedia\MailActionBundle\DependencyInjection\Compiler\CalendarActionCompilerPass;
 use JBSNewMedia\MailActionBundle\DependencyInjection\Compiler\ComposeButtonCompilerPass;

@@ -2,23 +2,23 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Controller;
+namespace AvalynxOffice\Tests\Controller;
 
-use App\Entity\Address;
-use App\Entity\Attachment;
-use App\Entity\CalendarEvent;
-use App\Entity\Email;
-use App\Entity\EmailAttachmentLink;
-use App\Entity\EmailFolder;
-use App\Entity\Folder;
-use App\Entity\Mailbox;
-use App\Entity\MailboxAddress;
-use App\Entity\MailboxConnector;
-use App\Entity\User;
-use App\Licensing\Service\LicenseManager;
-use App\Service\Mail\AttachmentStorage;
-use App\Service\Mail\FolderManager;
-use App\Tests\Support\RefreshDatabaseTrait;
+use AvalynxOffice\Entity\Address;
+use AvalynxOffice\Entity\Attachment;
+use AvalynxOffice\Entity\CalendarEvent;
+use AvalynxOffice\Entity\Email;
+use AvalynxOffice\Entity\EmailAttachmentLink;
+use AvalynxOffice\Entity\EmailFolder;
+use AvalynxOffice\Entity\Folder;
+use AvalynxOffice\Entity\Mailbox;
+use AvalynxOffice\Entity\MailboxAddress;
+use AvalynxOffice\Entity\MailboxConnector;
+use AvalynxOffice\Entity\User;
+use AvalynxOffice\Licensing\Service\LicenseManager;
+use AvalynxOffice\Service\Mail\AttachmentStorage;
+use AvalynxOffice\Service\Mail\FolderManager;
+use AvalynxOffice\Tests\Support\RefreshDatabaseTrait;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -92,7 +92,7 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
             $this->em->persist($extra);
         }
 
-        $state = static::getContainer()->get(\App\Licensing\Service\LicenseGracePeriodManager::class)->getState(null);
+        $state = static::getContainer()->get(\AvalynxOffice\Licensing\Service\LicenseGracePeriodManager::class)->getState(null);
         $state->setViolationStartedAt(new \DateTimeImmutable('-100 days', new \DateTimeZone('UTC')));
         $state->setGracePeriodEndsAt(new \DateTimeImmutable('-70 days', new \DateTimeZone('UTC')));
 
@@ -111,10 +111,10 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
         $this->em->persist($this->connector);
 
         $this->inbox = (new Folder())->setName('Posteingang');
-        $this->inbox->setFunctions([\App\Entity\Enum\FolderFunction::INBOX->value]);
+        $this->inbox->setFunctions([\AvalynxOffice\Entity\Enum\FolderFunction::INBOX->value]);
         $this->em->persist($this->inbox);
         $this->mailbox->setInboxFolder($this->inbox);
-        $inboxLink = new \App\Entity\FolderMailbox();
+        $inboxLink = new \AvalynxOffice\Entity\FolderMailbox();
         $inboxLink->setMailbox($this->mailbox);
         $inboxLink->setFolder($this->inbox);
         $this->em->persist($inboxLink);
@@ -154,7 +154,7 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
     {
         $manager = static::getContainer()->get(LicenseManager::class);
         self::assertTrue($manager->isReadOnly());
-        self::assertSame(\App\Licensing\Model\LicenseStatus::READ_ONLY, $manager->getStatus());
+        self::assertSame(\AvalynxOffice\Licensing\Model\LicenseStatus::READ_ONLY, $manager->getStatus());
         self::assertSame(5, $manager->getUsedSeats());
         self::assertSame(3, $manager->getAllowedSeats());
     }
@@ -350,7 +350,7 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
         ]);
 
         self::assertResponseRedirects('/admin/license');
-        self::assertCount(1, $this->em->getRepository(\App\Licensing\Entity\StoredLicenseKey::class)->findAll());
+        self::assertCount(1, $this->em->getRepository(\AvalynxOffice\Licensing\Entity\StoredLicenseKey::class)->findAll());
     }
 
     public function testUserDeactivationStaysPossibleWhileReadOnlyAndEndsReadOnly(): void
@@ -388,7 +388,7 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
 
         $manager->reset();
         self::assertFalse($manager->isReadOnly());
-        self::assertSame(\App\Licensing\Model\LicenseStatus::COMMUNITY, $manager->getStatus());
+        self::assertSame(\AvalynxOffice\Licensing\Model\LicenseStatus::COMMUNITY, $manager->getStatus());
 
         // Reactivation is allowed again after the installation is compliant.
         $reactivate = $this->em->getRepository(User::class)->findOneBy(['email' => 'extra-1@example.com']);
@@ -430,15 +430,15 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
         $storage->method('getMessage')->with(1)->willReturn(new \Laminas\Mail\Storage\Message(['raw' => $rawMessage]));
         $storage->expects(self::once())->method('removeMessage')->with(1);
 
-        $factory = $this->createStub(\App\Service\Mail\Pop3StorageFactory::class);
+        $factory = $this->createStub(\AvalynxOffice\Service\Mail\Pop3StorageFactory::class);
         $factory->method('create')->willReturn($storage);
 
         $connector = $this->connector;
         $connector->setPop3DeleteAfterFetch(true);
 
-        $fetcher = new \App\Service\Mail\Pop3Fetcher(
+        $fetcher = new \AvalynxOffice\Service\Mail\Pop3Fetcher(
             $this->em,
-            static::getContainer()->get(\App\Repository\EmailRepository::class),
+            static::getContainer()->get(\AvalynxOffice\Repository\EmailRepository::class),
             static::getContainer()->get(FolderManager::class),
             static::getContainer()->get(AttachmentStorage::class),
             $factory,
@@ -459,7 +459,7 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
         $assignedToInbox = false;
         foreach ($imported->getEmailFolders() as $emailFolder) {
             $folder = $emailFolder->getFolder();
-            if (null !== $folder && in_array(\App\Entity\Enum\FolderFunction::INBOX->value, $folder->getFunctions(), true)) {
+            if (null !== $folder && in_array(\AvalynxOffice\Entity\Enum\FolderFunction::INBOX->value, $folder->getFunctions(), true)) {
                 $assignedToInbox = true;
             }
         }

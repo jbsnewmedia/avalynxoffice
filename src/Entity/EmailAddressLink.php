@@ -2,10 +2,15 @@
 
 declare(strict_types=1);
 
-namespace App\Entity;
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
 
-use App\Entity\Enum\EmailAddressType;
-use App\Repository\EmailAddressLinkRepository;
+namespace AvalynxOffice\Entity;
+
+use AvalynxOffice\Entity\Enum\EmailAddressType;
+use AvalynxOffice\Repository\EmailAddressLinkRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Uid\UuidV7;

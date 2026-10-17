@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Service\Mail;
+namespace AvalynxOffice\Tests\Service\Mail;
 
-use App\Service\Mail\AttachmentStorage;
-use App\Service\Mail\Pop3Fetcher;
-use App\Service\Mail\Pop3StorageFactory;
+use AvalynxOffice\Service\Mail\AttachmentStorage;
+use AvalynxOffice\Service\Mail\Pop3Fetcher;
+use AvalynxOffice\Service\Mail\Pop3StorageFactory;
 use Doctrine\ORM\EntityManagerInterface;
 use Laminas\Mail\Storage\Message as StorageMessage;
 use PHPUnit\Framework\TestCase;
@@ -18,8 +18,8 @@ class Pop3FetcherUtf8ReproductionTest extends TestCase
     protected function setUp(): void
     {
         $em = $this->createStub(EntityManagerInterface::class);
-        $emailRepo = $this->createStub(\App\Repository\EmailRepository::class);
-        $folderManager = $this->createStub(\App\Service\Mail\FolderManager::class);
+        $emailRepo = $this->createStub(\AvalynxOffice\Repository\EmailRepository::class);
+        $folderManager = $this->createStub(\AvalynxOffice\Service\Mail\FolderManager::class);
         $attachmentStorage = $this->createStub(AttachmentStorage::class);
         $pop3StorageFactory = $this->createStub(Pop3StorageFactory::class);
 

@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Service\Mail;
+namespace AvalynxOffice\Tests\Service\Mail;
 
-use App\Entity\MailboxConnector;
-use App\Service\Mail\SmtpMailerFactory;
+use AvalynxOffice\Entity\MailboxConnector;
+use AvalynxOffice\Service\Mail\SmtpMailerFactory;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Mailer\MailerInterface;
 

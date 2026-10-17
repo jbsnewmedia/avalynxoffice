@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Util;
+namespace AvalynxOffice\Tests\Util;
 
-use App\Util\CssClassCollector;
+use AvalynxOffice\Util\CssClassCollector;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\HttpKernel\KernelInterface;

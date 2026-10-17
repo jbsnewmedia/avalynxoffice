@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Repository;
+namespace AvalynxOffice\Tests\Repository;
 
-use App\Entity\Folder;
-use App\Entity\FolderMailbox;
-use App\Entity\Mailbox;
-use App\Repository\FolderRepository;
+use AvalynxOffice\Entity\Folder;
+use AvalynxOffice\Entity\FolderMailbox;
+use AvalynxOffice\Entity\Mailbox;
+use AvalynxOffice\Repository\FolderRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\Query;
 use Doctrine\ORM\QueryBuilder;

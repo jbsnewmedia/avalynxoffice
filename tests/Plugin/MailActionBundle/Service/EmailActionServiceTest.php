@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Plugin\MailActionBundle\Service;
+namespace AvalynxOffice\Tests\Plugin\MailActionBundle\Service;
 
-use App\Entity\Email;
-use App\Entity\EmailFolder;
-use App\Entity\Folder;
-use App\Repository\EmailFolderRepository;
+use AvalynxOffice\Entity\Email;
+use AvalynxOffice\Entity\EmailFolder;
+use AvalynxOffice\Entity\Folder;
+use AvalynxOffice\Repository\EmailFolderRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use JBSNewMedia\MailActionBundle\Service\EmailActionService;
 use PHPUnit\Framework\TestCase;

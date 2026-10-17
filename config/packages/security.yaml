@@ -4,7 +4,7 @@ security:
     providers:
         app_user_provider:
             entity:
-                class: App\Entity\User
+                class: AvalynxOffice\Entity\User
                 property: email
     firewalls:
         dev:
@@ -13,7 +13,7 @@ security:
         main:
             lazy: true
             provider: app_user_provider
-            user_checker: App\Security\UserChecker
+            user_checker: AvalynxOffice\Security\UserChecker
             form_login:
                 login_path: app_login
                 check_path: app_login

@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Controller;
+namespace AvalynxOffice\Tests\Controller;
 
-use App\Entity\Attachment;
-use App\Entity\Email;
-use App\Entity\EmailAttachmentLink;
-use App\Entity\Mailbox;
-use App\Entity\User;
-use App\Service\Mail\AttachmentStorage;
-use App\Tests\Support\RefreshDatabaseTrait;
+use AvalynxOffice\Entity\Attachment;
+use AvalynxOffice\Entity\Email;
+use AvalynxOffice\Entity\EmailAttachmentLink;
+use AvalynxOffice\Entity\Mailbox;
+use AvalynxOffice\Entity\User;
+use AvalynxOffice\Service\Mail\AttachmentStorage;
+use AvalynxOffice\Tests\Support\RefreshDatabaseTrait;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\Group;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;

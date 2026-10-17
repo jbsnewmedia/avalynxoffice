@@ -2,27 +2,27 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Service;
+namespace AvalynxOffice\Tests\Service;
 
-use App\Entity\Address;
-use App\Entity\Attachment;
-use App\Entity\Body;
-use App\Entity\Email;
-use App\Entity\EmailAddressLink;
-use App\Entity\EmailAttachmentLink;
-use App\Entity\EmailBodyLink;
-use App\Entity\EmailFolder;
-use App\Entity\Enum\BodyContentType;
-use App\Entity\Enum\EmailAddressType;
-use App\Entity\Folder;
-use App\Entity\Mailbox;
-use App\Entity\MailboxConnector;
-use App\Repository\FolderRepository;
-use App\Repository\MailboxRepository;
-use App\Service\AppService;
-use App\Service\DataService;
-use App\Service\MailboxConnectorService;
-use App\Service\SettingsService;
+use AvalynxOffice\Entity\Address;
+use AvalynxOffice\Entity\Attachment;
+use AvalynxOffice\Entity\Body;
+use AvalynxOffice\Entity\Email;
+use AvalynxOffice\Entity\EmailAddressLink;
+use AvalynxOffice\Entity\EmailAttachmentLink;
+use AvalynxOffice\Entity\EmailBodyLink;
+use AvalynxOffice\Entity\EmailFolder;
+use AvalynxOffice\Entity\Enum\BodyContentType;
+use AvalynxOffice\Entity\Enum\EmailAddressType;
+use AvalynxOffice\Entity\Folder;
+use AvalynxOffice\Entity\Mailbox;
+use AvalynxOffice\Entity\MailboxConnector;
+use AvalynxOffice\Repository\FolderRepository;
+use AvalynxOffice\Repository\MailboxRepository;
+use AvalynxOffice\Service\AppService;
+use AvalynxOffice\Service\DataService;
+use AvalynxOffice\Service\MailboxConnectorService;
+use AvalynxOffice\Service\SettingsService;
 use Doctrine\Common\Collections\ArrayCollection;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;

@@ -2,9 +2,14 @@
 
 declare(strict_types=1);
 
-namespace App\Plugin;
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
 
-use App\Service\PluginManifestService;
+namespace AvalynxOffice\Plugin;
+
+use AvalynxOffice\Service\PluginManifestService;
 use Symfony\Component\DependencyInjection\Kernel\BundleInterface;
 use Symfony\Component\Routing\Loader\Configurator\RoutingConfigurator;
 

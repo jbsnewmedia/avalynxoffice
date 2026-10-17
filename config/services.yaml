@@ -13,44 +13,44 @@ services:
 
     # makes classes in src/ available to be used as services
     # this creates a service per class whose id is the fully-qualified class name
-    App\:
+    AvalynxOffice\:
         resource: '../src/'
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
-    App\Service\PluginManifestService:
+    AvalynxOffice\Service\PluginManifestService:
         bind:
             $projectDir: '%kernel.project_dir%'
 
-    App\Licensing\Security\TrustedPublicKeyProvider:
+    AvalynxOffice\Licensing\Security\TrustedPublicKeyProvider:
         arguments:
             $publicKeysJson: '%env(string:AVALYNXOFFICE_LICENSE_PUBLIC_KEYS)%'
 
-    App\Licensing\Provider\EnvLicenseKeyProvider:
+    AvalynxOffice\Licensing\Provider\EnvLicenseKeyProvider:
         arguments:
             $keys: '%env(string:AVALYNXOFFICE_LICENSE_KEYS)%'
 
-    App\Licensing\Provider\FileLicenseKeyProvider:
+    AvalynxOffice\Licensing\Provider\FileLicenseKeyProvider:
         arguments:
             $filePath: '%env(string:AVALYNXOFFICE_LICENSE_FILE)%'
 
-    App\Licensing\Service\LicenseValidator:
+    AvalynxOffice\Licensing\Service\LicenseValidator:
         arguments: ~
 
-    App\Licensing\Service\LicenseManager:
+    AvalynxOffice\Licensing\Service\LicenseManager:
         arguments:
             $configuredOrganizationId: '%env(string:AVALYNXOFFICE_ORGANIZATION_ID)%'
 
-    App\Licensing\Service\UserSeatCounter:
+    AvalynxOffice\Licensing\Service\UserSeatCounter:
         arguments:
-            $userRepository: '@App\Repository\UserRepository'
+            $userRepository: '@AvalynxOffice\Repository\UserRepository'
 
-    App\Service\Mail\EmailDetailTemplateResolver:
+    AvalynxOffice\Service\Mail\EmailDetailTemplateResolver:
         arguments:
             $pluginLocator: !service_locator
                 JBSNewMedia\MailViewBundle\View\EmailDetailTemplateProvider: '@?JBSNewMedia\MailViewBundle\View\EmailDetailTemplateProvider'
 
-    App\Service\Mail\AttachmentStorage:
+    AvalynxOffice\Service\Mail\AttachmentStorage:
         arguments:
             $projectDir: '%kernel.project_dir%'
             $storageDir: '%env(string:ATTACHMENT_STORAGE_DIR)%'
@@ -58,7 +58,7 @@ services:
             $segmentDepth: '%env(int:ATTACHMENT_STORAGE_SEGMENT_DEPTH)%'
             $maxBytes: '%env(int:ATTACHMENT_STORAGE_MAX_BYTES)%'
 
-    App\Twig\AppExtension:
+    AvalynxOffice\Twig\AppExtension:
         arguments:
             $pluginLocator: !service_locator
                 JBSNewMedia\MailActionBundle\Registry\ComposeButtonRegistry: '@?JBSNewMedia\MailActionBundle\Registry\ComposeButtonRegistry'
