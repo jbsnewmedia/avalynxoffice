@@ -51,11 +51,21 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      */
     #[ORM\OneToMany(mappedBy: 'user', targetEntity: UserMailbox::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $mailboxLinks;
+    /**
+     * Recovery-only email addresses (maximum two). They never take part in
+     * mail retrieval or sending and exclusively receive account-recovery
+     * messages.
+     *
+     * @var Collection<int, RecoveryAddress>
+     */
+    #[ORM\OneToMany(mappedBy: 'user', targetEntity: RecoveryAddress::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
+    private Collection $recoveryAddresses;
 
     public function __construct()
     {
         $this->id = Uuid::v7();
         $this->mailboxLinks = new ArrayCollection();
+        $this->recoveryAddresses = new ArrayCollection();
     }
 
     public function getId(): ?UuidV7
@@ -200,6 +210,36 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
             if ($link->getMailbox() === $mailbox) {
                 $this->mailboxLinks->removeElement($link);
                 break;
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, RecoveryAddress>
+     */
+    public function getRecoveryAddresses(): Collection
+    {
+        return $this->recoveryAddresses;
+    }
+
+    public function addRecoveryAddress(RecoveryAddress $recoveryAddress): self
+    {
+        if (!$this->recoveryAddresses->contains($recoveryAddress)) {
+            $this->recoveryAddresses->add($recoveryAddress);
+            $recoveryAddress->setUser($this);
+        }
+
+        return $this;
+    }
+
+    public function removeRecoveryAddress(RecoveryAddress $recoveryAddress): self
+    {
+        if ($this->recoveryAddresses->contains($recoveryAddress)) {
+            $this->recoveryAddresses->removeElement($recoveryAddress);
+            if ($recoveryAddress->getUser() === $this) {
+                $recoveryAddress->setUser(null);
             }
         }
 

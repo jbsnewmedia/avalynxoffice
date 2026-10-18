@@ -7,12 +7,15 @@ namespace AvalynxOffice\Tests\Command;
 use AvalynxOffice\Command\UserCreateCommand;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Licensing\Service\LicenseEnforcementInterface;
+use AvalynxOffice\Repository\RecoveryAddressRepository;
 use AvalynxOffice\Repository\UserRepository;
 use AvalynxOffice\Service\UserService;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
+use Symfony\Component\HttpFoundation\UriSigner;
+use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 final class UserCreateCommandTest extends TestCase
@@ -62,7 +65,14 @@ final class UserCreateCommandTest extends TestCase
         $repository = $this->createStub(UserRepository::class);
         $repository->method('findActiveAdmins')->willReturn($activeAdmins);
 
-        return new UserService($repository);
+        return new UserService(
+            $repository,
+            $this->createStub(RecoveryAddressRepository::class),
+            $this->createStub(MailerInterface::class),
+            'noreply@example.com',
+            $this->createStub(UriSigner::class),
+            $this->createStub(UserPasswordHasherInterface::class),
+        );
     }
 
     public function testCreatesAdministratorWhenEmailIsUnknown(): void

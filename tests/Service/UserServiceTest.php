@@ -5,10 +5,14 @@ declare(strict_types=1);
 namespace AvalynxOffice\Tests\Service;
 
 use AvalynxOffice\Entity\User;
+use AvalynxOffice\Repository\RecoveryAddressRepository;
 use AvalynxOffice\Repository\UserRepository;
 use AvalynxOffice\Service\UserService;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\HttpFoundation\UriSigner;
+use Symfony\Component\Mailer\MailerInterface;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 final class UserServiceTest extends TestCase
 {
@@ -125,7 +129,11 @@ final class UserServiceTest extends TestCase
     {
         $repository = $this->createStub(UserRepository::class);
         $repository->method('findActiveAdmins')->willReturn($activeAdmins);
+        $recoveryAddressRepository = $this->createStub(RecoveryAddressRepository::class);
+        $systemMailer = $this->createStub(MailerInterface::class);
+        $uriSigner = $this->createStub(UriSigner::class);
+        $passwordHasher = $this->createStub(UserPasswordHasherInterface::class);
 
-        return new UserService($repository);
+        return new UserService($repository, $recoveryAddressRepository, $systemMailer, 'noreply@example.com', $uriSigner, $passwordHasher);
     }
 }

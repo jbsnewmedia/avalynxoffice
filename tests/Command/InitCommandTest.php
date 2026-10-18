@@ -7,6 +7,7 @@ namespace AvalynxOffice\Tests\Command;
 use AvalynxOffice\Command\InitCommand;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Service\DatabasePurger;
+use AvalynxOffice\Repository\RecoveryAddressRepository;
 use AvalynxOffice\Repository\UserRepository;
 use AvalynxOffice\Service\UserService;
 use AvalynxOffice\Tests\Support\AllowAllLicenseEnforcement;
@@ -17,7 +18,9 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Output\BufferedOutput;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Tester\CommandTester;
+use Symfony\Component\HttpFoundation\UriSigner;
 use Symfony\Component\HttpKernel\KernelInterface;
+use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 final class InitCommandTest extends TestCase
@@ -362,7 +365,14 @@ final class InitCommandTest extends TestCase
             $kernel,
             $this->createStub(DatabasePurger::class),
             new AllowAllLicenseEnforcement(),
-            new UserService($userRepository),
+            new UserService(
+                $userRepository,
+                $this->createStub(RecoveryAddressRepository::class),
+                $this->createStub(MailerInterface::class),
+                'noreply@example.com',
+                $this->createStub(UriSigner::class),
+                $this->createStub(UserPasswordHasherInterface::class),
+            ),
         ) extends InitCommand {
             public function exposeRun(string $name, array $arguments, OutputInterface $output): int
             {
@@ -393,7 +403,14 @@ final class InitCommandTest extends TestCase
             $this->createStub(KernelInterface::class),
             $databasePurger ?? $this->createStub(DatabasePurger::class),
             new AllowAllLicenseEnforcement(),
-            new UserService($this->createStub(UserRepository::class)),
+            new UserService(
+                $this->createStub(UserRepository::class),
+                $this->createStub(RecoveryAddressRepository::class),
+                $this->createStub(MailerInterface::class),
+                'noreply@example.com',
+                $this->createStub(UriSigner::class),
+                $this->createStub(UserPasswordHasherInterface::class),
+            ),
             $migrateResult,
             $fixturesResult,
             $migrationSync,
@@ -465,7 +482,14 @@ final class InitCommandTest extends TestCase
             $this->createStub(KernelInterface::class),
             $this->createStub(DatabasePurger::class),
             new AllowAllLicenseEnforcement(),
-            new UserService($userRepository),
+            new UserService(
+                $userRepository,
+                $this->createStub(RecoveryAddressRepository::class),
+                $this->createStub(MailerInterface::class),
+                'noreply@example.com',
+                $this->createStub(UriSigner::class),
+                $this->createStub(UserPasswordHasherInterface::class),
+            ),
         );
     }
 

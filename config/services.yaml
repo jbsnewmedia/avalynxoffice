@@ -22,6 +22,12 @@ services:
         bind:
             $projectDir: '%kernel.project_dir%'
 
+    AvalynxOffice\Service\UserService:
+        arguments:
+            $systemMailer: '@mailer'
+            $systemMailerFromAddress: '%env(string:MAILER_FROM)%'
+            $uriSigner: '@uri_signer'
+
     AvalynxOffice\Licensing\Security\TrustedPublicKeyProvider:
         arguments:
             $publicKeysJson: '%env(string:AVALYNXOFFICE_LICENSE_PUBLIC_KEYS)%'
