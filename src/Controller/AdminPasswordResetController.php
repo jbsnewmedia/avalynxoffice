@@ -9,7 +9,6 @@ declare(strict_types=1);
 
 namespace AvalynxOffice\Controller;
 
-use AvalynxOffice\Entity\PasswordResetRequest;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Service\AdminPasswordResetService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
