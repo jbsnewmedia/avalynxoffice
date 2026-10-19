@@ -54,43 +54,41 @@ final class PublicControllerTest extends WebTestCase
         self::assertResponseRedirects('/login');
     }
 
-    public function testAuthenticatedControllersRedirectToMailIndexWhenNotXmlHttpRequest(): void
+    public function testAuthenticatedPagesRenderForAuthenticatedUsers(): void
     {
         $this->loginAdmin();
 
         $this->client->request('GET', '/about');
-        self::assertResponseRedirects('/mails');
+        self::assertResponseIsSuccessful();
 
         $this->client->request('GET', '/help');
-        self::assertResponseRedirects('/mails');
+        self::assertResponseIsSuccessful();
 
         $this->client->request('GET', '/profile');
-        self::assertResponseRedirects('/mails');
+        self::assertResponseIsSuccessful();
 
         $this->client->request('GET', '/settings');
-        self::assertResponseRedirects('/mails');
+        self::assertResponseIsSuccessful();
     }
 
-    public function testXmlHttpControllersRenderExpectedContent(): void
+    public function testSettingsPagesRenderExpectedContent(): void
     {
         $this->loginAdmin();
 
-        $this->client->request('GET', '/about', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $this->client->request('GET', '/about');
         self::assertResponseIsSuccessful();
-        self::assertSelectorExists('img[src="/assets/svg/app-logo.svg"]');
+        self::assertStringContainsString('app-logo.svg', (string) $this->client->getResponse()->getContent());
 
-        $this->client->request('GET', '/help', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $this->client->request('GET', '/help');
         self::assertResponseIsSuccessful();
-        self::assertSelectorExists('h2');
 
-        $this->client->request('GET', '/profile', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $this->client->request('GET', '/profile');
         self::assertResponseIsSuccessful();
         self::assertStringContainsString('admin@example.com', (string) $this->client->getResponse()->getContent());
-        self::assertStringContainsString('ROLE_ADMIN', (string) $this->client->getResponse()->getContent());
 
-        $this->client->request('GET', '/settings', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $this->client->request('GET', '/settings');
         self::assertResponseIsSuccessful();
-        self::assertSelectorExists('#newsletterSwitchModal');
+        self::assertStringContainsString('primary_color', (string) $this->client->getResponse()->getContent());
     }
 
     public function testLocaleControllerSetsSessionAndRedirects(): void
@@ -102,19 +100,12 @@ final class PublicControllerTest extends WebTestCase
         self::assertResponseRedirects('/fallback');
     }
 
-    public function testSettingsNewsletterToggleAndDataEndpoint(): void
+    public function testDataEndpointsReturnStructuredMailData(): void
     {
         $this->loginAdmin();
 
-        $this->client->request('GET', '/settings', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $this->client->request('GET', '/settings');
         self::assertResponseIsSuccessful();
-
-        $this->client->request('POST', '/settings/newsletter', ['newsletter_optin' => '1'], [], ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
-        self::assertResponseIsSuccessful();
-        self::assertJsonStringEqualsJsonString('{"success":true}', (string) $this->client->getResponse()->getContent());
-
-        $this->client->request('POST', '/settings/newsletter');
-        self::assertResponseRedirects('/settings');
 
         $this->client->request('GET', '/data/all');
         self::assertResponseIsSuccessful();

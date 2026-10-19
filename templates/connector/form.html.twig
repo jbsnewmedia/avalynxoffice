@@ -1,0 +1,19 @@
+{% extends 'base.html.twig' %}
+{% block title %}{{ 'connector.title'|trans }} - {{ 'app.title'|trans }}{% endblock %}
+{% block stylesheets %}
+    {% include '_assets.html.twig' with { mode: 'user' } %}
+    {{ parent() }}
+{% endblock %}
+{% block body %}
+<div class="d-flex flex-column min-vh-100">
+    {% include '_navbar.html.twig' with { showMailToggles: false, showLanguageDropdown: true } %}
+    <main class="flex-grow-1 py-4">
+        <div class="container">
+            {% include 'connector/_modal_form.html.twig' %}
+        </div>
+    </main>
+</div>
+{% endblock %}
+{% block javascripts %}
+    {{ parent() }}
+{% endblock %}

@@ -36,7 +36,7 @@ final class AdminControllerTest extends WebTestCase
         $this->adminUser = $this->createAdminUser();
     }
 
-    public function testMailboxAndConnectorRoutesRedirectWithoutXmlHttpRequest(): void
+    public function testMailboxAndConnectorRoutesRedirectToLoginForGuests(): void
     {
         $mailbox = $this->createMailbox('Redirect Mailbox', 'redirect-mailbox@example.com');
         $connector = $this->createConnector($mailbox, 'Redirect Connector', 'redirect-connector@example.com');
@@ -69,39 +69,33 @@ final class AdminControllerTest extends WebTestCase
         self::assertResponseRedirects('/login');
     }
 
-    public function testMailboxAndConnectorRoutesRedirectToMailIndexForAuthenticatedNonAjaxRequests(): void
+    public function testMailboxAndConnectorPagesRenderForAdmins(): void
     {
         $this->loginAdmin();
 
-        $mailbox = $this->createMailbox('Redirect Mailbox', 'redirect-mailbox@example.com');
-        $connector = $this->createConnector($mailbox, 'Redirect Connector', 'redirect-connector@example.com');
+        $mailbox = $this->createMailbox('Page Mailbox', 'page-mailbox@example.com');
+        $connector = $this->createConnector($mailbox, 'Page Connector', 'page-connector@example.com');
 
         $this->client->request('GET', '/settings/mailboxes');
-        self::assertResponseRedirects('/mails');
+        self::assertResponseIsSuccessful();
 
         $this->client->request('GET', '/settings/mailboxes/view');
-        self::assertResponseRedirects('/mails');
+        self::assertResponseIsSuccessful();
 
         $this->client->request('GET', '/settings/mailboxes/new');
-        self::assertResponseRedirects('/mails');
+        self::assertResponseIsSuccessful();
 
         $this->client->request('GET', sprintf('/settings/mailboxes/%s/edit', $mailbox->getId()));
-        self::assertResponseRedirects('/mails');
-
-        $this->client->request('POST', sprintf('/settings/mailboxes/%s', $mailbox->getId()));
-        self::assertResponseRedirects('/mails');
+        self::assertResponseIsSuccessful();
 
         $this->client->request('GET', '/settings/connectors');
-        self::assertResponseRedirects('/mails');
+        self::assertResponseIsSuccessful();
 
         $this->client->request('GET', '/settings/connectors/new');
-        self::assertResponseRedirects('/mails');
+        self::assertResponseIsSuccessful();
 
         $this->client->request('GET', sprintf('/settings/connectors/%s/edit', $connector->getId()));
-        self::assertResponseRedirects('/mails');
-
-        $this->client->request('POST', sprintf('/settings/connectors/%s', $connector->getId()));
-        self::assertResponseRedirects('/mails');
+        self::assertResponseIsSuccessful();
     }
 
     public function testMailboxControllerSupportsCreateEditAndDeleteFlows(): void
@@ -141,7 +135,10 @@ final class AdminControllerTest extends WebTestCase
         $createValues['mailbox']['folders'] = $this->requiredFoldersPayload();
 
         $this->client->request('POST', '/settings/mailboxes/new', $createValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
-        self::assertResponseRedirects('/settings/mailboxes');
+        self::assertResponseIsSuccessful();
+        $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertTrue($data['success']);
+        self::assertArrayHasKey('redirect', $data);
 
         $this->entityManager->clear();
         $createdMailbox = $this->entityManager->getRepository(Mailbox::class)->findOneBy(['email' => 'created@example.com']);
@@ -160,7 +157,10 @@ final class AdminControllerTest extends WebTestCase
         $editValues['mailbox']['folders'] = $this->requiredFoldersPayload();
 
         $this->client->request('POST', sprintf('/settings/mailboxes/%s/edit', $createdMailbox->getId()), $editValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
-        self::assertResponseRedirects('/settings/mailboxes');
+        self::assertResponseIsSuccessful();
+        $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertTrue($data['success']);
+        self::assertArrayHasKey('redirect', $data);
 
         $this->entityManager->clear();
         $updatedMailbox = $this->entityManager->find(Mailbox::class, (string) $createdMailbox->getId());
@@ -206,9 +206,11 @@ final class AdminControllerTest extends WebTestCase
         ], JSON_THROW_ON_ERROR);
 
         $this->client->request('POST', '/settings/mailboxes/new', $createValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
-        self::assertResponseIsSuccessful();
-        self::assertSelectorExists('.mailbox-list-editor-aliases.mailbox-list-editor-invalid');
-        self::assertSelectorExists('.mailbox-list-editor-folders.mailbox-list-editor-invalid');
+        self::assertResponseStatusCodeSame(422);
+        $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertFalse($data['success']);
+        self::assertArrayHasKey('mailbox[aliases]', $data['invalid']);
+        self::assertArrayHasKey('mailbox[folders]', $data['invalid']);
         self::assertNull($this->entityManager->getRepository(Mailbox::class)->findOneBy(['email' => 'invalid@example.com']));
 
         $mailbox = $this->createMailboxWithBlockedFolder('Blocked Mailbox', 'blocked@example.com');
@@ -223,8 +225,10 @@ final class AdminControllerTest extends WebTestCase
         $editValues['mailbox']['folders'] = $this->requiredFoldersPayload();
 
         $this->client->request('POST', sprintf('/settings/mailboxes/%s/edit', $mailbox->getId()), $editValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
-        self::assertResponseIsSuccessful();
-        self::assertSelectorExists('.mailbox-list-editor-folders.mailbox-list-editor-invalid');
+        self::assertResponseStatusCodeSame(422);
+        $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertFalse($data['success']);
+        self::assertArrayHasKey('mailbox[folders]', $data['invalid']);
     }
 
     public function testMailboxEditKeepsFormOpenForAliasDuplicateAndMissingFunctionErrors(): void
@@ -256,9 +260,10 @@ final class AdminControllerTest extends WebTestCase
         ], JSON_THROW_ON_ERROR);
 
         $this->client->request('POST', sprintf('/settings/mailboxes/%s/edit', $mailbox->getId()), $editValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
-        self::assertResponseIsSuccessful();
-        self::assertSelectorExists('.mailbox-list-editor-aliases.mailbox-list-editor-invalid');
-        self::assertSelectorExists('.mailbox-list-editor-folders.mailbox-list-editor-invalid');
+        self::assertResponseStatusCodeSame(422);
+        $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertFalse($data['success']);
+        self::assertArrayHasKey('mailbox[aliases]', $data['invalid']);
     }
 
     public function testConnectorControllerSupportsCreateEditAndDeleteFlows(): void
@@ -306,7 +311,10 @@ final class AdminControllerTest extends WebTestCase
         $createValues['mailbox_connector']['isPrimary'] = '1';
 
         $this->client->request('POST', '/settings/connectors/new', $createValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
-        self::assertResponseRedirects('/settings/connectors');
+        self::assertResponseIsSuccessful();
+        $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertTrue($data['success']);
+        self::assertArrayHasKey('redirect', $data);
 
         $createdConnector = $this->entityManager->getRepository(MailboxConnector::class)->findOneBy(['email' => 'created-connector@example.com']);
         self::assertInstanceOf(MailboxConnector::class, $createdConnector);
@@ -333,7 +341,10 @@ final class AdminControllerTest extends WebTestCase
         $editValues['mailbox_connector']['smtpSecurity'] = 'ssl';
 
         $this->client->request('POST', sprintf('/settings/connectors/%s/edit', $createdConnector->getId()), $editValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
-        self::assertResponseRedirects('/settings/connectors');
+        self::assertResponseIsSuccessful();
+        $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertTrue($data['success']);
+        self::assertArrayHasKey('redirect', $data);
 
         $this->entityManager->clear();
         $updatedConnector = $this->entityManager->find(MailboxConnector::class, (string) $createdConnector->getId());

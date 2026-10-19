@@ -1,0 +1,40 @@
+{% extends 'base.html.twig' %}
+{% block title %}{{ ('legal.page.' ~ page)|trans }} - {{ 'app.title'|trans }}{% endblock %}
+{% block stylesheets %}
+    {% include '_assets.html.twig' with { mode: 'guest' } %}
+    {{ parent() }}
+{% endblock %}
+{% block body %}
+<div class="d-flex flex-column min-vh-100">
+    {% include '_navbar.html.twig' with { showMailToggles: false, showLanguageDropdown: true } %}
+    <section class="py-5 flex-grow-1">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-12 col-lg-10 col-xl-8">
+                    <h1 class="h3 mb-4">{{ ('legal.page.' ~ page)|trans }}</h1>
+                    {% if content is not empty %}
+                        <div class="legal-content">
+                            {{ content|raw }}
+                        </div>
+                    {% else %}
+                        <p class="text-body-secondary">{{ 'legal.page.empty'|trans }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </section>
+    <footer class="py-4 bg-body-tertiary border-top mt-auto">
+        <div class="container d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <span class="text-body-secondary small">© {{ "now"|date("Y") }} - <img src="assets/svg/jbsnewmedia-symbol.svg" class="footer-logo">  <strong>JBS</strong> New Media GmbH</span>
+            <ul class="nav small">
+                <li class="nav-item"><a class="nav-link text-body-secondary" href="{{ path('app_legal_impressum') }}">{{ 'legal.page.impressum'|trans }}</a></li>
+                <li class="nav-item"><a class="nav-link text-body-secondary" href="{{ path('app_legal_privacy') }}">{{ 'legal.page.datenschutz'|trans }}</a></li>
+                <li class="nav-item"><a class="nav-link text-body-secondary" href="{{ path('app_legal_terms') }}">{{ 'legal.page.agb'|trans }}</a></li>
+            </ul>
+        </div>
+    </footer>
+</div>
+{% endblock %}
+{% block javascripts %}
+    {{ parent() }}
+{% endblock %}

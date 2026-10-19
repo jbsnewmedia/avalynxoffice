@@ -229,6 +229,26 @@ final class MailActionControllerTest extends KernelTestCase
         $this->controller->edit('00000000-0000-0000-0000-000000000000', Request::create('/mail/edit/missing', 'GET', ['ajax' => '1']));
     }
 
+    public function testComposeReturnsInvalidPayloadForInvalidSubmission(): void
+    {
+        $this->createFixtureData('compose-invalid');
+        $this->setCurrentUserRequest();
+        $this->setControllerFormFactory(static::getContainer()->get('form.factory'));
+
+        $response = $this->controller->compose(Request::create('/mail/compose', 'POST', [
+            'email_reply' => [
+                'to' => '',
+                'content' => 'Hello',
+            ],
+        ], server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']));
+
+        self::assertSame(Response::HTTP_UNPROCESSABLE_ENTITY, $response->getStatusCode());
+        $data = json_decode((string) $response->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertFalse($data['success']);
+        self::assertArrayHasKey('invalid', $data);
+        self::assertNotEmpty($data['invalid']);
+    }
+
     public function testComposeRedirectsWhenRequestIsNotAjax(): void
     {
         $response = $this->controller->compose(Request::create('/mail/compose', 'GET'));
@@ -249,7 +269,9 @@ final class MailActionControllerTest extends KernelTestCase
         $response = $this->controller->compose(Request::create('/mail/compose', 'POST', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']));
 
         self::assertSame(Response::HTTP_OK, $response->getStatusCode());
-        self::assertSame(['success' => true], json_decode($response->getContent(), true, 512, JSON_THROW_ON_ERROR));
+        $data = json_decode($response->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertTrue($data['success']);
+        self::assertSame('/mails', $data['redirect']);
     }
 
     public function testEditRedirectsWhenEmailCannotBeEdited(): void
@@ -290,7 +312,9 @@ final class MailActionControllerTest extends KernelTestCase
         $response = $this->controller->edit((string) $email->getId(), Request::create('/mail/edit/'.$email->getId(), 'POST', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']));
 
         self::assertSame(Response::HTTP_OK, $response->getStatusCode());
-        self::assertSame(['success' => true], json_decode($response->getContent(), true, 512, JSON_THROW_ON_ERROR));
+        $data = json_decode($response->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertTrue($data['success']);
+        self::assertSame('/mails', $data['redirect']);
     }
 
     public function testCreateDraftFormPrefillsRecipientsAndContent(): void
@@ -370,7 +394,9 @@ final class MailActionControllerTest extends KernelTestCase
         $response = $method->invoke($controller, $email, $form, Request::create('/mail/compose', 'GET', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']), true);
 
         self::assertInstanceOf(\Symfony\Component\HttpFoundation\JsonResponse::class, $response);
-        self::assertSame(['success' => true], json_decode((string) $response->getContent(), true, 512, JSON_THROW_ON_ERROR));
+        $data = json_decode((string) $response->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertTrue($data['success']);
+        self::assertSame('/mails', $data['redirect']);
     }
 
     public function testHandleDraftSubmissionReturnsNullWhenFormIsNotReady(): void
@@ -383,7 +409,7 @@ final class MailActionControllerTest extends KernelTestCase
         self::assertNull($method->invoke($this->controller, new Email(), $form, Request::create('/mail/compose', 'GET'), false));
     }
 
-    public function testHandleDraftSubmissionRedirectsToEditWhenSaveDraftIsClicked(): void
+    public function testHandleDraftSubmissionClosesModalWhenComposeSaveDraftIsClicked(): void
     {
         $email = new Email();
         $this->setCurrentUserRequest();
@@ -432,11 +458,14 @@ final class MailActionControllerTest extends KernelTestCase
         ]);
 
         $method = new \ReflectionMethod(MailActionController::class, 'handleDraftSubmission');
-        $response = $method->invoke($controller, $email, $form, Request::create('/mail/compose', 'GET'), false);
+        $request = Request::create('/mail/compose', 'GET', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $response = $method->invoke($controller, $email, $form, $request, false);
 
-        self::assertSame(Response::HTTP_FOUND, $response->getStatusCode());
-        self::assertStringStartsWith('/mail/edit/', (string) $response->headers->get('Location'));
-        self::assertStringEndsWith('?ajax=1', (string) $response->headers->get('Location'));
+        self::assertSame(Response::HTTP_OK, $response->getStatusCode());
+        $data = json_decode((string) $response->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertTrue($data['success']);
+        self::assertSame('/mails', $data['redirect']);
+        self::assertSame('Draft saved.', $data['message']);
     }
 
     public function testHandleDraftSubmissionThrowsForNonStringFormValues(): void
@@ -539,8 +568,12 @@ final class MailActionControllerTest extends KernelTestCase
         ]);
 
         $method = new \ReflectionMethod(MailActionController::class, 'handleDraftSubmission');
+        $response = $method->invoke($this->controller, $email, $form, Request::create('/mail/compose', 'GET'), false);
 
-        self::assertNull($method->invoke($this->controller, $email, $form, Request::create('/mail/compose', 'GET'), false));
+        self::assertSame(Response::HTTP_UNPROCESSABLE_ENTITY, $response?->getStatusCode());
+        $data = json_decode((string) $response->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertFalse($data['success']);
+        self::assertSame('Please choose a date for scheduled sending.', $data['invalid']['email_reply[scheduledAt]'] ?? null);
     }
 
     public function testHandleDraftSubmissionThrowsForInvalidAttachmentValues(): void
@@ -612,7 +645,10 @@ final class MailActionControllerTest extends KernelTestCase
             $this->removeUploadedFile($uploadedFile);
         }
 
-        self::assertNull($response);
+        self::assertSame(Response::HTTP_UNPROCESSABLE_ENTITY, $response?->getStatusCode());
+        $data = json_decode((string) $response->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertFalse($data['success']);
+        self::assertArrayHasKey('email_reply[attachments]', $data['invalid']);
     }
 
     public function testHandleDraftSubmissionReturnsEditRedirectForNonAjaxSend(): void

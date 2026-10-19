@@ -22,14 +22,9 @@ use AvalynxOffice\Repository\MailboxRepository;
 use AvalynxOffice\Service\AppService;
 use AvalynxOffice\Service\DataService;
 use AvalynxOffice\Service\MailboxConnectorService;
-use AvalynxOffice\Service\SettingsService;
 use Doctrine\Common\Collections\ArrayCollection;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
-use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\RequestStack;
-use Symfony\Component\HttpFoundation\Session\Session;
-use Symfony\Component\HttpFoundation\Session\Storage\MockArraySessionStorage;
 
 final class BasicServiceTest extends TestCase
 {
@@ -53,24 +48,6 @@ final class BasicServiceTest extends TestCase
         unlink($projectDir.'/composer.json');
         rmdir($projectDir);
         self::assertSame('dev', $service->getVersion());
-    }
-
-    public function testSettingsServiceReadsAndWritesRequestSession(): void
-    {
-        $requestStack = new RequestStack();
-        $service = new SettingsService($requestStack);
-
-        self::assertFalse($service->isNewsletterOptIn());
-        $service->setNewsletterOptIn(true);
-        self::assertFalse($service->isNewsletterOptIn());
-
-        $request = new Request();
-        $request->setSession(new Session(new MockArraySessionStorage()));
-        $requestStack->push($request);
-
-        self::assertFalse($service->isNewsletterOptIn());
-        $service->setNewsletterOptIn(true);
-        self::assertTrue($service->isNewsletterOptIn());
     }
 
     public function testMailboxConnectorServicePersistsFlushesAndRemoves(): void

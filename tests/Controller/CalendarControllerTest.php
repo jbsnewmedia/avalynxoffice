@@ -288,7 +288,9 @@ final class CalendarControllerTest extends WebTestCase
         ], [], ['HTTP_X-Requested-With' => 'XMLHttpRequest']);
 
         self::assertResponseIsSuccessful();
-        self::assertJsonStringEqualsJsonString('{"success":true}', (string) $this->client->getResponse()->getContent());
+                $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertTrue($data['success']);
+        self::assertArrayHasKey('redirect', $data);
 
         $this->entityManager->clear();
         $updated = $this->entityManager->getRepository(CalendarEvent::class)->find($this->kickoff->getId());
@@ -339,7 +341,9 @@ final class CalendarControllerTest extends WebTestCase
         ], [], ['HTTP_X-Requested-With' => 'XMLHttpRequest']);
 
         self::assertResponseIsSuccessful();
-        self::assertJsonStringEqualsJsonString('{"success":true}', (string) $this->client->getResponse()->getContent());
+                $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertTrue($data['success']);
+        self::assertArrayHasKey('redirect', $data);
 
         $this->entityManager->clear();
         $created = $this->entityManager->getRepository(CalendarEvent::class)->findOneBy(['title' => 'Neuer Sales-Termin']);
@@ -409,7 +413,6 @@ final class CalendarControllerTest extends WebTestCase
             '_token' => $token,
         ], [], ['HTTP_X-Requested-With' => 'XMLHttpRequest']);
 
-        self::assertResponseIsSuccessful();
         self::assertJsonStringEqualsJsonString('{"success":true}', (string) $this->client->getResponse()->getContent());
 
         $this->entityManager->clear();

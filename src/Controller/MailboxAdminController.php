@@ -15,6 +15,8 @@ use AvalynxOffice\Licensing\Service\LicenseEnforcementInterface;
 use AvalynxOffice\Licensing\Service\LicenseOperation;
 use AvalynxOffice\Repository\MailboxRepository;
 use AvalynxOffice\Service\MailboxService;
+use AvalynxOffice\Util\AvalynxFormResponse;
+use AvalynxOffice\Util\FormInvalidMapper;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormInterface;
@@ -35,12 +37,9 @@ class MailboxAdminController extends AbstractController
     #[Route('', name: 'mailbox_index', methods: ['GET'])]
     public function index(Request $request, MailboxRepository $repo): Response
     {
-        if (!$request->isXmlHttpRequest()) {
-            return $this->redirectToRoute('mail_index');
-        }
         $items = $repo->findBy([], ['name' => 'ASC']);
 
-        return $this->render('mailbox/_modal_index.html.twig', [
+        return $this->render('mailbox/index.html.twig', [
             'items' => $items,
         ]);
     }
@@ -48,12 +47,9 @@ class MailboxAdminController extends AbstractController
     #[Route('/view', name: 'mailbox_structure', methods: ['GET'])]
     public function structure(Request $request, MailboxRepository $repo): Response
     {
-        if (!$request->isXmlHttpRequest()) {
-            return $this->redirectToRoute('mail_index');
-        }
         $items = $repo->findBy([], ['name' => 'ASC']);
 
-        return $this->render('mailbox/_modal_structure.html.twig', [
+        return $this->render('mailbox/structure.html.twig', [
             'items' => $items,
         ]);
     }
@@ -61,9 +57,6 @@ class MailboxAdminController extends AbstractController
     #[Route('/new', name: 'mailbox_new', methods: ['GET', 'POST'])]
     public function new(Request $request, MailboxService $mailboxService): Response
     {
-        if (!$request->isXmlHttpRequest()) {
-            return $this->redirectToRoute('mail_index');
-        }
         $mailbox = new Mailbox();
         $form = $this->createForm(MailboxType::class, $mailbox, [
             'action' => $this->generateUrl('mailbox_new'),
@@ -104,11 +97,15 @@ class MailboxAdminController extends AbstractController
                 $this->licenseEnforcement->assertCanPerform(LicenseOperation::SETTINGS_WRITE);
                 $mailboxService->save($mailbox, $aliases, $folders, true);
 
-                return $this->redirectToRoute('mailbox_index', [], Response::HTTP_SEE_OTHER);
+                return AvalynxFormResponse::success($this->generateUrl('mailbox_index'));
             }
         }
 
-        return $this->render('mailbox/_modal_form.html.twig', [
+        if ($request->isMethod('POST')) {
+            return AvalynxFormResponse::invalid(FormInvalidMapper::map($form));
+        }
+
+        return $this->render('mailbox/form.html.twig', [
             'form' => $form->createView(),
             'title' => $this->translator->trans('mailbox.new'),
         ]);
@@ -117,9 +114,6 @@ class MailboxAdminController extends AbstractController
     #[Route('/{id}/edit', name: 'mailbox_edit', methods: ['GET', 'POST'])]
     public function edit(Mailbox $mailbox, Request $request, MailboxService $mailboxService): Response
     {
-        if (!$request->isXmlHttpRequest()) {
-            return $this->redirectToRoute('mail_index');
-        }
         $form = $this->createForm(MailboxType::class, $mailbox, [
             'action' => $this->generateUrl('mailbox_edit', ['id' => $mailbox->getId()]),
             'aliases_data' => $mailboxService->formatAliases($mailbox),
@@ -167,11 +161,15 @@ class MailboxAdminController extends AbstractController
                 $this->licenseEnforcement->assertCanPerform(LicenseOperation::SETTINGS_WRITE);
                 $mailboxService->save($mailbox, $aliases, $folders);
 
-                return $this->redirectToRoute('mailbox_index', [], Response::HTTP_SEE_OTHER);
+                return AvalynxFormResponse::success($this->generateUrl('mailbox_index'));
             }
         }
 
-        return $this->render('mailbox/_modal_form.html.twig', [
+        if ($request->isMethod('POST')) {
+            return AvalynxFormResponse::invalid(FormInvalidMapper::map($form));
+        }
+
+        return $this->render('mailbox/form.html.twig', [
             'form' => $form->createView(),
             'title' => $this->translator->trans('mailbox.edit'),
         ]);
@@ -180,9 +178,6 @@ class MailboxAdminController extends AbstractController
     #[Route('/{id}', name: 'mailbox_delete', methods: ['POST'])]
     public function delete(Mailbox $mailbox, Request $request, MailboxService $mailboxService): Response
     {
-        if (!$request->isXmlHttpRequest()) {
-            return $this->redirectToRoute('mail_index');
-        }
         $tokenRaw = $request->request->get('_token');
         $token = is_scalar($tokenRaw) ? (string) $tokenRaw : null;
         if (null !== $token && $this->isCsrfTokenValid('delete_mailbox_'.$mailbox->getId(), $token)) {

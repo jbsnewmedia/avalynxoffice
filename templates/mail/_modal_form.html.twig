@@ -2,7 +2,7 @@
     {% set showAdvancedFields = (form.cc.vars.value ?? '') != '' or (form.bcc.vars.value ?? '') != '' or (form.replyTo.vars.value ?? '') != '' %}
     {% set scheduleEnabled = form.scheduleLater.vars.data ?? false %}
     {% set attachmentsEnabled = email.emailAttachments|length > 0 %}
-    {{ form_start(form, {'attr': {'id': 'modal-form', 'class': 'p-4 compose-form'}}) }}
+    {{ form_start(form, {'attr': {'id': 'mail-compose-form', 'class': 'p-4 compose-form', 'data-avalynxform': '1'}}) }}
         <div class="compose-editor" data-compose-editor="1">
             <div class="vstack gap-3">
                 {% if form.from is defined %}

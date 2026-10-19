@@ -17,6 +17,8 @@ use AvalynxOffice\Repository\AddressRepository;
 use AvalynxOffice\Repository\MailboxRepository;
 use AvalynxOffice\Service\ContactService;
 use AvalynxOffice\Service\Mail\UserMailboxProvider;
+use AvalynxOffice\Util\AvalynxFormResponse;
+use AvalynxOffice\Util\FormInvalidMapper;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -98,7 +100,7 @@ final class ContactController extends AbstractController
         $form->handleRequest($request);
 
         if (!$form->isSubmitted() || !$form->isValid()) {
-            return $this->renderModalForm($form, $this->translator->trans('contact.new'), Response::HTTP_UNPROCESSABLE_ENTITY);
+            return AvalynxFormResponse::invalid(FormInvalidMapper::map($form));
         }
 
         $mailbox = $form->get('mailbox')->getData();
@@ -106,7 +108,16 @@ final class ContactController extends AbstractController
 
         $this->contactService->createFromForm($mailbox, $address);
 
-        return new JsonResponse(['success' => true]);
+        return AvalynxFormResponse::success($this->resolveContactRedirect($request, 'all'));
+    }
+
+    private function resolveContactRedirect(Request $request, string $fallbackGroupId): string
+    {
+        $referer = $request->headers->get('referer');
+
+        return is_string($referer) && '' !== $referer
+            ? $referer
+            : $this->generateUrl('contact_group', ['groupId' => $fallbackGroupId]);
     }
 
     #[Route(path: '/contacts/{groupId}/{contactId}/modal', name: 'contact_edit_modal', methods: ['GET'], requirements: ['groupId' => 'all|[A-Z]|other', 'contactId' => '[0-9a-fA-F\-]{36}'])]
@@ -139,12 +150,12 @@ final class ContactController extends AbstractController
         $form->handleRequest($request);
 
         if (!$form->isSubmitted() || !$form->isValid()) {
-            return $this->renderModalForm($form, $this->translator->trans('contact.edit'), Response::HTTP_UNPROCESSABLE_ENTITY);
+            return AvalynxFormResponse::invalid(FormInvalidMapper::map($form));
         }
 
         $this->contactService->save($address);
 
-        return new JsonResponse(['success' => true]);
+        return AvalynxFormResponse::success($this->resolveContactRedirect($request, $groupId));
     }
 
     #[Route(path: '/contacts/{groupId}/{contactId}/delete', name: 'contact_delete', methods: ['POST'], requirements: ['groupId' => 'all|[A-Z]|other', 'contactId' => '[0-9a-fA-F\-]{36}'])]
@@ -271,17 +282,6 @@ final class ContactController extends AbstractController
         }
 
         throw new NotFoundHttpException('Contact not found.');
-    }
-
-    /**
-     * @param \Symfony\Component\Form\FormInterface<Address> $form
-     */
-    private function renderModalForm(\Symfony\Component\Form\FormInterface $form, string $title, int $status): Response
-    {
-        return $this->render('contacts/_modal_form.html.twig', [
-            'form' => $form,
-            'title' => $title,
-        ], new Response(null, $status));
     }
 
     private function requireXmlHttpRequest(Request $request): void

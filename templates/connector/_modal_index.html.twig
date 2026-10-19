@@ -1,10 +1,10 @@
-<div class="p-4 modal-form-ajax-success">
+<div class="p-4">
     <div class="d-flex align-items-center mb-4">
-        <a href="{{ path('app_settings') }}" class="btn btn-outline-secondary me-2 action-btn-modal" data-title="{{ 'settings.title'|trans }}" data-modal-size="modal-xl" data-dismiss-label="{{ 'common.close'|trans }}" aria-label="{{ 'common.back'|trans }}" title="{{ 'common.back'|trans }}">
+        <a href="{{ path('app_settings') }}" class="btn btn-outline-secondary me-2" aria-label="{{ 'common.back'|trans }}" title="{{ 'common.back'|trans }}">
             <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
         </a>
         <h4 class="m-0">{{ 'connector.title'|trans }}</h4>
-        <a href="{{ path('connector_new') }}" class="btn btn-primary ms-auto action-btn-modal" data-title="{{ 'connector.new'|trans }}" data-modal-size="modal-xl">
+        <a href="{{ path('connector_new') }}" class="btn btn-primary ms-auto">
             <i class="fa-solid fa-plus me-2" aria-hidden="true"></i>{{ 'connector.new'|trans }}
         </a>
     </div>
@@ -48,10 +48,10 @@
                             <div class="small text-body-secondary">{{ connector.smtpUsername ?: '—' }}</div>
                         </td>
                         <td class="text-nowrap">
-                            <a href="{{ path('connector_edit', {id: connector.id}) }}" class="btn btn-sm btn-primary action-btn-modal" data-title="{{ 'connector.edit'|trans }}" data-modal-size="modal-xl" title="{{ 'connector.edit'|trans }}" aria-label="{{ 'connector.edit'|trans }}">
+                            <a href="{{ path('connector_edit', {id: connector.id}) }}" class="btn btn-sm btn-primary" title="{{ 'connector.edit'|trans }}" aria-label="{{ 'connector.edit'|trans }}">
                                 <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
                             </a>
-                            <form method="post" action="{{ path('connector_delete', {id: connector.id}) }}" class="d-inline modal-form-ajax">
+                            <form method="post" action="{{ path('connector_delete', {id: connector.id}) }}" class="d-inline">
                                 <input type="hidden" name="_token" value="{{ csrf_token('delete_connector_' ~ connector.id) }}">
                                 <button type="button" class="btn btn-sm btn-outline-danger confirm-action" data-confirm="{{ 'connector.confirm_delete'|trans }}" title="{{ 'email.delete'|trans }}" aria-label="{{ 'email.delete'|trans }}">
                                     <i class="fa-solid fa-trash" aria-hidden="true"></i>

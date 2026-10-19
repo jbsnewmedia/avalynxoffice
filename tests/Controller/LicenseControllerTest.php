@@ -390,6 +390,47 @@ final class LicenseControllerTest extends WebTestCase
         return $value;
     }
 
+    public function testLastActiveAdminCannotBeDeactivated(): void
+    {
+        $this->client->loginUser($this->admin);
+        $token = $this->setCsrfToken('toggle_user_active_'.$this->admin->getId()->toRfc4122());
+        $this->client->request('POST', '/admin/license/users/'.$this->admin->getId()->toRfc4122().'/active', [
+            '_token' => $token,
+        ]);
+
+        self::assertResponseStatusCodeSame(403);
+        $this->em->clear();
+        $refreshed = $this->em->find(User::class, $this->admin->getId());
+        self::assertInstanceOf(User::class, $refreshed);
+        self::assertTrue($refreshed->isActive());
+    }
+
+    public function testLastAdminCannotLoseAdminRole(): void
+    {
+        $this->client->loginUser($this->admin);
+        $token = $this->setCsrfToken('toggle_user_admin_'.$this->admin->getId()->toRfc4122());
+        $this->client->request('POST', '/admin/license/users/'.$this->admin->getId()->toRfc4122().'/toggle-admin', [
+            '_token' => $token,
+        ]);
+
+        self::assertResponseStatusCodeSame(403);
+        $this->em->clear();
+        $refreshed = $this->em->find(User::class, $this->admin->getId());
+        self::assertInstanceOf(User::class, $refreshed);
+        self::assertContains('ROLE_ADMIN', $refreshed->getRoles());
+    }
+
+    public function testToggleAdminRoleUnknownUserReturnsNotFound(): void
+    {
+        $this->client->loginUser($this->admin);
+        $token = $this->setCsrfToken('toggle_user_admin_00000000-0000-7000-8000-000000000000');
+        $this->client->request('POST', '/admin/license/users/00000000-0000-7000-8000-000000000000/toggle-admin', [
+            '_token' => $token,
+        ]);
+
+        self::assertResponseStatusCodeSame(404);
+    }
+
     public function testToggleAdminRoleGrantsAdminRoleToRegularUser(): void
     {
         $this->client->loginUser($this->admin);

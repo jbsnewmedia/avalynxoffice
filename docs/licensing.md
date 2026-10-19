@@ -162,7 +162,7 @@ Bei blockierter Operation wird `LicenseReadOnlyException` geworfen; der
 `app:mail:send`), Antworten/Weiterleiten, Entwürfe erstellen oder
 ändern, E-Mails löschen/verschieben, Gelesen-/Favoriten-Flags ändern,
 Mailordner ändern, Mailbox-/Connector-Verwaltung,
-Termin-CRUD, Kontakt-CRUD, Newsletter-Einstellung.
+Termin-CRUD, Kontakt-CRUD.
 
 **Geräte-Sync (avalynxofficeeas):** Exchange ActiveSync ist als separates
 AGPL-3.0-Projekt ausgelagert (`avalynxofficeeas`, eigener Container/Prozess).

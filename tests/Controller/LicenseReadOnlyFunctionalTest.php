@@ -301,16 +301,6 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
         self::assertSelectorTextContains('body', 'contact@example.com');
     }
 
-    public function testNewsletterSettingIsBlocked(): void
-    {
-        $this->client->loginUser($this->admin);
-        $this->client->request('POST', '/settings/newsletter', ['newsletter_optin' => '1'], [], [
-            'HTTP_X-Requested-With' => 'XMLHttpRequest',
-        ]);
-
-        self::assertResponseStatusCodeSame(403);
-    }
-
     public function testMailboxDeleteIsBlocked(): void
     {
         $this->client->loginUser($this->admin);

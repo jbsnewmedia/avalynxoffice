@@ -99,7 +99,10 @@ final class SettingsControllerTest extends WebTestCase
             'primary_color' => 'not-a-color',
         ]);
 
-        self::assertResponseRedirects('/settings?appearance=invalid');
+        self::assertResponseStatusCodeSame(422);
+        $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertFalse($data['success']);
+        self::assertArrayHasKey('primary_color', $data['invalid']);
         self::assertNull($this->settingValue());
     }
 
@@ -112,7 +115,10 @@ final class SettingsControllerTest extends WebTestCase
             'primary_color' => '#FF8800',
         ]);
 
-        self::assertResponseRedirects('/settings?appearance=saved');
+        self::assertResponseIsSuccessful();
+        $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertTrue($data['success']);
+        self::assertArrayHasKey('redirect', $data);
         self::assertSame('#ff8800', $this->settingValue());
 
         $projectDir = static::getContainer()->getParameter('kernel.project_dir');

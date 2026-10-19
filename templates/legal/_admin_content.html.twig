@@ -1,0 +1,43 @@
+<div class="p-4">
+    <div class="d-flex align-items-center mb-4">
+        <a href="{{ path('app_settings') }}" class="btn btn-outline-secondary me-2" aria-label="{{ 'common.back'|trans }}" title="{{ 'common.back'|trans }}">
+            <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+        </a>
+        <h4 class="m-0">{{ 'legal.admin.title'|trans }}</h4>
+    </div>
+
+    <p class="text-body-secondary">{{ 'legal.admin.help'|trans }}</p>
+
+    <form id="legal-form" method="post" action="{{ path('app_settings_legal_save') }}" data-legal-form="1" data-avalynxform="1">
+        <input type="hidden" name="_token" value="{{ csrf_token('save_legal') }}">
+        <input type="hidden" name="page" value="{{ legal_page_active|default('impressum') }}" data-legal-page-input="1">
+
+        <ul class="nav nav-tabs mb-3" role="tablist" data-legal-tabs="1">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" type="button" role="tab" data-legal-tab="impressum" data-legal-tab-label="{{ 'legal.admin.page.impressum'|trans }}" aria-selected="true">{{ 'legal.admin.page.impressum'|trans }}</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" type="button" role="tab" data-legal-tab="datenschutz" data-legal-tab-label="{{ 'legal.admin.page.datenschutz'|trans }}" aria-selected="false">{{ 'legal.admin.page.datenschutz'|trans }}</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" type="button" role="tab" data-legal-tab="agb" data-legal-tab-label="{{ 'legal.admin.page.agb'|trans }}" aria-selected="false">{{ 'legal.admin.page.agb'|trans }}</button>
+            </li>
+        </ul>
+
+        {% for page, content in pages %}
+            <template data-legal-content="{{ page }}">{{ content|raw }}</template>
+        {% endfor %}
+
+        <div class="card shadow-sm">
+            <div class="card-body p-0">
+                <div data-legal-editor="1" data-legal-editor-name="impressum"></div>
+            </div>
+        </div>
+
+        <div class="mt-3 d-flex justify-content-end">
+            <button type="submit" class="btn btn-primary">
+                <i class="fa-solid fa-floppy-disk me-1" aria-hidden="true"></i>{{ 'legal.admin.save'|trans }}
+            </button>
+        </div>
+    </form>
+</div>

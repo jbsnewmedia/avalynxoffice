@@ -1,11 +1,11 @@
-<div class="p-4 modal-form-ajax-success">
+<div class="p-4">
     <div class="d-flex align-items-center mb-4">
-        <a href="{{ path('app_settings') }}" class="btn btn-outline-secondary me-2 action-btn-modal" data-title="{{ 'settings.title'|trans }}" data-modal-size="modal-xl" data-dismiss-label="{{ 'common.close'|trans }}" aria-label="{{ 'common.back'|trans }}" title="{{ 'common.back'|trans }}">
+        <a href="{{ path('app_settings') }}" class="btn btn-outline-secondary me-2" aria-label="{{ 'common.back'|trans }}" title="{{ 'common.back'|trans }}">
             <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
         </a>
         <h4 class="m-0">{{ 'mailbox.title'|trans }}</h4>
         <div class="ms-auto d-flex gap-2">
-            <a href="{{ path('mailbox_new') }}" class="btn btn-primary action-btn-modal" data-title="{{ 'mailbox.new'|trans }}" data-modal-size="modal-xl">
+            <a href="{{ path('mailbox_new') }}" class="btn btn-primary">
                 <i class="fa-solid fa-plus me-2" aria-hidden="true"></i>{{ 'mailbox.new'|trans }}
             </a>
         </div>
@@ -59,10 +59,10 @@
                             {% endif %}
                         </td>
                         <td class="text-nowrap">
-                            <a href="{{ path('mailbox_edit', {id: m.id}) }}" class="btn btn-sm btn-primary action-btn-modal" data-title="{{ 'mailbox.edit'|trans }}" data-modal-size="modal-xl" title="{{ 'mailbox.edit'|trans }}" aria-label="{{ 'mailbox.edit'|trans }}">
+                            <a href="{{ path('mailbox_edit', {id: m.id}) }}" class="btn btn-sm btn-primary" title="{{ 'mailbox.edit'|trans }}" aria-label="{{ 'mailbox.edit'|trans }}">
                                 <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
                             </a>
-                            <form method="post" action="{{ path('mailbox_delete', {id: m.id}) }}" class="d-inline modal-form-ajax">
+                            <form method="post" action="{{ path('mailbox_delete', {id: m.id}) }}" class="d-inline">
                                 <input type="hidden" name="_token" value="{{ csrf_token('delete_mailbox_' ~ m.id) }}">
                                 <button type="button" class="btn btn-sm btn-outline-danger confirm-action" data-confirm="{{ 'mailbox.confirm_delete'|trans }}" title="{{ 'email.delete'|trans }}" aria-label="{{ 'email.delete'|trans }}">
                                     <i class="fa-solid fa-trash" aria-hidden="true"></i>

@@ -13,15 +13,19 @@ use AvalynxOffice\Entity\RecoveryAddress;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Repository\UserRepository;
 use AvalynxOffice\Service\UserService;
+use AvalynxOffice\Util\AvalynxFormResponse;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\UriSigner;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 class ProfileController extends AbstractController
 {
@@ -31,47 +35,59 @@ class ProfileController extends AbstractController
         private readonly UserRepository $userRepository,
         private readonly UriSigner $uriSigner,
         private readonly UserPasswordHasherInterface $passwordHasher,
+        private readonly RequestStack $requestStack,
+        private readonly TranslatorInterface $translator,
     ) {
     }
 
     #[Route('/profile', name: 'app_profile')]
-    public function index(Request $request): Response
+    public function index(): Response
     {
-        if (!$request->isXmlHttpRequest()) {
-            return $this->redirectToRoute('mail_index');
-        }
-
         /** @var User $user */
         $user = $this->getUser();
 
-        return $this->render('profile/_modal_content.html.twig', [
+        return $this->render('profile/index.html.twig', [
             'user' => $user,
         ]);
     }
 
     #[Route('/profile/recovery/add', name: 'app_profile_recovery_add', methods: ['POST'])]
-    public function addRecoveryAddress(Request $request): Response
+    public function addRecoveryAddress(Request $request): JsonResponse
     {
         /** @var User $user */
         $user = $this->getUser();
-        $email = (string) $request->request->get('email', '');
+
+        $tokenRaw = $request->request->get('_token');
+        $token = is_scalar($tokenRaw) ? (string) $tokenRaw : null;
+
+        if (null === $token || !$this->isCsrfTokenValid('add_recovery', $token)) {
+            return AvalynxFormResponse::failure($this->translator->trans('profile.recovery.invalid_token'));
+        }
+
+        $emailRaw = $request->request->get('email');
+        $email = is_scalar($emailRaw) ? trim((string) $emailRaw) : '';
 
         if ('' === $email) {
-            return new JsonResponse(['success' => false, 'message' => 'The email address must not be empty.'], Response::HTTP_BAD_REQUEST);
+            return AvalynxFormResponse::invalid([
+                'email' => $this->translator->trans('profile.recovery.email_required'),
+            ]);
         }
 
         try {
             $this->userService->addRecoveryAddress($user, $email);
             $this->entityManager->flush();
-        } catch (\DomainException $e) {
-            return new JsonResponse(['success' => false, 'message' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
+            $this->addFlash('success', 'profile.recovery.added');
+        } catch (\DomainException) {
+            return AvalynxFormResponse::invalid([
+                'email' => $this->translator->trans('profile.recovery.add_failed'),
+            ]);
         }
 
-        return new JsonResponse(['success' => true, 'message' => 'Recovery address successfully added.']);
+        return AvalynxFormResponse::success($this->generateUrl('app_profile'));
     }
 
     #[Route('/profile/recovery/remove/{id}', name: 'app_profile_recovery_remove', methods: ['POST'])]
-    public function removeRecoveryAddress(string $id): Response
+    public function removeRecoveryAddress(string $id, Request $request): Response
     {
         /** @var User $user */
         $user = $this->getUser();
@@ -79,80 +95,135 @@ class ProfileController extends AbstractController
         $recoveryAddress = $this->entityManager->find(RecoveryAddress::class, $id);
 
         if (!$recoveryAddress instanceof RecoveryAddress || $recoveryAddress->getUser()?->getId() !== $user->getId()) {
-            return new JsonResponse(['success' => false, 'message' => 'Recovery address not found.'], Response::HTTP_NOT_FOUND);
+            throw $this->createNotFoundException('Recovery address not found.');
+        }
+
+        $tokenRaw = $request->request->get('_token');
+        $token = is_scalar($tokenRaw) ? (string) $tokenRaw : null;
+
+        if (null === $token || !$this->isCsrfTokenValid('remove_recovery_'.$recoveryAddress->getId(), $token)) {
+            $this->addFlash('danger', 'profile.recovery.invalid_token');
+
+            return new RedirectResponse($this->generateUrl('app_profile'));
         }
 
         $this->userService->removeRecoveryAddress($user, $recoveryAddress);
         $this->entityManager->flush();
+        $this->addFlash('success', 'profile.recovery.removed');
 
-        return new JsonResponse(['success' => true, 'message' => 'Recovery address successfully removed.']);
+        return new RedirectResponse($this->generateUrl('app_profile'));
     }
 
-    #[Route('/profile/password-reset/request', name: 'app_profile_password_reset_request', methods: ['POST'])]
-    public function requestPasswordReset(Request $request): Response
+    #[Route('/profile/password-reset', name: 'app_password_reset_request', methods: ['GET'])]
+    public function passwordResetRequest(): Response
     {
-        $email = (string) $request->request->get('email', '');
+        return $this->render('profile/password_reset_request.html.twig');
+    }
+
+    #[Route('/profile/password-reset', name: 'app_password_reset_send', methods: ['POST'])]
+    public function passwordResetSend(Request $request): JsonResponse
+    {
+        $tokenRaw = $request->request->get('_token');
+        $token = is_scalar($tokenRaw) ? (string) $tokenRaw : null;
+
+        if (null === $token || !$this->isCsrfTokenValid('password_reset_request', $token)) {
+            return AvalynxFormResponse::failure($this->translator->trans('password.reset.invalid_token'));
+        }
+
+        $emailRaw = $request->request->get('email');
+        $email = is_scalar($emailRaw) ? trim((string) $emailRaw) : '';
 
         if ('' === $email) {
-            return new JsonResponse(['success' => false, 'message' => 'The email address must not be empty.'], Response::HTTP_BAD_REQUEST);
+            return AvalynxFormResponse::invalid([
+                'email' => $this->translator->trans('password.reset.email_required'),
+            ]);
         }
 
-        $user = $this->userRepository->findOneBy(['email' => strtolower($email)]);
+        // The answer never reveals whether the account (or a recovery
+        // address) exists — the same message is shown in every case.
+        $this->userService->requestPasswordReset(
+            $email,
+            fn (User $candidate): string => $this->generateUrl(
+                'app_profile_password_reset_execute',
+                ['userId' => $candidate->getId()?->toRfc4122() ?? ''],
+                UrlGeneratorInterface::ABSOLUTE_URL,
+            ),
+        );
 
-        if (null === $user || [] === $user->getRecoveryAddresses()->toArray()) {
-            // To avoid user enumeration, we return a success message anyway.
-            return new JsonResponse(['success' => true, 'message' => 'If an account exists and has recovery addresses, an email has been sent.']);
-        }
+        $this->addFlash('success', 'password.reset.link_sent');
 
-        $this->userService->requestPasswordReset($email, $this->generateUrl('app_profile_password_reset_execute', ['userId' => $user->getId()], UrlGeneratorInterface::ABSOLUTE_URL));
-
-        return new JsonResponse(['success' => true, 'message' => 'If an account exists and has recovery addresses, an email has been sent.']);
+        return AvalynxFormResponse::success($this->generateUrl('app_login'));
     }
 
     #[Route('/profile/password-reset/execute/{userId}', name: 'app_profile_password_reset_execute', methods: ['GET'])]
-    public function executePasswordReset(Request $request, string $userId): Response
+    public function executePasswordReset(string $userId): Response
     {
-        // Verify the signature of the URL.
-        if (!$this->uriSigner->check($request->getUri())) {
-            return new JsonResponse(['success' => false, 'message' => 'Invalid or expired reset link.'], Response::HTTP_BAD_REQUEST);
+        if (!$this->isSignedRequestValid()) {
+            throw $this->createNotFoundException('Invalid or expired reset link.');
         }
 
-        $user = $this->userRepository->find($userId);
-
-        if (null === $user) {
-            return new JsonResponse(['success' => false, 'message' => 'User not found.'], Response::HTTP_NOT_FOUND);
+        if (null === $this->userRepository->find($userId)) {
+            throw $this->createNotFoundException('User not found.');
         }
 
-        return $this->render('profile/password_reset.html.twig', [
-            'userId' => $userId,
-        ]);
+        return $this->renderResetForm($userId);
     }
 
     #[Route('/profile/password-reset/submit/{userId}', name: 'app_profile_password_reset_submit', methods: ['POST'])]
-    public function submitPasswordReset(Request $request, string $userId): Response
+    public function submitPasswordReset(Request $request, string $userId): JsonResponse
     {
-        // Verify the signature of the URL.
-        if (!$this->uriSigner->check($request->getUri())) {
-            return new JsonResponse(['success' => false, 'message' => 'Invalid or expired reset link.'], Response::HTTP_BAD_REQUEST);
+        if (!$this->isSignedRequestValid()) {
+            return AvalynxFormResponse::failure($this->translator->trans('password.reset.link_invalid'));
         }
 
         $user = $this->userRepository->find($userId);
 
         if (null === $user) {
-            return new JsonResponse(['success' => false, 'message' => 'User not found.'], Response::HTTP_NOT_FOUND);
+            throw $this->createNotFoundException('User not found.');
         }
 
-        $newPassword = (string) $request->request->get('password', '');
+        $passwordRaw = $request->request->get('password');
+        $password = is_scalar($passwordRaw) ? (string) $passwordRaw : '';
 
-        if ('' === $newPassword) {
-            return new JsonResponse(['success' => false, 'message' => 'The new password must not be empty.'], Response::HTTP_BAD_REQUEST);
+        if ('' === $password) {
+            return AvalynxFormResponse::invalid([
+                'password' => $this->translator->trans('password.reset.empty_password'),
+            ]);
         }
 
-        $hashedPassword = $this->passwordHasher->hashPassword($user, $newPassword);
-        $user->setPassword($hashedPassword);
-
+        $user->setPassword($this->passwordHasher->hashPassword($user, $password));
         $this->entityManager->flush();
 
-        return new JsonResponse(['success' => true, 'message' => 'Password successfully updated.']);
+        $this->addFlash('success', 'password.reset.success');
+
+        return AvalynxFormResponse::success($this->generateUrl('app_login'));
+    }
+
+    /**
+     * The reset form posts to its own freshly signed URL: the signature of
+     * the execute link does not cover the submit endpoint, so handing a
+     * plain path to the template would fail verification on submit.
+     */
+    private function renderResetForm(string $userId): Response
+    {
+        $submitUrl = $this->uriSigner->sign(
+            $this->generateUrl('app_profile_password_reset_submit', ['userId' => $userId], UrlGeneratorInterface::ABSOLUTE_URL),
+            1800,
+        );
+
+        return $this->render('profile/password_reset.html.twig', [
+            'userId' => $userId,
+            'submitUrl' => $submitUrl,
+        ]);
+    }
+
+    private function isSignedRequestValid(): bool
+    {
+        $request = $this->requestStack->getCurrentRequest();
+        if (null === $request) {
+            return false;
+        }
+
+        return $this->uriSigner->checkRequest($request);
     }
 }

@@ -43,7 +43,7 @@
                                         <input class="form-check-input no-validation" type="checkbox" value="on" id="remember" name="_remember_me" />
                                         <label class="form-check-label no-validation" for="remember">{{ 'login.remember_me'|trans }}</label>
                                     </div>
-                                    <a class="small" href="#">{{ 'login.forgot_password'|trans }}</a>
+                                    <a class="small" href="{{ path('app_password_reset_request') }}">{{ 'login.forgot_password'|trans }}</a>
                                 </div>
                             </div>
                             <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}" />

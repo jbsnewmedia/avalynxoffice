@@ -349,7 +349,9 @@ final class ContactCalendarControllerTest extends WebTestCase
         ], [], ['HTTP_X-Requested-With' => 'XMLHttpRequest']);
 
         self::assertResponseIsSuccessful();
-        self::assertJsonStringEqualsJsonString('{"success":true}', (string) $this->client->getResponse()->getContent());
+                $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertTrue($data['success']);
+        self::assertArrayHasKey('redirect', $data);
 
         $this->entityManager->clear();
         $updated = $this->entityManager->getRepository(Address::class)->find($this->jane->getId());
@@ -375,9 +377,9 @@ final class ContactCalendarControllerTest extends WebTestCase
         ], [], ['HTTP_X-Requested-With' => 'XMLHttpRequest']);
 
         self::assertResponseStatusCodeSame(422);
-        $content = (string) $this->client->getResponse()->getContent();
-        self::assertStringContainsString('modal-form', $content);
-        self::assertStringContainsString('not-an-email', $content);
+        $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertFalse($data['success']);
+        self::assertArrayHasKey('invalid', $data);
     }
 
     public function testContactCreateAddsContactToSelectedMailbox(): void
@@ -401,7 +403,9 @@ final class ContactCalendarControllerTest extends WebTestCase
         ], [], ['HTTP_X-Requested-With' => 'XMLHttpRequest']);
 
         self::assertResponseIsSuccessful();
-        self::assertJsonStringEqualsJsonString('{"success":true}', (string) $this->client->getResponse()->getContent());
+                $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertTrue($data['success']);
+        self::assertArrayHasKey('redirect', $data);
 
         $this->entityManager->clear();
         $created = $this->entityManager->getRepository(Address::class)->findOneBy(['email' => 'nina@example.com']);

@@ -18,8 +18,9 @@ use AvalynxOffice\Licensing\Service\LicenseOperation;
 use AvalynxOffice\Repository\CalendarEventRepository;
 use AvalynxOffice\Repository\MailboxRepository;
 use AvalynxOffice\Service\Mail\UserMailboxProvider;
+use AvalynxOffice\Util\AvalynxFormResponse;
+use AvalynxOffice\Util\FormInvalidMapper;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -105,7 +106,7 @@ final class CalendarController extends AbstractController
         $form->handleRequest($request);
 
         if (!$form->isSubmitted() || !$form->isValid()) {
-            return $this->renderModalForm($form, $this->translator->trans('calendar.new'), Response::HTTP_UNPROCESSABLE_ENTITY);
+            return AvalynxFormResponse::invalid(FormInvalidMapper::map($form));
         }
 
         $mailbox = $form->get('mailbox')->getData();
@@ -116,7 +117,16 @@ final class CalendarController extends AbstractController
 
         $this->eventRepository->createFromForm($mailbox, $event);
 
-        return new JsonResponse(['success' => true]);
+        return AvalynxFormResponse::success($this->resolveCalendarRedirect($request, 'all'));
+    }
+
+    private function resolveCalendarRedirect(Request $request, string $fallbackMonthKey): string
+    {
+        $referer = $request->headers->get('referer');
+
+        return is_string($referer) && '' !== $referer
+            ? $referer
+            : $this->generateUrl('calendar_month', ['monthKey' => $fallbackMonthKey]);
     }
 
     #[Route(path: '/calendar/{monthKey}/{eventId}/modal', name: 'calendar_edit_modal', methods: ['GET'], requirements: ['monthKey' => 'all|\d{4}-\d{2}', 'eventId' => '[0-9a-fA-F\-]{36}'])]
@@ -149,13 +159,13 @@ final class CalendarController extends AbstractController
         $form->handleRequest($request);
 
         if (!$form->isSubmitted() || !$form->isValid()) {
-            return $this->renderModalForm($form, $this->translator->trans('calendar.edit'), Response::HTTP_UNPROCESSABLE_ENTITY);
+            return AvalynxFormResponse::invalid(FormInvalidMapper::map($form));
         }
 
         $this->licenseEnforcement->assertCanPerform(LicenseOperation::CALENDAR_WRITE);
         $this->eventRepository->save($event);
 
-        return new JsonResponse(['success' => true]);
+        return AvalynxFormResponse::success($this->resolveCalendarRedirect($request, $monthKey));
     }
 
     #[Route(path: '/calendar/{monthKey}/{eventId}/delete', name: 'calendar_event_delete', methods: ['POST'], requirements: ['monthKey' => 'all|\d{4}-\d{2}', 'eventId' => '[0-9a-fA-F\-]{36}'])]
@@ -534,17 +544,6 @@ final class CalendarController extends AbstractController
         }
 
         return $event;
-    }
-
-    /**
-     * @param FormInterface<CalendarEvent> $form
-     */
-    private function renderModalForm(FormInterface $form, string $title, int $status): Response
-    {
-        return $this->render('calendar/_modal_form.html.twig', [
-            'form' => $form,
-            'title' => $title,
-        ], new Response(null, $status));
     }
 
     private function requireXmlHttpRequest(Request $request): void

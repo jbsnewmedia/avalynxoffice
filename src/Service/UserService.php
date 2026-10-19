@@ -164,11 +164,14 @@ final readonly class UserService
     }
 
     /**
-     * Generates a signed password reset link and sends it to the user's recovery addresses.
-     * If the user does not exist or has no recovery addresses, this method does nothing
-     * to prevent user enumeration.
+     * Generates a signed password reset link and sends it to the user's
+     * recovery addresses. Unknown users and users without recovery
+     * addresses are silently ignored to prevent account enumeration.
+     *
+     * @param non-empty-string       $email
+     * @param \Closure(User): string $resetUrlFor builds the absolute reset URL for the given user
      */
-    public function requestPasswordReset(string $email, string $resetUrl): void
+    public function requestPasswordReset(string $email, \Closure $resetUrlFor): void
     {
         $user = $this->userRepository->findOneBy(['email' => strtolower($email)]);
 
@@ -176,7 +179,7 @@ final readonly class UserService
             return;
         }
 
-        $signedUrl = $this->uriSigner->sign($resetUrl, 1800);
+        $signedUrl = $this->uriSigner->sign($resetUrlFor($user), 1800);
 
         $this->sendToRecoveryAddresses(
             $user,

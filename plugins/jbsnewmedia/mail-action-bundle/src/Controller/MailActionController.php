@@ -19,6 +19,8 @@ use AvalynxOffice\Licensing\Service\LicenseOperation;
 use AvalynxOffice\Repository\EmailRepository;
 use AvalynxOffice\Repository\FolderRepository;
 use AvalynxOffice\Service\Mail\MailService;
+use AvalynxOffice\Util\AvalynxFormResponse;
+use AvalynxOffice\Util\FormInvalidMapper;
 use JBSNewMedia\MailActionBundle\Service\EmailActionService;
 use JBSNewMedia\MailActionBundle\Service\MailDraftService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -261,8 +263,13 @@ final class MailActionController extends AbstractController
      */
     private function handleDraftSubmission(Email $email, FormInterface $form, Request $request, bool $redirectDraftToEdit): ?Response
     {
-        if (!$form->isSubmitted() || !$form->isValid()) {
+        if (!$form->isSubmitted()) {
             return null;
+        }
+
+        if (!$form->isValid()) {
+            // AvalynxForm submits via fetch and expects JSON field errors.
+            return AvalynxFormResponse::invalid(FormInvalidMapper::map($form));
         }
 
         $fromValue = $form->get('from')->getData();
@@ -310,7 +317,9 @@ final class MailActionController extends AbstractController
         if ($scheduleLaterValue && null === $scheduledAtValue) {
             $form->get('scheduledAt')->addError(new FormError($this->translator->trans('email.scheduled_at_required')));
 
-            return null;
+            return AvalynxFormResponse::invalid([
+                'email_reply[scheduledAt]' => $this->translator->trans('email.scheduled_at_required'),
+            ]);
         }
 
         $scheduledAt = $scheduleLaterValue && $scheduledAtValue instanceof \DateTimeInterface
@@ -334,14 +343,24 @@ final class MailActionController extends AbstractController
         } catch (\RuntimeException $exception) {
             $form->get('attachments')->addError(new FormError($exception->getMessage()));
 
-            return null;
+            return AvalynxFormResponse::invalid([
+                'email_reply[attachments]' => $exception->getMessage(),
+            ]);
         }
 
         $this->addFlash('success', $this->translator->trans($isDraft ? 'email.draft_saved' : 'email.queued'));
 
         if ($redirectDraftToEdit) {
             if ($request->isXmlHttpRequest()) {
-                return new JsonResponse(['success' => true]);
+                if ($isDraft) {
+                    // Stay in the modal: the draft already has an identity,
+                    // saving again is idempotent.
+                    return AvalynxFormResponse::success(null, [
+                        'message' => $this->translator->trans('email.draft_saved'),
+                    ]);
+                }
+
+                return AvalynxFormResponse::success($this->generateUrl('mail_index'));
             }
 
             if (!$isDraft) {
@@ -351,13 +370,15 @@ final class MailActionController extends AbstractController
             return null;
         }
 
-        if ($isDraft) {
-            return $this->redirectToRoute('mail_edit', ['id' => $email->getId(), 'ajax' => '1']);
+        if (!$request->isXmlHttpRequest()) {
+            return $this->redirectToRoute('mail_index');
         }
 
-        return $request->isXmlHttpRequest()
-            ? new JsonResponse(['success' => true])
-            : $this->redirectToRoute('mail_index');
+        // Compose: the response closes the modal — submitting again would
+        // create a second draft.
+        return AvalynxFormResponse::success($this->generateUrl('mail_index'), $isDraft ? [
+            'message' => $this->translator->trans('email.draft_saved'),
+        ] : []);
     }
 
     /**

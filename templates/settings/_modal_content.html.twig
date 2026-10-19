@@ -33,21 +33,6 @@
                 </div>
             </div>
         </div>
-        <div class="col-12">
-            <div class="card shadow-sm">
-                <div class="card-header bg-body">
-                    <strong>{{ 'settings.newsletter'|trans }}</strong>
-                </div>
-                <div class="card-body">
-                    <form method="post" action="{{ path('app_settings_newsletter') }}">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" role="switch" id="newsletterSwitchModal" name="newsletter_optin" {% if newsletter_optin %}checked{% endif %} onchange="this.form.submit()">
-                            <label class="form-check-label" for="newsletterSwitchModal">{{ 'settings.newsletter_optin'|trans }}</label>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
         {% if is_granted('ROLE_ADMIN') %}
             <div class="col-12">
                 <div class="card shadow-sm">
@@ -56,7 +41,7 @@
                     </div>
                     <div class="card-body">
                         <p class="text-body-secondary">{{ 'settings.appearance.help'|trans }}</p>
-                        <form method="post" action="{{ path('app_settings_appearance') }}">
+                        <form id="settings-appearance-form" method="post" action="{{ path('app_settings_appearance') }}" data-avalynxform="1">
                             <input type="hidden" name="_token" value="{{ csrf_token('save_appearance') }}">
                             <div class="input-group" style="max-width: 20rem;">
                                 <input type="color" class="form-control form-control-color" id="primaryColorPicker" name="primary_color" value="{{ primary_color }}" aria-label="{{ 'settings.appearance.primary_color'|trans }}" required>
@@ -69,6 +54,20 @@
                     </div>
                 </div>
             </div>
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-body">
+                        <strong>{{ 'legal.admin.title'|trans }}</strong>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-body-secondary">{{ 'legal.admin.settings_description'|trans }}</p>
+                        <a href="{{ path('app_settings_legal') }}" class="btn btn-primary">
+                            <i class="fa-solid fa-scale-balanced me-2" aria-hidden="true"></i>
+                            {{ 'legal.admin.open'|trans }}
+                        </a>
+                    </div>
+                </div>
+            </div>
         {% endif %}
         <div class="col-12">
             <div class="card shadow-sm">
@@ -77,7 +76,7 @@
                 </div>
                 <div class="card-body">
                     <p class="text-body-secondary">{{ 'connector.settings_description'|trans }}</p>
-                    <a href="{{ path('connector_index') }}" class="btn btn-primary action-btn-modal" data-title="{{ 'connector.title'|trans }}" data-modal-size="modal-xl">
+                    <a href="{{ path('connector_index') }}" class="btn btn-primary">
                         <i class="fa-regular fa-envelope me-2" aria-hidden="true"></i>
                         {{ 'connector.manage'|trans }}
                     </a>
@@ -91,12 +90,12 @@
                 </div>
                 <div class="card-body">
                     <p class="text-body-secondary">{{ 'mailbox.structure_description'|trans }}</p>
-                    <a href="{{ path('mailbox_structure') }}" class="btn btn-primary action-btn-modal" data-title="{{ 'mailbox.view'|trans }}" data-modal-size="modal-xl">
+                    <a href="{{ path('mailbox_structure') }}" class="btn btn-primary">
                         <i class="fa-regular fa-folder-open me-2" aria-hidden="true"></i>{{ 'mailbox.view'|trans }}
                     </a>
 
                     <p class="text-body-secondary mt-4">{{ 'mailbox.settings_description'|trans }}</p>
-                    <a href="{{ path('mailbox_index') }}" class="btn btn-primary action-btn-modal" data-title="{{ 'mailbox.title'|trans }}" data-modal-size="modal-xl">
+                    <a href="{{ path('mailbox_index') }}" class="btn btn-primary">
                         <i class="fa-solid fa-gear me-2" aria-hidden="true"></i>{{ 'mailbox.manage'|trans }}
                     </a>
                 </div>

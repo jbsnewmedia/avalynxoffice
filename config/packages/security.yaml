@@ -29,6 +29,7 @@ security:
     access_control:
         - { path: ^/admin/database/setup, roles: PUBLIC_ACCESS }
         - { path: ^/(login|logout)$, roles: PUBLIC_ACCESS }
+        - { path: ^/(impressum|datenschutz|agb)$, roles: PUBLIC_ACCESS }
         - { path: ^/profile/password-reset, roles: PUBLIC_ACCESS }
         - { path: ^/locale, roles: PUBLIC_ACCESS }
         - { path: ^/(css|js|images|build|assets), roles: PUBLIC_ACCESS }

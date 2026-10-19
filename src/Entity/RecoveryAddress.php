@@ -21,9 +21,8 @@ use Symfony\Component\Uid\UuidV7;
  * A user may register at most two of them.
  */
 #[ORM\Entity(repositoryClass: RecoveryAddressRepository::class)]
-#[ORM\Table(name: 'app_recovery_address', uniqueConstraints: [
-    new ORM\UniqueConstraint(name: 'uniq_recovery_address_user_email', columns: ['user_id', 'email']),
-])]
+#[ORM\UniqueConstraint(name: 'uniq_recovery_address_user_email', columns: ['user_id', 'email'])]
+#[ORM\Table(name: 'app_recovery_address')]
 #[ORM\HasLifecycleCallbacks]
 class RecoveryAddress
 {

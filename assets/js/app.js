@@ -788,6 +788,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             };
             const attachFormListener = (form, originalUrl) => {
+                if (form.matches('[data-avalynxform]')) {
+                    // AvalynxForm (avalynx-form-init.js) owns this form.
+                    return;
+                }
                 form.addEventListener('submit', function(e) {
                     e.preventDefault();
                     if (typeof form.__syncMailboxListEditors === 'function') {
@@ -1618,6 +1622,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
             });
         }
+        // Full-page admin areas (settings, connectors, mailboxes, legal)
+        // render their editors server-side, so initialize them on load —
+        // the modal flow initializes its content itself after insertion.
+        initMailboxListEditors(document);
+        initComposeEditors(document);
         setupFolderDrops(document);
         const mo = new MutationObserver(function(){ setupFolderDrops(document); });
         mo.observe(document.body, {subtree:true, childList:true});

@@ -9,12 +9,12 @@
         { value: 'drafts', label: 'folder.function.drafts'|trans },
     ] %}
     <div class="d-flex align-items-center mb-4">
-        <a href="{{ path('mailbox_index') }}" class="btn btn-outline-secondary me-2 action-btn-modal" data-title="{{ 'mailbox.title'|trans }}" data-modal-size="modal-xl" aria-label="{{ 'common.back'|trans }}" title="{{ 'common.back'|trans }}">
+        <a href="{{ path('mailbox_index') }}" class="btn btn-outline-secondary me-2" aria-label="{{ 'common.back'|trans }}" title="{{ 'common.back'|trans }}">
             <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
         </a>
         <h4 class="m-0">{{ title }}</h4>
     </div>
-    {{ form_start(form, {'attr': {'id': 'modal-form'}}) }}
+    {{ form_start(form, {'attr': {'id': 'mailbox-form', 'data-avalynxform': '1'}}) }}
         <div class="row g-3">
             <div class="col-md-6">{{ form_row(form.name, {'attr': {'class': 'form-control'}}) }}</div>
             <div class="col-md-6">{{ form_row(form.email, {'attr': {'class': 'form-control'}}) }}</div>
@@ -65,7 +65,7 @@
                 </div>
             </div>
         </div>
-        <div class="modal-form-buttons d-none">
+        <div class="mt-4">
             {{ form_widget(form.save) }}
         </div>
     {{ form_end(form) }}

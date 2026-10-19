@@ -1,6 +1,6 @@
 <div class="p-4">
     <h4 class="m-0 mb-4">{{ title }}</h4>
-    {{ form_start(form, {'attr': {'id': 'modal-form'}}) }}
+    {{ form_start(form, {'attr': {'id': 'contact-form', 'data-avalynxform': '1'}}) }}
         <div class="row g-3">
             <div class="col-md-4">{{ form_row(form.firstname, {'attr': {'class': 'form-control'}}) }}</div>
             <div class="col-md-4">{{ form_row(form.lastname, {'attr': {'class': 'form-control'}}) }}</div>
