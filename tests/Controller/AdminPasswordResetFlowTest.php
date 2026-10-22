@@ -82,11 +82,13 @@ final class AdminPasswordResetFlowTest extends WebTestCase
         ]);
         self::assertResponseIsSuccessful();
 
-        $content = (string) $this->client->getResponse()->getContent();
-        self::assertSame(1, preg_match('/<code class="fs-5">([A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4})<\/code>/s', $content, $tokenMatches));
-        self::assertSame(1, preg_match('/<code class="fs-5">(\d{4})<\/code>/s', $content, $numberMatches));
-        $token = $tokenMatches[1];
-        $number = (int) $numberMatches[1];
+        $payload = $this->jsonPayload();
+        self::assertTrue($payload['success']);
+        self::assertSame('/profile/password-reset', $payload['redirect']);
+
+        // The client follows the redirect: the GET page renders the freshly
+        // created code exactly once from the session.
+        [$token, $number] = $this->loadCodePageAndReadCode();
 
         // The user generated the code themselves: the request starts claimed.
         $openRequest = $this->findResetRequest($token);
@@ -111,7 +113,7 @@ final class AdminPasswordResetFlowTest extends WebTestCase
         self::assertTrue($hasher->isPasswordValid($target, self::NEW_PASSWORD));
     }
 
-    public function testUserStartWithoutEmailRedirectsWithDangerFlash(): void
+    public function testUserStartWithoutEmailAnswersInvalidField(): void
     {
         $crawler = $this->client->request('GET', '/profile/password-reset');
         $codeInputs = $crawler->filter('#reset-code input[name="_token"]');
@@ -121,13 +123,14 @@ final class AdminPasswordResetFlowTest extends WebTestCase
             'email' => '',
             '_token' => (string) $codeInputs->attr('value'),
         ]);
-        self::assertResponseRedirects('/profile/password-reset');
+        self::assertResponseStatusCodeSame(422);
 
-        $this->client->followRedirect();
-        self::assertSelectorTextContains('.alert-danger', 'Please enter your email address.');
+        $payload = $this->jsonPayload();
+        self::assertFalse($payload['success']);
+        self::assertSame('Please enter your email address.', $payload['invalid']['email']);
     }
 
-    public function testUserStartWithUnknownEmailRedirectsWithDangerFlash(): void
+    public function testUserStartWithUnknownEmailAnswersInvalidField(): void
     {
         $crawler = $this->client->request('GET', '/profile/password-reset');
         $codeInputs = $crawler->filter('#reset-code input[name="_token"]');
@@ -137,10 +140,11 @@ final class AdminPasswordResetFlowTest extends WebTestCase
             'email' => 'nobody@example.com',
             '_token' => (string) $codeInputs->attr('value'),
         ]);
-        self::assertResponseRedirects('/profile/password-reset');
+        self::assertResponseStatusCodeSame(422);
 
-        $this->client->followRedirect();
-        self::assertSelectorTextContains('.alert-danger', 'No active account exists for this email address.');
+        $payload = $this->jsonPayload();
+        self::assertFalse($payload['success']);
+        self::assertSame('No active account exists for this email address.', $payload['invalid']['email']);
     }
 
     public function testLoggedInUserStartsOwnCodeFlow(): void
@@ -157,11 +161,11 @@ final class AdminPasswordResetFlowTest extends WebTestCase
             '_token' => (string) $codeInputs->attr('value'),
         ]);
         self::assertResponseIsSuccessful();
+        self::assertTrue($this->jsonPayload()['success']);
 
-        $content = (string) $this->client->getResponse()->getContent();
-        self::assertSame(1, preg_match('/<code class="fs-5">([A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4})<\/code>/s', $content, $tokenMatches));
+        [$token, $number] = $this->loadCodePageAndReadCode();
 
-        $openRequest = $this->findResetRequest($tokenMatches[1]);
+        $openRequest = $this->findResetRequest($token);
         self::assertSame(PasswordResetRequest::STATUS_CLAIMED, $openRequest->getStatus());
         self::assertNotNull($openRequest->getUser());
         self::assertSame(self::TARGET_EMAIL, $openRequest->getUser()->getEmail());
@@ -330,6 +334,24 @@ final class AdminPasswordResetFlowTest extends WebTestCase
         $payload = $this->jsonPayload();
         self::assertSame('unknown', $payload['state']);
         self::assertSame(0, $payload['secondsLeft']);
+    }
+
+    /**
+     * Follows the client-side redirect of a successful code creation and
+     * reads the one-time code (flow token and release number) from the page.
+     *
+     * @return array{string, int}
+     */
+    private function loadCodePageAndReadCode(): array
+    {
+        $this->client->request('GET', '/profile/password-reset');
+        self::assertResponseIsSuccessful();
+
+        $content = (string) $this->client->getResponse()->getContent();
+        self::assertSame(1, preg_match('/<code class="fs-5">([A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4})<\/code>/s', $content, $tokenMatches));
+        self::assertSame(1, preg_match('/<code class="fs-5">(\d{4})<\/code>/s', $content, $numberMatches));
+
+        return [$tokenMatches[1], (int) $numberMatches[1]];
     }
 
     /**

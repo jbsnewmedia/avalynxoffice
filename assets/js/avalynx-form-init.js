@@ -54,6 +54,14 @@
             }
 
             root.querySelectorAll(SELECTOR).forEach(initializeForm);
+
+            return;
+        }
+
+        // Whole-document initialization on DOMContentLoaded: the document
+        // node is not an Element, but querySelectorAll works the same on it.
+        if (root === document) {
+            document.querySelectorAll(SELECTOR).forEach(initializeForm);
         }
     };
 
