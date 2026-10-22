@@ -182,9 +182,10 @@ final class ProfileControllerTest extends WebTestCase
     {
         $this->client->request('POST', '/profile/password-reset', ['_token' => 'invalid', 'email' => 'user@example.com']);
 
-        self::assertResponseStatusCodeSame(403);
-        $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
-        self::assertFalse($data['success']);
+        self::assertResponseIsSuccessful();
+        $content = (string) $this->client->getResponse()->getContent();
+        self::assertStringContainsString('alert alert-danger', $content);
+        self::assertStringContainsString('Invalid form token', $content);
     }
 
     public function testPasswordResetSendRequiresEmail(): void
@@ -192,10 +193,10 @@ final class ProfileControllerTest extends WebTestCase
         $token = $this->setCsrfToken('password_reset_request');
         $this->client->request('POST', '/profile/password-reset', ['_token' => $token, 'email' => '']);
 
-        self::assertResponseStatusCodeSame(422);
-        $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
-        self::assertFalse($data['success']);
-        self::assertArrayHasKey('email', $data['invalid']);
+        self::assertResponseIsSuccessful();
+        $content = (string) $this->client->getResponse()->getContent();
+        self::assertStringContainsString('alert alert-danger', $content);
+        self::assertStringContainsString('Please enter an email address', $content);
     }
 
     public function testPasswordResetSendAnswersGenericSuccessForUnknownUser(): void
@@ -204,9 +205,10 @@ final class ProfileControllerTest extends WebTestCase
         $this->client->request('POST', '/profile/password-reset', ['_token' => $token, 'email' => 'unknown@example.com']);
 
         self::assertResponseIsSuccessful();
-        $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
-        self::assertTrue($data['success']);
-        self::assertArrayHasKey('redirect', $data);
+        $content = (string) $this->client->getResponse()->getContent();
+        self::assertStringContainsString('alert alert-success', $content);
+        self::assertStringContainsString('If recovery addresses are registered', $content);
+        self::assertStringContainsString('Back to sign in', $content);
     }
 
     public function testPasswordResetSendAnswersGenericSuccessWithoutAddresses(): void
@@ -215,9 +217,10 @@ final class ProfileControllerTest extends WebTestCase
         $this->client->request('POST', '/profile/password-reset', ['_token' => $token, 'email' => 'user@example.com']);
 
         self::assertResponseIsSuccessful();
-        $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
-        self::assertTrue($data['success']);
-        self::assertArrayHasKey('redirect', $data);
+        $content = (string) $this->client->getResponse()->getContent();
+        self::assertStringContainsString('alert alert-success', $content);
+        self::assertStringContainsString('If recovery addresses are registered', $content);
+        self::assertStringContainsString('Back to sign in', $content);
     }
 
     public function testPasswordResetSendAnswersGenericSuccessWithRecoveryAddress(): void
@@ -227,9 +230,10 @@ final class ProfileControllerTest extends WebTestCase
         $this->client->request('POST', '/profile/password-reset', ['_token' => $token, 'email' => 'user@example.com']);
 
         self::assertResponseIsSuccessful();
-        $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
-        self::assertTrue($data['success']);
-        self::assertArrayHasKey('redirect', $data);
+        $content = (string) $this->client->getResponse()->getContent();
+        self::assertStringContainsString('alert alert-success', $content);
+        self::assertStringContainsString('If recovery addresses are registered', $content);
+        self::assertStringContainsString('Back to sign in', $content);
     }
 
     public function testPasswordResetExecuteRejectsInvalidSignature(): void

@@ -12,6 +12,7 @@ namespace AvalynxOffice\Controller;
 use AvalynxOffice\Entity\RecoveryAddress;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Repository\UserRepository;
+use AvalynxOffice\Service\AdminPasswordResetService;
 use AvalynxOffice\Service\UserService;
 use AvalynxOffice\Util\AvalynxFormResponse;
 use Doctrine\ORM\EntityManagerInterface;
@@ -37,6 +38,7 @@ class ProfileController extends AbstractController
         private readonly UserPasswordHasherInterface $passwordHasher,
         private readonly RequestStack $requestStack,
         private readonly TranslatorInterface $translator,
+        private readonly AdminPasswordResetService $adminPasswordResetService,
     ) {
     }
 
@@ -117,42 +119,113 @@ class ProfileController extends AbstractController
     #[Route('/profile/password-reset', name: 'app_password_reset_request', methods: ['GET'])]
     public function passwordResetRequest(): Response
     {
-        return $this->render('profile/password_reset_request.html.twig');
+        return $this->render('profile/password_reset_request.html.twig', [
+            'code' => null,
+            'sent' => false,
+            'error' => null,
+        ]);
     }
 
-    #[Route('/profile/password-reset', name: 'app_password_reset_send', methods: ['POST'])]
-    public function passwordResetSend(Request $request): JsonResponse
+    /**
+     * User-initiated two-key reset: the user generates token and release
+     * number on this page and presents both to the administrator in person.
+     * Logged-in users start the flow for their own account, anonymous users
+     * have to provide their account email address.
+     */
+    #[Route('/profile/password-reset/code', name: 'app_password_reset_code_start', methods: ['POST'])]
+    public function passwordResetCodeStart(Request $request): Response
     {
         $tokenRaw = $request->request->get('_token');
         $token = is_scalar($tokenRaw) ? (string) $tokenRaw : null;
 
-        if (null === $token || !$this->isCsrfTokenValid('password_reset_request', $token)) {
-            return AvalynxFormResponse::failure($this->translator->trans('password.reset.invalid_token'));
+        if (null === $token || !$this->isCsrfTokenValid('password_reset_code', $token)) {
+            $this->addFlash('danger', $this->translator->trans('password.reset.invalid_token'));
+
+            return $this->redirectToRoute('app_password_reset_request');
         }
 
+        $user = $this->getUser();
         $emailRaw = $request->request->get('email');
         $email = is_scalar($emailRaw) ? trim((string) $emailRaw) : '';
 
-        if ('' === $email) {
-            return AvalynxFormResponse::invalid([
-                'email' => $this->translator->trans('password.reset.email_required'),
-            ]);
+        $target = null;
+
+        if ($user instanceof User) {
+            $target = $user;
+        } else {
+            if ('' === $email) {
+                $this->addFlash('danger', $this->translator->trans('password.reset.code_email_required'));
+
+                return $this->redirectToRoute('app_password_reset_request');
+            }
+
+            $candidate = $this->userRepository->findOneBy(['email' => strtolower($email)]);
+
+            if (null === $candidate || !$candidate->isActive()) {
+                $this->addFlash('danger', $this->translator->trans('password.reset.code_user_not_found'));
+
+                return $this->redirectToRoute('app_password_reset_request');
+            }
+
+            $target = $candidate;
         }
 
-        // The answer never reveals whether the account (or a recovery
-        // address) exists — the same message is shown in every case.
-        $this->userService->requestPasswordReset(
-            $email,
-            fn (User $candidate): string => $this->generateUrl(
-                'app_profile_password_reset_execute',
-                ['userId' => $candidate->getId()?->toRfc4122() ?? ''],
-                UrlGeneratorInterface::ABSOLUTE_URL,
-            ),
+        $clientIp = $request->getClientIp() ?? 'unknown';
+        \assert('' !== $clientIp);
+
+        $result = $this->adminPasswordResetService->startUserRequest(
+            $target,
+            $clientIp,
         );
 
-        $this->addFlash('success', 'password.reset.link_sent');
+        // Render directly (no redirect): token and release number are shown
+        // exactly once and must not get lost with the flash message.
+        return $this->render('profile/password_reset_request.html.twig', [
+            'code' => [
+                'token' => $result['token'],
+                'number' => $result['number'],
+            ],
+        ]);
+    }
 
-        return AvalynxFormResponse::success($this->generateUrl('app_login'));
+    #[Route('/profile/password-reset', name: 'app_password_reset_send', methods: ['POST'])]
+    public function passwordResetSend(Request $request): Response
+    {
+        $tokenRaw = $request->request->get('_token');
+        $token = is_scalar($tokenRaw) ? (string) $tokenRaw : null;
+
+        $sent = false;
+        $error = null;
+
+        if (null === $token || !$this->isCsrfTokenValid('password_reset_request', $token)) {
+            $error = $this->translator->trans('password.reset.invalid_token');
+        } else {
+            $emailRaw = $request->request->get('email');
+            $email = is_scalar($emailRaw) ? trim((string) $emailRaw) : '';
+
+            if ('' === $email) {
+                $error = $this->translator->trans('password.reset.email_required');
+            } else {
+                // The answer never reveals whether the account (or a recovery
+                // address) exists — the same message is shown in every case.
+                $this->userService->requestPasswordReset(
+                    $email,
+                    fn (User $candidate): string => $this->generateUrl(
+                        'app_profile_password_reset_execute',
+                        ['userId' => $candidate->getId()?->toRfc4122() ?? ''],
+                        UrlGeneratorInterface::ABSOLUTE_URL,
+                    ),
+                );
+
+                $sent = true;
+            }
+        }
+
+        return $this->render('profile/password_reset_request.html.twig', [
+            'code' => null,
+            'sent' => $sent,
+            'error' => $error,
+        ]);
     }
 
     #[Route('/profile/password-reset/execute/{userId}', name: 'app_profile_password_reset_execute', methods: ['GET'])]

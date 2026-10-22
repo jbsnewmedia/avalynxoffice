@@ -69,16 +69,15 @@ final class AdminPasswordResetController extends AbstractController
             return $this->redirectToRoute('app_admin_password_resets', [], Response::HTTP_SEE_OTHER);
         }
 
-        $this->addFlash(
-            'success',
-            $this->translator->trans('admin.password_resets.started', [
-                '%token%' => $result['token'],
-                '%number%' => $result['number'],
-                '%user%' => $result['request']->getUser()?->getEmail() ?? '',
-            ]),
-        );
-
-        return $this->redirectToRoute('app_admin_password_resets', [], Response::HTTP_SEE_OTHER);
+        // Render directly (no redirect): the token and the release number are
+        // shown exactly once and must not get lost with the flash message.
+        return $this->render('admin/password_resets/index.html.twig', [
+            'requests' => $this->adminPasswordResetService->listOpenRequests(),
+            'flow' => [
+                'token' => $result['token'],
+                'number' => $result['number'],
+            ],
+        ]);
     }
 
     #[Route('/admin/password-resets/{id}/release', name: 'app_admin_password_resets_release', methods: ['POST'])]

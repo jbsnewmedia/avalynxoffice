@@ -98,6 +98,9 @@
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
                             <li><a class="dropdown-item" href="{{ path('app_settings') }}" aria-label="{{ 'nav.open_settings'|trans }}"><i class="fa-solid fa-gear me-2" aria-hidden="true"></i>{{ 'nav.settings'|trans }}</a></li>
                             <li><a class="dropdown-item" href="{{ path('app_profile') }}" aria-label="{{ 'nav.open_profile'|trans }}"><i class="fa-solid fa-user me-2" aria-hidden="true"></i>{{ 'nav.profile'|trans }}</a></li>
+                            {% if is_granted('ROLE_ADMIN') %}
+                                <li><a class="dropdown-item" href="{{ path('app_admin_password_resets') }}" aria-label="{{ 'nav.password_resets'|trans }}"><i class="fa-solid fa-user-shield me-2" aria-hidden="true"></i>{{ 'nav.password_resets'|trans }}</a></li>
+                            {% endif %}
                             <li><hr class="dropdown-divider" aria-hidden="true"></li>
                             <li><a class="dropdown-item" href="{{ path('app_help') }}" aria-label="{{ 'nav.help'|trans }}"><i class="fa-solid fa-circle-question me-2" aria-hidden="true"></i>{{ 'nav.help'|trans }}</a></li>
                             <li><a class="dropdown-item" href="{{ path('app_about') }}" aria-label="{{ 'nav.about'|trans }}"><i class="fa-solid fa-circle-info me-2" aria-hidden="true"></i>{{ 'nav.about'|trans }}</a></li>

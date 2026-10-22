@@ -1542,9 +1542,8 @@ document.addEventListener('DOMContentLoaded', function () {
         }).catch(console.error);
     });
     (function(){
-        const hasAlert = typeof window.AvalynxAlert !== 'undefined' && window.AvalynxAlert;
-        function alertSuccess(msg){ try{ hasAlert && window.AvalynxAlert.success({message: msg, position: 'top-right'}); }catch(e){ console.log('SUCCESS:', msg);} }
-        function alertError(msg){ try{ hasAlert && window.AvalynxAlert.error({message: msg, position: 'top-right'}); }catch(e){ console.error('ERROR:', msg);} }
+        function alertSuccess(msg){ try{ AvalynxAlert.success({message: msg, position: 'top-right'}); }catch(e){ console.log('SUCCESS:', msg);} }
+        function alertError(msg){ try{ AvalynxAlert.error({message: msg, position: 'top-right'}); }catch(e){ console.error('ERROR:', msg);} }
         document.querySelectorAll('.email-list-container').forEach(function(container){
             container.addEventListener('dragstart', function(e){
                 const item = e.target && e.target.closest && e.target.closest('.email-item');

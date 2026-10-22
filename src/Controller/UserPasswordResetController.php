@@ -42,10 +42,25 @@ final class UserPasswordResetController extends AbstractController
         $now = new \DateTimeImmutable();
 
         $state = 'unknown';
+        $secondsLeft = 0;
 
         if ($request instanceof PasswordResetRequest) {
-            if ($this->adminPasswordResetService->isAwaitingUser($request, $now)) {
+            if (PasswordResetRequest::STATUS_COMPLETED === $request->getStatus()) {
+                $state = PasswordResetRequest::STATUS_COMPLETED;
+            } elseif ($this->adminPasswordResetService->isAwaitingUser($request, $now)) {
+                // Opening the flow page with the token is how the user
+                // presents it - move the request from pending to claimed.
+                if (PasswordResetRequest::STATUS_PENDING === $request->getStatus()) {
+                    \assert('' !== $token);
+                    try {
+                        $request = $this->adminPasswordResetService->claim($token);
+                    } catch (\DomainException) {
+                        // The claim deadline passed in between; keep the state.
+                    }
+                }
+
                 $state = $request->getStatus();
+                $secondsLeft = $this->secondsLeft($request, $now);
             } else {
                 $state = PasswordResetRequest::STATUS_EXPIRED;
             }
@@ -54,6 +69,7 @@ final class UserPasswordResetController extends AbstractController
         return $this->render('profile/password_reset_flow.html.twig', [
             'token' => $token,
             'state' => $state,
+            'secondsLeft' => $secondsLeft,
             'statusUrl' => $this->generateUrl('app_user_password_reset_status', ['token' => $token]),
             'submitUrl' => $this->generateUrl('app_user_password_reset_submit', ['token' => $token]),
         ]);
@@ -71,15 +87,7 @@ final class UserPasswordResetController extends AbstractController
         if ($request instanceof PasswordResetRequest) {
             if ($this->adminPasswordResetService->isAwaitingUser($request, $now)) {
                 $state = $request->getStatus();
-
-                $releaseExpiresAt = $request->getReleaseExpiresAt();
-                $expiresAt = $request->getExpiresAt();
-
-                if (null !== $releaseExpiresAt && PasswordResetRequest::STATUS_RELEASED === $request->getStatus()) {
-                    $secondsLeft = max(0, $releaseExpiresAt->getTimestamp() - $now->getTimestamp());
-                } elseif (null !== $expiresAt) {
-                    $secondsLeft = max(0, $expiresAt->getTimestamp() - $now->getTimestamp());
-                }
+                $secondsLeft = $this->secondsLeft($request, $now);
             } else {
                 $state = PasswordResetRequest::STATUS_EXPIRED;
             }
@@ -89,6 +97,26 @@ final class UserPasswordResetController extends AbstractController
             'state' => $state,
             'secondsLeft' => $secondsLeft,
         ]);
+    }
+
+    /**
+     * Seconds until the relevant deadline of the request: the release window
+     * when the password may be entered, the claim deadline otherwise.
+     */
+    private function secondsLeft(PasswordResetRequest $request, \DateTimeImmutable $now): int
+    {
+        $releaseExpiresAt = $request->getReleaseExpiresAt();
+        $expiresAt = $request->getExpiresAt();
+
+        if (null !== $releaseExpiresAt && PasswordResetRequest::STATUS_RELEASED === $request->getStatus()) {
+            return max(0, $releaseExpiresAt->getTimestamp() - $now->getTimestamp());
+        }
+
+        if (null !== $expiresAt) {
+            return max(0, $expiresAt->getTimestamp() - $now->getTimestamp());
+        }
+
+        return 0;
     }
 
     #[Route('/profile/password-reset/admin-flow/{token}', name: 'app_user_password_reset_submit', methods: ['POST'])]

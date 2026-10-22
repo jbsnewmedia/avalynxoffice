@@ -40,8 +40,18 @@ run_as_application 'php bin/console doctrine:migrations:migrate --no-interaction
 # the previous image version must be rebuilt (it contains the compiled
 # configuration, e.g. new trusted_proxies settings).
 echo '[avalynxoffice] Rebuilding the application cache ...'
-run_as_application 'php bin/console cache:clear --no-warmup 2>&1' || true
-run_as_application 'php bin/console cache:warmup --quiet 2>&1' || true
+# The cache must be rebuilt after an image update, but a too-stale cache
+# (e.g. from a previous version with different class names) cannot even boot
+# the kernel for cache:clear. In that case remove it and warm up from scratch.
+if ! run_as_application 'php bin/console cache:clear --no-warmup 2>&1'; then
+    echo '[avalynxoffice] cache:clear failed, removing the stale cache directory ...'
+    run_as_application 'rm -rf /app/var/cache/prod'
+fi
+if ! run_as_application 'php bin/console cache:warmup --quiet 2>&1'; then
+    echo '[avalynxoffice] cache:warmup failed, retrying with a fresh cache directory ...'
+    run_as_application 'rm -rf /app/var/cache/prod'
+    run_as_application 'php bin/console cache:warmup --quiet 2>&1'
+fi
 
 if [ -n "${OFFICE_ADMIN_EMAIL:-}" ] && [ -n "${OFFICE_ADMIN_PASSWORD:-}" ]; then
     echo '[avalynxoffice] Ensuring the configured administrator exists ...'

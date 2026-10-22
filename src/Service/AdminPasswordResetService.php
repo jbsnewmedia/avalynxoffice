@@ -81,6 +81,47 @@ final readonly class AdminPasswordResetService
             throw new \DomainException('No active user with this email address.');
         }
 
+        $result = $this->createRequest($user, $adminIp, $claimTtl);
+
+        $result['request']->setCreatedByAdmin(self::uuidFrom($adminId));
+        $this->entityManager->flush();
+
+        return $result;
+    }
+
+    /**
+     * Starts a reset request for the given user themselves: the user generates
+     * token and release number on the reset page and presents both to the
+     * administrator in person. As the user sees the token from the start, the
+     * request is created in the claimed state and can be released right away.
+     *
+     * @param non-empty-string $ip IP of the requesting user
+     *
+     * @return array{request: PasswordResetRequest, token: string, number: int}
+     */
+    public function startUserRequest(
+        User $user,
+        string $ip,
+        int $claimTtl = PasswordResetRequest::CLAIM_TTL_SECONDS,
+        int $releaseTtl = PasswordResetRequest::RELEASE_TTL_SECONDS,
+    ): array {
+        $result = $this->createRequest($user, $ip, $claimTtl);
+
+        $token = $result['token'];
+        \assert('' !== $token);
+        $claimed = $this->claim($token);
+
+        return ['request' => $claimed, 'token' => $token, 'number' => $result['number']];
+    }
+
+    /**
+     * Creates a new pending request for the user and supersedes all open
+     * requests of the same user so that exactly one flow is active.
+     *
+     * @return array{request: PasswordResetRequest, token: string, number: int}
+     */
+    private function createRequest(User $user, string $ip, int $claimTtl): array
+    {
         $this->invalidateOpenRequests($user);
 
         $token = $this->generateToken();
@@ -93,8 +134,7 @@ final readonly class AdminPasswordResetService
         $request->setReleaseNumberHash($this->hashNumber($number));
         $request->setStatus(PasswordResetRequest::STATUS_PENDING);
         $request->setExpiresAt($now->modify(sprintf('+%d seconds', $claimTtl)));
-        $request->setCreatedByAdmin(self::uuidFrom($adminId));
-        $request->setCreatedIp($adminIp);
+        $request->setCreatedIp($ip);
 
         $this->entityManager->persist($request);
         $this->entityManager->flush();

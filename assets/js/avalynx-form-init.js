@@ -16,7 +16,7 @@
             return;
         }
 
-        if (typeof window.AvalynxForm !== 'function') {
+        if (typeof AvalynxForm !== 'function') {
             return;
         }
 
@@ -26,7 +26,7 @@
 
         form.dataset.avalynxformInit = 'true';
 
-        new window.AvalynxForm(form.id, {
+        new AvalynxForm(form.id, {
             onBeforeSubmit: (submittedForm) => {
                 if (typeof submittedForm.__syncMailboxListEditors === 'function') {
                     submittedForm.__syncMailboxListEditors();
@@ -35,13 +35,13 @@
                 return true;
             },
             onSuccess: (response) => {
-                if (response.message && typeof window.alertSuccess === 'function') {
-                    window.alertSuccess(response.message);
+                if (response.message && typeof AvalynxAlert !== 'undefined') {
+                    AvalynxAlert.success({ message: response.message, position: 'top-right' });
                 }
             },
             onError: (response) => {
-                if (response && response.message && typeof window.alertError === 'function') {
-                    window.alertError(response.message);
+                if (response && response.message && typeof AvalynxAlert !== 'undefined') {
+                    AvalynxAlert.error({ message: response.message, position: 'top-right' });
                 }
             }
         });
