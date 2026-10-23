@@ -43,11 +43,14 @@ Never create a commit while any of them fails or has pending changes:
 1. `composer bin-ecs` — must report **0** fixable files (run `composer bin-ecs-fix` first if needed).
 2. `composer bin-rector` — dry-run must report **no changes** (run `composer bin-rector-process` first if needed).
 3. `composer bin-phpstan` — no errors.
-4. `vendor-bin/phpunit/vendor/bin/phpunit --configuration=phpunit-no-coverage.xml.dist` — all tests green.
+4. `composer test` — all tests green.
+5. `composer test-coverage` — all tests green with **100% code coverage** (HTML report in `var/coverage`).
+    - The composer default timeout (300s) is too short for the coverage run:
+      use `COMPOSER_PROCESS_TIMEOUT=3600 composer test-coverage`.
 
 Notes:
 
-- Run these commands inside the Docker container as described above.
+- Run these com6mands inside the Docker container as described above.
 - The test suite resets the shared development database: recreate the
   test accounts afterwards (e.g. `php bin/console app:user:create`).
 - Only commit after every check passed; if a check modified files,

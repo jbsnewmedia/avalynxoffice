@@ -371,11 +371,7 @@ final class CalendarControllerTest extends WebTestCase
             ],
         ], [], ['HTTP_X-Requested-With' => 'XMLHttpRequest']);
 
-        $content = (string) $this->client->getResponse()->getContent();
-        $pos = strpos($content, 'has-error');
-        fwrite(STDERR, "\nSTATUS: ".$this->client->getResponse()->getStatusCode()."\n");
-        fwrite(STDERR, $pos !== false ? preg_replace('/\s+/', ' ', strip_tags(substr($content, $pos - 150, 700)))."\n" : "no has-error\n");
-        self::assertTrue(true);
+        self::assertResponseIsSuccessful();
     }
 
     public function testEventCreateWithoutTitleFailsValidation(): void

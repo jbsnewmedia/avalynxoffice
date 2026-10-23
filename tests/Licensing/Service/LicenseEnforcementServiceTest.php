@@ -75,9 +75,11 @@ final class LicenseEnforcementServiceTest extends KernelTestCase
         $this->em->beginTransaction();
         $this->em->getConnection()->executeQuery('SELECT id FROM license_state WHERE id = 1 FOR UPDATE');
 
-        $secondConnection->executeStatement('SET lock_timeout = \'300ms\'');
         $secondConnection->beginTransaction();
         try {
+            // SET LOCAL reverts at the end of the transaction: no session-wide
+            // lock timeout can leak to later statements.
+            $secondConnection->executeStatement('SET LOCAL lock_timeout = \'300ms\'');
             $secondConnection->executeQuery('SELECT id FROM license_state WHERE id = 1 FOR UPDATE');
             self::fail('The second connection should have been blocked by the row lock.');
         } catch (\Doctrine\DBAL\Exception\DriverException $exception) {

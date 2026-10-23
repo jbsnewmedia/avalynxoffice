@@ -170,8 +170,6 @@ final class LicenseControllerTest extends WebTestCase
 
         $manager = static::getContainer()->get(LicenseManager::class);
         $manager->reset();
-        $diag = array_map(static fn ($d) => [$d->status->value, $d->licenseId, $d->keyId], $manager->getDiagnostics());
-        fwrite(STDERR, "\nDBG diag=" . json_encode($diag) . " valid=" . count($manager->getValidLicenses()) . " org=" . $manager->getOrganizationId() . " trusted=" . json_encode($manager->areTrustedKeysConfigured()) . "\n");
         self::assertSame(12, $manager->getAllowedSeats());
 
         $stored = $this->em->getRepository(StoredLicenseKey::class)->findAll();
