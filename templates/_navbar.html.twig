@@ -107,32 +107,6 @@
                             <li><a class="dropdown-item" href="{{ path('app_about') }}" aria-label="{{ 'nav.about'|trans }}"><i class="fa-solid fa-circle-info me-2" aria-hidden="true"></i>{{ 'nav.about'|trans }}</a></li>
                             <li><a class="dropdown-item" href="{{ path('app_license') }}" aria-label="{{ 'license.menu'|trans }}"><i class="fa-solid fa-scale-balanced me-2" aria-hidden="true"></i>{{ 'license.menu'|trans }}</a></li>
                             <li><hr class="dropdown-divider" aria-hidden="true"></li>
-                            <li><h6 class="dropdown-header">{{ 'nav.change_language'|trans }}</h6></li>
-                            {% set currentUrl = app.request.uri %}
-                            {% set currentLocale = app.request.locale ?? app.request.getLocale() %}
-                            <li>
-                                {% if currentLocale starts with 'de' %}
-                                    <a class="dropdown-item active d-flex align-items-center" href="#" aria-current="true">
-                                        <span class="fi fi-de me-2" aria-hidden="true"></span>{{ 'settings.language_name.de'|trans }} ✓
-                                    </a>
-                                {% else %}
-                                    <a class="dropdown-item d-flex align-items-center" href="{{ path('app_set_locale', {'_locale': 'de', 'r': currentUrl}) }}">
-                                        <span class="fi fi-de me-2" aria-hidden="true"></span>{{ 'settings.language_name.de'|trans }}
-                                    </a>
-                                {% endif %}
-                            </li>
-                            <li>
-                                {% if currentLocale starts with 'en' %}
-                                    <a class="dropdown-item active d-flex align-items-center" href="#" aria-current="true">
-                                        <span class="fi fi-gb me-2" aria-hidden="true"></span>{{ 'settings.language_name.en'|trans }} ✓
-                                    </a>
-                                {% else %}
-                                    <a class="dropdown-item d-flex align-items-center" href="{{ path('app_set_locale', {'_locale': 'en', 'r': currentUrl}) }}">
-                                        <span class="fi fi-gb me-2" aria-hidden="true"></span>{{ 'settings.language_name.en'|trans }}
-                                    </a>
-                                {% endif %}
-                            </li>
-                            <li><hr class="dropdown-divider" aria-hidden="true"></li>
                             <li><a class="dropdown-item" href="{{ path('app_logout') }}" aria-label="{{ 'nav.logout'|trans }}"><i class="fa-solid fa-sign-out-alt me-2" aria-hidden="true"></i>{{ 'nav.logout'|trans }}</a></li>
                         </ul>
                     </div>
