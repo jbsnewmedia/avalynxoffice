@@ -11,10 +11,11 @@ namespace AvalynxOffice\Controller;
 
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Service\AdminPasswordResetService;
+use AvalynxOffice\Util\AvalynxFormResponse;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Contracts\Translation\TranslatorInterface;
@@ -26,6 +27,12 @@ use Symfony\Contracts\Translation\TranslatorInterface;
  */
 final class AdminPasswordResetController extends AbstractController
 {
+    /**
+     * Session key for the one-time display of a freshly created
+     * administrator reset code (flow token and release number).
+     */
+    private const SESSION_KEY_FLOW = 'admin_password_reset_flow';
+
     public function __construct(
         private readonly AdminPasswordResetService $adminPasswordResetService,
         private readonly TranslatorInterface $translator,
@@ -34,27 +41,45 @@ final class AdminPasswordResetController extends AbstractController
 
     #[Route('/admin/password-resets', name: 'app_admin_password_resets', methods: ['GET'])]
     #[IsGranted('ROLE_ADMIN')]
-    public function index(): Response
+    public function index(Request $request): Response
     {
+        // One-time display: a successful start stashed the code in the
+        // session and AvalynxForm followed the redirect client-side; the
+        // GET clears it so it cannot be read again by reloading the page.
+        $flow = null;
+        $flowRaw = $request->getSession()->remove(self::SESSION_KEY_FLOW);
+
+        if (is_array($flowRaw) && isset($flowRaw['token'], $flowRaw['number']) && is_string($flowRaw['token']) && is_int($flowRaw['number'])) {
+            $flow = [
+                'token' => $flowRaw['token'],
+                'number' => $flowRaw['number'],
+            ];
+        }
+
         return $this->render('admin/password_resets/index.html.twig', [
             'requests' => $this->adminPasswordResetService->listOpenRequests(),
-            'flow' => null,
+            'flow' => $flow,
         ]);
     }
 
     #[Route('/admin/password-resets', name: 'app_admin_password_resets_start', methods: ['POST'])]
     #[IsGranted('ROLE_ADMIN')]
-    public function start(Request $request): Response
+    public function start(Request $request): JsonResponse
     {
-        $this->assertCsrf($request, 'admin_password_reset_start');
+        $tokenRaw = $request->request->get('_token');
+        $token = is_scalar($tokenRaw) ? (string) $tokenRaw : null;
+
+        if (null === $token || !$this->isCsrfTokenValid('admin_password_reset_start', $token)) {
+            return AvalynxFormResponse::failure($this->translator->trans('common.invalid_token'));
+        }
 
         $emailRaw = $request->request->get('email');
         $email = is_scalar($emailRaw) ? trim((string) $emailRaw) : '';
 
         if ('' === $email) {
-            $this->addFlash('danger', $this->translator->trans('admin.password_resets.email_required'));
-
-            return $this->redirectToRoute('app_admin_password_resets', [], Response::HTTP_SEE_OTHER);
+            return AvalynxFormResponse::invalid([
+                'email' => $this->translator->trans('admin.password_resets.email_required'),
+            ]);
         }
 
         try {
@@ -64,34 +89,36 @@ final class AdminPasswordResetController extends AbstractController
                 $this->clientIp($request),
             );
         } catch (\DomainException) {
-            $this->addFlash('danger', $this->translator->trans('admin.password_resets.user_not_found'));
-
-            return $this->redirectToRoute('app_admin_password_resets', [], Response::HTTP_SEE_OTHER);
+            return AvalynxFormResponse::invalid([
+                'email' => $this->translator->trans('admin.password_resets.user_not_found'),
+            ]);
         }
 
-        // Render directly (no redirect): the token and the release number are
-        // shown exactly once and must not get lost with the flash message.
-        return $this->render('admin/password_resets/index.html.twig', [
-            'requests' => $this->adminPasswordResetService->listOpenRequests(),
-            'flow' => [
-                'token' => $result['token'],
-                'number' => $result['number'],
-            ],
+        // The token and the release number are shown exactly once: they are
+        // stashed in the session and survive the client-side redirect.
+        $request->getSession()->set(self::SESSION_KEY_FLOW, [
+            'token' => $result['token'],
+            'number' => $result['number'],
         ]);
+
+        return AvalynxFormResponse::success($this->generateUrl('app_admin_password_resets'));
     }
 
     #[Route('/admin/password-resets/{id}/release', name: 'app_admin_password_resets_release', methods: ['POST'])]
     #[IsGranted('ROLE_ADMIN')]
-    public function release(string $id, Request $request): Response
+    public function release(string $id, Request $request): JsonResponse
     {
-        $this->assertCsrf($request, 'admin_password_reset_release_'.$id);
+        $tokenRaw = $request->request->get('_token');
+        $token = is_scalar($tokenRaw) ? (string) $tokenRaw : null;
+
+        if (null === $token || !$this->isCsrfTokenValid('admin_password_reset_release_'.$id, $token)) {
+            return AvalynxFormResponse::failure($this->translator->trans('common.invalid_token'));
+        }
 
         $resetRequest = $this->adminPasswordResetService->findRequestById($id);
 
         if (null === $resetRequest) {
-            $this->addFlash('danger', $this->translator->trans('admin.password_resets.request_not_found'));
-
-            return $this->redirectToRoute('app_admin_password_resets', [], Response::HTTP_SEE_OTHER);
+            return AvalynxFormResponse::failure($this->translator->trans('admin.password_resets.request_not_found'));
         }
 
         $numberRaw = $request->request->get('number');
@@ -107,20 +134,12 @@ final class AdminPasswordResetController extends AbstractController
 
             $this->addFlash('success', $this->translator->trans('admin.password_resets.released'));
         } catch (\DomainException $exception) {
-            $this->addFlash('danger', $exception->getMessage());
+            return AvalynxFormResponse::invalid([
+                'number' => $exception->getMessage(),
+            ]);
         }
 
-        return $this->redirectToRoute('app_admin_password_resets', [], Response::HTTP_SEE_OTHER);
-    }
-
-    private function assertCsrf(Request $request, string $id): void
-    {
-        $tokenRaw = $request->request->get('_token');
-        $token = is_scalar($tokenRaw) ? (string) $tokenRaw : null;
-
-        if (null === $token || !$this->isCsrfTokenValid($id, $token)) {
-            throw new AccessDeniedHttpException('Invalid password reset form token.');
-        }
+        return AvalynxFormResponse::success($this->generateUrl('app_admin_password_resets'));
     }
 
     /**

@@ -1,0 +1,29 @@
+{# Params:
+    active (string) — currently active profile section: 'overview'|'account'|'recovery'
+#}
+{% set profileNavItems = {
+    'overview': {route: 'app_profile', icon: 'fa-sliders', label: 'profile.nav.overview'},
+    'account': {route: 'app_profile_account', icon: 'fa-user', label: 'profile.nav.account'},
+    'recovery': {route: 'app_profile_recovery', icon: 'fa-life-ring', label: 'profile.nav.recovery'},
+} %}
+{% set profileNavCurrent = profileNavItems[active]|default(profileNavItems.overview) %}
+<div class="dropdown mb-4">
+    <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="profileNavDropdown" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ 'profile.nav.switch'|trans }}" title="{{ 'profile.nav.switch'|trans }}">
+        <i class="fa-solid {{ profileNavCurrent.icon }} me-2" aria-hidden="true"></i>{{ profileNavCurrent.label|trans }}
+    </button>
+    <ul class="dropdown-menu" aria-labelledby="profileNavDropdown">
+        {% for key, item in profileNavItems %}
+            <li>
+                {% if key == active %}
+                    <a class="dropdown-item active d-flex align-items-center" href="{{ path(item.route) }}" aria-current="true">
+                        <i class="fa-solid {{ item.icon }} me-2" aria-hidden="true"></i>{{ item.label|trans }} ✓
+                    </a>
+                {% else %}
+                    <a class="dropdown-item d-flex align-items-center" href="{{ path(item.route) }}">
+                        <i class="fa-solid {{ item.icon }} me-2" aria-hidden="true"></i>{{ item.label|trans }}
+                    </a>
+                {% endif %}
+            </li>
+        {% endfor %}
+    </ul>
+</div>

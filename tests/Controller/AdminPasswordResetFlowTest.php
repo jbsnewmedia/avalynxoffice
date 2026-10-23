@@ -98,7 +98,8 @@ final class AdminPasswordResetFlowTest extends WebTestCase
         // The administrator can release right away - no flow page visit needed.
         $this->loginAdmin();
         $this->release($openRequest, $number);
-        $this->client->followRedirect();
+        self::assertTrue($this->jsonPayload()['success']);
+        $this->client->request('GET', '/admin/password-resets');
         self::assertSelectorTextContains('.alert-success', 'The release has been granted.');
 
         // The user sets the new password on the flow page.
@@ -157,7 +158,8 @@ final class AdminPasswordResetFlowTest extends WebTestCase
 
         $openRequest = $this->findResetRequest($token);
         $this->release($openRequest, $number);
-        $this->client->followRedirect();
+        self::assertTrue($this->jsonPayload()['success']);
+        $this->client->request('GET', '/admin/password-resets');
 
         $this->submitPassword($token, 'short', 'short');
         self::assertResponseStatusCodeSame(422);
@@ -220,7 +222,7 @@ final class AdminPasswordResetFlowTest extends WebTestCase
         self::assertSame(self::TARGET_EMAIL, $openRequest->getUser()->getEmail());
     }
 
-    public function testStartWithUnknownEmailRedirectsWithDangerFlash(): void
+    public function testStartWithUnknownEmailAnswersInvalidField(): void
     {
         $this->loginAdmin();
 
@@ -230,10 +232,11 @@ final class AdminPasswordResetFlowTest extends WebTestCase
             'email' => 'nobody@example.com',
             '_token' => $this->csrfInputValue($crawler),
         ]);
-        self::assertResponseRedirects('/admin/password-resets');
+        self::assertResponseStatusCodeSame(422);
 
-        $this->client->followRedirect();
-        self::assertSelectorTextContains('.alert-danger', 'No active user found with this email address.');
+        $payload = $this->jsonPayload();
+        self::assertFalse($payload['success']);
+        self::assertSame('No active user found with this email address.', $payload['invalid']['email']);
     }
 
     public function testStartRequiresEmail(): void
@@ -246,10 +249,24 @@ final class AdminPasswordResetFlowTest extends WebTestCase
             'email' => '',
             '_token' => $this->csrfInputValue($crawler),
         ]);
-        self::assertResponseRedirects('/admin/password-resets');
+        self::assertResponseStatusCodeSame(422);
 
-        $this->client->followRedirect();
-        self::assertSelectorTextContains('.alert-danger', 'Please enter an email address.');
+        $payload = $this->jsonPayload();
+        self::assertFalse($payload['success']);
+        self::assertSame('Please enter an email address.', $payload['invalid']['email']);
+    }
+
+    public function testStartRejectsInvalidCsrfToken(): void
+    {
+        $this->loginAdmin();
+
+        $this->client->request('POST', '/admin/password-resets', [
+            'email' => self::TARGET_EMAIL,
+            '_token' => 'invalid',
+        ]);
+
+        self::assertResponseStatusCodeSame(403);
+        self::assertFalse($this->jsonPayload()['success']);
     }
 
     public function testCompleteTwoKeyHandshake(): void
@@ -272,12 +289,15 @@ final class AdminPasswordResetFlowTest extends WebTestCase
         // A wrong release number is rejected and counted.
         $wrongNumber = $number === 9999 ? 1000 : $number + 1;
         $this->release($openRequest, $wrongNumber);
-        $this->client->followRedirect();
-        self::assertSelectorTextContains('.alert-danger', 'Incorrect release number.');
+        self::assertResponseStatusCodeSame(422);
+        $payload = $this->jsonPayload();
+        self::assertFalse($payload['success']);
+        self::assertSame('Incorrect release number.', $payload['invalid']['number']);
 
         // The correct number releases the flow.
         $this->release($openRequest, $number);
-        $this->client->followRedirect();
+        self::assertTrue($this->jsonPayload()['success']);
+        $this->client->request('GET', '/admin/password-resets');
         self::assertSelectorTextContains('.alert-success', 'The release has been granted.');
 
         // The user now sets the new password on the flow page.
@@ -319,10 +339,11 @@ final class AdminPasswordResetFlowTest extends WebTestCase
         self::assertSame(PasswordResetRequest::STATUS_PENDING, $openRequest->getStatus());
 
         $this->release($openRequest, $number);
-        self::assertResponseRedirects('/admin/password-resets');
+        self::assertResponseStatusCodeSame(422);
 
-        $this->client->followRedirect();
-        self::assertSelectorTextContains('.alert-danger', 'This reset request is not waiting for a release.');
+        $payload = $this->jsonPayload();
+        self::assertFalse($payload['success']);
+        self::assertSame('This reset request is not waiting for a release.', $payload['invalid']['number']);
     }
 
     public function testReleaseInvalidatesTheRequestAfterTooManyWrongNumbers(): void
@@ -337,7 +358,8 @@ final class AdminPasswordResetFlowTest extends WebTestCase
         for ($attempt = 0; $attempt < PasswordResetRequest::MAX_NUMBER_ATTEMPTS; ++$attempt) {
             $wrongNumber = $number === 9999 ? 1000 : $number + 1;
             $this->release($openRequest, $wrongNumber);
-            $this->client->followRedirect();
+            self::assertResponseStatusCodeSame(422);
+            self::assertSame('Incorrect release number.', $this->jsonPayload()['invalid']['number']);
         }
 
         $this->entityManager->clear();
@@ -420,9 +442,22 @@ final class AdminPasswordResetFlowTest extends WebTestCase
         ]);
         self::assertResponseIsSuccessful();
 
+        $payload = $this->jsonPayload();
+        self::assertTrue($payload['success']);
+        self::assertSame('/admin/password-resets', $payload['redirect']);
+
+        // The client follows the redirect: the GET page renders the freshly
+        // created code exactly once from the session.
+        $this->client->request('GET', '/admin/password-resets');
+        self::assertResponseIsSuccessful();
+
         $content = (string) $this->client->getResponse()->getContent();
         self::assertSame(1, preg_match('/<code class="fs-5">([A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4})<\/code>/s', $content, $tokenMatches));
         self::assertSame(1, preg_match('/<code class="fs-5">(\d{4})<\/code>/s', $content, $numberMatches));
+
+        // Reloading the page must not show the code again.
+        $this->client->request('GET', '/admin/password-resets');
+        self::assertStringNotContainsString((string) $numberMatches[1], (string) $this->client->getResponse()->getContent());
 
         $openRequest = $this->findResetRequest($tokenMatches[1]);
         $id = $openRequest->getId()?->toRfc4122() ?? '';
@@ -466,7 +501,6 @@ final class AdminPasswordResetFlowTest extends WebTestCase
             'number' => (string) $number,
             '_token' => $token,
         ]);
-        self::assertResponseRedirects('/admin/password-resets');
     }
 
     /**

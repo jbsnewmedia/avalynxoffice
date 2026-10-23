@@ -1,0 +1,68 @@
+{% extends 'base.html.twig' %}
+{% block title %}{{ 'profile.nav.recovery'|trans }} - {{ 'app.title'|trans }}{% endblock %}
+{% block stylesheets %}
+    {% include '_assets.html.twig' with { mode: 'user' } %}
+    {{ parent() }}
+{% endblock %}
+{% block body %}
+<div class="d-flex flex-column min-vh-100">
+    {% include '_navbar.html.twig' with { showMailToggles: false, userMenuActive: true } %}
+    <main class="flex-grow-1 py-4">
+        <div class="container">
+            {% include 'profile/_nav.html.twig' with { active: 'recovery' } %}
+
+            <h1 class="h3 mb-4">{{ 'profile.recovery.title'|trans }}</h1>
+
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    {% if user %}
+                        <p class="text-body-secondary">{{ 'profile.recovery.help'|trans }}</p>
+
+                        {% if user.recoveryAddresses|length > 0 %}
+                            <ul class="list-group mb-3">
+                                {% for address in user.recoveryAddresses %}
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <span><i class="fa-regular fa-envelope me-2 text-body-secondary" aria-hidden="true"></i>{{ address.email }}</span>
+                                        <form method="post" action="{{ path('app_profile_recovery_remove', {id: address.id}) }}" class="d-inline">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('remove_recovery_' ~ address.id) }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger confirm-action" data-confirm="{{ 'profile.recovery.confirm_remove'|trans }}" aria-label="{{ 'profile.recovery.remove'|trans }}" title="{{ 'profile.recovery.remove'|trans }}">
+                                                <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                                            </button>
+                                        </form>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <p class="text-body-secondary small">{{ 'profile.recovery.empty'|trans }}</p>
+                        {% endif %}
+
+                        {% if user.recoveryAddresses|length < 2 %}
+                            <form id="profile-recovery-add-form" method="post" action="{{ path('app_profile_recovery_add') }}" class="needs-validation" novalidate data-avalynxform="1">
+                                <div class="form-group">
+                                    <label for="recoveryEmail" class="form-label visually-hidden">{{ 'profile.recovery.email_label'|trans }}</label>
+                                    <input type="email" class="form-control" id="recoveryEmail" name="email" placeholder="{{ 'profile.recovery.email_placeholder'|trans }}" autocomplete="email" required />
+                                    <div class="invalid-feedback" aria-live="polite"></div>
+                                </div>
+                                <div class="text-end mt-3">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('add_recovery') }}">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fa-solid fa-plus me-1" aria-hidden="true"></i>{{ 'profile.recovery.add'|trans }}
+                                    </button>
+                                </div>
+                            </form>
+                        {% else %}
+                            <p class="text-body-secondary small mb-0">{{ 'profile.recovery.limit_reached'|trans }}</p>
+                        {% endif %}
+                    {% else %}
+                        <p class="text-danger mb-0">{{ 'profile.no_user'|trans }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}
+{% block page_footer %}{% endblock %}
+{% block javascripts %}
+    {{ parent() }}
+{% endblock %}

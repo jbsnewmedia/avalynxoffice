@@ -1,0 +1,43 @@
+{% extends 'base.html.twig' %}
+{% block title %}{{ 'profile.nav.account'|trans }} - {{ 'app.title'|trans }}{% endblock %}
+{% block stylesheets %}
+    {% include '_assets.html.twig' with { mode: 'user' } %}
+    {{ parent() }}
+{% endblock %}
+{% block body %}
+<div class="d-flex flex-column min-vh-100">
+    {% include '_navbar.html.twig' with { showMailToggles: false, userMenuActive: true } %}
+    <main class="flex-grow-1 py-4">
+        <div class="container">
+            {% include 'profile/_nav.html.twig' with { active: 'account' } %}
+
+            <h1 class="h3 mb-4">{{ 'profile.nav.account'|trans }}</h1>
+
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    {% if user %}
+                        <div class="mb-3">
+                            <label class="form-label text-body-secondary small">{{ 'profile.email'|trans }}</label>
+                            <div class="fw-semibold">{{ user.email }}</div>
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label text-body-secondary small">{{ 'profile.roles'|trans }}</label>
+                            <div>
+                                {% for role in user.roles %}
+                                    <span class="badge bg-body-tertiary text-dark border">{{ role }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% else %}
+                        <p class="text-danger mb-0">{{ 'profile.no_user'|trans }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}
+{% block page_footer %}{% endblock %}
+{% block javascripts %}
+    {{ parent() }}
+{% endblock %}

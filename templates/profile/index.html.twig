@@ -6,14 +6,18 @@
 {% endblock %}
 {% block body %}
 <div class="d-flex flex-column min-vh-100">
-    {% include '_navbar.html.twig' with { showMailToggles: false } %}
+    {% include '_navbar.html.twig' with { showMailToggles: false, userMenuActive: true } %}
     <main class="flex-grow-1 py-4">
         <div class="container">
-            {% include 'profile/_modal_content.html.twig' %}
+            {% include 'profile/_nav.html.twig' with { active: 'overview' } %}
+
+            <h1 class="h3 mb-2">{{ 'nav.profile'|trans }}</h1>
+            <p class="text-body-secondary mb-0">{{ 'profile.dashboard.description'|trans }}</p>
         </div>
     </main>
 </div>
 {% endblock %}
+{% block page_footer %}{% endblock %}
 {% block javascripts %}
     {{ parent() }}
 {% endblock %}

@@ -56,10 +56,27 @@ class ProfileController extends AbstractController
     #[Route('/profile', name: 'app_profile')]
     public function index(): Response
     {
+        return $this->render('profile/index.html.twig');
+    }
+
+    #[Route('/profile/account', name: 'app_profile_account')]
+    public function account(): Response
+    {
         /** @var User $user */
         $user = $this->getUser();
 
-        return $this->render('profile/index.html.twig', [
+        return $this->render('profile/account.html.twig', [
+            'user' => $user,
+        ]);
+    }
+
+    #[Route('/profile/recovery', name: 'app_profile_recovery')]
+    public function recovery(): Response
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+
+        return $this->render('profile/recovery.html.twig', [
             'user' => $user,
         ]);
     }
@@ -102,7 +119,7 @@ class ProfileController extends AbstractController
             ]);
         }
 
-        return AvalynxFormResponse::success($this->generateUrl('app_profile'));
+        return AvalynxFormResponse::success($this->generateUrl('app_profile_recovery'));
     }
 
     #[Route('/profile/recovery/remove/{id}', name: 'app_profile_recovery_remove', methods: ['POST'])]
@@ -123,14 +140,14 @@ class ProfileController extends AbstractController
         if (null === $token || !$this->isCsrfTokenValid('remove_recovery_'.$recoveryAddress->getId(), $token)) {
             $this->addFlash('danger', 'profile.recovery.invalid_token');
 
-            return new RedirectResponse($this->generateUrl('app_profile'));
+            return new RedirectResponse($this->generateUrl('app_profile_recovery'));
         }
 
         $this->userService->removeRecoveryAddress($user, $recoveryAddress);
         $this->entityManager->flush();
         $this->addFlash('success', 'profile.recovery.removed');
 
-        return new RedirectResponse($this->generateUrl('app_profile'));
+        return new RedirectResponse($this->generateUrl('app_profile_recovery'));
     }
 
     #[Route('/profile/password-reset', name: 'app_password_reset_request', methods: ['GET'])]

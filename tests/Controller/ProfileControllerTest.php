@@ -47,15 +47,43 @@ final class ProfileControllerTest extends WebTestCase
         self::ensureKernelShutdown();
     }
 
-    public function testProfilePageRendersAccountAndRecoverySection(): void
+    public function testProfileOverviewRendersNeutralDashboard(): void
     {
         $this->client->loginUser($this->user);
         $this->client->request('GET', '/profile');
 
         self::assertResponseIsSuccessful();
         $content = (string) $this->client->getResponse()->getContent();
+        self::assertStringContainsString('id="profileNavDropdown"', $content);
+        self::assertStringContainsString('href="/profile/account"', $content);
+        self::assertStringContainsString('href="/profile/recovery"', $content);
+        // The overview is a neutral dashboard: no account data, no forms.
+        self::assertStringNotContainsString('user@example.com', $content);
+        self::assertStringNotContainsString('/profile/recovery/add', $content);
+    }
+
+    public function testProfileAccountPageRendersAccountData(): void
+    {
+        $this->client->loginUser($this->user);
+        $this->client->request('GET', '/profile/account');
+
+        self::assertResponseIsSuccessful();
+        $content = (string) $this->client->getResponse()->getContent();
+        self::assertStringContainsString('id="profileNavDropdown"', $content);
         self::assertStringContainsString('user@example.com', $content);
+        self::assertStringNotContainsString('/profile/recovery/add', $content);
+    }
+
+    public function testProfileRecoveryPageRendersRecoverySection(): void
+    {
+        $this->client->loginUser($this->user);
+        $this->client->request('GET', '/profile/recovery');
+
+        self::assertResponseIsSuccessful();
+        $content = (string) $this->client->getResponse()->getContent();
+        self::assertStringContainsString('id="profileNavDropdown"', $content);
         self::assertStringContainsString('/profile/recovery/add', $content);
+        self::assertStringNotContainsString('user@example.com', $content);
     }
 
     public function testRecoveryAddRejectsInvalidCsrfToken(): void
@@ -164,7 +192,7 @@ final class ProfileControllerTest extends WebTestCase
         $this->client->loginUser($this->user);
         $this->client->request('POST', '/profile/recovery/remove/'.($address->getId()?->toRfc4122() ?? ''), ['_token' => 'invalid']);
 
-        self::assertResponseRedirects('/profile');
+        self::assertResponseRedirects('/profile/recovery');
         $this->em->clear();
         self::assertNotNull($this->em->find(RecoveryAddress::class, $address->getId()));
     }
@@ -177,7 +205,7 @@ final class ProfileControllerTest extends WebTestCase
         $this->client->loginUser($this->user);
         $this->client->request('POST', '/profile/recovery/remove/'.($address->getId()?->toRfc4122() ?? ''), ['_token' => $token]);
 
-        self::assertResponseRedirects('/profile');
+        self::assertResponseRedirects('/profile/recovery');
         $this->em->clear();
         $refreshed = $this->em->find(User::class, $this->user->getId());
         self::assertInstanceOf(User::class, $refreshed);
