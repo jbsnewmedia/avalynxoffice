@@ -1,34 +1,31 @@
-<div class="p-4">
-    <div class="d-flex align-items-center mb-4">
-        <a href="{{ path('connector_index') }}" class="btn btn-outline-secondary me-2" aria-label="{{ 'common.back'|trans }}" title="{{ 'common.back'|trans }}">
-            <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
-        </a>
-        <h4 class="m-0">{{ title }}</h4>
+{{ form_start(form, {'attr': {'id': 'connector-form', 'data-avalynxform': '1'}}) }}
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">{{ form_row(form.mailbox, {'attr': {'class': 'form-select'}}) }}</div>
+                <div class="col-md-3">{{ form_row(form.name, {'attr': {'class': 'form-control'}}) }}</div>
+                <div class="col-md-3">{{ form_row(form.email, {'attr': {'class': 'form-control'}}) }}</div>
+                <div class="col-md-12">{{ form_row(form.isPrimary, {'attr': {'class': 'form-check-input'}}) }}</div>
+                <div class="col-12"><hr class="my-1"></div>
+                <div class="col-12"><h6 class="mb-0">{{ 'mailbox.pop3'|trans }}</h6></div>
+                <div class="col-md-4">{{ form_row(form.pop3Host, {'attr': {'class': 'form-control'}}) }}</div>
+                <div class="col-md-2">{{ form_row(form.pop3Port, {'attr': {'class': 'form-control'}}) }}</div>
+                <div class="col-md-3">{{ form_row(form.pop3Username, {'attr': {'class': 'form-control'}}) }}</div>
+                <div class="col-md-3">{{ form_row(form.pop3Password, {'attr': {'class': 'form-control'}}) }}</div>
+                <div class="col-md-4">{{ form_row(form.pop3Security, {'attr': {'class': 'form-select'}}) }}</div>
+                <div class="col-md-8 d-flex align-items-end">{{ form_row(form.pop3DeleteAfterFetch, {'attr': {'class': 'form-check-input'}}) }}</div>
+                <div class="col-12"><hr class="my-1"></div>
+                <div class="col-12"><h6 class="mb-0">{{ 'mailbox.smtp_optional'|trans }}</h6></div>
+                <div class="col-md-4">{{ form_row(form.smtpHost, {'attr': {'class': 'form-control'}}) }}</div>
+                <div class="col-md-2">{{ form_row(form.smtpPort, {'attr': {'class': 'form-control'}}) }}</div>
+                <div class="col-md-3">{{ form_row(form.smtpUsername, {'attr': {'class': 'form-control'}}) }}</div>
+                <div class="col-md-3">{{ form_row(form.smtpPassword, {'attr': {'class': 'form-control'}}) }}</div>
+                <div class="col-md-4">{{ form_row(form.smtpSecurity, {'attr': {'class': 'form-select'}}) }}</div>
+            </div>
+        </div>
     </div>
-    {{ form_start(form, {'attr': {'id': 'connector-form', 'data-avalynxform': '1'}}) }}
-        <div class="row g-3">
-            <div class="col-md-6">{{ form_row(form.mailbox, {'attr': {'class': 'form-select'}}) }}</div>
-            <div class="col-md-3">{{ form_row(form.name, {'attr': {'class': 'form-control'}}) }}</div>
-            <div class="col-md-3">{{ form_row(form.email, {'attr': {'class': 'form-control'}}) }}</div>
-            <div class="col-md-12">{{ form_row(form.isPrimary, {'attr': {'class': 'form-check-input'}}) }}</div>
-            <div class="col-12"><hr class="my-1"></div>
-            <div class="col-12"><h6 class="mb-0">{{ 'mailbox.pop3'|trans }}</h6></div>
-            <div class="col-md-4">{{ form_row(form.pop3Host, {'attr': {'class': 'form-control'}}) }}</div>
-            <div class="col-md-2">{{ form_row(form.pop3Port, {'attr': {'class': 'form-control'}}) }}</div>
-            <div class="col-md-3">{{ form_row(form.pop3Username, {'attr': {'class': 'form-control'}}) }}</div>
-            <div class="col-md-3">{{ form_row(form.pop3Password, {'attr': {'class': 'form-control'}}) }}</div>
-            <div class="col-md-4">{{ form_row(form.pop3Security, {'attr': {'class': 'form-select'}}) }}</div>
-            <div class="col-md-8 d-flex align-items-end">{{ form_row(form.pop3DeleteAfterFetch, {'attr': {'class': 'form-check-input'}}) }}</div>
-            <div class="col-12"><hr class="my-1"></div>
-            <div class="col-12"><h6 class="mb-0">{{ 'mailbox.smtp_optional'|trans }}</h6></div>
-            <div class="col-md-4">{{ form_row(form.smtpHost, {'attr': {'class': 'form-control'}}) }}</div>
-            <div class="col-md-2">{{ form_row(form.smtpPort, {'attr': {'class': 'form-control'}}) }}</div>
-            <div class="col-md-3">{{ form_row(form.smtpUsername, {'attr': {'class': 'form-control'}}) }}</div>
-            <div class="col-md-3">{{ form_row(form.smtpPassword, {'attr': {'class': 'form-control'}}) }}</div>
-            <div class="col-md-4">{{ form_row(form.smtpSecurity, {'attr': {'class': 'form-select'}}) }}</div>
-        </div>
-        <div class="mt-4">
-            {{ form_widget(form.save) }}
-        </div>
-    {{ form_end(form) }}
-</div>
+    <div class="mt-3 d-flex justify-content-end">
+        {{ form_widget(form.save) }}
+    </div>
+{{ form_end(form) }}
+

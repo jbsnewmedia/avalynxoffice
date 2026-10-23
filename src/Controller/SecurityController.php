@@ -9,12 +9,12 @@ declare(strict_types=1);
 
 namespace AvalynxOffice\Controller;
 
+use AvalynxOffice\Service\LegalContentService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use Symfony\Component\Security\Http\Authentication\AuthenticationUtils;
-use AvalynxOffice\Service\LegalContentService;
 
 class SecurityController extends AbstractController
 {

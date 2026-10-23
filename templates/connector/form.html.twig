@@ -6,9 +6,11 @@
 {% endblock %}
 {% block body %}
 <div class="d-flex flex-column min-vh-100">
-    {% include '_navbar.html.twig' with { showMailToggles: false } %}
+    {% include '_navbar.html.twig' with { showMailToggles: false, userMenuActive: true } %}
     <main class="flex-grow-1 py-4">
         <div class="container">
+            {% include 'admin/_nav.html.twig' with { active: 'connectors' } %}
+            <h1 class="h3 mb-4">{{ title }}</h1>
             {% include 'connector/_modal_form.html.twig' %}
         </div>
     </main>
