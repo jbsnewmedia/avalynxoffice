@@ -30,19 +30,21 @@
         {% endblock %}
     </head>
     <body>
-        {% set flashMessages = app.flashes %}
-        {% if flashMessages|length > 0 %}
-            <div class="container-fluid px-4 pt-3">
-                {% for label, messages in flashMessages %}
-                    {% for message in messages %}
-                        <div class="alert alert-{{ label }} alert-dismissible fade show" role="alert">
-                            {{ message|trans }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="{{ 'common.close'|trans }}"></button>
-                        </div>
+        {% block flashes %}
+            {% set flashMessages = app.flashes %}
+            {% if flashMessages|length > 0 %}
+                <div class="container-fluid px-4 pt-3">
+                    {% for label, messages in flashMessages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ label }} alert-dismissible fade show" role="alert">
+                                {{ message|trans }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="{{ 'common.close'|trans }}"></button>
+                            </div>
+                        {% endfor %}
                     {% endfor %}
-                {% endfor %}
-            </div>
-        {% endif %}
+                </div>
+            {% endif %}
+        {% endblock %}
         {% block body %}{% endblock %}
         {% block page_footer %}{% if app.user %}
             <footer class="py-3 border-top bg-body-tertiary">

@@ -495,7 +495,7 @@ login.register: "Register now"
 login.impressum: "Legal Notice"
 login.datenschutz: "Privacy Policy"
 login.agb: "Terms of Service"
-login.legal_placeholder: "Legal information regarding %type% will be provided here soon."
+login.legal_placeholder: "Legal information will be provided here soon."
 
 # License & Usage (Licensing)
 license.menu: "License & Usage"

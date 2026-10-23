@@ -31,7 +31,7 @@
         cache: {}
     };
 
-    const hasSummernote = () => typeof window.summernote === 'object' && window.summernote !== null;
+    const hasSummernote = () => !!window.summernote && typeof window.summernote.create === 'function' && typeof window.summernote.invoke === 'function';
 
     const readStoredContent = (page) => {
         const template = document.querySelector('template[data-legal-content="' + page + '"]');
@@ -120,23 +120,31 @@
     };
 
     const initializeRoot = (root) => {
-        if (!(root instanceof Element)) {
+        if (root instanceof Element) {
+            if (root.matches(EDITOR_SELECTOR)) {
+                createEditor(root);
+            }
+            if (root.matches(FORM_SELECTOR)) {
+                attachForm(root);
+            }
+            if (root.matches(TAB_SELECTOR)) {
+                attachTab(root);
+            }
+
+            root.querySelectorAll(EDITOR_SELECTOR).forEach(createEditor);
+            root.querySelectorAll(FORM_SELECTOR).forEach(attachForm);
+            root.querySelectorAll(TAB_SELECTOR).forEach(attachTab);
+
             return;
         }
 
-        if (root.matches(EDITOR_SELECTOR)) {
-            createEditor(root);
+        // Whole-document initialization on DOMContentLoaded: the document
+        // node is not an Element, but querySelectorAll works the same on it.
+        if (root === document) {
+            document.querySelectorAll(EDITOR_SELECTOR).forEach(createEditor);
+            document.querySelectorAll(FORM_SELECTOR).forEach(attachForm);
+            document.querySelectorAll(TAB_SELECTOR).forEach(attachTab);
         }
-        if (root.matches(FORM_SELECTOR)) {
-            attachForm(root);
-        }
-        if (root.matches(TAB_SELECTOR)) {
-            attachTab(root);
-        }
-
-        root.querySelectorAll(EDITOR_SELECTOR).forEach(createEditor);
-        root.querySelectorAll(FORM_SELECTOR).forEach(attachForm);
-        root.querySelectorAll(TAB_SELECTOR).forEach(attachTab);
     };
 
     document.addEventListener('DOMContentLoaded', function () {

@@ -480,7 +480,7 @@ login.register: "Jetzt registrieren"
 login.impressum: "Impressum"
 login.datenschutz: "Datenschutz"
 login.agb: "AGB"
-login.legal_placeholder: "Hier stehen bald die rechtlichen Informationen zu %type%."
+login.legal_placeholder: "Hier stehen bald die rechtlichen Informationen."
 
 # Lizenz & Nutzung (Licensing)
 license.menu: "Lizenz & Nutzung"

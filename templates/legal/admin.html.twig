@@ -1,5 +1,6 @@
 {% extends 'base.html.twig' %}
 {% block title %}{{ 'legal.admin.title'|trans }} - {{ 'app.title'|trans }}{% endblock %}
+{% block flashes %}{% endblock %}
 {% block stylesheets %}
     {% include '_assets.html.twig' with { mode: 'user' } %}
     {% do addAssetComposer('summernote-next/summernote-next/dist/summernote-next.min.css') %}
@@ -16,6 +17,7 @@
     <main class="flex-grow-1 py-4">
         <div class="container">
             {% include 'admin/_nav.html.twig' with { active: 'legal' } %}
+            <h1 class="h3 mb-4">{{ 'legal.admin.title'|trans }}</h1>
             {% include 'legal/_admin_content.html.twig' %}
         </div>
     </main>

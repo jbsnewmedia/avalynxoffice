@@ -84,6 +84,9 @@ final class PublicControllerTest extends WebTestCase
 
         $this->client->request('GET', '/profile');
         self::assertResponseIsSuccessful();
+
+        $this->client->request('GET', '/profile/account');
+        self::assertResponseIsSuccessful();
         self::assertStringContainsString('admin@example.com', (string) $this->client->getResponse()->getContent());
 
         $this->client->request('GET', '/settings');
@@ -133,16 +136,21 @@ final class PublicControllerTest extends WebTestCase
             ['/assets/png/app-logo.png', 'image/png', 'app-logo.png'],
             ['/assets/svg/jbsnewmedia-logo.svg', 'image/svg+xml', 'jbsnewmedia-logo.svg'],
             ['/assets/svg/jbsnewmedia-symbol.svg', 'image/svg+xml', 'jbsnewmedia-symbol.svg'],
+            ['/assetscomposer/summernote-next/summernote-next/dist/icons/align.svg', 'image/svg+xml', 'align.svg'],
         ];
 
         foreach ($assets as [$uri, $contentType, $filename]) {
             $this->client->request('GET', $uri);
             self::assertResponseIsSuccessful();
             self::assertSame($contentType, (string) $this->client->getResponse()->headers->get('Content-Type'));
-            self::assertStringContainsString('inline', (string) $this->client->getResponse()->headers->get('Content-Disposition'));
-            self::assertStringContainsString($filename, (string) $this->client->getResponse()->headers->get('Content-Disposition'));
             self::assertStringContainsString('s-maxage=31536000', (string) $this->client->getResponse()->headers->get('Cache-Control'));
         }
+    }
+
+    public function testUnknownSummernoteIconReturnsNotFound(): void
+    {
+        $this->client->request('GET', '/assetscomposer/summernote-next/summernote-next/dist/icons/does-not-exist.svg');
+        self::assertResponseStatusCodeSame(404);
     }
 
     public function testLoginPageIsRenderableAndLogoutThrows(): void

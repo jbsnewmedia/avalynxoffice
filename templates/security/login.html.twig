@@ -95,7 +95,11 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ 'common.close'|trans }}"></button>
             </div>
             <div class="modal-body">
-                {{ 'login.legal_placeholder'|trans({'%type%': 'login.impressum'|trans}) }}
+                {% if legal_pages.impressum is not empty %}
+                    {{ legal_pages.impressum|raw }}
+                {% else %}
+                    {{ 'login.legal_placeholder'|trans }}
+                {% endif %}
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ 'common.close'|trans }}</button>
@@ -111,7 +115,11 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ 'common.close'|trans }}"></button>
             </div>
             <div class="modal-body">
-                {{ 'login.legal_placeholder'|trans({'%type%': 'login.datenschutz'|trans}) }}
+                {% if legal_pages.datenschutz is not empty %}
+                    {{ legal_pages.datenschutz|raw }}
+                {% else %}
+                    {{ 'login.legal_placeholder'|trans }}
+                {% endif %}
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ 'common.close'|trans }}</button>
@@ -127,7 +135,11 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ 'common.close'|trans }}"></button>
             </div>
             <div class="modal-body">
-                {{ 'login.legal_placeholder'|trans({'%type%': 'login.agb'|trans}) }}
+                {% if legal_pages.agb is not empty %}
+                    {{ legal_pages.agb|raw }}
+                {% else %}
+                    {{ 'login.legal_placeholder'|trans }}
+                {% endif %}
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ 'common.close'|trans }}</button>

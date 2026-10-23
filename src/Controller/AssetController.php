@@ -17,6 +17,31 @@ use Symfony\Component\Routing\Attribute\Route;
 
 class AssetController extends AbstractController
 {
+    #[Route('/assetscomposer/summernote-next/summernote-next/dist/icons/{icon}', name: 'app_assets_summernote_icon', requirements: ['icon' => '[a-zA-Z0-9_-]+\.svg'], priority: 2)]
+    public function summernoteIcon(string $icon): Response
+    {
+        // Summernote Next fetches its toolbar icon SVGs at runtime without
+        // a version parameter, which the asset composer route rejects. This
+        // route serves exactly that icon directory instead.
+        $projectDirParam = $this->getParameter('kernel.project_dir');
+        $projectDir = is_string($projectDirParam) ? $projectDirParam : '';
+        $iconDir = $projectDir.'/vendor/summernote-next/summernote-next/dist/icons';
+
+        $realFile = realpath($iconDir.'/'.$icon);
+        $realDir = realpath($iconDir);
+        if (false === $realFile || false === $realDir || !str_starts_with($realFile, $realDir)) {
+            throw $this->createNotFoundException('Icon not found.');
+        }
+
+        $response = new BinaryFileResponse($realFile);
+        $response->headers->set('Content-Type', 'image/svg+xml');
+        $response->setPublic();
+        $response->setMaxAge(31536000);
+        $response->setSharedMaxAge(31536000);
+
+        return $response;
+    }
+
     #[Route('/assets/svg/app-logo.svg', name: 'app_assets_logo_svg')]
     public function logo(): Response
     {
