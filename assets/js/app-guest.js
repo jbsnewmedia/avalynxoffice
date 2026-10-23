@@ -10,11 +10,10 @@ document.addEventListener('DOMContentLoaded', function(){
             return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
         };
         const setTheme = theme => {
-            if (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                document.documentElement.setAttribute('data-bs-theme', 'dark');
-            } else {
-                document.documentElement.setAttribute('data-bs-theme', theme);
-            }
+            const resolved = theme === 'auto'
+                ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+                : theme;
+            document.documentElement.setAttribute('data-bs-theme', resolved);
         };
         const updateThemeIcon = (theme) => {
             const toggleBtn = document.getElementById('darkModeToggle');

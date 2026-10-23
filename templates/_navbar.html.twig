@@ -1,15 +1,15 @@
 {# Params:
     showMailToggles (bool) — whether to show mobile toggles for mail UI
     showMidToggle (bool) — whether to show the mid (list) toggle; defaults to true
-    showLanguageDropdown (bool) — whether to show the language selection dropdown
-    activeModule (string) — currently active module: 'mail'|'contacts'|'calendar'
+    activeModule (string) — currently active module: 'mail'|'contacts'|'calendar'; empty = none
+    userMenuActive (bool) — whether the user menu (right) is highlighted as active
     leftToggle (array) — mobile toggle config {target, icon, label}; defaults to the mailboxes offcanvas
     midToggle (array) — mobile toggle config {target, icon, label}; defaults to the email list offcanvas
 #}
 {% set showMailToggles = showMailToggles|default(false) %}
 {% set showMidToggle = showMidToggle|default(true) %}
-{% set showLanguageDropdown = showLanguageDropdown|default(false) %}
-{% set activeModule = activeModule|default('mail') %}
+{% set activeModule = activeModule|default('') %}
+{% set userMenuActive = userMenuActive|default(false) %}
 {% set leftToggle = leftToggle|default({target: '#mailboxOffcanvas', icon: 'fa-inbox', label: 'nav.show_mailboxes'}) %}
 {% set midToggle = midToggle|default({target: '#emailListOffcanvas', icon: 'fa-list', label: 'nav.show_email_list'}) %}
 {% set modules = {
@@ -50,10 +50,11 @@
                 </ul>
             {% endif %}
             <div class="d-flex ms-auto align-items-center gap-1" style="position: relative; z-index: 1060;">
-                <button class="btn btn-outline-light btn-navbar" type="button" id="darkModeToggle" aria-label="{{ 'nav.toggle_dark_mode'|trans }}" title="{{ 'nav.toggle_dark_mode'|trans }}">
-                    <i class="fa-solid fa-moon" aria-hidden="true"></i>
-                </button>
-                {% if showLanguageDropdown %}
+                {% if not app.user %}
+                    {# Guests have no user menu: keep dark mode and language up here. #}
+                    <button class="btn btn-outline-light btn-navbar" type="button" id="darkModeToggle" aria-label="{{ 'nav.toggle_dark_mode'|trans }}" title="{{ 'nav.toggle_dark_mode'|trans }}">
+                        <i class="fa-solid fa-moon" aria-hidden="true"></i>
+                    </button>
                     {% set currentUrl = app.request.uri %}
                     {% set currentLocale = app.request.locale ?? app.request.getLocale() %}
                     <div class="dropdown">
@@ -68,22 +69,22 @@
                                 <li>
                                     {% if currentLocale starts with 'de' %}
                                         <a class="dropdown-item active d-flex align-items-center" href="#" aria-current="true">
-                                            <span class="fi fi-de me-2" aria-hidden="true"></span>Deutsch ✓
+                                            <span class="fi fi-de me-2" aria-hidden="true"></span>{{ 'settings.language_name.de'|trans }} ✓
                                         </a>
                                     {% else %}
                                         <a class="dropdown-item d-flex align-items-center" href="{{ path('app_set_locale', {'_locale': 'de', 'r': currentUrl}) }}">
-                                            <span class="fi fi-de me-2" aria-hidden="true"></span>Deutsch
+                                            <span class="fi fi-de me-2" aria-hidden="true"></span>{{ 'settings.language_name.de'|trans }}
                                         </a>
                                     {% endif %}
                                 </li>
                                 <li>
                                     {% if currentLocale starts with 'en' %}
                                         <a class="dropdown-item active d-flex align-items-center" href="#" aria-current="true">
-                                            <span class="fi fi-gb me-2" aria-hidden="true"></span>English ✓
+                                            <span class="fi fi-gb me-2" aria-hidden="true"></span>{{ 'settings.language_name.en'|trans }} ✓
                                         </a>
                                     {% else %}
                                         <a class="dropdown-item d-flex align-items-center" href="{{ path('app_set_locale', {'_locale': 'en', 'r': currentUrl}) }}">
-                                            <span class="fi fi-gb me-2" aria-hidden="true"></span>English
+                                            <span class="fi fi-gb me-2" aria-hidden="true"></span>{{ 'settings.language_name.en'|trans }}
                                         </a>
                                     {% endif %}
                                 </li>
@@ -92,7 +93,7 @@
                 {% endif %}
                 {% if app.user %}
                     <div class="dropdown">
-                        <button class="btn btn-outline-light btn-navbar dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ 'nav.open_user_menu'|trans }}" title="{{ 'nav.open_user_menu'|trans }}">
+                        <button class="btn btn-outline-light btn-navbar dropdown-toggle {{ userMenuActive ? 'active' : '' }}" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ 'nav.open_user_menu'|trans }}" title="{{ 'nav.open_user_menu'|trans }}" {% if userMenuActive %}aria-current="page"{% endif %}>
                             <i class="fa-solid fa-user" aria-hidden="true"></i>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
@@ -105,6 +106,32 @@
                             <li><a class="dropdown-item" href="{{ path('app_help') }}" aria-label="{{ 'nav.help'|trans }}"><i class="fa-solid fa-circle-question me-2" aria-hidden="true"></i>{{ 'nav.help'|trans }}</a></li>
                             <li><a class="dropdown-item" href="{{ path('app_about') }}" aria-label="{{ 'nav.about'|trans }}"><i class="fa-solid fa-circle-info me-2" aria-hidden="true"></i>{{ 'nav.about'|trans }}</a></li>
                             <li><a class="dropdown-item" href="{{ path('app_license') }}" aria-label="{{ 'license.menu'|trans }}"><i class="fa-solid fa-scale-balanced me-2" aria-hidden="true"></i>{{ 'license.menu'|trans }}</a></li>
+                            <li><hr class="dropdown-divider" aria-hidden="true"></li>
+                            <li><h6 class="dropdown-header">{{ 'nav.change_language'|trans }}</h6></li>
+                            {% set currentUrl = app.request.uri %}
+                            {% set currentLocale = app.request.locale ?? app.request.getLocale() %}
+                            <li>
+                                {% if currentLocale starts with 'de' %}
+                                    <a class="dropdown-item active d-flex align-items-center" href="#" aria-current="true">
+                                        <span class="fi fi-de me-2" aria-hidden="true"></span>{{ 'settings.language_name.de'|trans }} ✓
+                                    </a>
+                                {% else %}
+                                    <a class="dropdown-item d-flex align-items-center" href="{{ path('app_set_locale', {'_locale': 'de', 'r': currentUrl}) }}">
+                                        <span class="fi fi-de me-2" aria-hidden="true"></span>{{ 'settings.language_name.de'|trans }}
+                                    </a>
+                                {% endif %}
+                            </li>
+                            <li>
+                                {% if currentLocale starts with 'en' %}
+                                    <a class="dropdown-item active d-flex align-items-center" href="#" aria-current="true">
+                                        <span class="fi fi-gb me-2" aria-hidden="true"></span>{{ 'settings.language_name.en'|trans }} ✓
+                                    </a>
+                                {% else %}
+                                    <a class="dropdown-item d-flex align-items-center" href="{{ path('app_set_locale', {'_locale': 'en', 'r': currentUrl}) }}">
+                                        <span class="fi fi-gb me-2" aria-hidden="true"></span>{{ 'settings.language_name.en'|trans }}
+                                    </a>
+                                {% endif %}
+                            </li>
                             <li><hr class="dropdown-divider" aria-hidden="true"></li>
                             <li><a class="dropdown-item" href="{{ path('app_logout') }}" aria-label="{{ 'nav.logout'|trans }}"><i class="fa-solid fa-sign-out-alt me-2" aria-hidden="true"></i>{{ 'nav.logout'|trans }}</a></li>
                         </ul>

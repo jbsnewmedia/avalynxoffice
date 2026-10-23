@@ -4,7 +4,10 @@
         <meta charset="UTF-8">
         <script>
             (function() {
-                const theme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                let theme = localStorage.getItem('theme');
+                if (theme !== 'light' && theme !== 'dark') {
+                    theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                }
                 document.documentElement.setAttribute('data-bs-theme', theme);
             })();
         </script>
@@ -41,7 +44,7 @@
             </div>
         {% endif %}
         {% block body %}{% endblock %}
-        {% if app.user %}
+        {% block page_footer %}{% if app.user %}
             <footer class="py-3 border-top bg-body-tertiary">
                 <div class="container-fluid d-flex flex-wrap justify-content-between align-items-center gap-2 px-4">
                     <span class="text-body-secondary small">© {{ "now"|date("Y") }} JBS New Media GmbH · {{ 'app.title'|trans }}</span>
@@ -50,7 +53,7 @@
                     </ul>
                 </div>
             </footer>
-        {% endif %}
+        {% endif %}{% endblock %}
         <div class="modal fade" id="actionModal" tabindex="-1" aria-labelledby="actionModalLabel" aria-hidden="true" data-form-load-error="{{ 'js.form_load_error'|trans }}" data-default-dismiss-label="{{ 'common.cancel'|trans }}">
             <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
                 <div class="modal-content shadow-lg border-0">

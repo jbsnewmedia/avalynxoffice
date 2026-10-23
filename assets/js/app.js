@@ -10,11 +10,10 @@ document.addEventListener('DOMContentLoaded', function () {
             return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
         };
         const setTheme = theme => {
-            if (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                document.documentElement.setAttribute('data-bs-theme', 'dark');
-            } else {
-                document.documentElement.setAttribute('data-bs-theme', theme);
-            }
+            const resolved = theme === 'auto'
+                ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+                : theme;
+            document.documentElement.setAttribute('data-bs-theme', resolved);
         };
         const updateThemeIcon = (theme) => {
             const toggleBtn = document.getElementById('darkModeToggle');
@@ -28,10 +27,19 @@ document.addEventListener('DOMContentLoaded', function () {
                 icon.classList.add('fa-moon');
             }
         };
+        const getRawTheme = () => getStoredTheme() ?? 'auto';
+        const updateThemeButtons = (theme) => {
+            document.querySelectorAll('[data-theme-value]').forEach((btn) => {
+                const isActive = btn.getAttribute('data-theme-value') === theme;
+                btn.classList.toggle('active', isActive);
+                btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+            });
+        };
         const initDarkMode = () => {
             const theme = getPreferredTheme();
             setTheme(theme);
-            updateThemeIcon(theme);
+            updateThemeIcon(document.documentElement.getAttribute('data-bs-theme'));
+            updateThemeButtons(getRawTheme());
 
             const toggleBtn = document.getElementById('darkModeToggle');
             if (toggleBtn) {
@@ -41,10 +49,57 @@ document.addEventListener('DOMContentLoaded', function () {
                     setStoredTheme(newTheme);
                     setTheme(newTheme);
                     updateThemeIcon(newTheme);
+                    updateThemeButtons(newTheme);
                 });
             }
+
+            document.querySelectorAll('[data-theme-value]').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    const value = btn.getAttribute('data-theme-value');
+                    setStoredTheme(value);
+                    setTheme(value);
+                    updateThemeIcon(document.documentElement.getAttribute('data-bs-theme'));
+                    updateThemeButtons(value);
+                });
+            });
         };
         initDarkMode();
+    })();
+    (function(){
+        const picker = document.getElementById('primaryColorPicker');
+        const hex = document.getElementById('primaryColorHex');
+        if (!picker || !hex) {
+            return;
+        }
+        const normalize = (value) => {
+            const match = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(value.trim());
+            if (null === match) {
+                return null;
+            }
+            let digits = match[1].toLowerCase();
+            if (3 === digits.length) {
+                digits = digits[0] + digits[0] + digits[1] + digits[1] + digits[2] + digits[2];
+            }
+            return '#' + digits;
+        };
+        picker.addEventListener('input', () => {
+            hex.value = picker.value;
+        });
+        hex.addEventListener('input', () => {
+            const normalized = normalize(hex.value);
+            if (null !== normalized) {
+                picker.value = normalized;
+            }
+        });
+        const form = hex.closest('form');
+        if (form) {
+            form.addEventListener('submit', () => {
+                const normalized = normalize(hex.value);
+                if (null !== normalized) {
+                    hex.value = normalized;
+                }
+            });
+        }
     })();
     (function(){
         var el = document.getElementById('i18n-mail');

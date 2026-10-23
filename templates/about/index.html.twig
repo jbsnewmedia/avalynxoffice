@@ -6,7 +6,7 @@
 {% endblock %}
 {% block body %}
 <div class="d-flex flex-column min-vh-100">
-    {% include '_navbar.html.twig' with { showMailToggles: false, showLanguageDropdown: true } %}
+    {% include '_navbar.html.twig' with { showMailToggles: false } %}
     <main class="flex-grow-1 py-4">
         <div class="container">
             {% include 'about/_modal_content.html.twig' %}

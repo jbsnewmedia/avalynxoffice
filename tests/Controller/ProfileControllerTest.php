@@ -88,6 +88,22 @@ final class ProfileControllerTest extends WebTestCase
         self::assertCount(0, $refreshed->getRecoveryAddresses());
     }
 
+    public function testRecoveryAddRejectsInvalidEmail(): void
+    {
+        $token = $this->setCsrfToken('add_recovery');
+        $this->client->loginUser($this->user);
+        $this->client->request('POST', '/profile/recovery/add', ['_token' => $token, 'email' => 'not-an-email']);
+
+        self::assertResponseStatusCodeSame(422);
+        $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertFalse($data['success']);
+        self::assertSame('Please enter a valid email address.', $data['invalid']['email']);
+        $this->em->clear();
+        $refreshed = $this->em->find(User::class, $this->user->getId());
+        self::assertInstanceOf(User::class, $refreshed);
+        self::assertCount(0, $refreshed->getRecoveryAddresses());
+    }
+
     public function testRecoveryAddStoresAddress(): void
     {
         $token = $this->setCsrfToken('add_recovery');
@@ -199,6 +215,17 @@ final class ProfileControllerTest extends WebTestCase
         self::assertArrayHasKey('email', $data['invalid']);
     }
 
+    public function testPasswordResetSendRejectsInvalidEmail(): void
+    {
+        $token = $this->setCsrfToken('password_reset_request');
+        $this->client->request('POST', '/profile/password-reset', ['_token' => $token, 'email' => 'not-an-email']);
+
+        self::assertResponseStatusCodeSame(422);
+        $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertFalse($data['success']);
+        self::assertSame('Please enter a valid email address.', $data['invalid']['email']);
+    }
+
     public function testPasswordResetSendAnswersGenericSuccessForUnknownUser(): void
     {
         $token = $this->setCsrfToken('password_reset_request');
@@ -297,11 +324,47 @@ final class ProfileControllerTest extends WebTestCase
         self::assertArrayHasKey('password', $data['invalid']);
     }
 
+    public function testPasswordResetSubmitRejectsTooShortPassword(): void
+    {
+        $url = $this->signUrl('/profile/password-reset/submit/'.($this->user->getId()?->toRfc4122() ?? ''));
+
+        $this->client->request('POST', $url, ['password' => 'short', 'password_confirm' => 'short']);
+
+        self::assertResponseStatusCodeSame(422);
+        $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertFalse($data['success']);
+        self::assertSame('The password must be at least 8 characters long.', $data['invalid']['password']);
+
+        $this->em->clear();
+        $refreshed = $this->em->find(User::class, $this->user->getId());
+        self::assertInstanceOf(User::class, $refreshed);
+        $hasher = static::getContainer()->get(UserPasswordHasherInterface::class);
+        self::assertTrue($hasher->isPasswordValid($refreshed, 'user'));
+    }
+
+    public function testPasswordResetSubmitRejectsMismatchedConfirmation(): void
+    {
+        $url = $this->signUrl('/profile/password-reset/submit/'.($this->user->getId()?->toRfc4122() ?? ''));
+
+        $this->client->request('POST', $url, ['password' => 'new-secret', 'password_confirm' => 'other-secret']);
+
+        self::assertResponseStatusCodeSame(422);
+        $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertFalse($data['success']);
+        self::assertSame('The passwords do not match.', $data['invalid']['password_confirm']);
+
+        $this->em->clear();
+        $refreshed = $this->em->find(User::class, $this->user->getId());
+        self::assertInstanceOf(User::class, $refreshed);
+        $hasher = static::getContainer()->get(UserPasswordHasherInterface::class);
+        self::assertTrue($hasher->isPasswordValid($refreshed, 'user'));
+    }
+
     public function testPasswordResetSubmitStoresHashedPassword(): void
     {
         $url = $this->signUrl('/profile/password-reset/submit/'.($this->user->getId()?->toRfc4122() ?? ''));
 
-        $this->client->request('POST', $url, ['password' => 'new-secret']);
+        $this->client->request('POST', $url, ['password' => 'new-secret', 'password_confirm' => 'new-secret']);
 
         self::assertResponseIsSuccessful();
         $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);

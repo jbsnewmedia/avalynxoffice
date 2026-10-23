@@ -141,6 +141,12 @@ final class UserPasswordResetController extends AbstractController
             ]);
         }
 
+        if (strlen($password) < 8) {
+            return AvalynxFormResponse::invalid([
+                'password' => $this->translator->trans('password.reset.password_too_short'),
+            ]);
+        }
+
         if ($password !== $passwordConfirm) {
             return AvalynxFormResponse::invalid([
                 'password_confirm' => $this->translator->trans('password.reset.password_mismatch'),

@@ -19,13 +19,15 @@ services:
           - PHP_DISMOD=ioncube
           - PHP_ENMOD=mailparse
     db:
-        image: postgres:16
+        image: postgres:18-alpine
         environment:
             POSTGRES_DB: my_database
             POSTGRES_USER: my_user
             POSTGRES_PASSWORD: my_password
         volumes:
             - ./docker/postgres/init:/docker-entrypoint-initdb.d
-            - ./docker/postgres/data:/var/lib/postgresql/data
+            # /var/lib/postgresql (not .../data): PostgreSQL 18 keeps its data
+            # directory below this level.
+            - ./docker/postgres/data:/var/lib/postgresql
         ports:
             - "${DB_PORT:-5432}:5432"

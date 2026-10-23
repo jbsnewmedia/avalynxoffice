@@ -11,14 +11,16 @@
                     {% set flagMap = {'de':'de','en':'gb'} %}
                     {% set currentFlag = flagMap[lang2]|default('gb') %}
                     <p class="text-body-secondary">{{ 'settings.language_help'|trans }}</p>
-                    <div class="d-flex align-items-center gap-2">
-                        <a class="btn btn-primary d-flex align-items-center {% if currentLocale starts with 'de' %}active disabled{% endif %}"
-                           href="{% if currentLocale starts with 'de' %}#{% else %}{{ path('app_set_locale', {'_locale': 'de', 'r': current_uri}) }}{% endif %}">
+                    <div class="btn-group" role="group" aria-label="{{ 'settings.language'|trans }}">
+                        <a class="btn btn-outline-primary d-flex align-items-center {% if currentLocale starts with 'de' %}active disabled{% endif %}"
+                           href="{% if currentLocale starts with 'de' %}#{% else %}{{ path('app_set_locale', {'_locale': 'de', 'r': current_uri}) }}{% endif %}"
+                           {% if currentLocale starts with 'de' %}aria-current="true"{% endif %}>
                             <span class="fi fi-de me-2" aria-hidden="true"></span>
                             <span>{{ 'settings.language_name.de'|trans }}</span>
                         </a>
-                        <a class="btn btn-primary d-flex align-items-center {% if currentLocale starts with 'en' %}active disabled{% endif %}"
-                           href="{% if currentLocale starts with 'en' %}#{% else %}{{ path('app_set_locale', {'_locale': 'en', 'r': current_uri}) }}{% endif %}">
+                        <a class="btn btn-outline-primary d-flex align-items-center {% if currentLocale starts with 'en' %}active disabled{% endif %}"
+                           href="{% if currentLocale starts with 'en' %}#{% else %}{{ path('app_set_locale', {'_locale': 'en', 'r': current_uri}) }}{% endif %}"
+                           {% if currentLocale starts with 'en' %}aria-current="true"{% endif %}>
                             <span class="fi fi-gb me-2" aria-hidden="true"></span>
                             <span>{{ 'settings.language_name.en'|trans }}</span>
                         </a>
@@ -33,6 +35,21 @@
                 </div>
             </div>
         </div>
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-body">
+                    <strong>{{ 'settings.darkmode.title'|trans }}</strong>
+                </div>
+                <div class="card-body">
+                    <p class="text-body-secondary">{{ 'settings.darkmode.help'|trans }}</p>
+                    <div class="btn-group" role="group" aria-label="{{ 'settings.darkmode.title'|trans }}">
+                        <button type="button" class="btn btn-outline-primary" data-theme-value="light" aria-pressed="false">Light</button>
+                        <button type="button" class="btn btn-outline-primary" data-theme-value="dark" aria-pressed="false">Dark</button>
+                        <button type="button" class="btn btn-outline-primary" data-theme-value="auto" aria-pressed="false">Auto</button>
+                    </div>
+                </div>
+            </div>
+        </div>
         {% if is_granted('ROLE_ADMIN') %}
             <div class="col-12">
                 <div class="card shadow-sm">
@@ -41,14 +58,20 @@
                     </div>
                     <div class="card-body">
                         <p class="text-body-secondary">{{ 'settings.appearance.help'|trans }}</p>
-                        <form id="settings-appearance-form" method="post" action="{{ path('app_settings_appearance') }}" data-avalynxform="1">
+                        <form id="settings-appearance-form" method="post" action="{{ path('app_settings_appearance') }}" data-avalynxform="1" novalidate>
                             <input type="hidden" name="_token" value="{{ csrf_token('save_appearance') }}">
-                            <div class="input-group" style="max-width: 20rem;">
-                                <input type="color" class="form-control form-control-color" id="primaryColorPicker" name="primary_color" value="{{ primary_color }}" aria-label="{{ 'settings.appearance.primary_color'|trans }}" required>
-                                <label class="input-group-text" for="primaryColorPicker">{{ primary_color }}</label>
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="fa-solid fa-floppy-disk me-1" aria-hidden="true"></i>{{ 'settings.appearance.save'|trans }}
-                                </button>
+                            <div class="form-group">
+                                <div class="input-group" style="max-width: 26rem;">
+                                    <input type="color" class="form-control form-control-color" id="primaryColorPicker" value="{{ primary_color }}" aria-label="{{ 'settings.appearance.primary_color'|trans }}">
+                                    <input type="text" class="form-control font-monospace" id="primaryColorHex" name="primary_color" value="{{ primary_color }}"
+                                           maxlength="7" autocomplete="off" spellcheck="false"
+                                           aria-label="{{ 'settings.appearance.primary_color'|trans }}"
+                                           title="{{ 'settings.appearance.primary_color_format'|trans }}">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fa-solid fa-floppy-disk me-1" aria-hidden="true"></i>{{ 'settings.appearance.save'|trans }}
+                                    </button>
+                                </div>
+                                <span class="invalid-feedback" aria-live="polite"></span>
                             </div>
                         </form>
                     </div>

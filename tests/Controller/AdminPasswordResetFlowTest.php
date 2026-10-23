@@ -130,6 +130,55 @@ final class AdminPasswordResetFlowTest extends WebTestCase
         self::assertSame('Please enter your email address.', $payload['invalid']['email']);
     }
 
+    public function testUserStartWithInvalidEmailAnswersInvalidField(): void
+    {
+        $crawler = $this->client->request('GET', '/profile/password-reset');
+        $codeInputs = $crawler->filter('#reset-code input[name="_token"]');
+        \assert($codeInputs->count() > 0);
+
+        $this->client->request('POST', '/profile/password-reset/code', [
+            'email' => 'not-an-email',
+            '_token' => (string) $codeInputs->attr('value'),
+        ]);
+        self::assertResponseStatusCodeSame(422);
+
+        $payload = $this->jsonPayload();
+        self::assertFalse($payload['success']);
+        self::assertSame('Please enter a valid email address.', $payload['invalid']['email']);
+    }
+
+    public function testSubmitPasswordRejectsTooShortPassword(): void
+    {
+        ['token' => $token, 'number' => $number] = $this->startReset();
+
+        // Visiting the flow page claims the request - only a claimed request
+        // can be released by the administrator.
+        $this->openFlowPage($token);
+
+        $openRequest = $this->findResetRequest($token);
+        $this->release($openRequest, $number);
+        $this->client->followRedirect();
+
+        $this->submitPassword($token, 'short', 'short');
+        self::assertResponseStatusCodeSame(422);
+
+        $payload = $this->jsonPayload();
+        self::assertFalse($payload['success']);
+        self::assertSame('The password must be at least 8 characters long.', $payload['invalid']['password']);
+
+        // The rejected password must never become valid; the flow must still
+        // accept a proper password afterwards.
+        $this->submitPassword($token, self::NEW_PASSWORD, self::NEW_PASSWORD);
+        self::assertResponseIsSuccessful();
+
+        $target = $this->findUser(self::TARGET_EMAIL);
+        \assert(null !== $target);
+        $hasher = static::getContainer()->get(UserPasswordHasherInterface::class);
+        \assert($hasher instanceof UserPasswordHasherInterface);
+        self::assertFalse($hasher->isPasswordValid($target, 'short'));
+        self::assertTrue($hasher->isPasswordValid($target, self::NEW_PASSWORD));
+    }
+
     public function testUserStartWithUnknownEmailAnswersInvalidField(): void
     {
         $crawler = $this->client->request('GET', '/profile/password-reset');

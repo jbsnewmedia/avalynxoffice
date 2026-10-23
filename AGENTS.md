@@ -35,6 +35,20 @@
 - Rector:
     - `composer bin-rector-process`
 
+## Form validation
+
+- Forms validate **inline only** — no native browser validation popups.
+- On forms submitted via `data-avalynxform`, never rely on native blocking
+    attributes (`pattern`, `required`, `type="email"`, ...): the browser
+    balloon would prevent the submit event from ever firing. Add
+    `novalidate` to the form instead.
+- The server is the single source of truth: validate there and answer with
+    `AvalynxFormResponse::invalid(['field' => message])`. AvalynxForm then
+    renders the message inline (`is-invalid` class + `.invalid-feedback`).
+- Templates must ship an (empty) `.invalid-feedback` element next to the
+    field (wrap field + feedback in a `.form-group` container), otherwise
+    AvalynxForm has nowhere to render the inline message.
+
 ## Test data flow
 
 - PHPUnit tests must generate their own data for each test run.

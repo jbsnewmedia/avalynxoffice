@@ -48,13 +48,20 @@ final readonly class ThemeService
     /**
      * Stores a new primary color and recompiles the CSS.
      *
-     * @throws \InvalidArgumentException when the color is not a #RRGGBB hex value
+     * Accepts three-digit (#f80) and six-digit (#ff8800) hex notations
+     * (0-9a-f, case-insensitive) and normalizes both to lowercase
+     * #rrggbb before persisting.
+     *
+     * @throws \InvalidArgumentException when the color is not a #rgb/#rrggbb hex value
      */
     public function setPrimaryColor(string $color): void
     {
         $color = strtolower(trim($color));
+        if (1 === preg_match('/^#[0-9a-f]{3}$/', $color)) {
+            $color = '#'.$color[1].$color[1].$color[2].$color[2].$color[3].$color[3];
+        }
         if (1 !== preg_match('/^#[0-9a-f]{6}$/', $color)) {
-            throw new \InvalidArgumentException(sprintf('Invalid primary color "%s"; expected a #RRGGBB hex value.', $color));
+            throw new \InvalidArgumentException(sprintf('Invalid primary color "%s"; expected a #rgb or #rrggbb hex value.', $color));
         }
 
         $this->appSettingRepository->setValue(self::SETTING_PRIMARY_COLOR, $color);

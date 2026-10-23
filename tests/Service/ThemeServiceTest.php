@@ -58,6 +58,17 @@ final class ThemeServiceTest extends TestCase
     }
 
     #[Group('unit')]
+    public function testSetPrimaryColorAcceptsThreeDigitHexAndNormalizes(): void
+    {
+        $service = $this->createService();
+
+        $service->setPrimaryColor('#F80');
+
+        self::assertSame('#ff8800', $this->storedColor);
+        self::assertStringContainsString('$primary: #ff8800;', (string) file_get_contents($this->projectDir.'/var/theme/bootstrap.scss'));
+    }
+
+    #[Group('unit')]
     public function testSetPrimaryColorStoresAndCompiles(): void
     {
         $service = $this->createService();

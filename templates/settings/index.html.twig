@@ -6,7 +6,7 @@
 {% endblock %}
 {% block body %}
 <div class="d-flex flex-column min-vh-100">
-    {% include '_navbar.html.twig' with { showMailToggles: false, showLanguageDropdown: true } %}
+    {% include '_navbar.html.twig' with { showMailToggles: false, userMenuActive: true } %}
     <main class="flex-grow-1 py-4">
         <div class="container">
             {% include 'settings/_modal_content.html.twig' %}
@@ -14,6 +14,7 @@
     </main>
 </div>
 {% endblock %}
+{% block page_footer %}{% endblock %}
 {% block javascripts %}
     {{ parent() }}
 {% endblock %}

@@ -6,6 +6,28 @@
 body {
     overflow-y: hidden;
 }
+/* Full pages (settings, profile, mailbox forms, login, ...) keep the navbar
+   and the footer fixed and scroll only the content area below the navbar:
+   the body becomes a full-height flex column, the page wrapper (.min-vh-100
+   flex container) takes the remaining space and its flex child (main /
+   section) becomes the scroll area. The module pages (mail, calendar,
+   contacts) manage their own scroll areas and are not affected because they
+   do not use the .min-vh-100 wrapper. */
+body:has(> .min-vh-100) {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+body:has(> .min-vh-100) > .min-vh-100 {
+    flex: 1 1 auto;
+    /* Beats Bootstrap's .min-vh-100 utility (!important) so the wrapper can
+       shrink inside the flex column. */
+    min-height: 0 !important;
+}
+body:has(> .min-vh-100) > .min-vh-100 > .flex-grow-1 {
+    overflow-y: auto;
+    min-height: 0;
+}
 .mail-body-height {
     height: calc(100vh - 70px);
 }
@@ -75,6 +97,21 @@ body {
 }
 .dropdown-menu {
     transform: translateY(5px);
+}
+/* The navbar fixes its inner theme to dark, so its dropdown menus (user /
+   language menu) would stay dark even in light mode. Re-apply the light
+   dropdown palette while the page is in light mode; in dark mode the navbar
+   scope already yields the dark menu. */
+[data-bs-theme=light] .navbar .dropdown-menu {
+    --bs-dropdown-bg: #fff;
+    --bs-dropdown-color: #212529;
+    --bs-dropdown-border-color: rgba(0, 0, 0, 0.175);
+    --bs-dropdown-divider-bg: rgba(0, 0, 0, 0.175);
+    --bs-dropdown-link-color: #212529;
+    --bs-dropdown-link-hover-color: #212529;
+    --bs-dropdown-link-hover-bg: #f8f9fa;
+    --bs-dropdown-link-active-color: #fff;
+    --bs-dropdown-link-active-bg: #2563eb;
 }
 .folder-drop-target {
     transition: background-color .15s ease, box-shadow .15s ease, border-color .15s ease, color .15s ease;

@@ -86,6 +86,12 @@ class ProfileController extends AbstractController
             ]);
         }
 
+        if (false === filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return AvalynxFormResponse::invalid([
+                'email' => $this->translator->trans('profile.recovery.email_invalid'),
+            ]);
+        }
+
         try {
             $this->userService->addRecoveryAddress($user, $email);
             $this->entityManager->flush();
@@ -180,6 +186,12 @@ class ProfileController extends AbstractController
                 ]);
             }
 
+            if (false === filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                return AvalynxFormResponse::invalid([
+                    'email' => $this->translator->trans('password.reset.code_email_invalid'),
+                ]);
+            }
+
             $candidate = $this->userRepository->findOneBy(['email' => strtolower($email)]);
 
             if (null === $candidate || !$candidate->isActive()) {
@@ -226,6 +238,12 @@ class ProfileController extends AbstractController
         if ('' === $email) {
             return AvalynxFormResponse::invalid([
                 'email' => $this->translator->trans('password.reset.email_required'),
+            ]);
+        }
+
+        if (false === filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return AvalynxFormResponse::invalid([
+                'email' => $this->translator->trans('password.reset.email_invalid'),
             ]);
         }
 
@@ -278,6 +296,21 @@ class ProfileController extends AbstractController
         if ('' === $password) {
             return AvalynxFormResponse::invalid([
                 'password' => $this->translator->trans('password.reset.empty_password'),
+            ]);
+        }
+
+        if (strlen($password) < 8) {
+            return AvalynxFormResponse::invalid([
+                'password' => $this->translator->trans('password.reset.password_too_short'),
+            ]);
+        }
+
+        $passwordConfirmRaw = $request->request->get('password_confirm');
+        $passwordConfirm = is_scalar($passwordConfirmRaw) ? (string) $passwordConfirmRaw : '';
+
+        if ($passwordConfirm !== $password) {
+            return AvalynxFormResponse::invalid([
+                'password_confirm' => $this->translator->trans('password.reset.password_mismatch'),
             ]);
         }
 
