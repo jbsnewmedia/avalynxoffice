@@ -50,7 +50,7 @@ Never create a commit while any of them fails or has pending changes:
 
 Notes:
 
-- Run these com6mands inside the Docker container as described above.
+- Run these commands inside the Docker container as described above.
 - The test suite resets the shared development database: recreate the
   test accounts afterwards (e.g. `php bin/console app:user:create`).
 - Only commit after every check passed; if a check modified files,
