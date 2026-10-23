@@ -1,0 +1,43 @@
+{% extends 'base.html.twig' %}
+{% block title %}{{ 'settings.nav.language'|trans }} - {{ 'app.title'|trans }}{% endblock %}
+{% block stylesheets %}
+    {% include '_assets.html.twig' with { mode: 'user' } %}
+    {{ parent() }}
+{% endblock %}
+{% block body %}
+<div class="d-flex flex-column min-vh-100">
+    {% include '_navbar.html.twig' with { showMailToggles: false, userMenuActive: true } %}
+    <main class="flex-grow-1 py-4">
+        <div class="container">
+            {% include 'settings/_nav.html.twig' with { active: 'language' } %}
+
+            <h1 class="h3 mb-4">{{ 'settings.language'|trans }}</h1>
+
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    {% set currentLocale = app.request.locale ?? app.request.getLocale() %}
+                    <p class="text-body-secondary">{{ 'settings.language_help'|trans }}</p>
+                    <div class="btn-group" role="group" aria-label="{{ 'settings.language'|trans }}">
+                        <button type="button" class="btn btn-outline-primary d-flex align-items-center {% if currentLocale starts with 'de' %}active{% endif %}"
+                                data-locale-value="de" aria-pressed="{{ currentLocale starts with 'de' ? 'true' : 'false' }}"
+                                data-locale-url="{{ path('app_set_locale', {_locale: 'de'}) }}">
+                            <span class="fi fi-de me-2" aria-hidden="true"></span>
+                            <span>{{ 'settings.language_name.de'|trans }}</span>
+                        </button>
+                        <button type="button" class="btn btn-outline-primary d-flex align-items-center {% if currentLocale starts with 'en' %}active{% endif %}"
+                                data-locale-value="en" aria-pressed="{{ currentLocale starts with 'en' ? 'true' : 'false' }}"
+                                data-locale-url="{{ path('app_set_locale', {_locale: 'en'}) }}">
+                            <span class="fi fi-gb me-2" aria-hidden="true"></span>
+                            <span>{{ 'settings.language_name.en'|trans }}</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}
+{% block page_footer %}{% endblock %}
+{% block javascripts %}
+    {{ parent() }}
+{% endblock %}

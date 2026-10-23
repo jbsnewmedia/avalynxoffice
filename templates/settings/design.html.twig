@@ -1,0 +1,68 @@
+{% extends 'base.html.twig' %}
+{% block title %}{{ 'settings.nav.design'|trans }} - {{ 'app.title'|trans }}{% endblock %}
+{% block stylesheets %}
+    {% include '_assets.html.twig' with { mode: 'user' } %}
+    {{ parent() }}
+{% endblock %}
+{% block body %}
+<div class="d-flex flex-column min-vh-100">
+    {% include '_navbar.html.twig' with { showMailToggles: false, userMenuActive: true } %}
+    <main class="flex-grow-1 py-4">
+        <div class="container">
+            {% include 'settings/_nav.html.twig' with { active: 'design' } %}
+
+            <h1 class="h3 mb-4">{{ 'settings.nav.design'|trans }}</h1>
+
+            <div class="row g-4">
+                <div class="col-12 {% if is_granted('ROLE_ADMIN') %}col-lg-6{% endif %}">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-header bg-body-tertiary">
+                            <strong><i class="fa-solid fa-circle-half-stroke me-2" aria-hidden="true"></i>{{ 'settings.darkmode.title'|trans }}</strong>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-body-secondary">{{ 'settings.darkmode.help'|trans }}</p>
+                            <div class="btn-group" role="group" aria-label="{{ 'settings.darkmode.title'|trans }}">
+                                <button type="button" class="btn btn-outline-primary" data-theme-value="light" aria-pressed="false">Light</button>
+                                <button type="button" class="btn btn-outline-primary" data-theme-value="dark" aria-pressed="false">Dark</button>
+                                <button type="button" class="btn btn-outline-primary" data-theme-value="auto" aria-pressed="false">Auto</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% if is_granted('ROLE_ADMIN') %}
+                    <div class="col-12 col-lg-6">
+                        <div class="card shadow-sm h-100">
+                            <div class="card-header bg-body-tertiary">
+                                <strong><i class="fa-solid fa-palette me-2" aria-hidden="true"></i>{{ 'settings.appearance.title'|trans }}</strong>
+                            </div>
+                            <div class="card-body">
+                                <p class="text-body-secondary">{{ 'settings.appearance.help'|trans }}</p>
+                                <form id="settings-appearance-form" method="post" action="{{ path('app_settings_appearance') }}" data-avalynxform="1" novalidate>
+                                    <input type="hidden" name="_token" value="{{ csrf_token('save_appearance') }}">
+                                    <div class="form-group">
+                                        <div class="input-group" style="max-width: 26rem;">
+                                            <input type="color" class="form-control form-control-color" id="primaryColorPicker" value="{{ primary_color }}" aria-label="{{ 'settings.appearance.primary_color'|trans }}">
+                                            <input type="text" class="form-control font-monospace" id="primaryColorHex" name="primary_color" value="{{ primary_color }}"
+                                                   maxlength="7" autocomplete="off" spellcheck="false"
+                                                   aria-label="{{ 'settings.appearance.primary_color'|trans }}"
+                                                   title="{{ 'settings.appearance.primary_color_format'|trans }}">
+                                            <button type="submit" class="btn btn-primary">
+                                                <i class="fa-solid fa-floppy-disk me-1" aria-hidden="true"></i>{{ 'settings.appearance.save'|trans }}
+                                            </button>
+                                        </div>
+                                        <span class="invalid-feedback" aria-live="polite"></span>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}
+{% block page_footer %}{% endblock %}
+{% block javascripts %}
+    {{ parent() }}
+{% endblock %}

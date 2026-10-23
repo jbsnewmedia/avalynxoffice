@@ -42,28 +42,74 @@ final class SettingsControllerTest extends WebTestCase
         $this->restoreDefaultTheme();
     }
 
-    public function testSettingsModalShowsAppearanceCardForAdmins(): void
+    public function testSettingsOverviewRendersDashboardForAdmins(): void
     {
         $this->client->loginUser($this->admin);
         $this->client->request('GET', '/settings', [], [], ['HTTP_X-Requested-With' => 'XMLHttpRequest']);
 
         self::assertResponseIsSuccessful();
-        // The modal embeds CSRF tokens: the body must never be cacheable.
+        // Settings pages embed session state: the body must never be cacheable.
+        $cacheControl = (string) $this->client->getResponse()->headers->get('Cache-Control');
+        self::assertStringContainsString('no-store', $cacheControl);
+        $content = (string) $this->client->getResponse()->getContent();
+        self::assertStringContainsString('id="settingsNavDropdown"', $content);
+        // The overview is a neutral dashboard: no mailbox card, no appearance form.
+        self::assertStringNotContainsString('Manage Accounts', $content);
+        self::assertStringNotContainsString('primary_color', $content);
+    }
+
+    public function testDesignPageShowsAppearanceCardForAdmins(): void
+    {
+        $this->client->loginUser($this->admin);
+        $this->client->request('GET', '/settings/design', [], [], ['HTTP_X-Requested-With' => 'XMLHttpRequest']);
+
+        self::assertResponseIsSuccessful();
+        // The design page embeds the appearance CSRF token: the body must never be cacheable.
         $cacheControl = (string) $this->client->getResponse()->headers->get('Cache-Control');
         self::assertStringContainsString('no-store', $cacheControl);
         $content = (string) $this->client->getResponse()->getContent();
         self::assertStringContainsString(ThemeService::DEFAULT_PRIMARY_COLOR, $content);
         self::assertStringContainsString('primary_color', $content);
+        self::assertStringContainsString('id="settingsNavDropdown"', $content);
     }
 
-    public function testSettingsModalHidesAppearanceCardForRegularUsers(): void
+    public function testDesignPageHidesAppearanceCardForRegularUsers(): void
     {
         $this->client->loginUser($this->user);
-        $this->client->request('GET', '/settings', [], [], ['HTTP_X-Requested-With' => 'XMLHttpRequest']);
+        $this->client->request('GET', '/settings/design', [], [], ['HTTP_X-Requested-With' => 'XMLHttpRequest']);
 
         self::assertResponseIsSuccessful();
         $content = (string) $this->client->getResponse()->getContent();
         self::assertStringNotContainsString('primary_color', $content);
+    }
+
+    public function testLanguagePageRendersForAdmins(): void
+    {
+        $this->client->loginUser($this->admin);
+        $this->client->request('GET', '/settings/language', [], [], ['HTTP_X-Requested-With' => 'XMLHttpRequest']);
+
+        self::assertResponseIsSuccessful();
+        $cacheControl = (string) $this->client->getResponse()->headers->get('Cache-Control');
+        self::assertStringContainsString('no-store', $cacheControl);
+        $content = (string) $this->client->getResponse()->getContent();
+        self::assertStringContainsString('id="settingsNavDropdown"', $content);
+        // The language switch behaves like the theme group: buttons with
+        // data-locale-value, no disabled links.
+        self::assertStringContainsString('data-locale-value="de"', $content);
+        self::assertStringContainsString('data-locale-value="en"', $content);
+        self::assertStringContainsString('data-locale-url="/locale/de"', $content);
+        self::assertStringContainsString('data-locale-url="/locale/en"', $content);
+        self::assertStringContainsString('aria-pressed="true"', $content);
+        self::assertStringNotContainsString('class="btn btn-outline-primary d-flex align-items-center active disabled"', $content);
+    }
+
+    public function testSettingsSubPagesRedirectToLoginForGuests(): void
+    {
+        $this->client->request('GET', '/settings/language');
+        self::assertResponseRedirects('/login');
+
+        $this->client->request('GET', '/settings/design');
+        self::assertResponseRedirects('/login');
     }
 
     public function testAppearanceSaveRequiresAdminRole(): void

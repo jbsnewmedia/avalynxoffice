@@ -1,0 +1,29 @@
+{# Params:
+    active (string) — currently active settings section: 'overview'|'language'|'design'
+#}
+{% set settingsNavItems = {
+    'overview': {route: 'app_settings', icon: 'fa-sliders', label: 'settings.nav.overview'},
+    'language': {route: 'app_settings_language', icon: 'fa-language', label: 'settings.nav.language'},
+    'design': {route: 'app_settings_design', icon: 'fa-palette', label: 'settings.nav.design'},
+} %}
+{% set settingsNavCurrent = settingsNavItems[active]|default(settingsNavItems.overview) %}
+<div class="dropdown mb-4">
+    <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="settingsNavDropdown" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ 'settings.nav.switch'|trans }}" title="{{ 'settings.nav.switch'|trans }}">
+        <i class="fa-solid {{ settingsNavCurrent.icon }} me-2" aria-hidden="true"></i>{{ settingsNavCurrent.label|trans }}
+    </button>
+    <ul class="dropdown-menu" aria-labelledby="settingsNavDropdown">
+        {% for key, item in settingsNavItems %}
+            <li>
+                {% if key == active %}
+                    <a class="dropdown-item active d-flex align-items-center" href="{{ path(item.route) }}" aria-current="true">
+                        <i class="fa-solid {{ item.icon }} me-2" aria-hidden="true"></i>{{ item.label|trans }} ✓
+                    </a>
+                {% else %}
+                    <a class="dropdown-item d-flex align-items-center" href="{{ path(item.route) }}">
+                        <i class="fa-solid {{ item.icon }} me-2" aria-hidden="true"></i>{{ item.label|trans }}
+                    </a>
+                {% endif %}
+            </li>
+        {% endfor %}
+    </ul>
+</div>

@@ -11,7 +11,6 @@ namespace AvalynxOffice\Controller;
 
 use AvalynxOffice\Licensing\Service\LicenseEnforcementInterface;
 use AvalynxOffice\Licensing\Service\LicenseOperation;
-use AvalynxOffice\Repository\MailboxRepository;
 use AvalynxOffice\Service\ThemeService;
 use AvalynxOffice\Util\AvalynxFormResponse;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -31,23 +30,23 @@ class SettingsController extends AbstractController
     }
 
     #[Route('/settings', name: 'app_settings')]
-    public function index(Request $request, MailboxRepository $mailboxRepository, ThemeService $themeService): Response
+    public function index(Request $request): Response
     {
-        $response = $this->render('settings/index.html.twig', [
-            'current_uri' => $request->getUri(),
-            'mailboxes' => $mailboxRepository->findBy([], ['name' => 'ASC']),
+        return $this->settingsPage($request, 'settings/index.html.twig', []);
+    }
+
+    #[Route('/settings/language', name: 'app_settings_language')]
+    public function language(Request $request): Response
+    {
+        return $this->settingsPage($request, 'settings/language.html.twig', []);
+    }
+
+    #[Route('/settings/design', name: 'app_settings_design')]
+    public function design(Request $request, ThemeService $themeService): Response
+    {
+        return $this->settingsPage($request, 'settings/design.html.twig', [
             'primary_color' => $themeService->getPrimaryColor(),
         ]);
-
-        // The page embeds CSRF tokens: no cache (browser, proxy or anything
-        // in between) may ever reuse a rendered body, otherwise a stale
-        // token of a previous session would be submitted and rejected. The
-        // internal header disables the session listener's automatic
-        // cache-control override so our no-store survives the response.
-        $response->headers->set('Cache-Control', 'no-store, private, max-age=0');
-        $response->headers->set(AbstractSessionListener::NO_AUTO_CACHE_CONTROL_HEADER, '1');
-
-        return $response;
     }
 
     #[Route('/settings/appearance', name: 'app_settings_appearance', methods: ['POST'])]
@@ -75,6 +74,26 @@ class SettingsController extends AbstractController
 
         $this->addFlash('success', $translator->trans('settings.appearance.saved'));
 
-        return AvalynxFormResponse::success($this->generateUrl('app_settings'));
+        return AvalynxFormResponse::success($this->generateUrl('app_settings_design'));
+    }
+
+    /**
+     * Renders a settings page. Every settings page embeds CSRF tokens or
+     * session state: no cache (browser, proxy or anything in between) may
+     * ever reuse a rendered body, otherwise a stale token of a previous
+     * session would be submitted and rejected. The internal header disables
+     * the session listener's automatic cache-control override so our
+     * no-store survives the response.
+     *
+     * @param array<string, mixed> $parameters
+     */
+    private function settingsPage(Request $request, string $template, array $parameters): Response
+    {
+        $response = $this->render($template, ['current_uri' => $request->getUri()] + $parameters);
+
+        $response->headers->set('Cache-Control', 'no-store, private, max-age=0');
+        $response->headers->set(AbstractSessionListener::NO_AUTO_CACHE_CONTROL_HEADER, '1');
+
+        return $response;
     }
 }

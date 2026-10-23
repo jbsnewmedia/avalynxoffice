@@ -88,6 +88,10 @@ final class PublicControllerTest extends WebTestCase
 
         $this->client->request('GET', '/settings');
         self::assertResponseIsSuccessful();
+        self::assertStringContainsString('id="settingsNavDropdown"', (string) $this->client->getResponse()->getContent());
+
+        $this->client->request('GET', '/settings/design');
+        self::assertResponseIsSuccessful();
         self::assertStringContainsString('primary_color', (string) $this->client->getResponse()->getContent());
     }
 

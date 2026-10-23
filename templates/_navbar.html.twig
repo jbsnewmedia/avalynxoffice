@@ -93,19 +93,18 @@
                 {% endif %}
                 {% if app.user %}
                     <div class="dropdown">
-                        <button class="btn btn-outline-light btn-navbar dropdown-toggle {{ userMenuActive ? 'active' : '' }}" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ 'nav.open_user_menu'|trans }}" title="{{ 'nav.open_user_menu'|trans }}" {% if userMenuActive %}aria-current="page"{% endif %}>
-                            <i class="fa-solid fa-user" aria-hidden="true"></i>
+                        <button class="btn btn-outline-light btn-navbar {{ userMenuActive ? 'active' : '' }}" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ 'nav.open_user_menu'|trans }}" title="{{ 'nav.open_user_menu'|trans }}" {% if userMenuActive %}aria-current="page"{% endif %}>
+                            <i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-                            <li><a class="dropdown-item" href="{{ path('app_settings') }}" aria-label="{{ 'nav.open_settings'|trans }}"><i class="fa-solid fa-gear me-2" aria-hidden="true"></i>{{ 'nav.settings'|trans }}</a></li>
                             <li><a class="dropdown-item" href="{{ path('app_profile') }}" aria-label="{{ 'nav.open_profile'|trans }}"><i class="fa-solid fa-user me-2" aria-hidden="true"></i>{{ 'nav.profile'|trans }}</a></li>
+                            <li><a class="dropdown-item" href="{{ path('app_settings') }}" aria-label="{{ 'nav.open_settings'|trans }}"><i class="fa-solid fa-gear me-2" aria-hidden="true"></i>{{ 'nav.settings'|trans }}</a></li>
                             {% if is_granted('ROLE_ADMIN') %}
-                                <li><a class="dropdown-item" href="{{ path('app_admin_password_resets') }}" aria-label="{{ 'nav.password_resets'|trans }}"><i class="fa-solid fa-user-shield me-2" aria-hidden="true"></i>{{ 'nav.password_resets'|trans }}</a></li>
+                                <li><a class="dropdown-item" href="{{ path('app_admin') }}" aria-label="{{ 'nav.administrator'|trans }}"><i class="fa-solid fa-user-shield me-2" aria-hidden="true"></i>{{ 'nav.administrator'|trans }}</a></li>
                             {% endif %}
                             <li><hr class="dropdown-divider" aria-hidden="true"></li>
                             <li><a class="dropdown-item" href="{{ path('app_help') }}" aria-label="{{ 'nav.help'|trans }}"><i class="fa-solid fa-circle-question me-2" aria-hidden="true"></i>{{ 'nav.help'|trans }}</a></li>
                             <li><a class="dropdown-item" href="{{ path('app_about') }}" aria-label="{{ 'nav.about'|trans }}"><i class="fa-solid fa-circle-info me-2" aria-hidden="true"></i>{{ 'nav.about'|trans }}</a></li>
-                            <li><a class="dropdown-item" href="{{ path('app_license') }}" aria-label="{{ 'license.menu'|trans }}"><i class="fa-solid fa-scale-balanced me-2" aria-hidden="true"></i>{{ 'license.menu'|trans }}</a></li>
                             <li><hr class="dropdown-divider" aria-hidden="true"></li>
                             <li><a class="dropdown-item" href="{{ path('app_logout') }}" aria-label="{{ 'nav.logout'|trans }}"><i class="fa-solid fa-sign-out-alt me-2" aria-hidden="true"></i>{{ 'nav.logout'|trans }}</a></li>
                         </ul>

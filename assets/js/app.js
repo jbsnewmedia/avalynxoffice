@@ -66,6 +66,39 @@ document.addEventListener('DOMContentLoaded', function () {
         initDarkMode();
     })();
     (function(){
+        const localeButtons = document.querySelectorAll('[data-locale-value]');
+        if (localeButtons.length === 0) {
+            return;
+        }
+        const currentLocale = (document.documentElement.lang || 'en').slice(0, 2);
+        const updateLocaleButtons = (locale) => {
+            localeButtons.forEach((btn) => {
+                const isActive = btn.getAttribute('data-locale-value') === locale;
+                btn.classList.toggle('active', isActive);
+                btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+            });
+        };
+        updateLocaleButtons(currentLocale);
+        localeButtons.forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const locale = btn.getAttribute('data-locale-value');
+                if (locale === currentLocale) {
+                    return;
+                }
+                updateLocaleButtons(locale);
+                fetch(btn.getAttribute('data-locale-url'), {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(() => {
+                    window.location.reload();
+                })
+                .catch(() => {
+                    updateLocaleButtons(currentLocale);
+                });
+            });
+        });
+    })();
+    (function(){
         const picker = document.getElementById('primaryColorPicker');
         const hex = document.getElementById('primaryColorHex');
         if (!picker || !hex) {

@@ -369,6 +369,33 @@ final class AdminControllerTest extends WebTestCase
         $this->client->loginUser($this->adminUser);
     }
 
+    public function testConnectorRoutesRequireAdminRole(): void
+    {
+        $user = (new User())
+            ->setEmail('user@example.com')
+            ->setPassword('secret');
+
+        $this->entityManager->persist($user);
+        $this->entityManager->flush();
+
+        $mailbox = $this->createMailbox('Restricted Mailbox', 'restricted-mailbox@example.com');
+        $connector = $this->createConnector($mailbox, 'Restricted Connector', 'restricted-connector@example.com');
+
+        $this->client->loginUser($user);
+
+        $this->client->request('GET', '/settings/connectors');
+        self::assertResponseStatusCodeSame(403);
+
+        $this->client->request('GET', '/settings/connectors/new');
+        self::assertResponseStatusCodeSame(403);
+
+        $this->client->request('GET', sprintf('/settings/connectors/%s/edit', $connector->getId()));
+        self::assertResponseStatusCodeSame(403);
+
+        $this->client->request('POST', sprintf('/settings/connectors/%s', $connector->getId()));
+        self::assertResponseStatusCodeSame(403);
+    }
+
     private function createMailbox(string $name, string $email): Mailbox
     {
         $mailbox = (new Mailbox())

@@ -1,5 +1,5 @@
 {% extends 'base.html.twig' %}
-{% block title %}{{ 'nav.settings'|trans }} - {{ 'app.title'|trans }}{% endblock %}
+{% block title %}{{ 'settings.title'|trans }} - {{ 'app.title'|trans }}{% endblock %}
 {% block stylesheets %}
     {% include '_assets.html.twig' with { mode: 'user' } %}
     {{ parent() }}
@@ -9,7 +9,10 @@
     {% include '_navbar.html.twig' with { showMailToggles: false, userMenuActive: true } %}
     <main class="flex-grow-1 py-4">
         <div class="container">
-            {% include 'settings/_modal_content.html.twig' %}
+            {% include 'settings/_nav.html.twig' with { active: 'overview' } %}
+
+            <h1 class="h3 mb-2">{{ 'settings.title'|trans }}</h1>
+            <p class="text-body-secondary mb-0">{{ 'settings.dashboard.description'|trans }}</p>
         </div>
     </main>
 </div>
