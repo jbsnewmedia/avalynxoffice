@@ -10,14 +10,37 @@ use AvalynxOffice\Entity\Email;
 use AvalynxOffice\Twig\AppExtension;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ServiceLocator;
+use Symfony\Component\Translation\Loader\YamlFileLoader;
+use Symfony\Component\Translation\Translator;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 class AppExtensionTest extends TestCase
 {
     private AppExtension $extension;
 
+    private TranslatorInterface $translator;
+
     protected function setUp(): void
     {
         $this->extension = new AppExtension();
+        $this->translator = new Translator('en');
+        $this->translator->addLoader('yaml', new YamlFileLoader());
+        $this->translator->addResource('yaml', __DIR__.'/../../translations/messages.en.yaml', 'en');
+    }
+
+    public function testRoleLabel(): void
+    {
+        $extension = new AppExtension(new ServiceLocator([]), $this->translator);
+        $this->assertSame('User', $extension->roleLabel('ROLE_USER'));
+        $this->assertSame('Administrator', $extension->roleLabel('ROLE_ADMIN'));
+        // Unknown roles fall back to the raw role string.
+        $this->assertSame('ROLE_CUSTOM', $extension->roleLabel('ROLE_CUSTOM'));
+    }
+
+    public function testRoleLabelWithoutTranslatorFallsBackToRawRole(): void
+    {
+        $this->assertSame('ROLE_ADMIN', $this->extension->roleLabel('ROLE_ADMIN'));
+        $this->assertSame('ROLE_USER', $this->extension->roleLabel('ROLE_USER'));
     }
 
     public function testBytesToHuman(): void
@@ -58,8 +81,9 @@ class AppExtensionTest extends TestCase
     public function testGetFilters(): void
     {
         $filters = $this->extension->getFilters();
-        $this->assertCount(1, $filters);
+        $this->assertCount(2, $filters);
         $this->assertEquals('bytes_to_human', $filters[0]->getName());
+        $this->assertEquals('role_label', $filters[1]->getName());
     }
 
     public function testGetFunctions(): void

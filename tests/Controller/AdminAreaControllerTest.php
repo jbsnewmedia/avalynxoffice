@@ -62,14 +62,18 @@ final class AdminAreaControllerTest extends WebTestCase
         self::assertStringContainsString('Dashboard', $content);
         self::assertStringContainsString('User forgot password', $content);
         self::assertStringContainsString('License &amp; Usage', $content);
+        self::assertStringContainsString('User accounts', $content);
         self::assertStringContainsString('Connectors', $content);
         self::assertStringContainsString('Legal', $content);
         self::assertStringContainsString('id="adminNavDropdown"', $content);
-        self::assertStringContainsString($this->generateUrl('app_admin'), $content);
+        // The overview is a neutral dashboard: it links to every section
+        // through the dropdown only, without content cards.
         self::assertStringContainsString($this->generateUrl('app_admin_password_resets'), $content);
         self::assertStringContainsString($this->generateUrl('license_admin'), $content);
+        self::assertStringContainsString($this->generateUrl('license_admin_users'), $content);
         self::assertStringContainsString($this->generateUrl('connector_index'), $content);
         self::assertStringContainsString($this->generateUrl('app_settings_legal'), $content);
+        self::assertStringNotContainsString('card shadow-sm', $content);
     }
 
     public function testAdminSectionPagesShareTheAdminNav(): void
@@ -84,6 +88,13 @@ final class AdminAreaControllerTest extends WebTestCase
         self::assertStringContainsString($this->generateUrl('app_admin'), $content);
 
         $this->client->request('GET', $this->generateUrl('license_admin'));
+        self::assertResponseIsSuccessful();
+
+        $content = (string) $this->client->getResponse()->getContent();
+        self::assertStringContainsString('id="adminNavDropdown"', $content);
+        self::assertStringContainsString($this->generateUrl('app_admin'), $content);
+
+        $this->client->request('GET', $this->generateUrl('license_admin_users'));
         self::assertResponseIsSuccessful();
 
         $content = (string) $this->client->getResponse()->getContent();

@@ -34,12 +34,12 @@ class ProfileController extends AbstractController
      * Session key for the one-time display of a freshly created
      * administrator reset code (flow token and release number).
      */
-    private const SESSION_KEY_CODE = 'password_reset_code_result';
+    private const string SESSION_KEY_CODE = 'password_reset_code_result';
 
     /**
      * Session key for the one-time display of the "link sent" confirmation.
      */
-    private const SESSION_KEY_SENT = 'password_reset_link_sent';
+    private const string SESSION_KEY_SENT = 'password_reset_link_sent';
 
     public function __construct(
         private readonly UserService $userService,

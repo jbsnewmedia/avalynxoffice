@@ -49,9 +49,21 @@ final class LicenseController extends AbstractController
 
     #[Route(path: '/admin/license', name: 'license_admin', methods: ['GET'])]
     #[IsGranted('ROLE_ADMIN')]
-    public function admin(UserService $userService): Response
+    public function admin(): Response
     {
         $entitlement = $this->licenseManager->getEntitlement();
+
+        return $this->render('license/index.html.twig', [
+            'entitlement' => $entitlement,
+            'trustedKeysConfigured' => $this->licenseManager->areTrustedKeysConfigured(),
+            'storedKeys' => $this->entityManager->getRepository(StoredLicenseKey::class)->findBy([], ['addedAt' => 'ASC']),
+        ]);
+    }
+
+    #[Route(path: '/admin/license/users', name: 'license_admin_users', methods: ['GET'])]
+    #[IsGranted('ROLE_ADMIN')]
+    public function users(UserService $userService): Response
+    {
         $seatUsers = $this->seatCounter->getSeatUsers();
 
         // The template disables the deactivate/revoke buttons for the one
@@ -65,11 +77,9 @@ final class LicenseController extends AbstractController
             }
         }
 
-        return $this->render('license/index.html.twig', [
-            'entitlement' => $entitlement,
-            'trustedKeysConfigured' => $this->licenseManager->areTrustedKeysConfigured(),
+        return $this->render('license/users.html.twig', [
+            'entitlement' => $this->licenseManager->getEntitlement(),
             'seatUsers' => $seatUsers,
-            'storedKeys' => $this->entityManager->getRepository(StoredLicenseKey::class)->findBy([], ['addedAt' => 'ASC']),
             'lastActiveAdminId' => $lastActiveAdminId,
         ]);
     }
@@ -169,7 +179,7 @@ final class LicenseController extends AbstractController
         $user->setActive(!$user->isActive());
         $this->entityManager->flush();
 
-        return $this->redirectToRoute('license_admin', [], Response::HTTP_SEE_OTHER);
+        return $this->redirectToRoute('license_admin_users', [], Response::HTTP_SEE_OTHER);
     }
 
     #[Route(path: '/admin/license/users/{id}/toggle-admin', name: 'license_admin_toggle_role', methods: ['POST'])]
@@ -201,6 +211,6 @@ final class LicenseController extends AbstractController
 
         $this->entityManager->flush();
 
-        return $this->redirectToRoute('license_admin', [], Response::HTTP_SEE_OTHER);
+        return $this->redirectToRoute('license_admin_users', [], Response::HTTP_SEE_OTHER);
     }
 }

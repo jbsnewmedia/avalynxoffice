@@ -14,6 +14,7 @@ use AvalynxOffice\Entity\CalendarEvent;
 use AvalynxOffice\Entity\Email;
 use Psr\Container\ContainerInterface;
 use Symfony\Component\DependencyInjection\ServiceLocator;
+use Symfony\Contracts\Translation\TranslatorInterface;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFilter;
 use Twig\TwigFunction;
@@ -27,6 +28,7 @@ class AppExtension extends AbstractExtension
 
     public function __construct(
         private readonly ContainerInterface $pluginLocator = new ServiceLocator([]),
+        private readonly ?TranslatorInterface $translator = null,
     ) {
     }
 
@@ -35,6 +37,7 @@ class AppExtension extends AbstractExtension
     {
         return [
             new TwigFilter('bytes_to_human', $this->bytesToHuman(...)),
+            new TwigFilter('role_label', $this->roleLabel(...)),
         ];
     }
 
@@ -125,6 +128,23 @@ class AppExtension extends AbstractExtension
         $views = $registry->getActions($event);
 
         return is_array($views) ? array_values($views) : [];
+    }
+
+    /**
+     * Translates a security role (e.g. ROLE_ADMIN) into a human readable
+     * label in the current locale. Unknown roles fall back to the raw role
+     * string so custom roles never render as a broken translation key.
+     */
+    public function roleLabel(string $role): string
+    {
+        if (null === $this->translator) {
+            return $role;
+        }
+
+        $key = 'role.'.strtolower(preg_replace('/^ROLE_/', '', $role) ?? $role);
+        $translated = $this->translator->trans($key);
+
+        return $translated === $key ? $role : $translated;
     }
 
     public function bytesToHuman(?int $bytes, int $decimals = 1): string

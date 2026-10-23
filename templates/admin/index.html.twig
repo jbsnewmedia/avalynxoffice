@@ -12,54 +12,7 @@
             {% include 'admin/_nav.html.twig' with { active: 'dashboard' } %}
 
             <h1 class="h3 mb-2">{{ 'admin.dashboard.title'|trans }}</h1>
-            <p class="text-body-secondary mb-4">{{ 'admin.dashboard.description'|trans }}</p>
-
-            <div class="row g-4">
-                <div class="col-12 col-md-6">
-                    <div class="card shadow-sm h-100">
-                        <div class="card-body d-flex flex-column">
-                            <h2 class="h5 mb-2"><i class="fa-solid fa-key me-2" aria-hidden="true"></i>{{ 'admin.nav.password_resets'|trans }}</h2>
-                            <p class="text-body-secondary flex-grow-1">{{ 'admin.dashboard.password_resets.description'|trans }}</p>
-                            <a href="{{ path('app_admin_password_resets') }}" class="btn btn-outline-primary align-self-start" aria-label="{{ 'admin.dashboard.open'|trans }}">
-                                <i class="fa-solid fa-arrow-right me-2" aria-hidden="true"></i>{{ 'admin.dashboard.open'|trans }}
-                            </a>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-12 col-md-6">
-                    <div class="card shadow-sm h-100">
-                        <div class="card-body d-flex flex-column">
-                            <h2 class="h5 mb-2"><i class="fa-solid fa-scale-balanced me-2" aria-hidden="true"></i>{{ 'admin.nav.license'|trans }}</h2>
-                            <p class="text-body-secondary flex-grow-1">{{ 'admin.dashboard.license.description'|trans }}</p>
-                            <a href="{{ path('license_admin') }}" class="btn btn-outline-primary align-self-start" aria-label="{{ 'admin.dashboard.open'|trans }}">
-                                <i class="fa-solid fa-arrow-right me-2" aria-hidden="true"></i>{{ 'admin.dashboard.open'|trans }}
-                            </a>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-12 col-md-6">
-                    <div class="card shadow-sm h-100">
-                        <div class="card-body d-flex flex-column">
-                            <h2 class="h5 mb-2"><i class="fa-solid fa-plug me-2" aria-hidden="true"></i>{{ 'admin.nav.connectors'|trans }}</h2>
-                            <p class="text-body-secondary flex-grow-1">{{ 'admin.dashboard.connectors.description'|trans }}</p>
-                            <a href="{{ path('connector_index') }}" class="btn btn-outline-primary align-self-start" aria-label="{{ 'admin.dashboard.open'|trans }}">
-                                <i class="fa-solid fa-arrow-right me-2" aria-hidden="true"></i>{{ 'admin.dashboard.open'|trans }}
-                            </a>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-12 col-md-6">
-                    <div class="card shadow-sm h-100">
-                        <div class="card-body d-flex flex-column">
-                            <h2 class="h5 mb-2"><i class="fa-solid fa-file-contract me-2" aria-hidden="true"></i>{{ 'admin.nav.legal'|trans }}</h2>
-                            <p class="text-body-secondary flex-grow-1">{{ 'admin.dashboard.legal.description'|trans }}</p>
-                            <a href="{{ path('app_settings_legal') }}" class="btn btn-outline-primary align-self-start" aria-label="{{ 'admin.dashboard.open'|trans }}">
-                                <i class="fa-solid fa-arrow-right me-2" aria-hidden="true"></i>{{ 'admin.dashboard.open'|trans }}
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <p class="text-body-secondary mb-0">{{ 'admin.dashboard.description'|trans }}</p>
         </div>
     </main>
 </div>

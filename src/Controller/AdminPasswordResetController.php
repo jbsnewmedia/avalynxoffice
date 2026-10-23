@@ -31,7 +31,7 @@ final class AdminPasswordResetController extends AbstractController
      * Session key for the one-time display of a freshly created
      * administrator reset code (flow token and release number).
      */
-    private const SESSION_KEY_FLOW = 'admin_password_reset_flow';
+    private const string SESSION_KEY_FLOW = 'admin_password_reset_flow';
 
     public function __construct(
         private readonly AdminPasswordResetService $adminPasswordResetService,

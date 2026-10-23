@@ -110,7 +110,7 @@ final class LicenseControllerTest extends WebTestCase
         self::assertResponseStatusCodeSame(403);
     }
 
-    public function testAdminPageShowsStatusSeatsDiagnosticsAndUsers(): void
+    public function testAdminPageShowsStatusKeysAndDiagnostics(): void
     {
         $key = self::$issuer->issue(['additional_seats' => 7]);
         $this->em->persist(new StoredLicenseKey($key));
@@ -126,9 +126,32 @@ final class LicenseControllerTest extends WebTestCase
         self::assertStringContainsString('Licensed seats', $content);
         self::assertStringContainsString('LIC-TEST-000001', $content);
         self::assertStringContainsString('Invalid format', $content);
-        self::assertStringContainsString('admin@example.com', $content);
-        self::assertStringContainsString('Last authentication', $content);
         self::assertStringNotContainsString($key, $content);
+        // The user accounts live on their own section now.
+        self::assertStringNotContainsString('admin@example.com', $content);
+    }
+
+    public function testUsersPageRequiresAdminRole(): void
+    {
+        $this->client->loginUser($this->user);
+        $this->client->request('GET', '/admin/license/users');
+
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    public function testUsersPageShowsAccountsWithRolesAndLastAuth(): void
+    {
+        $this->client->loginUser($this->admin);
+        $this->client->request('GET', '/admin/license/users');
+
+        self::assertResponseIsSuccessful();
+        $content = (string) $this->client->getResponse()->getContent();
+        self::assertStringContainsString('id="adminNavDropdown"', $content);
+        self::assertStringContainsString('admin@example.com', $content);
+        self::assertStringContainsString('user@example.com', $content);
+        self::assertStringContainsString('Last authentication', $content);
+        // Roles are rendered as localized labels, not raw identifiers.
+        self::assertStringContainsString('Administrator', $content);
     }
 
     public function testAddKeysStoresKeysAndRaisesSeats(): void
@@ -283,7 +306,7 @@ final class LicenseControllerTest extends WebTestCase
         $this->em->flush();
 
         $this->client->loginUser($this->admin);
-        $this->client->request('GET', '/admin/license');
+        $this->client->request('GET', '/admin/license/users');
 
         self::assertResponseIsSuccessful();
         $content = (string) $this->client->getResponse()->getContent();
@@ -299,7 +322,7 @@ final class LicenseControllerTest extends WebTestCase
         $this->client->request('POST', '/admin/license/users/'.$this->user->getId().'/active', [
             '_token' => $deactivateToken,
         ]);
-        self::assertResponseRedirects('/admin/license');
+        self::assertResponseRedirects('/admin/license/users');
 
         /** @var User $reloaded */
         $this->em->clear();
@@ -310,7 +333,7 @@ final class LicenseControllerTest extends WebTestCase
         $this->client->request('POST', '/admin/license/users/'.$this->user->getId().'/active', [
             '_token' => $activateToken,
         ]);
-        self::assertResponseRedirects('/admin/license');
+        self::assertResponseRedirects('/admin/license/users');
 
         /** @var User $reactivated */
         $this->em->clear();
@@ -439,7 +462,7 @@ final class LicenseControllerTest extends WebTestCase
             '_token' => $token,
         ]);
 
-        self::assertResponseRedirects('/admin/license');
+        self::assertResponseRedirects('/admin/license/users');
         $this->em->clear();
         $refreshed = $this->em->find(User::class, $this->user->getId());
         self::assertNotNull($refreshed);
@@ -463,7 +486,7 @@ final class LicenseControllerTest extends WebTestCase
             '_token' => $token,
         ]);
 
-        self::assertResponseRedirects('/admin/license');
+        self::assertResponseRedirects('/admin/license/users');
         $this->em->clear();
         $refreshed = $this->em->find(User::class, $secondAdmin->getId());
         self::assertNotNull($refreshed);

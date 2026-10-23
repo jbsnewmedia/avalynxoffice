@@ -351,7 +351,7 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
         self::assertNotNull($extra);
         $token = $this->setCsrfToken('toggle_user_active_'.$extra->getId());
         $this->client->request('POST', '/admin/license/users/'.$extra->getId().'/active', ['_token' => $token]);
-        self::assertResponseRedirects('/admin/license');
+        self::assertResponseRedirects('/admin/license/users');
 
         // Reactivating the account is blocked while the installation is
         // read-only.
@@ -373,7 +373,7 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
             self::assertNotNull($user);
             $token = $this->setCsrfToken('toggle_user_active_'.$user->getId());
             $this->client->request('POST', '/admin/license/users/'.$user->getId().'/active', ['_token' => $token]);
-            self::assertResponseRedirects('/admin/license');
+            self::assertResponseRedirects('/admin/license/users');
         }
 
         $manager->reset();
@@ -384,7 +384,7 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
         $reactivate = $this->em->getRepository(User::class)->findOneBy(['email' => 'extra-1@example.com']);
         $token = $this->setCsrfToken('toggle_user_active_'.$reactivate->getId());
         $this->client->request('POST', '/admin/license/users/'.$reactivate->getId().'/active', ['_token' => $token]);
-        self::assertResponseRedirects('/admin/license');
+        self::assertResponseRedirects('/admin/license/users');
     }
 
     public function testFolderCreationForNewMailboxKeepsWorkingBecauseItIsTechnical(): void
