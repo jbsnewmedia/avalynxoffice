@@ -10,11 +10,11 @@
 {% set showMidToggle = showMidToggle|default(true) %}
 {% set activeModule = activeModule|default('') %}
 {% set userMenuActive = userMenuActive|default(false) %}
-{# The right dropdown belongs to the profile, settings and admin areas: it
-   stays open by default on those pages and marks the active section. #}
+{# The right dropdown belongs to the profile, settings and admin areas: on
+   those pages the menu button is highlighted as active and the matching
+   section is highlighted inside the dropdown (which stays closed). #}
 {% set userMenuPath = app.request.pathinfo %}
 {% set userMenuSection = userMenuPath starts with '/admin' ? 'admin' : (userMenuPath starts with '/settings' ? 'settings' : (userMenuPath starts with '/profile' ? 'profile' : '')) %}
-{% set userMenuOpen = userMenuSection != '' %}
 {% set leftToggle = leftToggle|default({target: '#accountOffcanvas', icon: 'fa-inbox', label: 'nav.show_accounts'}) %}
 {% set midToggle = midToggle|default({target: '#emailListOffcanvas', icon: 'fa-list', label: 'nav.show_email_list'}) %}
 {% set modules = {
@@ -98,10 +98,10 @@
                 {% endif %}
                 {% if app.user %}
                     <div class="dropdown">
-                        <button class="btn btn-outline-light btn-navbar {{ userMenuActive or userMenuOpen ? 'active' : '' }}" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="{{ userMenuOpen ? 'true' : 'false' }}" aria-label="{{ 'nav.open_user_menu'|trans }}" title="{{ 'nav.open_user_menu'|trans }}" {% if userMenuActive or userMenuOpen %}aria-current="page"{% endif %}>
+                        <button class="btn btn-outline-light btn-navbar {{ userMenuActive or userMenuSection != '' ? 'active' : '' }}" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ 'nav.open_user_menu'|trans }}" title="{{ 'nav.open_user_menu'|trans }}" {% if userMenuActive or userMenuSection != '' %}aria-current="page"{% endif %}>
                             <i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i>
                         </button>
-                        <ul class="dropdown-menu dropdown-menu-end {{ userMenuOpen ? 'show' : '' }}" aria-labelledby="userDropdown">
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
                             <li><a class="dropdown-item d-flex align-items-center {{ userMenuSection == 'profile' ? 'active' : '' }}" {% if userMenuSection == 'profile' %}aria-current="true"{% endif %} href="{{ path('app_profile') }}" aria-label="{{ 'nav.open_profile'|trans }}"><i class="fa-solid fa-user me-2" aria-hidden="true"></i>{{ 'nav.profile'|trans }}</a></li>
                             <li><a class="dropdown-item d-flex align-items-center {{ userMenuSection == 'settings' ? 'active' : '' }}" {% if userMenuSection == 'settings' %}aria-current="true"{% endif %} href="{{ path('app_settings') }}" aria-label="{{ 'nav.open_settings'|trans }}"><i class="fa-solid fa-gear me-2" aria-hidden="true"></i>{{ 'nav.settings'|trans }}</a></li>
                             {% if is_granted('ROLE_ADMIN') %}
