@@ -60,6 +60,13 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      */
     #[ORM\OneToMany(mappedBy: 'user', targetEntity: RecoveryAddress::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $recoveryAddresses;
+    /**
+     * Concurrent logins of this user (one row per device/browser session).
+     *
+     * @var Collection<int, UserLoginSession>
+     */
+    #[ORM\OneToMany(mappedBy: 'user', targetEntity: UserLoginSession::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
+    private Collection $loginSessions;
 
     public function __construct()
     {
@@ -219,6 +226,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     /**
      * @return Collection<int, RecoveryAddress>
      */
+    /**
+     * @return Collection<int, UserLoginSession>
+     */
+    public function getLoginSessions(): Collection
+    {
+        return $this->loginSessions;
+    }
+
     public function getRecoveryAddresses(): Collection
     {
         return $this->recoveryAddresses;

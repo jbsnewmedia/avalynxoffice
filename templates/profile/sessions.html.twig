@@ -1,0 +1,100 @@
+{% extends 'base.html.twig' %}
+{% block title %}{{ 'profile.sessions.title'|trans }} - {{ 'app.title'|trans }}{% endblock %}
+{% block stylesheets %}
+    {% include '_assets.html.twig' with { mode: 'user' } %}
+    {{ parent() }}
+{% endblock %}
+{% block body %}
+<div class="d-flex flex-column min-vh-100">
+    {% include '_navbar.html.twig' with { showMailToggles: false, userMenuActive: true } %}
+    <main class="flex-grow-1 py-4">
+        <div class="container">
+            {% include 'profile/_nav.html.twig' with { active: 'sessions' } %}
+            <h1 class="h4 mb-1">{{ 'profile.sessions.title'|trans }}</h1>
+            <p class="text-body-secondary mb-4">{{ 'profile.sessions.description'|trans }}</p>
+
+            {% if sessions|length > 1 %}
+                <div class="d-flex justify-content-end mb-3">
+                    <form method="post" action="{{ path('app_profile_sessions_revoke_others') }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('session_revoke_others') }}">
+                        <button type="submit" class="btn btn-outline-danger" aria-label="{{ 'profile.sessions.revoke_others'|trans }}">
+                            <i class="fa-solid fa-user-slash me-2" aria-hidden="true"></i>{{ 'profile.sessions.revoke_others'|trans }}
+                        </button>
+                    </form>
+                </div>
+            {% endif %}
+
+            <div class="card shadow-sm">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>{{ 'profile.sessions.device'|trans }}</th>
+                                    <th>{{ 'profile.sessions.location'|trans }}</th>
+                                    <th>{{ 'profile.sessions.ip'|trans }}</th>
+                                    <th>{{ 'profile.sessions.signed_in'|trans }}</th>
+                                    <th>{{ 'profile.sessions.last_active'|trans }}</th>
+                                    <th>{{ 'profile.sessions.remember_me'|trans }}</th>
+                                    <th class="text-end">{{ 'account.actions'|trans }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            {% for session in sessions %}
+                                {% set isCurrent = currentToken is not null and session.sessionToken == currentToken %}
+                                <tr{% if isCurrent %} class="table-active"{% endif %}>
+                                    <td>
+                                        <div class="fw-medium">{{ session.browser|default('profile.sessions.unknown'|trans) }}</div>
+                                        <div class="small text-body-secondary">{{ session.os|default('profile.sessions.unknown'|trans) }}</div>
+                                        {% if isCurrent %}
+                                            <span class="badge bg-primary mt-1">{{ 'profile.sessions.current'|trans }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if session.geoCity or session.geoCountry %}
+                                            {{ [session.geoCity, session.geoCountry]|filter(v => v)|join(', ') }}
+                                        {% else %}
+                                            <span class="text-body-secondary">{{ 'profile.sessions.unknown'|trans }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="font-monospace small">{{ session.ipAddress|default('profile.sessions.unknown'|trans) }}</td>
+                                    <td>{{ session.createdAt|date('d.m.Y H:i') }}</td>
+                                    <td>{{ session.lastSeenAt|default(session.createdAt)|date('d.m.Y H:i') }}</td>
+                                    <td class="text-center">
+                                        {% if session.rememberMe %}
+                                            <i class="fa-solid fa-check text-success" aria-hidden="true" title="{{ 'profile.sessions.remember_me'|trans }}"></i>
+                                            <span class="visually-hidden">{{ 'profile.sessions.remember_me'|trans }}</span>
+                                        {% else %}
+                                            <i class="fa-solid fa-minus text-body-tertiary" aria-hidden="true"></i>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        {% if isCurrent %}
+                                            <span class="small text-body-secondary">{{ 'profile.sessions.current'|trans }}</span>
+                                        {% else %}
+                                            <form method="post" action="{{ path('app_profile_sessions_revoke', {id: session.id}) }}" class="d-inline">
+                                                <input type="hidden" name="_token" value="{{ csrf_token('session_revoke_' ~ session.id) }}">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" aria-label="{{ 'profile.sessions.revoke'|trans }}" title="{{ 'profile.sessions.revoke'|trans }}">
+                                                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                                                </button>
+                                            </form>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% else %}
+                                <tr>
+                                    <td colspan="7" class="text-body-secondary text-center py-4">{{ 'profile.sessions.none'|trans }}</td>
+                                </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}
+{% block javascripts %}
+    {{ parent() }}
+{% endblock %}

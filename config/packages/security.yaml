@@ -23,6 +23,8 @@ security:
                 secret: '%env(APP_SECRET)%'
                 lifetime: 1209600 # 14 days
                 path: /
+                token_provider:
+                    doctrine: true
             logout:
                 path: app_logout
                 target: /login

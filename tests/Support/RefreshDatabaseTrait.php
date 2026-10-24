@@ -22,6 +22,11 @@ trait RefreshDatabaseTrait
 
             $tool = new SchemaTool($entityManager);
             $tool->createSchema($entityManager->getMetadataFactory()->getAllMetadata());
+            // The doctrine remember-me token table is not an entity and is
+            // therefore not part of the schema tool metadata.
+            $connection->executeStatement('DROP TABLE IF EXISTS rememberme_token');
+            $connection->executeStatement("CREATE TABLE rememberme_token (series VARCHAR(88) NOT NULL, value VARCHAR(88) NOT NULL, lastUsed TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL, class VARCHAR(100) DEFAULT '' NOT NULL, username VARCHAR(200) NOT NULL, PRIMARY KEY(series))");
+            $connection->executeStatement('CREATE INDEX idx_rememberme_token_username ON rememberme_token (username)');
 
             return;
         }
