@@ -75,3 +75,12 @@ Notes:
 - PHPUnit tests must generate their own data for each test run.
 - For integration and functional tests, the database must be rebuilt in `setUp()` and then freshly populated using `AppFixtures`.
 - No test may assume that fixture data from a previous test or from a manually prepared database is still available.
+
+## Tags and releases — maintainer only
+
+**Agents must never create, push, or delete git tags or GitHub releases —
+in this repository or in avalynxofficeeas.** Tagging, release creation and
+version bumps are done exclusively by the maintainer (Jürgen Schwind).
+This includes annotated/lightweight tags, remote tag pushes and any action
+that could trigger release workflows on GitHub or Docker Hub. The agent may
+report that a commit is a candidate for tagging, but must not tag.
