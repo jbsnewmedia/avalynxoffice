@@ -9,14 +9,14 @@ declare(strict_types=1);
 
 namespace AvalynxOffice\Controller;
 
+use AvalynxOffice\Entity\Account;
 use AvalynxOffice\Entity\Address;
-use AvalynxOffice\Entity\Mailbox;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Form\ContactFormType;
+use AvalynxOffice\Repository\AccountRepository;
 use AvalynxOffice\Repository\AddressRepository;
-use AvalynxOffice\Repository\MailboxRepository;
 use AvalynxOffice\Service\ContactService;
-use AvalynxOffice\Service\Mail\UserMailboxProvider;
+use AvalynxOffice\Service\Mail\UserAccountProvider;
 use AvalynxOffice\Util\AvalynxFormResponse;
 use AvalynxOffice\Util\FormInvalidMapper;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -33,9 +33,9 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 final class ContactController extends AbstractController
 {
     public function __construct(
-        private readonly UserMailboxProvider $mailboxProvider,
+        private readonly UserAccountProvider $accountProvider,
         private readonly AddressRepository $addressRepository,
-        private readonly MailboxRepository $mailboxRepository,
+        private readonly AccountRepository $accountRepository,
         private readonly ContactService $contactService,
         private readonly TranslatorInterface $translator,
     ) {
@@ -72,7 +72,7 @@ final class ContactController extends AbstractController
 
         $form = $this->createForm(ContactFormType::class, $address, [
             'action' => $this->generateUrl('contact_new_modal'),
-            'mailboxes' => $this->mailboxProvider->forUser($user),
+            'accounts' => $this->accountProvider->forUser($user),
         ]);
 
         return $this->render('contacts/_modal_form.html.twig', [
@@ -91,11 +91,11 @@ final class ContactController extends AbstractController
 
         $address = new Address();
         $address->setEmail('');
-        $mailboxes = $this->mailboxProvider->forUser($user);
+        $accounts = $this->accountProvider->forUser($user);
 
         $form = $this->createForm(ContactFormType::class, $address, [
             'action' => $this->generateUrl('contact_new_modal'),
-            'mailboxes' => $mailboxes,
+            'accounts' => $accounts,
         ]);
         $form->handleRequest($request);
 
@@ -103,10 +103,10 @@ final class ContactController extends AbstractController
             return AvalynxFormResponse::invalid(FormInvalidMapper::map($form));
         }
 
-        $mailbox = $form->get('mailbox')->getData();
-        \assert($mailbox instanceof Mailbox);
+        $account = $form->get('account')->getData();
+        \assert($account instanceof Account);
 
-        $this->contactService->createFromForm($mailbox, $address);
+        $this->contactService->createFromForm($account, $address);
 
         return AvalynxFormResponse::success($this->resolveContactRedirect($request, 'all'));
     }
@@ -188,12 +188,12 @@ final class ContactController extends AbstractController
         $user = $this->getUser();
         \assert($user instanceof User);
 
-        $mailboxes = $this->mailboxProvider->forUser($user);
-        $activeMailbox = $this->resolveMailbox($request, $mailboxes);
-        $scopeMailboxes = null !== $activeMailbox ? [$activeMailbox] : $mailboxes;
+        $accounts = $this->accountProvider->forUser($user);
+        $activeAccount = $this->resolveAccount($request, $accounts);
+        $scopeAccounts = null !== $activeAccount ? [$activeAccount] : $accounts;
         $search = trim((string) ($request?->query->get('q', '') ?? ''));
 
-        $allContacts = $this->addressRepository->findContactsForMailboxes($scopeMailboxes);
+        $allContacts = $this->addressRepository->findContactsForAccounts($scopeAccounts);
         $groups = $this->buildGroups($allContacts);
 
         if ('all' !== $groupId && !isset($groups[$groupId])) {
@@ -202,7 +202,7 @@ final class ContactController extends AbstractController
 
         $contacts = $allContacts;
         if ('' !== $search) {
-            $contacts = $this->addressRepository->findContactsForMailboxes($scopeMailboxes, $search);
+            $contacts = $this->addressRepository->findContactsForAccounts($scopeAccounts, $search);
         }
 
         if ('all' !== $groupId) {
@@ -224,35 +224,35 @@ final class ContactController extends AbstractController
         }
         $activeContact ??= $contacts[0] ?? null;
 
-        $activeContactMailboxes = null === $activeContact ? [] : array_values(array_filter(
-            $mailboxes,
-            static fn (Mailbox $mailbox): bool => $mailbox->getAddresses()->contains($activeContact),
+        $activeContactAccounts = null === $activeContact ? [] : array_values(array_filter(
+            $accounts,
+            static fn (Account $account): bool => $account->getAddresses()->contains($activeContact),
         ));
 
-        // When all mailboxes are shown, every list item is tagged with the
-        // mailbox(es) its contact belongs to (like the mail list does).
-        $contactMailboxes = [];
-        if (null === $activeMailbox) {
-            foreach ($mailboxes as $mailbox) {
-                foreach ($mailbox->getAddresses() as $address) {
+        // When all accounts are shown, every list item is tagged with the
+        // account(es) its contact belongs to (like the mail list does).
+        $contactAccounts = [];
+        if (null === $activeAccount) {
+            foreach ($accounts as $account) {
+                foreach ($account->getAddresses() as $address) {
                     $id = $address->getId();
                     if (null !== $id) {
-                        $contactMailboxes[$id->toRfc4122()][] = $mailbox;
+                        $contactAccounts[$id->toRfc4122()][] = $account;
                     }
                 }
             }
         }
 
         return $this->render('contacts/index.html.twig', [
-            'mailboxes' => $mailboxes,
-            'activeMailbox' => $activeMailbox,
-            'activeMailboxId' => $this->mailboxId($activeMailbox),
+            'accounts' => $accounts,
+            'activeAccount' => $activeAccount,
+            'activeAccountId' => $this->accountId($activeAccount),
             'groups' => $groups,
             'activeGroup' => $groupId,
             'contacts' => $contacts,
             'activeContact' => $activeContact,
-            'activeContactMailboxes' => $activeContactMailboxes,
-            'contactMailboxes' => $contactMailboxes,
+            'activeContactAccounts' => $activeContactAccounts,
+            'contactAccounts' => $contactAccounts,
             'search' => $search,
             'totalContacts' => count($allContacts),
             'fallbackEmail' => 'unknown@localhost',
@@ -260,7 +260,7 @@ final class ContactController extends AbstractController
     }
 
     /**
-     * Finds a contact by id among the contacts of the user's mailboxes.
+     * Finds a contact by id among the contacts of the user's accounts.
      */
     private function resolveContact(string $contactId): Address
     {
@@ -273,8 +273,8 @@ final class ContactController extends AbstractController
             throw new NotFoundHttpException('Contact not found.');
         }
 
-        foreach ($this->mailboxProvider->forUser($user) as $mailbox) {
-            $contact = $this->contactService->contactForMailbox($mailbox, $addressId->toRfc4122());
+        foreach ($this->accountProvider->forUser($user) as $account) {
+            $contact = $this->contactService->contactForAccount($account, $addressId->toRfc4122());
 
             if (null !== $contact) {
                 return $contact;
@@ -292,31 +292,31 @@ final class ContactController extends AbstractController
     }
 
     /**
-     * Resolves the mailbox scope from the request. A mailbox the user has no
+     * Resolves the account scope from the request. A account the user has no
      * access to is rejected instead of silently ignored.
      *
-     * @param list<Mailbox> $mailboxes
+     * @param list<Account> $accounts
      */
-    private function resolveMailbox(?Request $request, array $mailboxes): ?Mailbox
+    private function resolveAccount(?Request $request, array $accounts): ?Account
     {
-        $mailboxId = (string) ($request?->query->get('mailbox', 'all') ?? 'all');
+        $accountId = (string) ($request?->query->get('account', 'all') ?? 'all');
 
-        if ('all' === $mailboxId || '' === $mailboxId) {
+        if ('all' === $accountId || '' === $accountId) {
             return null;
         }
 
-        $mailbox = $this->mailboxRepository->find($mailboxId);
+        $account = $this->accountRepository->find($accountId);
 
-        if (null === $mailbox || !in_array($mailbox, $mailboxes, true)) {
+        if (null === $account || !in_array($account, $accounts, true)) {
             throw new AccessDeniedException();
         }
 
-        return $mailbox;
+        return $account;
     }
 
-    private function mailboxId(?Mailbox $mailbox): string
+    private function accountId(?Account $account): string
     {
-        return null !== $mailbox ? (string) $mailbox->getId() : 'all';
+        return null !== $account ? (string) $account->getId() : 'all';
     }
 
     /**

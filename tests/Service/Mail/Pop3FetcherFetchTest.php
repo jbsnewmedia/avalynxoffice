@@ -6,12 +6,13 @@ namespace AvalynxOffice\Tests\Service\Mail;
 
 use AvalynxOffice\Entity\Address;
 use AvalynxOffice\Entity\Folder;
-use AvalynxOffice\Entity\Mailbox;
-use AvalynxOffice\Entity\MailboxConnector;
+use AvalynxOffice\Entity\Account;
+use AvalynxOffice\Entity\Connector;
 use AvalynxOffice\Repository\EmailRepository;
 use AvalynxOffice\Service\Mail\AttachmentStorage;
 use AvalynxOffice\Service\Mail\FolderManager;
 use AvalynxOffice\Service\Mail\Pop3Fetcher;
+use AvalynxOffice\Service\Mail\MailRoutingService;
 use AvalynxOffice\Service\Mail\Pop3StorageFactory;
 use Doctrine\DBAL\Driver\Exception as DriverException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
@@ -25,25 +26,16 @@ use PHPUnit\Framework\TestCase;
 
 final class Pop3FetcherFetchTest extends TestCase
 {
-    public function testFetchForConnectorReturnsEarlyWithoutMailboxOrCredentials(): void
+    public function testFetchForConnectorReturnsEarlyWithoutCredentials(): void
     {
-        $fetcher = new Pop3Fetcher(
-            $this->createStub(EntityManagerInterface::class),
-            $this->createStub(EmailRepository::class),
-            $this->createStub(FolderManager::class),
-            $this->createStub(AttachmentStorage::class),
-            $this->createStub(Pop3StorageFactory::class),
-        );
+        $fetcher = $this->createFetcher();
 
-        $withoutMailbox = (new MailboxConnector())
+        $withoutCredentials = (new Connector())
+            ->setName('Support')
+            ->setDomain('example.com')
             ->setPop3Host('mail.example.com')
-            ->setPop3Username('user')
-            ->setPop3Password('pass');
-        $withoutCredentials = (new MailboxConnector())
-            ->setMailbox((new Mailbox())->setName('Support')->setEmail('support@example.com'))
-            ->setPop3Host('mail.example.com');
+            ->setPop3Username('user');
 
-        self::assertSame(['imported' => 0, 'skipped' => 0, 'errors' => 0], $fetcher->fetchForConnector($withoutMailbox));
         self::assertSame(['imported' => 0, 'skipped' => 0, 'errors' => 0], $fetcher->fetchForConnector($withoutCredentials));
     }
 
@@ -61,6 +53,7 @@ final class Pop3FetcherFetchTest extends TestCase
             $this->createStub(FolderManager::class),
             $this->createStub(AttachmentStorage::class),
             $factory,
+            $this->createStub(MailRoutingService::class),
         );
 
         $connector = $this->createConnector();
@@ -86,12 +79,16 @@ final class Pop3FetcherFetchTest extends TestCase
             ->with(['importKey' => (string) $connector->getId().':uid-1'])
             ->willReturn(new \stdClass());
 
+        $folderManager = $this->createMock(FolderManager::class);
+        $folderManager->expects(self::never())->method('ensureSystemFolder');
+
         $fetcher = new Pop3Fetcher(
             $this->createStub(EntityManagerInterface::class),
             $emailRepository,
-            $this->createStub(FolderManager::class),
+            $folderManager,
             $this->createStub(AttachmentStorage::class),
             $factory,
+            $this->createStub(MailRoutingService::class),
         );
 
         self::assertSame(['imported' => 0, 'skipped' => 1, 'errors' => 0], $fetcher->fetchForConnector($connector));
@@ -99,12 +96,12 @@ final class Pop3FetcherFetchTest extends TestCase
 
     public function testFetchForConnectorImportsNewMessage(): void
     {
-        $mailbox = (new Mailbox())
+        $account = (new Account())
             ->setName('Support')
             ->setEmail('support@example.com');
         $inboxFolder = (new Folder())->setName('Postfach');
-        $mailbox->setInboxFolder($inboxFolder);
-        $connector = $this->createConnector($mailbox);
+        $account->setInboxFolder($inboxFolder);
+        $connector = $this->createConnector($account);
 
         $storage = $this->createMock(Pop3Storage::class);
         $storage->method('countMessages')->willReturn(1);
@@ -141,6 +138,7 @@ final class Pop3FetcherFetchTest extends TestCase
             $folderManager,
             $this->createStub(AttachmentStorage::class),
             $factory,
+            $this->createRoutingService($account),
         );
 
         $result = $fetcher->fetchForConnector($connector);
@@ -148,12 +146,43 @@ final class Pop3FetcherFetchTest extends TestCase
         self::assertSame(['imported' => 1, 'skipped' => 0, 'errors' => 0], $result);
     }
 
+    public function testFetchForConnectorCountsErrorWhenNoRouteTargetExists(): void
+    {
+        $connector = $this->createConnector();
+
+        $storage = $this->createMock(Pop3Storage::class);
+        $storage->method('countMessages')->willReturn(1);
+        $storage->method('getUniqueId')->willReturn('uid-1');
+        $storage->method('getMessage')->willReturn($this->createMessageStub());
+        $storage->expects(self::never())->method('removeMessage');
+
+        $factory = $this->createStub(Pop3StorageFactory::class);
+        $factory->method('create')->willReturn($storage);
+
+        $emailRepository = $this->createStub(EmailRepository::class);
+        $emailRepository->method('findOneBy')->willReturn(null);
+
+        $folderManager = $this->createMock(FolderManager::class);
+        $folderManager->expects(self::never())->method('ensureSystemFolder');
+
+        $fetcher = new Pop3Fetcher(
+            $this->createStub(EntityManagerInterface::class),
+            $emailRepository,
+            $folderManager,
+            $this->createStub(AttachmentStorage::class),
+            $factory,
+            $this->createRoutingService(null),
+        );
+
+        self::assertSame(['imported' => 0, 'skipped' => 0, 'errors' => 1], $fetcher->fetchForConnector($connector));
+    }
+
     public function testFetchForConnectorSkipsMessageByContentHash(): void
     {
-        $mailbox = (new Mailbox())
+        $account = (new Account())
             ->setName('Support')
             ->setEmail('support@example.com');
-        $connector = $this->createConnector($mailbox);
+        $connector = $this->createConnector($account);
 
         $storage = $this->createMock(Pop3Storage::class);
         $storage->method('countMessages')->willReturn(1);
@@ -173,7 +202,7 @@ final class Pop3FetcherFetchTest extends TestCase
             });
 
         $folderManager = $this->createMock(FolderManager::class);
-        $folderManager->expects(self::exactly(2))->method('ensureSystemFolder');
+        $folderManager->expects(self::never())->method('ensureSystemFolder');
 
         $fetcher = new Pop3Fetcher(
             $this->createStub(EntityManagerInterface::class),
@@ -181,6 +210,7 @@ final class Pop3FetcherFetchTest extends TestCase
             $folderManager,
             $this->createStub(AttachmentStorage::class),
             $factory,
+            $this->createRoutingService($account),
         );
 
         self::assertSame(['imported' => 0, 'skipped' => 1, 'errors' => 0], $fetcher->fetchForConnector($connector));
@@ -213,7 +243,7 @@ final class Pop3FetcherFetchTest extends TestCase
         $emailRepository->method('findOneBy')->willReturn(new \stdClass());
 
         $folderManager = $this->createMock(FolderManager::class);
-        $folderManager->expects(self::exactly(2))->method('ensureSystemFolder');
+        $folderManager->expects(self::never())->method('ensureSystemFolder');
 
         $fetcher = new Pop3Fetcher(
             $this->createStub(EntityManagerInterface::class),
@@ -221,6 +251,7 @@ final class Pop3FetcherFetchTest extends TestCase
             $folderManager,
             $this->createStub(AttachmentStorage::class),
             $factory,
+            $this->createStub(MailRoutingService::class),
         );
 
         self::assertSame(['imported' => 0, 'skipped' => 2, 'errors' => 0], $fetcher->fetchForConnector($connector, 2, false, true));
@@ -248,7 +279,7 @@ final class Pop3FetcherFetchTest extends TestCase
         $emailRepository->method('findOneBy')->willReturn(new \stdClass());
 
         $folderManager = $this->createMock(FolderManager::class);
-        $folderManager->expects(self::exactly(2))->method('ensureSystemFolder');
+        $folderManager->expects(self::never())->method('ensureSystemFolder');
 
         $fetcher = new Pop3Fetcher(
             $this->createStub(EntityManagerInterface::class),
@@ -256,6 +287,7 @@ final class Pop3FetcherFetchTest extends TestCase
             $folderManager,
             $this->createStub(AttachmentStorage::class),
             $factory,
+            $this->createStub(MailRoutingService::class),
         );
 
         self::assertSame(['imported' => 0, 'skipped' => 2, 'errors' => 0], $fetcher->fetchForConnector($connector, null, false, true));
@@ -264,11 +296,11 @@ final class Pop3FetcherFetchTest extends TestCase
 
     public function testFetchForConnectorContinuesWhenOpenEntityManagerReportsUniqueConstraint(): void
     {
-        $mailbox = (new Mailbox())
+        $account = (new Account())
             ->setName('Support')
             ->setEmail('support@example.com');
-        $mailbox->setInboxFolder((new Folder())->setName('Postfach'));
-        $connector = $this->createConnector($mailbox);
+        $account->setInboxFolder((new Folder())->setName('Postfach'));
+        $connector = $this->createConnector($account);
 
         $storage = $this->createStub(Pop3Storage::class);
         $storage->method('countMessages')->willReturn(1);
@@ -300,6 +332,7 @@ final class Pop3FetcherFetchTest extends TestCase
             $folderManager,
             $this->createStub(AttachmentStorage::class),
             $factory,
+            $this->createRoutingService($account),
         );
 
         self::assertSame(['imported' => 0, 'skipped' => 0, 'errors' => 0], $fetcher->fetchForConnector($connector));
@@ -307,11 +340,11 @@ final class Pop3FetcherFetchTest extends TestCase
 
     public function testFetchForConnectorCountsErrorWhenClosedEntityManagerReportsUniqueConstraint(): void
     {
-        $mailbox = (new Mailbox())
+        $account = (new Account())
             ->setName('Support')
             ->setEmail('support@example.com');
-        $mailbox->setInboxFolder((new Folder())->setName('Postfach'));
-        $connector = $this->createConnector($mailbox);
+        $account->setInboxFolder((new Folder())->setName('Postfach'));
+        $connector = $this->createConnector($account);
 
         $storage = $this->createStub(Pop3Storage::class);
         $storage->method('countMessages')->willReturn(1);
@@ -343,6 +376,7 @@ final class Pop3FetcherFetchTest extends TestCase
             $folderManager,
             $this->createStub(AttachmentStorage::class),
             $factory,
+            $this->createRoutingService($account),
         );
 
         self::assertSame(['imported' => 0, 'skipped' => 0, 'errors' => 1], $fetcher->fetchForConnector($connector));
@@ -350,11 +384,11 @@ final class Pop3FetcherFetchTest extends TestCase
 
     public function testFetchForConnectorDeletesImportedMessagesAndUsesNewestOrderWithLimit(): void
     {
-        $mailbox = (new Mailbox())
+        $account = (new Account())
             ->setName('Support')
             ->setEmail('support@example.com');
-        $mailbox->setInboxFolder((new Folder())->setName('Postfach'));
-        $connector = $this->createConnector($mailbox);
+        $account->setInboxFolder((new Folder())->setName('Postfach'));
+        $connector = $this->createConnector($account);
         $processed = [];
 
         $storage = $this->createMock(Pop3Storage::class);
@@ -383,7 +417,7 @@ final class Pop3FetcherFetchTest extends TestCase
         $entityManager->method('isOpen')->willReturn(true);
 
         $folderManager = $this->createMock(FolderManager::class);
-        $folderManager->expects(self::exactly(2))->method('ensureSystemFolder');
+        $folderManager->expects(self::exactly(4))->method('ensureSystemFolder');
         $folderManager->expects(self::exactly(2))->method('syncEmailSystemFolders');
 
         $fetcher = new Pop3Fetcher(
@@ -392,6 +426,7 @@ final class Pop3FetcherFetchTest extends TestCase
             $folderManager,
             $this->createStub(AttachmentStorage::class),
             $factory,
+            $this->createRoutingService($account),
         );
 
         self::assertSame(['imported' => 2, 'skipped' => 0, 'errors' => 0], $fetcher->fetchForConnector($connector, 2, true));
@@ -411,6 +446,8 @@ final class Pop3FetcherFetchTest extends TestCase
             return 'uid-'.$num;
         });
         $storage->method('getMessage')->willThrowException(new \RuntimeException('broken message'));
+        $storage->method('getRawHeader')->willThrowException(new \RuntimeException('no api'));
+        $storage->method('getRawContent')->willThrowException(new \RuntimeException('no api'));
 
         $factory = $this->createStub(Pop3StorageFactory::class);
         $factory->method('create')->willReturn($storage);
@@ -419,7 +456,7 @@ final class Pop3FetcherFetchTest extends TestCase
         $entityManager->method('isOpen')->willReturn(false);
 
         $folderManager = $this->createMock(FolderManager::class);
-        $folderManager->expects(self::exactly(2))->method('ensureSystemFolder');
+        $folderManager->expects(self::never())->method('ensureSystemFolder');
 
         $fetcher = new Pop3Fetcher(
             $entityManager,
@@ -427,6 +464,7 @@ final class Pop3FetcherFetchTest extends TestCase
             $folderManager,
             $this->createStub(AttachmentStorage::class),
             $factory,
+            $this->createStub(MailRoutingService::class),
         );
 
         self::assertSame(['imported' => 0, 'skipped' => 0, 'errors' => 1], $fetcher->fetchForConnector($connector));
@@ -444,15 +482,40 @@ final class Pop3FetcherFetchTest extends TestCase
         }, null);
     }
 
-    private function createConnector(?Mailbox $mailbox = null): MailboxConnector
+    private function createFetcher(): Pop3Fetcher
     {
-        return (new MailboxConnector())
-            ->setMailbox($mailbox ?? (new Mailbox())->setName('Support')->setEmail('support@example.com'))
-            ->setEmail('support@example.com')
+        return new Pop3Fetcher(
+            $this->createStub(EntityManagerInterface::class),
+            $this->createStub(EmailRepository::class),
+            $this->createStub(FolderManager::class),
+            $this->createStub(AttachmentStorage::class),
+            $this->createStub(Pop3StorageFactory::class),
+            $this->createStub(MailRoutingService::class),
+        );
+    }
+
+    private function createConnector(?Account $defaultAccount = null): Connector
+    {
+        $connector = (new Connector())
+            ->setName('Support')
+            ->setDomain('example.com')
             ->setPop3Host('mail.example.com')
             ->setPop3Port(110)
             ->setPop3Username('user')
             ->setPop3Password('pass');
+        $connector->setDefaultAccount($defaultAccount);
+
+        return $connector;
+    }
+
+    private function createRoutingService(?Account $account): MailRoutingService
+    {
+        $routingService = $this->createStub(MailRoutingService::class);
+        $routingService
+            ->method('resolveTarget')
+            ->willReturnCallback(static fn (): ?array => null !== $account ? ['account' => $account, 'alias' => null] : null);
+
+        return $routingService;
     }
 
     private function createMessageStub(): StorageMessage

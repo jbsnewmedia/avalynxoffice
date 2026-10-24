@@ -9,7 +9,8 @@ declare(strict_types=1);
 
 namespace AvalynxOffice\Command;
 
-use AvalynxOffice\Repository\MailboxRepository;
+use AvalynxOffice\Entity\Connector;
+use AvalynxOffice\Repository\ConnectorRepository;
 use AvalynxOffice\Service\Mail\Pop3Fetcher;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -19,12 +20,12 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 #[AsCommand(
     name: 'app:mail:fetch',
-    description: 'Fetches mail via POP3 for the configured mailboxes and imports it into the database.'
+    description: 'Fetches mail via POP3 for all connectors and routes each message to its account.'
 )]
 class MailFetchCommand extends Command
 {
     public function __construct(
-        private readonly MailboxRepository $mailboxRepo,
+        private readonly ConnectorRepository $connectorRepo,
         private readonly Pop3Fetcher $fetcher,
     ) {
         parent::__construct();
@@ -34,23 +35,23 @@ class MailFetchCommand extends Command
     protected function configure(): void
     {
         $this
-            ->addOption('mailbox', null, InputOption::VALUE_REQUIRED, 'Mailbox-ID (UUID) oder E-Mail-Adresse. Wenn nicht gesetzt, werden alle Mailboxen mit ihren Connectoren abgerufen.')
-            ->addOption('limit', null, InputOption::VALUE_REQUIRED, 'Maximum number of messages to process per mailbox.', null)
+            ->addOption('connector', null, InputOption::VALUE_REQUIRED, 'Connector-ID (UUID) oder Domain. Wenn nicht gesetzt, werden alle Connectoren abgerufen.')
+            ->addOption('limit', null, InputOption::VALUE_REQUIRED, 'Maximum number of messages to process per connector.', null)
             ->addOption('oldest', null, InputOption::VALUE_NONE, 'Process the oldest messages first (default: newest first).')
-            ->addOption('delete-after', null, InputOption::VALUE_NONE, 'Delete the message from the server after a successful import (overrides the mailbox setting).')
+            ->addOption('delete-after', null, InputOption::VALUE_NONE, 'Delete the message from the server after a successful import (overrides the connector setting).')
             ->addOption('error-log', null, InputOption::VALUE_REQUIRED, 'Path for a detailed error log (with UIDL, subject and trace).');
     }
 
     #[\Override]
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $mbFilter = $input->getOption('mailbox');
-        $mbFilter = is_string($mbFilter) && '' !== $mbFilter ? $mbFilter : null;
+        $connectorFilter = $input->getOption('connector');
+        $connectorFilter = is_string($connectorFilter) && '' !== $connectorFilter ? $connectorFilter : null;
         $limitOpt = $input->getOption('limit');
         $limit = is_numeric($limitOpt) ? (int) $limitOpt : null;
         $oldest = (bool) $input->getOption('oldest');
         $deleteAfterOpt = $input->getOption('delete-after');
-        $deleteAfter = $deleteAfterOpt ? true : null; // null = verwende Mailbox-Default
+        $deleteAfter = $deleteAfterOpt ? true : null; // null = use connector default
         $errorLogOpt = $input->getOption('error-log');
         $errorLogPath = is_string($errorLogOpt) && '' !== $errorLogOpt ? $errorLogOpt : null;
         if ($errorLogPath) {
@@ -60,57 +61,43 @@ class MailFetchCommand extends Command
             }
             $output->writeln(sprintf('<info>Fehler-Log: %s</info>', $errorLogPath));
         }
-        $mailboxes = [];
-        if ($mbFilter) {
-            $mb = null;
+        $connectors = [];
+        if ($connectorFilter) {
+            $connector = null;
             try {
-                $mb = $this->mailboxRepo->find($mbFilter);
+                $connector = $this->connectorRepo->find($connectorFilter);
             } catch (\Throwable) {
             }
-            if (!$mb) {
-                $mb = $this->mailboxRepo->findOneBy(['email' => $mbFilter]);
+            if (!$connector instanceof Connector) {
+                $connector = $this->connectorRepo->findOneBy(['domain' => strtolower($connectorFilter)]);
             }
-            if (!$mb) {
-                $output->writeln('<error>Mailbox not found: '.$mbFilter.'</error>');
+            if (!$connector instanceof Connector) {
+                $output->writeln('<error>Connector not found: '.$connectorFilter.'</error>');
 
                 return Command::FAILURE;
             }
-            $mailboxes = [$mb];
+            $connectors = [$connector];
         } else {
-            $mailboxes = $this->mailboxRepo->findAll();
+            $connectors = $this->connectorRepo->findBy([], ['name' => 'ASC']);
         }
-        if (!$mailboxes) {
-            $output->writeln('<comment>Keine Mailboxen vorhanden.</comment>');
+        if (!$connectors) {
+            $output->writeln('<comment>Keine Connectoren vorhanden.</comment>');
 
             return Command::SUCCESS;
         }
         $totalImported = 0;
         $totalSkipped = 0;
         $totalErrors = 0;
-        $processedConnectors = 0;
-        foreach ($mailboxes as $mb) {
-            $connectors = $mb->getConnectors();
-            if ($connectors->isEmpty()) {
-                $output->writeln(sprintf('<comment>[%s]</comment> No connector configured.', $mb->getEmail()));
-                continue;
-            }
-            foreach ($connectors as $connector) {
-                ++$processedConnectors;
-                $label = sprintf('%s / %s', $mb->getEmail(), $connector->getEmail());
-                $output->writeln(sprintf('<info>[%s]</info> Abruf startet …', $label));
-                $this->fetcher->setOutput($output);
-                $this->fetcher->setErrorLogPath($errorLogPath);
-                $result = $this->fetcher->fetchForConnector($connector, $limit, $deleteAfter, $oldest);
-                $output->writeln(sprintf('   imported: %d, skipped: %d, errors: %d', $result['imported'], $result['skipped'], $result['errors']));
-                $totalImported += $result['imported'];
-                $totalSkipped += $result['skipped'];
-                $totalErrors += $result['errors'];
-            }
-        }
-        if (0 === $processedConnectors) {
-            $output->writeln('<comment>Keine Connectoren vorhanden.</comment>');
-
-            return Command::SUCCESS;
+        foreach ($connectors as $connector) {
+            $label = sprintf('%s (%s)', $connector->getName(), $connector->getDomain());
+            $output->writeln(sprintf('<info>[%s]</info> Abruf startet …', $label));
+            $this->fetcher->setOutput($output);
+            $this->fetcher->setErrorLogPath($errorLogPath);
+            $result = $this->fetcher->fetchForConnector($connector, $limit, $deleteAfter, $oldest);
+            $output->writeln(sprintf('   imported: %d, skipped: %d, errors: %d', $result['imported'], $result['skipped'], $result['errors']));
+            $totalImported += $result['imported'];
+            $totalSkipped += $result['skipped'];
+            $totalErrors += $result['errors'];
         }
         $output->writeln('—');
         $output->writeln(sprintf('<info>Done.</info> Total: imported=%d, skipped=%d, errors=%d', $totalImported, $totalSkipped, $totalErrors));

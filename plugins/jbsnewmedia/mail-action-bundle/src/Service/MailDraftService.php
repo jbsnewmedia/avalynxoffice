@@ -9,6 +9,7 @@ declare(strict_types=1);
 
 namespace JBSNewMedia\MailActionBundle\Service;
 
+use AvalynxOffice\Entity\Account;
 use AvalynxOffice\Entity\Address;
 use AvalynxOffice\Entity\Attachment;
 use AvalynxOffice\Entity\Body;
@@ -18,10 +19,9 @@ use AvalynxOffice\Entity\EmailAttachmentLink;
 use AvalynxOffice\Entity\EmailBodyLink;
 use AvalynxOffice\Entity\Enum\BodyContentType;
 use AvalynxOffice\Entity\Enum\EmailAddressType;
-use AvalynxOffice\Entity\Mailbox;
 use AvalynxOffice\Licensing\Service\LicenseEnforcementInterface;
 use AvalynxOffice\Licensing\Service\LicenseOperation;
-use AvalynxOffice\Repository\MailboxRepository;
+use AvalynxOffice\Repository\AccountRepository;
 use AvalynxOffice\Service\Mail\AttachmentStorage;
 use AvalynxOffice\Service\Mail\FolderManager;
 use Doctrine\ORM\EntityManagerInterface;
@@ -32,7 +32,7 @@ final readonly class MailDraftService
 {
     public function __construct(
         private EntityManagerInterface $entityManager,
-        private MailboxRepository $mailboxRepository,
+        private AccountRepository $accountRepository,
         private FolderManager $folderManager,
         private AttachmentStorage $attachmentStorage,
         private TranslatorInterface $translator,
@@ -46,13 +46,13 @@ final readonly class MailDraftService
         $email->setIsOutgoing(true);
         $email->setIsDraft(true);
 
-        $mailbox = $this->mailboxRepository->findAll()[0] ?? null;
-        if (null === $mailbox) {
+        $account = $this->accountRepository->findAll()[0] ?? null;
+        if (null === $account) {
             return $email;
         }
 
-        $email->setMailbox($mailbox);
-        $address = $this->resolveSenderAddress($mailbox);
+        $email->setAccount($account);
+        $address = $this->resolveSenderAddress($account);
 
         $link = new EmailAddressLink();
         $link->setEmail($email);
@@ -159,7 +159,7 @@ final readonly class MailDraftService
 
         $this->syncAttachments($email, $retainedAttachmentIds, $uploadedAttachments);
 
-        if ($email->getMailbox() instanceof Mailbox) {
+        if ($email->getAccount() instanceof Account) {
             $this->folderManager->syncEmailSystemFolders($email);
         }
 
@@ -179,15 +179,15 @@ final readonly class MailDraftService
         $draft->setIsOutgoing(true);
         $draft->setIsDraft(true);
 
-        $mailbox = $this->resolveMailbox($originalEmail);
-        if ($mailbox instanceof Mailbox) {
-            $draft->setMailbox($mailbox);
+        $account = $this->resolveAccount($originalEmail);
+        if ($account instanceof Account) {
+            $draft->setAccount($account);
         }
 
-        $this->copyMailboxAddressAsSender($originalEmail, $draft);
+        $this->copyAccountAddressAsSender($originalEmail, $draft);
         $this->attachQuotedBody($draft, $originalEmail, $quotedOnText);
 
-        if ($draft->getMailbox() instanceof Mailbox) {
+        if ($draft->getAccount() instanceof Account) {
             $this->folderManager->syncEmailSystemFolders($draft);
         }
 
@@ -197,11 +197,11 @@ final readonly class MailDraftService
         return $draft;
     }
 
-    private function resolveMailbox(Email $email): ?Mailbox
+    private function resolveAccount(Email $email): ?Account
     {
-        $mailbox = $email->getMailbox();
-        if ($mailbox instanceof Mailbox) {
-            return $mailbox;
+        $account = $email->getAccount();
+        if ($account instanceof Account) {
+            return $account;
         }
 
         foreach ($email->getEmailFolders() as $emailFolder) {
@@ -210,17 +210,17 @@ final readonly class MailDraftService
                 continue;
             }
 
-            foreach ($folder->getMailboxLinks() as $mailboxLink) {
-                return $mailboxLink->getMailbox();
+            foreach ($folder->getAccountLinks() as $accountLink) {
+                return $accountLink->getAccount();
             }
         }
 
         return null;
     }
 
-    private function copyMailboxAddressAsSender(Email $originalEmail, Email $draft): void
+    private function copyAccountAddressAsSender(Email $originalEmail, Email $draft): void
     {
-        $draftMailbox = $draft->getMailbox();
+        $draftAccount = $draft->getAccount();
         foreach ($originalEmail->getEmailAddresses() as $link) {
             if (EmailAddressType::RECIPIENT !== $link->getType()) {
                 continue;
@@ -231,15 +231,15 @@ final readonly class MailDraftService
                 continue;
             }
 
-            if ($draftMailbox instanceof Mailbox) {
-                foreach ($draftMailbox->getAddresses() as $mailboxAddress) {
-                    if ($mailboxAddress instanceof Address && $mailboxAddress->getEmail() === $recipientAddress->getEmail()) {
-                        $this->attachSenderAddress($draft, $mailboxAddress);
+            if ($draftAccount instanceof Account) {
+                foreach ($draftAccount->getAliases() as $alias) {
+                    if (mb_strtolower($alias->getAddress()) === mb_strtolower($recipientAddress->getEmail())) {
+                        $this->attachSenderAddress($draft, $recipientAddress);
 
                         return;
                     }
                 }
-                if ($draftMailbox->getEmail() === $recipientAddress->getEmail()) {
+                if (mb_strtolower($draftAccount->getEmail()) === mb_strtolower($recipientAddress->getEmail())) {
                     $this->attachSenderAddress($draft, $recipientAddress);
 
                     return;
@@ -251,8 +251,8 @@ final readonly class MailDraftService
             return;
         }
 
-        if ($draftMailbox instanceof Mailbox) {
-            $this->attachSenderAddress($draft, $this->resolveSenderAddress($draftMailbox));
+        if ($draftAccount instanceof Account) {
+            $this->attachSenderAddress($draft, $this->resolveSenderAddress($draftAccount));
         }
     }
 
@@ -291,11 +291,10 @@ final readonly class MailDraftService
         return (string) $originalEmail->getPreviewBody();
     }
 
-    private function resolveSenderAddress(Mailbox $mailbox): Address
+    private function resolveSenderAddress(Account $account): Address
     {
-        $preferredAddress = $mailbox->getPrimaryAddress();
-        $email = $preferredAddress?->getEmail() ?? $mailbox->getEmail();
-        $name = $preferredAddress?->getName() ?? $mailbox->getName();
+        $email = $account->getEmail();
+        $name = $account->getName();
         $address = $this->entityManager->getRepository(Address::class)->findOneBy(['email' => $email]);
         if (!$address instanceof Address) {
             $address = new Address();
@@ -312,7 +311,8 @@ final readonly class MailDraftService
     private function attachSenderAddress(Email $draft, Address $address): void
     {
         foreach ($draft->getEmailAddresses() as $existingLink) {
-            if (EmailAddressType::SENDER === $existingLink->getType() && $existingLink->getAddress() === $address) {
+            if (EmailAddressType::SENDER === $existingLink->getType()
+                && mb_strtolower((string) $existingLink->getAddress()?->getEmail()) === mb_strtolower($address->getEmail())) {
                 return;
             }
         }

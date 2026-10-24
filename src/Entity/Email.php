@@ -55,9 +55,25 @@ class Email
     private bool $hasEncodingIssues = false;
     #[ORM\Column(name: 'scheduled_at', type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $scheduledAt = null;
-    #[ORM\ManyToOne(targetEntity: Mailbox::class)]
-    #[ORM\JoinColumn(name: 'mailbox_id', referencedColumnName: 'id', nullable: true)]
-    private ?Mailbox $mailbox = null;
+    #[ORM\ManyToOne(targetEntity: Account::class)]
+    #[ORM\JoinColumn(name: 'account_id', referencedColumnName: 'id', nullable: true)]
+    private ?Account $account = null;
+    /**
+     * Connector the message was fetched with (null for locally written
+     * messages). Together with matchedLocalPart it identifies the alias
+     * responsible for the delivery, so alias moves can re-route the
+     * existing message stock.
+     */
+    #[ORM\ManyToOne(targetEntity: Connector::class)]
+    #[ORM\JoinColumn(name: 'connector_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    private ?Connector $connector = null;
+    /**
+     * Local part of the alias that matched during fetch (null when the
+     * default account of the connector was used or when the message was
+     * not fetched).
+     */
+    #[ORM\Column(name: 'matched_local_part', type: 'string', length: 190, nullable: true)]
+    private ?string $matchedLocalPart = null;
     #[ORM\Column(name: 'message_id', type: 'string', length: 255, nullable: true)]
     private ?string $messageId = null;
     #[ORM\Column(name: 'import_key', type: 'string', length: 190, unique: true, nullable: true)]
@@ -289,14 +305,38 @@ class Email
         return $this;
     }
 
-    public function getMailbox(): ?Mailbox
+    public function getAccount(): ?Account
     {
-        return $this->mailbox;
+        return $this->account;
     }
 
-    public function setMailbox(?Mailbox $mailbox): self
+    public function setAccount(?Account $account): self
     {
-        $this->mailbox = $mailbox;
+        $this->account = $account;
+
+        return $this;
+    }
+
+    public function getConnector(): ?Connector
+    {
+        return $this->connector;
+    }
+
+    public function setConnector(?Connector $connector): self
+    {
+        $this->connector = $connector;
+
+        return $this;
+    }
+
+    public function getMatchedLocalPart(): ?string
+    {
+        return $this->matchedLocalPart;
+    }
+
+    public function setMatchedLocalPart(?string $matchedLocalPart): self
+    {
+        $this->matchedLocalPart = null !== $matchedLocalPart ? strtolower(trim($matchedLocalPart)) : null;
 
         return $this;
     }

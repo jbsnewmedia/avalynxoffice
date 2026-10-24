@@ -6,6 +6,7 @@ namespace AvalynxOffice\Tests\Service\Mail;
 
 use AvalynxOffice\Service\Mail\AttachmentStorage;
 use AvalynxOffice\Service\Mail\Pop3Fetcher;
+use AvalynxOffice\Service\Mail\MailRoutingService;
 use AvalynxOffice\Service\Mail\Pop3StorageFactory;
 use Doctrine\ORM\EntityManagerInterface;
 use Laminas\Mail\Storage\Message as StorageMessage;
@@ -23,7 +24,7 @@ class Pop3FetcherUtf8ReproductionTest extends TestCase
         $attachmentStorage = $this->createStub(AttachmentStorage::class);
         $pop3StorageFactory = $this->createStub(Pop3StorageFactory::class);
 
-        $this->fetcher = new Pop3Fetcher($em, $emailRepo, $folderManager, $attachmentStorage, $pop3StorageFactory);
+        $this->fetcher = new Pop3Fetcher($em, $emailRepo, $folderManager, $attachmentStorage, $pop3StorageFactory, $this->createStub(MailRoutingService::class));
     }
 
     private function callPrivateMethod($methodName, array $args)

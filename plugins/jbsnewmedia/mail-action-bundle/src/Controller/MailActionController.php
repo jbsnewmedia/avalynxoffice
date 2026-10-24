@@ -9,10 +9,10 @@ declare(strict_types=1);
 
 namespace JBSNewMedia\MailActionBundle\Controller;
 
+use AvalynxOffice\Entity\Account;
 use AvalynxOffice\Entity\Email;
 use AvalynxOffice\Entity\Enum\EmailAddressType;
 use AvalynxOffice\Entity\Folder;
-use AvalynxOffice\Entity\Mailbox;
 use AvalynxOffice\Form\EmailReplyType;
 use AvalynxOffice\Licensing\Service\LicenseEnforcementInterface;
 use AvalynxOffice\Licensing\Service\LicenseOperation;
@@ -386,35 +386,32 @@ final class MailActionController extends AbstractController
      */
     private function createSenderChoices(Email $email): array
     {
-        $mailbox = $email->getMailbox();
-        if (!$mailbox instanceof Mailbox) {
+        $account = $email->getAccount();
+        if (!$account instanceof Account) {
             return [];
         }
 
         $choices = [];
         $seen = [];
-        foreach ($mailbox->getAddresses() as $address) {
-            $mail = trim((string) $address->getEmail());
+
+        $addChoice = static function (string $mail) use (&$choices, &$seen, $account): void {
+            $mail = trim($mail);
             if ('' === $mail) {
-                continue;
+                return;
             }
 
             $normalized = mb_strtolower($mail);
             if (isset($seen[$normalized])) {
-                continue;
+                return;
             }
 
             $seen[$normalized] = true;
-            $label = $address->getName() ? sprintf('%s <%s>', $address->getName(), $mail) : $mail;
-            $choices[$label] = $mail;
-        }
+            $choices[$account->getName() ? sprintf('%s <%s>', $account->getName(), $mail) : $mail] = $mail;
+        };
 
-        $mail = trim($mailbox->getEmail());
-        if ('' !== $mail) {
-            $normalized = mb_strtolower($mail);
-            if (!isset($seen[$normalized])) {
-                $choices[$mailbox->getName() ? sprintf('%s <%s>', $mailbox->getName(), $mail) : $mail] = $mail;
-            }
+        $addChoice($account->getEmail());
+        foreach ($account->getAliases() as $alias) {
+            $addChoice($alias->getAddress());
         }
 
         return $choices;

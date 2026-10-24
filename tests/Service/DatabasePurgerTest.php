@@ -21,7 +21,7 @@ final class DatabasePurgerTest extends TestCase
     {
         $connection = $this->createConnection('postgresql', [
             'app_user',
-            'mailbox',
+            'account',
             'email',
             'doctrine_migration_versions',
             'messenger_messages',
@@ -35,8 +35,8 @@ final class DatabasePurgerTest extends TestCase
 
         $purger = new DatabasePurger($this->createEntityManager($connection, $this->createMetadata('app_user')));
 
-        self::assertSame(['mailbox', 'email'], $purger->purge(true));
-        self::assertContains('TRUNCATE mailbox, email', $statements);
+        self::assertSame(['account', 'email'], $purger->purge(true));
+        self::assertContains('TRUNCATE account, email', $statements);
         self::assertContains("SET session_replication_role = 'replica'", $statements);
         self::assertContains("SET session_replication_role = 'origin'", $statements);
     }
@@ -45,7 +45,7 @@ final class DatabasePurgerTest extends TestCase
     {
         $connection = $this->createConnection('postgresql', [
             'app_user',
-            'mailbox',
+            'account',
             'email',
             'messenger_messages',
         ]);
@@ -55,8 +55,8 @@ final class DatabasePurgerTest extends TestCase
 
         $purger = new DatabasePurger($this->createEntityManager($connection, $this->createMetadata('app_user')));
 
-        self::assertSame(['app_user', 'mailbox', 'email'], $purger->purge(false));
-        self::assertContains('TRUNCATE app_user, mailbox, email', $statements);
+        self::assertSame(['app_user', 'account', 'email'], $purger->purge(false));
+        self::assertContains('TRUNCATE app_user, account, email', $statements);
     }
 
     public function testPurgeFallsBackToDeleteOnPostgresql(): void

@@ -1,8 +1,8 @@
 <div class="sticky-top bg-body border-bottom shadow-sm">
-    {% if activeMailboxId|default(null) == 'all' and activeContactMailboxes|default([]) is not empty %}
-        <div class="mailbox-tag bg-body-tertiary text-body-secondary small px-3 py-1 border-bottom" style="font-size: 0.75rem;">
+    {% if activeAccountId|default(null) == 'all' and activeContactAccounts|default([]) is not empty %}
+        <div class="account-tag bg-body-tertiary text-body-secondary small px-3 py-1 border-bottom" style="font-size: 0.75rem;">
             <i class="fa-solid fa-inbox me-1 small" aria-hidden="true"></i>
-            {%- for mailbox in activeContactMailboxes %}{{ mailbox.name }}{% if not loop.last %}, {% endif %}{% endfor -%}
+            {%- for account in activeContactAccounts %}{{ account.name }}{% if not loop.last %}, {% endif %}{% endfor -%}
         </div>
     {% endif %}
     <div class="p-3 email-action-bar d-flex justify-content-between align-items-center">

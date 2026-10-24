@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace AvalynxOffice\Tests\Controller;
 
 use AvalynxOffice\Entity\Address;
-use AvalynxOffice\Entity\Mailbox;
+use AvalynxOffice\Entity\Account;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Tests\Support\RefreshDatabaseTrait;
 use Doctrine\ORM\EntityManagerInterface;
@@ -21,8 +21,8 @@ final class ContactCalendarControllerTest extends WebTestCase
     private KernelBrowser $client;
     private EntityManagerInterface $entityManager;
     private User $adminUser;
-    private Mailbox $mailbox;
-    private Mailbox $secondMailbox;
+    private Account $account;
+    private Account $secondAccount;
     private Address $jane;
     private Address $john;
 
@@ -147,26 +147,26 @@ final class ContactCalendarControllerTest extends WebTestCase
         self::assertSelectorExists('a[href="/calendar"]');
     }
 
-    public function testLimitedUserSeesOnlyContactsOfOwnMailboxes(): void
+    public function testLimitedUserSeesOnlyContactsOfOwnAccounts(): void
     {
         $user = (new User())
             ->setEmail('limited@example.com')
             ->setPassword('secret')
             ->setRoles(['ROLE_USER']);
-        $ownMailbox = (new Mailbox())
+        $ownAccount = (new Account())
             ->setName('Private')
             ->setEmail('private@example.com');
-        $user->addMailbox($ownMailbox);
+        $user->addAccount($ownAccount);
 
         $ownContact = (new Address())
             ->setEmail('own@example.com')
             ->setFirstname('Own')
             ->setLastname('Contact');
         $ownContact->setIsContact(true);
-        $ownMailbox->addAddress($ownContact);
+        $ownAccount->addAddress($ownContact);
 
         $this->entityManager->persist($user);
-        $this->entityManager->persist($ownMailbox);
+        $this->entityManager->persist($ownAccount);
         $this->entityManager->persist($ownContact);
         $this->entityManager->flush();
 
@@ -180,7 +180,7 @@ final class ContactCalendarControllerTest extends WebTestCase
         self::assertStringNotContainsString('jane@example.com', $content);
     }
 
-    public function testUserWithoutMailboxesSeesEmptyState(): void
+    public function testUserWithoutAccountsSeesEmptyState(): void
     {
         $user = (new User())
             ->setEmail('lonely@example.com')
@@ -196,13 +196,13 @@ final class ContactCalendarControllerTest extends WebTestCase
         self::assertStringContainsString('Select a contact from the list.', (string) $this->client->getResponse()->getContent());
     }
 
-    public function testMailboxScopeFiltersContacts(): void
+    public function testAccountScopeFiltersContacts(): void
     {
         $this->client->loginUser($this->adminUser);
 
-        $secondMailboxId = (string) $this->secondMailbox->getId();
+        $secondAccountId = (string) $this->secondAccount->getId();
 
-        $this->client->request('GET', '/contacts', ['mailbox' => $secondMailboxId]);
+        $this->client->request('GET', '/contacts', ['account' => $secondAccountId]);
         self::assertResponseIsSuccessful();
         $content = (string) $this->client->getResponse()->getContent();
         self::assertStringContainsString('scoped@example.com', $content);
@@ -215,34 +215,34 @@ final class ContactCalendarControllerTest extends WebTestCase
         self::assertStringContainsString('jane@example.com', $content);
     }
 
-    public function testContactListTagsItemsWithMailboxWhenAllAccountsSelected(): void
+    public function testContactListTagsItemsWithAccountWhenAllAccountsSelected(): void
     {
         $this->client->loginUser($this->adminUser);
 
         $this->client->request('GET', '/contacts');
         self::assertResponseIsSuccessful();
 
-        self::assertSelectorExists('.email-list-container .mailbox-tag');
-        self::assertSelectorTextContains('.email-list-container .mailbox-tag', 'Support');
+        self::assertSelectorExists('.email-list-container .account-tag');
+        self::assertSelectorTextContains('.email-list-container .account-tag', 'Support');
     }
 
-    public function testContactListHidesMailboxTagWhenMailboxIsScoped(): void
+    public function testContactListHidesAccountTagWhenAccountIsScoped(): void
     {
         $this->client->loginUser($this->adminUser);
 
-        $secondMailboxId = (string) $this->secondMailbox->getId();
-        $this->client->request('GET', '/contacts', ['mailbox' => $secondMailboxId]);
+        $secondAccountId = (string) $this->secondAccount->getId();
+        $this->client->request('GET', '/contacts', ['account' => $secondAccountId]);
         self::assertResponseIsSuccessful();
 
-        self::assertSelectorNotExists('.email-list-container .mailbox-tag');
+        self::assertSelectorNotExists('.email-list-container .account-tag');
     }
 
-    public function testCalendarListTagsItemsWithMailboxWhenAllAccountsSelected(): void
+    public function testCalendarListTagsItemsWithAccountWhenAllAccountsSelected(): void
     {
         $event = new \AvalynxOffice\Entity\CalendarEvent();
         $event->setTitle('Tagged Event');
         $event->setStartAt(new \DateTimeImmutable('now'));
-        $event->setMailbox($this->mailbox);
+        $event->setAccount($this->account);
         $this->entityManager->persist($event);
         $this->entityManager->flush();
 
@@ -251,34 +251,34 @@ final class ContactCalendarControllerTest extends WebTestCase
         $this->client->request('GET', '/calendar');
         self::assertResponseIsSuccessful();
 
-        self::assertSelectorExists('.email-list-container .mailbox-tag');
-        self::assertSelectorTextContains('.email-list-container .mailbox-tag', 'Support');
+        self::assertSelectorExists('.email-list-container .account-tag');
+        self::assertSelectorTextContains('.email-list-container .account-tag', 'Support');
     }
 
-    public function testForeignMailboxScopeIsDenied(): void
+    public function testForeignAccountScopeIsDenied(): void
     {
-        $foreignMailbox = (new Mailbox())
+        $foreignAccount = (new Account())
             ->setName('Foreign')
             ->setEmail('foreign@example.com');
-        $this->entityManager->persist($foreignMailbox);
+        $this->entityManager->persist($foreignAccount);
         $this->entityManager->flush();
-        $foreignMailboxId = (string) $foreignMailbox->getId();
+        $foreignAccountId = (string) $foreignAccount->getId();
 
         $user = (new User())
             ->setEmail('restricted@example.com')
             ->setPassword('secret')
             ->setRoles(['ROLE_USER']);
-        $ownMailbox = (new Mailbox())
+        $ownAccount = (new Account())
             ->setName('Own')
             ->setEmail('own-box@example.com');
-        $user->addMailbox($ownMailbox);
+        $user->addAccount($ownAccount);
         $this->entityManager->persist($user);
-        $this->entityManager->persist($ownMailbox);
+        $this->entityManager->persist($ownAccount);
         $this->entityManager->flush();
 
         $this->client->loginUser($user);
 
-        $this->client->request('GET', '/contacts', ['mailbox' => $foreignMailboxId]);
+        $this->client->request('GET', '/contacts', ['account' => $foreignAccountId]);
         self::assertResponseStatusCodeSame(403);
     }
 
@@ -304,16 +304,16 @@ final class ContactCalendarControllerTest extends WebTestCase
             ->setEmail('stranger@example.com')
             ->setPassword('secret')
             ->setRoles(['ROLE_USER']);
-        $foreignMailbox = (new Mailbox())
+        $foreignAccount = (new Account())
             ->setName('Foreign')
             ->setEmail('foreign2@example.com');
         $foreignContact = (new Address())
             ->setEmail('secret-person@example.com');
         $foreignContact->setIsContact(true);
-        $foreignMailbox->addAddress($foreignContact);
-        $user->addMailbox($this->mailbox);
+        $foreignAccount->addAddress($foreignContact);
+        $user->addAccount($this->account);
         $this->entityManager->persist($user);
-        $this->entityManager->persist($foreignMailbox);
+        $this->entityManager->persist($foreignAccount);
         $this->entityManager->persist($foreignContact);
         $this->entityManager->flush();
 
@@ -382,11 +382,11 @@ final class ContactCalendarControllerTest extends WebTestCase
         self::assertArrayHasKey('invalid', $data);
     }
 
-    public function testContactCreateAddsContactToSelectedMailbox(): void
+    public function testContactCreateAddsContactToSelectedAccount(): void
     {
         $this->client->loginUser($this->adminUser);
 
-        $secondMailboxId = (string) $this->secondMailbox->getId();
+        $secondAccountId = (string) $this->secondAccount->getId();
 
         $crawler = $this->client->request('GET', '/contacts/new', [], [], ['HTTP_X-Requested-With' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
@@ -398,7 +398,7 @@ final class ContactCalendarControllerTest extends WebTestCase
                 'firstname' => 'Nina',
                 'lastname' => 'Neu',
                 'email' => 'nina@example.com',
-                'mailbox' => $secondMailboxId,
+                'account' => $secondAccountId,
             ],
         ], [], ['HTTP_X-Requested-With' => 'XMLHttpRequest']);
 
@@ -411,9 +411,9 @@ final class ContactCalendarControllerTest extends WebTestCase
         $created = $this->entityManager->getRepository(Address::class)->findOneBy(['email' => 'nina@example.com']);
         self::assertInstanceOf(Address::class, $created);
         self::assertTrue($created->isContact());
-        $refetchedMailbox = $this->entityManager->getRepository(Mailbox::class)->find($this->secondMailbox->getId());
-        self::assertInstanceOf(Mailbox::class, $refetchedMailbox);
-        $emails = array_map(static fn (Address $a): string => $a->getEmail(), $refetchedMailbox->getAddresses()->toArray());
+        $refetchedAccount = $this->entityManager->getRepository(Account::class)->find($this->secondAccount->getId());
+        self::assertInstanceOf(Account::class, $refetchedAccount);
+        $emails = array_map(static fn (Address $a): string => $a->getEmail(), $refetchedAccount->getAddresses()->toArray());
         self::assertContains('nina@example.com', $emails);
     }
 
@@ -436,25 +436,25 @@ final class ContactCalendarControllerTest extends WebTestCase
         self::assertResponseStatusCodeSame(422);
     }
 
-    public function testContactCreateWithForeignMailboxIsDenied(): void
+    public function testContactCreateWithForeignAccountIsDenied(): void
     {
-        $foreignMailbox = (new Mailbox())
+        $foreignAccount = (new Account())
             ->setName('Foreign')
             ->setEmail('foreign3@example.com');
-        $this->entityManager->persist($foreignMailbox);
+        $this->entityManager->persist($foreignAccount);
         $this->entityManager->flush();
-        $foreignMailboxId = (string) $foreignMailbox->getId();
+        $foreignAccountId = (string) $foreignAccount->getId();
 
         $user = (new User())
             ->setEmail('restricted@example.com')
             ->setPassword('secret')
             ->setRoles(['ROLE_USER']);
-        $ownMailbox = (new Mailbox())
+        $ownAccount = (new Account())
             ->setName('Own')
             ->setEmail('own-box@example.com');
-        $user->addMailbox($ownMailbox);
+        $user->addAccount($ownAccount);
         $this->entityManager->persist($user);
-        $this->entityManager->persist($ownMailbox);
+        $this->entityManager->persist($ownAccount);
         $this->entityManager->flush();
 
         $this->client->loginUser($user);
@@ -468,7 +468,7 @@ final class ContactCalendarControllerTest extends WebTestCase
                 '_token' => $token,
                 'firstname' => 'X',
                 'email' => 'x@example.com',
-                'mailbox' => $foreignMailboxId,
+                'account' => $foreignAccountId,
             ],
         ], [], ['HTTP_X-Requested-With' => 'XMLHttpRequest']);
 
@@ -576,7 +576,7 @@ final class ContactCalendarControllerTest extends WebTestCase
             ->setPassword('secret')
             ->setRoles(['ROLE_ADMIN']);
 
-        $this->mailbox = (new Mailbox())
+        $this->account = (new Account())
             ->setName('Support')
             ->setEmail('support@example.com');
 
@@ -599,25 +599,25 @@ final class ContactCalendarControllerTest extends WebTestCase
         $plain = (new Address())
             ->setEmail('plain@example.com');
 
-        $this->secondMailbox = (new Mailbox())
+        $this->secondAccount = (new Account())
             ->setName('Vertrieb')
             ->setEmail('vertrieb@example.com');
         $scopedContact = (new Address())
             ->setEmail('scoped@example.com')
             ->setFirstname('Scoped');
         $scopedContact->setIsContact(true);
-        $this->secondMailbox->addAddress($scopedContact);
+        $this->secondAccount->addAddress($scopedContact);
 
-        $this->mailbox->addAddress($this->jane);
-        $this->mailbox->addAddress($this->john);
-        $this->mailbox->addAddress($plain);
+        $this->account->addAddress($this->jane);
+        $this->account->addAddress($this->john);
+        $this->account->addAddress($plain);
 
-        $this->adminUser->addMailbox($this->mailbox);
-        $this->adminUser->addMailbox($this->secondMailbox);
+        $this->adminUser->addAccount($this->account);
+        $this->adminUser->addAccount($this->secondAccount);
 
         $this->entityManager->persist($this->adminUser);
-        $this->entityManager->persist($this->mailbox);
-        $this->entityManager->persist($this->secondMailbox);
+        $this->entityManager->persist($this->account);
+        $this->entityManager->persist($this->secondAccount);
         $this->entityManager->persist($this->jane);
         $this->entityManager->persist($this->john);
         $this->entityManager->persist($plain);

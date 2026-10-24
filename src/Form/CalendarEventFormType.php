@@ -9,8 +9,8 @@ declare(strict_types=1);
 
 namespace AvalynxOffice\Form;
 
+use AvalynxOffice\Entity\Account;
 use AvalynxOffice\Entity\CalendarEvent;
-use AvalynxOffice\Entity\Mailbox;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
@@ -104,12 +104,12 @@ class CalendarEventFormType extends AbstractType
                 'attr' => ['class' => 'form-control', 'min' => 0],
             ]);
 
-        if (!empty($options['mailboxes'])) {
-            $builder->add('mailbox', EntityType::class, [
-                'class' => Mailbox::class,
-                'choices' => $options['mailboxes'],
+        if (!empty($options['accounts'])) {
+            $builder->add('account', EntityType::class, [
+                'class' => Account::class,
+                'choices' => $options['accounts'],
                 'choice_label' => 'email',
-                'label' => 'contact.form.mailbox',
+                'label' => 'contact.form.account',
                 'mapped' => false,
                 'required' => true,
                 'attr' => ['class' => 'form-select'],
@@ -127,9 +127,9 @@ class CalendarEventFormType extends AbstractType
     {
         $resolver->setDefaults([
             'data_class' => CalendarEvent::class,
-            'mailboxes' => null,
+            'accounts' => null,
         ]);
 
-        $resolver->setAllowedTypes('mailboxes', ['null', 'array']);
+        $resolver->setAllowedTypes('accounts', ['null', 'array']);
     }
 }

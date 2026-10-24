@@ -1,9 +1,9 @@
-{% set scopeParams = activeMailboxId is defined and activeMailboxId != 'all' ? {mailbox: activeMailboxId} : {} %}
+{% set scopeParams = activeAccountId is defined and activeAccountId != 'all' ? {account: activeAccountId} : {} %}
 {% set calendarBasePath = path('calendar_month', {monthKey: activeMonth}|merge(scopeParams)) %}
 <div class="sticky-top bg-body border-bottom shadow-sm">
     <form class="p-3" method="get" action="{{ calendarBasePath }}" role="search">
-        {% if activeMailboxId is defined and activeMailboxId != 'all' %}
-            <input type="hidden" name="mailbox" value="{{ activeMailboxId }}">
+        {% if activeAccountId is defined and activeAccountId != 'all' %}
+            <input type="hidden" name="account" value="{{ activeAccountId }}">
         {% endif %}
         <div class="input-group search-group">
             <input type="search" class="form-control" id="calendar-search-input" name="q" value="{{ search }}" placeholder="{{ 'search.placeholder'|trans }}" aria-label="{{ 'calendar.search'|trans }}">
@@ -28,12 +28,12 @@
                data-event="{{ event.id }}"
                {% if activeEvent and activeEvent.id == event.id %}aria-current="true"{% endif %}
                aria-label="{{ 'calendar.item_aria'|trans({'%title%': event.title, '%date%': event.startAt|date('d.m.Y')}) }}">
-                {% if (activeMailbox is not defined or not activeMailbox) and event.mailbox %}
-                    <div class="mailbox-tag bg-body-tertiary text-body-secondary small px-3 py-1 border-bottom" style="font-size: 0.75rem;">
-                        <i class="fa-solid fa-inbox me-1 small"></i> {{ event.mailbox.name }}
+                {% if (activeAccount is not defined or not activeAccount) and event.account %}
+                    <div class="account-tag bg-body-tertiary text-body-secondary small px-3 py-1 border-bottom" style="font-size: 0.75rem;">
+                        <i class="fa-solid fa-inbox me-1 small"></i> {{ event.account.name }}
                     </div>
                 {% endif %}
-                <div class="email-item-content px-3 {{ (activeMailbox is not defined or not activeMailbox) and event.mailbox ? 'pt-2 pb-3' : 'py-3' }} d-flex align-items-center gap-3">
+                <div class="email-item-content px-3 {{ (activeAccount is not defined or not activeAccount) and event.account ? 'pt-2 pb-3' : 'py-3' }} d-flex align-items-center gap-3">
                     <span class="border border-primary-subtle bg-primary-subtle rounded d-inline-flex flex-column align-items-center justify-content-center flex-shrink-0 text-center" style="width:2.75rem;height:2.75rem;" aria-hidden="true">
                         <span class="fw-bold lh-1 text-primary-emphasis">{{ event.startAt|date('d') }}</span>
                         <span class="text-uppercase text-primary-emphasis" style="font-size:0.65rem;">{{ event.startAt|date('M') }}</span>

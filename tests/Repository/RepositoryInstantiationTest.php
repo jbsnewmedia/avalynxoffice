@@ -10,16 +10,16 @@ use AvalynxOffice\Entity\EmailAddressLink;
 use AvalynxOffice\Entity\EmailAttachmentLink;
 use AvalynxOffice\Entity\EmailBodyLink;
 use AvalynxOffice\Entity\Folder;
-use AvalynxOffice\Entity\Mailbox;
-use AvalynxOffice\Entity\MailboxConnector;
+use AvalynxOffice\Entity\Account;
+use AvalynxOffice\Entity\Connector;
 use AvalynxOffice\Repository\AttachmentRepository;
 use AvalynxOffice\Repository\BodyRepository;
 use AvalynxOffice\Repository\EmailAddressLinkRepository;
 use AvalynxOffice\Repository\EmailAttachmentLinkRepository;
 use AvalynxOffice\Repository\EmailBodyLinkRepository;
 use AvalynxOffice\Repository\FolderRepository;
-use AvalynxOffice\Repository\MailboxConnectorRepository;
-use AvalynxOffice\Repository\MailboxRepository;
+use AvalynxOffice\Repository\ConnectorRepository;
+use AvalynxOffice\Repository\AccountRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\Persistence\ManagerRegistry;
@@ -57,7 +57,7 @@ final class RepositoryInstantiationTest extends TestCase
         yield 'email-attachment-link' => [EmailAttachmentLinkRepository::class, EmailAttachmentLink::class];
         yield 'email-body-link' => [EmailBodyLinkRepository::class, EmailBodyLink::class];
         yield 'folder' => [FolderRepository::class, Folder::class];
-        yield 'mailbox' => [MailboxRepository::class, Mailbox::class];
-        yield 'mailbox-connector' => [MailboxConnectorRepository::class, MailboxConnector::class];
+        yield 'account' => [AccountRepository::class, Account::class];
+        yield 'account-connector' => [ConnectorRepository::class, Connector::class];
     }
 }

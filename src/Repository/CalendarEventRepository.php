@@ -9,8 +9,8 @@ declare(strict_types=1);
 
 namespace AvalynxOffice\Repository;
 
+use AvalynxOffice\Entity\Account;
 use AvalynxOffice\Entity\CalendarEvent;
-use AvalynxOffice\Entity\Mailbox;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -25,23 +25,23 @@ class CalendarEventRepository extends ServiceEntityRepository
     }
 
     /**
-     * Events belonging to the given mailboxes, optionally filtered by a
+     * Events belonging to the given accounts, optionally filtered by a
      * search term across title, location and description, ordered by start.
      *
-     * @param list<Mailbox> $mailboxes
+     * @param list<Account> $accounts
      *
      * @return list<CalendarEvent>
      */
-    public function findEventsForMailboxes(array $mailboxes, string $search = ''): array
+    public function findEventsForAccounts(array $accounts, string $search = ''): array
     {
-        if ([] === $mailboxes) {
+        if ([] === $accounts) {
             return [];
         }
 
         $normalizedSearch = mb_strtolower(trim($search));
         $queryBuilder = $this->createQueryBuilder('event')
-            ->andWhere('event.mailbox IN (:mailboxes)')
-            ->setParameter('mailboxes', $mailboxes)
+            ->andWhere('event.account IN (:accounts)')
+            ->setParameter('accounts', $accounts)
             ->orderBy('event.startAt', 'ASC')
             ->addOrderBy('event.title', 'ASC');
 
@@ -64,9 +64,9 @@ class CalendarEventRepository extends ServiceEntityRepository
      * Creates an event from UI form data. The form has already applied the
      * submitted values to the given event.
      */
-    public function createFromForm(Mailbox $mailbox, CalendarEvent $event): CalendarEvent
+    public function createFromForm(Account $account, CalendarEvent $event): CalendarEvent
     {
-        $event->setMailbox($mailbox);
+        $event->setAccount($account);
 
         $this->getEntityManager()->persist($event);
         $this->getEntityManager()->flush();

@@ -21,14 +21,14 @@
     </div>
     <div class="offcanvas-body p-0">
         <aside class="bg-body">
-            {% embed '_mailbox_filter.html.twig' with { mailboxes: mailboxes, activeMailbox: activeMailbox, activeMailboxId: activeMailboxId, optionRoute: 'calendar_month', optionParams: {monthKey: activeMonth}, allLabel: 'mailbox.all'|trans } %}
+            {% embed '_account_filter.html.twig' with { accounts: accounts, activeAccount: activeAccount, activeAccountId: activeAccountId, optionRoute: 'calendar_month', optionParams: {monthKey: activeMonth}, allLabel: 'account.all'|trans } %}
                 {% block action %}
                     <a href="{{ path('calendar_new_modal') }}" class="btn btn-primary w-100 d-flex align-items-center justify-content-center gap-2 action-btn-modal {{ license_manager.isReadOnly ? 'disabled' }}" {{ license_manager.isReadOnly ? 'aria-disabled="true"' }} data-title="{{ 'calendar.new'|trans }}" data-modal-size="modal-lg">
                         <i class="fa-solid fa-calendar-plus" aria-hidden="true"></i>{{ 'calendar.new'|trans }}
                     </a>
                 {% endblock %}
             {% endembed %}
-            {% include 'calendar/_groups.html.twig' with { groups: groups, activeMonth: activeMonth, search: search, totalEvents: totalEvents, activeMailboxId: activeMailboxId } %}
+            {% include 'calendar/_groups.html.twig' with { groups: groups, activeMonth: activeMonth, search: search, totalEvents: totalEvents, activeAccountId: activeAccountId } %}
         </aside>
     </div>
 </div>
@@ -40,7 +40,7 @@
     </div>
     <div class="offcanvas-body p-0">
         <section class="bg-body">
-            {% include 'calendar/_list.html.twig' with { events: events, activeEvent: activeEvent, activeMonth: activeMonth, search: search, activeMailboxId: activeMailboxId } %}
+            {% include 'calendar/_list.html.twig' with { events: events, activeEvent: activeEvent, activeMonth: activeMonth, search: search, activeAccountId: activeAccountId } %}
         </section>
     </div>
 </div>
@@ -52,22 +52,22 @@
 <div class="container-fluid calendar-content">
     <div class="row h-100">
         <aside class="col-xxl-2 d-none d-xxl-block overflow-auto bg-body shadow-sm p-0 border-end">
-            {% embed '_mailbox_filter.html.twig' with { mailboxes: mailboxes, activeMailbox: activeMailbox, activeMailboxId: activeMailboxId, optionRoute: 'calendar_month', optionParams: {monthKey: activeMonth}, allLabel: 'mailbox.all'|trans } %}
+            {% embed '_account_filter.html.twig' with { accounts: accounts, activeAccount: activeAccount, activeAccountId: activeAccountId, optionRoute: 'calendar_month', optionParams: {monthKey: activeMonth}, allLabel: 'account.all'|trans } %}
                 {% block action %}
                     <a href="{{ path('calendar_new_modal') }}" class="btn btn-primary w-100 d-flex align-items-center justify-content-center gap-2 action-btn-modal {{ license_manager.isReadOnly ? 'disabled' }}" {{ license_manager.isReadOnly ? 'aria-disabled="true"' }} data-title="{{ 'calendar.new'|trans }}" data-modal-size="modal-lg">
                         <i class="fa-solid fa-calendar-plus" aria-hidden="true"></i>{{ 'calendar.new'|trans }}
                     </a>
                 {% endblock %}
             {% endembed %}
-            {% include 'calendar/_groups.html.twig' with { groups: groups, activeMonth: activeMonth, search: search, totalEvents: totalEvents, activeMailboxId: activeMailboxId } %}
+            {% include 'calendar/_groups.html.twig' with { groups: groups, activeMonth: activeMonth, search: search, totalEvents: totalEvents, activeAccountId: activeAccountId } %}
         </aside>
         <section class="col-xxl-3 d-none d-xxl-block overflow-auto p-0 bg-body border-end">
-            {% include 'calendar/_list.html.twig' with { events: events, activeEvent: activeEvent, activeMonth: activeMonth, search: search, activeMailboxId: activeMailboxId } %}
+            {% include 'calendar/_list.html.twig' with { events: events, activeEvent: activeEvent, activeMonth: activeMonth, search: search, activeAccountId: activeAccountId } %}
         </section>
         <main class="col-xxl-7 col-12 overflow-auto bg-body p-0">
             <div id="event-detail">
                 {% if activeEvent %}
-                    {% include 'calendar/_detail.html.twig' with { activeEvent: activeEvent, activeMonth: activeMonth, activeMailboxId: activeMailboxId, view: view, viewLinks: viewLinks } %}
+                    {% include 'calendar/_detail.html.twig' with { activeEvent: activeEvent, activeMonth: activeMonth, activeAccountId: activeAccountId, view: view, viewLinks: viewLinks } %}
                 {% else %}
                     <div class="p-5 text-center text-body-secondary">{{ 'calendar.none_selected'|trans }}</div>
                 {% endif %}
@@ -78,9 +78,9 @@
 {% else %}
 <div class="container-fluid calendar-content overflow-auto">
     {% if 'month' == view %}
-        {% include 'calendar/_month.html.twig' with { grid: grid, activeMailboxId: activeMailboxId, search: search } %}
+        {% include 'calendar/_month.html.twig' with { grid: grid, activeAccountId: activeAccountId, search: search } %}
     {% elseif 'week' == view %}
-        {% include 'calendar/_week.html.twig' with { grid: grid, activeMailboxId: activeMailboxId, search: search } %}
+        {% include 'calendar/_week.html.twig' with { grid: grid, activeAccountId: activeAccountId, search: search } %}
     {% else %}
         {% include 'calendar/_day.html.twig' with { grid: grid } %}
     {% endif %}

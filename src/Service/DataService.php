@@ -9,21 +9,21 @@ declare(strict_types=1);
 
 namespace AvalynxOffice\Service;
 
+use AvalynxOffice\Entity\Account;
+use AvalynxOffice\Entity\AccountAlias;
 use AvalynxOffice\Entity\Address;
 use AvalynxOffice\Entity\Email;
 use AvalynxOffice\Entity\EmailAddressLink;
 use AvalynxOffice\Entity\EmailAttachmentLink;
 use AvalynxOffice\Entity\EmailBodyLink;
 use AvalynxOffice\Entity\Folder;
-use AvalynxOffice\Entity\Mailbox;
-use AvalynxOffice\Entity\MailboxConnector;
+use AvalynxOffice\Repository\AccountRepository;
 use AvalynxOffice\Repository\FolderRepository;
-use AvalynxOffice\Repository\MailboxRepository;
 
 class DataService
 {
     public function __construct(
-        private readonly MailboxRepository $mailboxRepo,
+        private readonly AccountRepository $accountRepo,
         private readonly FolderRepository $folderRepo,
     ) {
     }
@@ -33,7 +33,7 @@ class DataService
      */
     public function getAllData(): array
     {
-        $mailboxes = $this->mailboxRepo->findBy([], ['name' => 'ASC']);
+        $accounts = $this->accountRepo->findBy([], ['name' => 'ASC']);
         $mapEmail = fn (Email $e): array => [
             'id' => (string) $e->getId(),
             'subject' => $e->getSubject(),
@@ -73,8 +73,8 @@ class DataService
             }, $e->getEmailAttachments()->toArray()),
         ];
 
-        return array_map(function (Mailbox $mb) use ($mapEmail) {
-            $folders = $this->folderRepo->findByMailboxOrderByAssignment($mb);
+        return array_map(function (Account $mb) use ($mapEmail) {
+            $folders = $this->folderRepo->findByAccountOrderByAssignment($mb);
             $folderData = array_map(function (Folder $f) use ($mapEmail) {
                 $emails = [];
                 foreach ($f->getEmailFolders() as $ef) {
@@ -95,12 +95,12 @@ class DataService
                 'id' => (string) $mb->getId(),
                 'name' => $mb->getName(),
                 'email' => $mb->getEmail(),
-                'connectors' => array_map(static fn (MailboxConnector $connector): array => [
-                    'id' => (string) $connector->getId(),
-                    'name' => $connector->getName(),
-                    'email' => $connector->getEmail(),
-                    'isPrimary' => $connector->isPrimary(),
-                ], $mb->getConnectors()->toArray()),
+                'aliases' => array_map(static fn (AccountAlias $alias): array => [
+                    'id' => (string) $alias->getId(),
+                    'localPart' => $alias->getLocalPart(),
+                    'address' => $alias->getAddress(),
+                    'connector' => null !== $alias->getConnector() ? (string) $alias->getConnector()->getId() : null,
+                ], $mb->getAliases()->toArray()),
                 'addresses' => array_map(static fn (Address $address): array => [
                     'id' => (string) $address->getId(),
                     'email' => $address->getEmail(),
@@ -108,6 +108,6 @@ class DataService
                 ], $mb->getAddresses()->toArray()),
                 'folders' => $folderData,
             ];
-        }, $mailboxes);
+        }, $accounts);
     }
 }

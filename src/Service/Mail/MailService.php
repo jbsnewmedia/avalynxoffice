@@ -9,9 +9,9 @@ declare(strict_types=1);
 
 namespace AvalynxOffice\Service\Mail;
 
+use AvalynxOffice\Entity\Account;
 use AvalynxOffice\Entity\Email;
 use AvalynxOffice\Entity\Folder;
-use AvalynxOffice\Entity\Mailbox;
 use AvalynxOffice\Repository\FolderRepository;
 
 class MailService
@@ -87,21 +87,21 @@ class MailService
     }
 
     /**
-     * @param array<Mailbox> $mailboxes
+     * @param array<Account> $accounts
      *
      * @return array<string, Folder>
      */
-    public function getFirstFolderByMailbox(array $mailboxes): array
+    public function getFirstFolderByAccount(array $accounts): array
     {
-        $firstFolderByMailbox = [];
-        foreach ($mailboxes as $mb) {
-            $ff = $this->folderRepo->findFirstFolderForMailbox($mb);
+        $firstFolderByAccount = [];
+        foreach ($accounts as $mb) {
+            $ff = $this->folderRepo->findFirstFolderForAccount($mb);
             if ($ff) {
-                $firstFolderByMailbox[(string) $mb->getId()] = $ff;
+                $firstFolderByAccount[(string) $mb->getId()] = $ff;
             }
         }
 
-        return $firstFolderByMailbox;
+        return $firstFolderByAccount;
     }
 
     /**

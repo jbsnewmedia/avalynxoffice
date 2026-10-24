@@ -13,8 +13,8 @@ use AvalynxOffice\Entity\EmailAddressLink;
 use AvalynxOffice\Entity\EmailBodyLink;
 use AvalynxOffice\Entity\Enum\BodyContentType;
 use AvalynxOffice\Entity\Enum\EmailAddressType;
-use AvalynxOffice\Entity\Mailbox;
-use AvalynxOffice\Entity\MailboxConnector;
+use AvalynxOffice\Entity\Account;
+use AvalynxOffice\Entity\Connector;
 use AvalynxOffice\Service\Mail\AttachmentStorage;
 use AvalynxOffice\Service\Mail\FolderManager;
 use Doctrine\Persistence\ObjectManager;
@@ -107,7 +107,7 @@ final class AppFixturesUnitTest extends TestCase
         self::assertSame('New Name', $created->getName());
     }
 
-    public function testCreateMailboxMailboxAddressesAndDeduplicationHelpers(): void
+    public function testCreateAccountAccountAddressesAndDeduplicationHelpers(): void
     {
         $knownAddress = (new Address())
             ->setEmail('known@example.com')
@@ -123,32 +123,35 @@ final class AppFixturesUnitTest extends TestCase
         $manager->method('persist')->willReturnCallback(static function (object $entity) use (&$persisted): void {
             $persisted[] = $entity;
         });
-        $manager->expects(self::once())->method('flush');
+        $manager->expects(self::atLeastOnce())->method('flush');
 
         $fixtures = $this->createFixtures();
 
-        $createMailbox = new \ReflectionMethod(AppFixtures::class, 'createMailbox');
-        $mailbox = $createMailbox->invoke(
+        $createConnector = new \ReflectionMethod(AppFixtures::class, 'createConnector');
+        $connector = $createConnector->invoke($fixtures, $manager, 'Example', 'example.com', 'example', null);
+
+        self::assertInstanceOf(Connector::class, $connector);
+        self::assertSame('example.com', $connector->getDomain());
+        self::assertSame('pop3.example.example', $connector->getPop3Host());
+        self::assertContainsOnlyInstancesOf(Connector::class, array_filter($persisted, static fn (object $entity): bool => $entity instanceof Connector));
+
+        $createAccount = new \ReflectionMethod(AppFixtures::class, 'createAccount');
+        $account = $createAccount->invoke(
             $fixtures,
             $manager,
             'Support',
             'support@example.com',
-            'Support Connector',
-            'support@connector.example',
-            ['known@example.com', 'new@example.com'],
-            'support',
+            [[$connector, 'known'], [$connector, 'new']],
         );
 
-        self::assertInstanceOf(Mailbox::class, $mailbox);
-        self::assertSame('support@example.com', $mailbox->getEmail());
-        self::assertCount(1, $mailbox->getConnectors());
-        self::assertSame('smtp.support.example', $mailbox->getPrimaryConnector()?->getSmtpHost());
-        self::assertCount(2, $mailbox->getAddresses());
-        self::assertContainsOnlyInstancesOf(Mailbox::class, array_filter($persisted, static fn (object $entity): bool => $entity instanceof Mailbox));
-        self::assertContainsOnlyInstancesOf(MailboxConnector::class, array_filter($persisted, static fn (object $entity): bool => $entity instanceof MailboxConnector));
+        self::assertInstanceOf(Account::class, $account);
+        self::assertSame('support@example.com', $account->getEmail());
+        self::assertCount(2, $account->getAliases());
+        self::assertCount(2, $account->getAddresses());
+        self::assertContainsOnlyInstancesOf(Account::class, array_filter($persisted, static fn (object $entity): bool => $entity instanceof Account));
 
-        $mailboxAddresses = new \ReflectionMethod(AppFixtures::class, 'mailboxAddresses');
-        $resolvedAddresses = $mailboxAddresses->invoke($fixtures, $manager, $mailbox);
+        $accountAddresses = new \ReflectionMethod(AppFixtures::class, 'accountAddresses');
+        $resolvedAddresses = $accountAddresses->invoke($fixtures, $manager, $account);
 
         self::assertCount(3, $resolvedAddresses);
         self::assertSame('support@example.com', $resolvedAddresses[0]->getEmail());

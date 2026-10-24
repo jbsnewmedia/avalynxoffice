@@ -144,7 +144,7 @@ final class InitCommandTest extends TestCase
         $entityManager->expects(self::never())->method('persist');
 
         $purger = $this->createMock(DatabasePurger::class);
-        $purger->expects(self::once())->method('purge')->with(true)->willReturn(['mailbox', 'email']);
+        $purger->expects(self::once())->method('purge')->with(true)->willReturn(['account', 'email']);
 
         $command = $this->createCommand(
             migrateResult: Command::SUCCESS,
@@ -185,7 +185,7 @@ final class InitCommandTest extends TestCase
         $hasher->expects(self::once())->method('hashPassword')->willReturn('hashed-password');
 
         $purger = $this->createMock(DatabasePurger::class);
-        $purger->expects(self::once())->method('purge')->with(false)->willReturn(['app_user', 'mailbox']);
+        $purger->expects(self::once())->method('purge')->with(false)->willReturn(['app_user', 'account']);
 
         $command = $this->createCommand(
             migrateResult: Command::SUCCESS,
@@ -334,7 +334,7 @@ final class InitCommandTest extends TestCase
 
     public function testNeedsMigrationSyncReturnsTrueWhenManagedTablesExistWithoutVersionTable(): void
     {
-        $command = $this->createCommandWithConnection(['app_user', 'mailbox']);
+        $command = $this->createCommandWithConnection(['app_user', 'account']);
 
         self::assertTrue($this->callNeedsMigrationSync($command));
     }

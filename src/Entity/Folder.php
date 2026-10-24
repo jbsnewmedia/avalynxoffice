@@ -34,10 +34,10 @@ class Folder
     #[ORM\Column(type: 'json', options: ['default' => '[]'])]
     private array $functions = [];
     /**
-     * @var Collection<int, FolderMailbox>
+     * @var Collection<int, FolderAccount>
      */
-    #[ORM\OneToMany(mappedBy: 'folder', targetEntity: FolderMailbox::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
-    private Collection $mailboxLinks;
+    #[ORM\OneToMany(mappedBy: 'folder', targetEntity: FolderAccount::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
+    private Collection $accountLinks;
     /**
      * @var Collection<int, EmailFolder>
      */
@@ -47,7 +47,7 @@ class Folder
     public function __construct()
     {
         $this->id = Uuid::v7();
-        $this->mailboxLinks = new ArrayCollection();
+        $this->accountLinks = new ArrayCollection();
         $this->emailFolders = new ArrayCollection();
     }
 
@@ -131,28 +131,28 @@ class Folder
     }
 
     /**
-     * @return Collection<int, FolderMailbox>
+     * @return Collection<int, FolderAccount>
      */
-    public function getMailboxLinks(): Collection
+    public function getAccountLinks(): Collection
     {
-        return $this->mailboxLinks;
+        return $this->accountLinks;
     }
 
     /**
-     * @return Collection<int, Mailbox>
+     * @return Collection<int, Account>
      */
-    public function getMailboxes(): Collection
+    public function getAccounts(): Collection
     {
-        /** @var ArrayCollection<int, Mailbox> $mailboxes */
-        $mailboxes = new ArrayCollection();
-        foreach ($this->mailboxLinks as $link) {
-            $mb = $link->getMailbox();
-            if ($mb && !$mailboxes->contains($mb)) {
-                $mailboxes->add($mb);
+        /** @var ArrayCollection<int, Account> $accounts */
+        $accounts = new ArrayCollection();
+        foreach ($this->accountLinks as $link) {
+            $mb = $link->getAccount();
+            if ($mb && !$accounts->contains($mb)) {
+                $accounts->add($mb);
             }
         }
 
-        return $mailboxes;
+        return $accounts;
     }
 
     /**

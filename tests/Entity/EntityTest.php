@@ -6,8 +6,9 @@ namespace AvalynxOffice\Tests\Entity;
 
 use AvalynxOffice\Entity\Address;
 use AvalynxOffice\Entity\Email;
-use AvalynxOffice\Entity\Mailbox;
-use AvalynxOffice\Entity\MailboxConnector;
+use AvalynxOffice\Entity\Account;
+use AvalynxOffice\Entity\AccountAlias;
+use AvalynxOffice\Entity\Connector;
 use AvalynxOffice\Entity\User;
 use PHPUnit\Framework\TestCase;
 
@@ -27,53 +28,56 @@ class EntityTest extends TestCase
         $this->assertEquals($now, $email->getReceivedAt());
     }
 
-    public function testMailboxGettersSetters(): void
+    public function testAccountGettersSetters(): void
     {
-        $mailbox = new Mailbox();
-        $mailbox->setName('Test Mailbox');
-        $mailbox->setEmail('mailbox@example.com');
+        $account = new Account();
+        $account->setName('Test Account');
+        $account->setEmail('account@example.com');
 
-        $this->assertEquals('Test Mailbox', $mailbox->getName());
-        $this->assertEquals('mailbox@example.com', $mailbox->getEmail());
+        $this->assertEquals('Test Account', $account->getName());
+        $this->assertEquals('account@example.com', $account->getEmail());
     }
 
-    public function testMailboxConnectorHandling(): void
+    public function testAccountAliasHandling(): void
     {
-        $mailbox = new Mailbox();
-        $connector = (new MailboxConnector())
-            ->setName('Connector')
-            ->setEmail('connector@example.com')
-            ->setIsPrimary(true);
+        $account = new Account();
+        $connector = (new Connector())
+            ->setName('Example')
+            ->setDomain('example.com');
+        $alias = (new AccountAlias())
+            ->setAccount($account)
+            ->setConnector($connector)
+            ->setLocalPart('info');
 
-        $mailbox->addConnector($connector);
+        $account->addAlias($alias);
 
-        $this->assertCount(1, $mailbox->getConnectors());
-        $this->assertSame($connector, $mailbox->getPrimaryConnector());
+        $this->assertCount(1, $account->getAliases());
+        $this->assertSame($alias, $account->getAliasLinks()->first());
     }
 
-    public function testMailboxAddressHandling(): void
+    public function testAccountAddressHandling(): void
     {
-        $mailbox = new Mailbox();
+        $account = new Account();
         $address = (new Address())->setEmail('alias@example.com');
 
-        $mailbox->addAddress($address);
+        $account->addAddress($address);
 
-        $this->assertCount(1, $mailbox->getAddressLinks());
-        $this->assertCount(1, $mailbox->getAddresses());
-        $this->assertSame($address, $mailbox->getAddresses()->first());
+        $this->assertCount(1, $account->getAddressLinks());
+        $this->assertCount(1, $account->getAddresses());
+        $this->assertSame($address, $account->getAddresses()->first());
     }
 
-    public function testMailboxUserHandling(): void
+    public function testAccountUserHandling(): void
     {
-        $mailbox = new Mailbox();
+        $account = new Account();
         $user = new User();
 
-        $mailbox->addUser($user);
-        $this->assertCount(1, $mailbox->getUserLinks());
-        $this->assertCount(1, $mailbox->getUsers());
-        $this->assertSame($user, $mailbox->getUsers()[0]);
+        $account->addUser($user);
+        $this->assertCount(1, $account->getUserLinks());
+        $this->assertCount(1, $account->getUsers());
+        $this->assertSame($user, $account->getUsers()[0]);
 
-        $mailbox->removeUser($user);
-        $this->assertCount(0, $mailbox->getUserLinks());
+        $account->removeUser($user);
+        $this->assertCount(0, $account->getUserLinks());
     }
 }

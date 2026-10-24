@@ -7,8 +7,8 @@
             <div class="col-md-4">{{ form_row(form.name, {'attr': {'class': 'form-control'}}) }}</div>
             <div class="col-md-8">{{ form_row(form.email, {'attr': {'class': 'form-control'}}) }}</div>
             <div class="col-md-4">{{ form_row(form.company, {'attr': {'class': 'form-control'}}) }}</div>
-            {% if form.mailbox is defined %}
-                <div class="col-md-6">{{ form_row(form.mailbox, {'attr': {'class': 'form-select'}}) }}</div>
+            {% if form.account is defined %}
+                <div class="col-md-6">{{ form_row(form.account, {'attr': {'class': 'form-select'}}) }}</div>
             {% endif %}
             <div class="col-12"><hr class="my-1"></div>
             <div class="col-md-4">{{ form_row(form.businessPhone, {'attr': {'class': 'form-control'}}) }}</div>

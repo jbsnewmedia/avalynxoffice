@@ -8,8 +8,9 @@ use AvalynxOffice\Entity\Email;
 use AvalynxOffice\Entity\EmailFolder;
 use AvalynxOffice\Entity\Enum\FolderFunction;
 use AvalynxOffice\Entity\Folder;
-use AvalynxOffice\Entity\Mailbox;
-use AvalynxOffice\Entity\MailboxConnector;
+use AvalynxOffice\Entity\Account;
+use AvalynxOffice\Entity\AccountAlias;
+use AvalynxOffice\Entity\Connector;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Tests\Support\RefreshDatabaseTrait;
 use Doctrine\ORM\EntityManagerInterface;
@@ -36,24 +37,24 @@ final class AdminControllerTest extends WebTestCase
         $this->adminUser = $this->createAdminUser();
     }
 
-    public function testMailboxAndConnectorRoutesRedirectToLoginForGuests(): void
+    public function testAccountAndConnectorRoutesRedirectToLoginForGuests(): void
     {
-        $mailbox = $this->createMailbox('Redirect Mailbox', 'redirect-mailbox@example.com');
-        $connector = $this->createConnector($mailbox, 'Redirect Connector', 'redirect-connector@example.com');
+        $account = $this->createAccount('Redirect Account', 'redirect-account@example.com');
+        $connector = $this->createConnector($account, 'Redirect Connector', 'redirect-connector@example.com');
 
-        $this->client->request('GET', '/settings/mailboxes');
+        $this->client->request('GET', '/settings/accounts');
         self::assertResponseRedirects('/login');
 
-        $this->client->request('GET', '/settings/mailboxes/view');
+        $this->client->request('GET', '/settings/accounts/view');
         self::assertResponseRedirects('/login');
 
-        $this->client->request('GET', '/settings/mailboxes/new');
+        $this->client->request('GET', '/settings/accounts/new');
         self::assertResponseRedirects('/login');
 
-        $this->client->request('GET', sprintf('/settings/mailboxes/%s/edit', $mailbox->getId()));
+        $this->client->request('GET', sprintf('/settings/accounts/%s/edit', $account->getId()));
         self::assertResponseRedirects('/login');
 
-        $this->client->request('POST', sprintf('/settings/mailboxes/%s', $mailbox->getId()));
+        $this->client->request('POST', sprintf('/settings/accounts/%s', $account->getId()));
         self::assertResponseRedirects('/login');
 
         $this->client->request('GET', '/settings/connectors');
@@ -69,23 +70,23 @@ final class AdminControllerTest extends WebTestCase
         self::assertResponseRedirects('/login');
     }
 
-    public function testMailboxAndConnectorPagesRenderForAdmins(): void
+    public function testAccountAndConnectorPagesRenderForAdmins(): void
     {
         $this->loginAdmin();
 
-        $mailbox = $this->createMailbox('Page Mailbox', 'page-mailbox@example.com');
-        $connector = $this->createConnector($mailbox, 'Page Connector', 'page-connector@example.com');
+        $account = $this->createAccount('Page Account', 'page-account@example.com');
+        $connector = $this->createConnector($account, 'Page Connector', 'page-connector@example.com');
 
-        $this->client->request('GET', '/settings/mailboxes');
+        $this->client->request('GET', '/settings/accounts');
         self::assertResponseIsSuccessful();
 
-        $this->client->request('GET', '/settings/mailboxes/view');
+        $this->client->request('GET', '/settings/accounts/view');
         self::assertResponseIsSuccessful();
 
-        $this->client->request('GET', '/settings/mailboxes/new');
+        $this->client->request('GET', '/settings/accounts/new');
         self::assertResponseIsSuccessful();
 
-        $this->client->request('GET', sprintf('/settings/mailboxes/%s/edit', $mailbox->getId()));
+        $this->client->request('GET', sprintf('/settings/accounts/%s/edit', $account->getId()));
         self::assertResponseIsSuccessful();
 
         $this->client->request('GET', '/settings/connectors');
@@ -98,101 +99,103 @@ final class AdminControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
     }
 
-    public function testMailboxControllerSupportsCreateEditAndDeleteFlows(): void
+    public function testAccountControllerSupportsCreateEditAndDeleteFlows(): void
     {
         $this->loginAdmin();
 
-        $this->client->request('GET', '/settings/mailboxes/new', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $this->client->request('GET', '/settings/accounts/new', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
 
-        $this->client->request('GET', '/settings/mailboxes/view', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $this->client->request('GET', '/settings/accounts/view', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
 
-        $mailbox = $this->createMailboxWithBlockedFolder('Support', 'support-edit@example.com');
-        $this->client->request('GET', sprintf('/settings/mailboxes/%s/edit', $mailbox->getId()), server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $account = $this->createAccountWithBlockedFolder('Support', 'support-edit@example.com');
+        $this->client->request('GET', sprintf('/settings/accounts/%s/edit', $account->getId()), server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
 
         $invalidToken = 'invalid';
-        $this->client->request('POST', sprintf('/settings/mailboxes/%s', $mailbox->getId()), ['_token' => $invalidToken], [], ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
-        self::assertResponseRedirects('/settings/mailboxes');
-        self::assertNotNull($this->entityManager->find(Mailbox::class, (string) $mailbox->getId()));
+        $this->client->request('POST', sprintf('/settings/accounts/%s', $account->getId()), ['_token' => $invalidToken], [], ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        self::assertResponseRedirects('/settings/accounts');
+        self::assertNotNull($this->entityManager->find(Account::class, (string) $account->getId()));
     }
 
-    public function testMailboxControllerSupportsSuccessfulCreateEditAndDelete(): void
+    public function testAccountControllerSupportsSuccessfulCreateEditAndDelete(): void
     {
         $this->loginAdmin();
 
-        $createCrawler = $this->client->request('GET', '/settings/mailboxes/new', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $createCrawler = $this->client->request('GET', '/settings/accounts/new', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
 
         $createForm = $createCrawler->filter('form')->form();
         $createValues = $createForm->getPhpValues();
-        $createValues['mailbox']['name'] = 'Created Mailbox';
-        $createValues['mailbox']['email'] = 'created@example.com';
-        $createValues['mailbox']['aliases'] = json_encode([
-            ['email' => 'alias@example.com', 'name' => 'Alias'],
+        $createValues['account']['name'] = 'Created Account';
+        $createValues['account']['email'] = 'created@example.com';
+        $connector = $this->createConnector($this->createAccount('Alias Source', 'alias-source@example.com'), 'Example', 'alias@example.com');
+        $createValues['account']['aliases'] = json_encode([
+            ['connectorId' => (string) $connector->getId(), 'localPart' => 'alias'],
         ], JSON_THROW_ON_ERROR);
-        $createValues['mailbox']['folders'] = $this->requiredFoldersPayload();
+        $createValues['account']['folders'] = $this->requiredFoldersPayload();
 
-        $this->client->request('POST', '/settings/mailboxes/new', $createValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $this->client->request('POST', '/settings/accounts/new', $createValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
         $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
         self::assertTrue($data['success']);
         self::assertArrayHasKey('redirect', $data);
 
         $this->entityManager->clear();
-        $createdMailbox = $this->entityManager->getRepository(Mailbox::class)->findOneBy(['email' => 'created@example.com']);
-        self::assertInstanceOf(Mailbox::class, $createdMailbox);
-        self::assertSame('Created Mailbox', $createdMailbox->getName());
-        self::assertCount(4, $createdMailbox->getFolders());
+        $createdAccount = $this->entityManager->getRepository(Account::class)->findOneBy(['email' => 'created@example.com']);
+        self::assertInstanceOf(Account::class, $createdAccount);
+        self::assertSame('Created Account', $createdAccount->getName());
+        self::assertCount(4, $createdAccount->getFolders());
+        self::assertCount(1, $createdAccount->getAliases());
 
-        $editCrawler = $this->client->request('GET', sprintf('/settings/mailboxes/%s/edit', $createdMailbox->getId()), server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $editCrawler = $this->client->request('GET', sprintf('/settings/accounts/%s/edit', $createdAccount->getId()), server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
 
         $editForm = $editCrawler->filter('form')->form();
         $editValues = $editForm->getPhpValues();
-        $editValues['mailbox']['name'] = 'Updated Mailbox';
-        $editValues['mailbox']['email'] = 'updated@example.com';
-        $editValues['mailbox']['aliases'] = '[]';
-        $editValues['mailbox']['folders'] = $this->requiredFoldersPayload();
+        $editValues['account']['name'] = 'Updated Account';
+        $editValues['account']['email'] = 'updated@example.com';
+        $editValues['account']['aliases'] = '[]';
+        $editValues['account']['folders'] = $this->requiredFoldersPayload();
 
-        $this->client->request('POST', sprintf('/settings/mailboxes/%s/edit', $createdMailbox->getId()), $editValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $this->client->request('POST', sprintf('/settings/accounts/%s/edit', $createdAccount->getId()), $editValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
         $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
         self::assertTrue($data['success']);
         self::assertArrayHasKey('redirect', $data);
 
         $this->entityManager->clear();
-        $updatedMailbox = $this->entityManager->find(Mailbox::class, (string) $createdMailbox->getId());
-        self::assertInstanceOf(Mailbox::class, $updatedMailbox);
-        self::assertSame('Updated Mailbox', $updatedMailbox->getName());
-        self::assertSame('updated@example.com', $updatedMailbox->getEmail());
+        $updatedAccount = $this->entityManager->find(Account::class, (string) $createdAccount->getId());
+        self::assertInstanceOf(Account::class, $updatedAccount);
+        self::assertSame('Updated Account', $updatedAccount->getName());
+        self::assertSame('updated@example.com', $updatedAccount->getEmail());
 
-        $tokenCrawler = $this->client->request('GET', '/settings/mailboxes', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
-        $token = $tokenCrawler->filter(sprintf('form[action="/settings/mailboxes/%s"] input[name="_token"]', $updatedMailbox->getId()))->attr('value');
+        $tokenCrawler = $this->client->request('GET', '/settings/accounts', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $token = $tokenCrawler->filter(sprintf('form[action="/settings/accounts/%s"] input[name="_token"]', $updatedAccount->getId()))->attr('value');
         self::assertNotNull($token);
-        $this->client->request('POST', sprintf('/settings/mailboxes/%s', $updatedMailbox->getId()), ['_token' => $token], [], ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
-        self::assertResponseRedirects('/settings/mailboxes');
+        $this->client->request('POST', sprintf('/settings/accounts/%s', $updatedAccount->getId()), ['_token' => $token], [], ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        self::assertResponseRedirects('/settings/accounts');
 
         $this->entityManager->clear();
-        self::assertNull($this->entityManager->find(Mailbox::class, (string) $updatedMailbox->getId()));
+        self::assertNull($this->entityManager->find(Account::class, (string) $updatedAccount->getId()));
     }
 
-    public function testMailboxControllerKeepsFormOpenForValidationErrors(): void
+    public function testAccountControllerKeepsFormOpenForValidationErrors(): void
     {
         $this->loginAdmin();
 
-        $createCrawler = $this->client->request('GET', '/settings/mailboxes/new', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $createCrawler = $this->client->request('GET', '/settings/accounts/new', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
 
         $createForm = $createCrawler->filter('form')->form();
         $createValues = $createForm->getPhpValues();
-        $createValues['mailbox']['name'] = 'Invalid Mailbox';
-        $createValues['mailbox']['email'] = 'invalid@example.com';
-        $createValues['mailbox']['aliases'] = json_encode([
-            ['email' => 'not-an-email', 'name' => 'Broken'],
+        $createValues['account']['name'] = 'Invalid Account';
+        $createValues['account']['email'] = 'invalid@example.com';
+        $createValues['account']['aliases'] = json_encode([
+            ['connectorId' => 'unknown-id', 'localPart' => 'broken'],
         ], JSON_THROW_ON_ERROR);
-        $createValues['mailbox']['folders'] = json_encode([
+        $createValues['account']['folders'] = json_encode([
             [
                 'name' => 'Posteingang',
                 'sortOrder' => -90,
@@ -205,48 +208,78 @@ final class AdminControllerTest extends WebTestCase
             ],
         ], JSON_THROW_ON_ERROR);
 
-        $this->client->request('POST', '/settings/mailboxes/new', $createValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $this->client->request('POST', '/settings/accounts/new', $createValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseStatusCodeSame(422);
         $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
         self::assertFalse($data['success']);
-        self::assertArrayHasKey('mailbox[aliases]', $data['invalid']);
-        self::assertArrayHasKey('mailbox[folders]', $data['invalid']);
-        self::assertNull($this->entityManager->getRepository(Mailbox::class)->findOneBy(['email' => 'invalid@example.com']));
+        self::assertArrayHasKey('account[aliases]', $data['invalid']);
+        self::assertArrayHasKey('account[folders]', $data['invalid']);
+        self::assertNull($this->entityManager->getRepository(Account::class)->findOneBy(['email' => 'invalid@example.com']));
 
-        $mailbox = $this->createMailboxWithBlockedFolder('Blocked Mailbox', 'blocked@example.com');
-        $editCrawler = $this->client->request('GET', sprintf('/settings/mailboxes/%s/edit', $mailbox->getId()), server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        // Create: conflicting alias that already belongs to another account.
+        $conflictSource = $this->createAccount('Conflict Source', 'conflict-source@example.com');
+        $conflictConnector = $this->createConnector($conflictSource, 'Example', 'conflict@example.com');
+        $conflictAlias = (new AccountAlias())->setAccount($conflictSource)->setConnector($conflictConnector)->setLocalPart('conflict');
+        $conflictSource->addAlias($conflictAlias);
+        $this->entityManager->persist($conflictAlias);
+        $this->entityManager->flush();
+
+        $createCrawler = $this->client->request('GET', '/settings/accounts/new', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $createForm = $createCrawler->filter('form')->form();
+        $createValues = $createForm->getPhpValues();
+        $createValues['account']['name'] = 'Conflict Account';
+        $createValues['account']['email'] = 'conflict-account@example.com';
+        $createValues['account']['aliases'] = json_encode([
+            ['connectorId' => (string) $conflictConnector->getId(), 'localPart' => 'conflict'],
+        ], JSON_THROW_ON_ERROR);
+        $createValues['account']['folders'] = $this->requiredFoldersPayload();
+
+        $this->client->request('POST', '/settings/accounts/new', $createValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        self::assertResponseStatusCodeSame(422);
+        $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertFalse($data['success']);
+        self::assertArrayHasKey('account[aliases]', $data['invalid']);
+
+        $account = $this->createAccountWithBlockedFolder('Blocked Account', 'blocked@example.com');
+        $editCrawler = $this->client->request('GET', sprintf('/settings/accounts/%s/edit', $account->getId()), server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
 
         $editForm = $editCrawler->filter('form')->form();
         $editValues = $editForm->getPhpValues();
-        $editValues['mailbox']['name'] = 'Blocked Mailbox';
-        $editValues['mailbox']['email'] = 'blocked@example.com';
-        $editValues['mailbox']['aliases'] = '[]';
-        $editValues['mailbox']['folders'] = $this->requiredFoldersPayload();
+        $editValues['account']['name'] = 'Blocked Account';
+        $editValues['account']['email'] = 'blocked@example.com';
+        $editValues['account']['aliases'] = '[]';
+        $editValues['account']['folders'] = $this->requiredFoldersPayload();
 
-        $this->client->request('POST', sprintf('/settings/mailboxes/%s/edit', $mailbox->getId()), $editValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $this->client->request('POST', sprintf('/settings/accounts/%s/edit', $account->getId()), $editValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseStatusCodeSame(422);
         $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
         self::assertFalse($data['success']);
-        self::assertArrayHasKey('mailbox[folders]', $data['invalid']);
+        self::assertArrayHasKey('account[folders]', $data['invalid']);
     }
 
-    public function testMailboxEditKeepsFormOpenForAliasDuplicateAndMissingFunctionErrors(): void
+    public function testAccountEditKeepsFormOpenForAliasDuplicateAndMissingFunctionErrors(): void
     {
         $this->loginAdmin();
 
-        $mailbox = $this->createMailbox('Editable Mailbox', 'editable@example.com');
-        $editCrawler = $this->client->request('GET', sprintf('/settings/mailboxes/%s/edit', $mailbox->getId()), server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $account = $this->createAccount('Editable Account', 'editable@example.com');
+        $editCrawler = $this->client->request('GET', sprintf('/settings/accounts/%s/edit', $account->getId()), server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
 
         $editForm = $editCrawler->filter('form')->form();
         $editValues = $editForm->getPhpValues();
-        $editValues['mailbox']['name'] = 'Editable Mailbox';
-        $editValues['mailbox']['email'] = 'editable@example.com';
-        $editValues['mailbox']['aliases'] = json_encode([
-            ['email' => 'not-an-email', 'name' => 'Broken'],
+        $editValues['account']['name'] = 'Editable Account';
+        $editValues['account']['email'] = 'editable@example.com';
+        $sourceAccount = $this->createAccount('Duplicate Source', 'duplicate-source@example.com');
+        $connector = $this->createConnector($sourceAccount, 'Example', 'taken@example.com');
+        $takenAlias = (new AccountAlias())->setAccount($sourceAccount)->setConnector($connector)->setLocalPart('taken');
+        $sourceAccount->addAlias($takenAlias);
+        $this->entityManager->persist($takenAlias);
+        $this->entityManager->flush();
+        $editValues['account']['aliases'] = json_encode([
+            ['connectorId' => (string) $connector->getId(), 'localPart' => 'taken'],
         ], JSON_THROW_ON_ERROR);
-        $editValues['mailbox']['folders'] = json_encode([
+        $editValues['account']['folders'] = json_encode([
             [
                 'name' => 'Posteingang',
                 'sortOrder' => -90,
@@ -259,19 +292,30 @@ final class AdminControllerTest extends WebTestCase
             ],
         ], JSON_THROW_ON_ERROR);
 
-        $this->client->request('POST', sprintf('/settings/mailboxes/%s/edit', $mailbox->getId()), $editValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $this->client->request('POST', sprintf('/settings/accounts/%s/edit', $account->getId()), $editValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseStatusCodeSame(422);
         $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
         self::assertFalse($data['success']);
-        self::assertArrayHasKey('mailbox[aliases]', $data['invalid']);
+        self::assertArrayHasKey('account[aliases]', $data['invalid']);
+
+        // Edit: alias with an unknown connector is invalid as well.
+        $editValues['account']['aliases'] = json_encode([
+            ['connectorId' => 'unknown-connector-id', 'localPart' => 'broken'],
+        ], JSON_THROW_ON_ERROR);
+
+        $this->client->request('POST', sprintf('/settings/accounts/%s/edit', $account->getId()), $editValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        self::assertResponseStatusCodeSame(422);
+        $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertFalse($data['success']);
+        self::assertArrayHasKey('account[aliases]', $data['invalid']);
     }
 
     public function testConnectorControllerSupportsCreateEditAndDeleteFlows(): void
     {
         $this->loginAdmin();
 
-        $mailbox = $this->createMailbox('Connectors', 'connectors@example.com');
-        $connector = $this->createConnector($mailbox, 'Old Connector', 'old-connector@example.com');
+        $account = $this->createAccount('Connectors', 'connectors@example.com');
+        $connector = $this->createConnector($account, 'Old Connector', 'old-connector@example.com');
 
         $this->client->request('GET', '/settings/connectors/new', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
@@ -279,36 +323,60 @@ final class AdminControllerTest extends WebTestCase
         $this->client->request('GET', sprintf('/settings/connectors/%s/edit', $connector->getId()), server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
 
+        // Edit with missing domain keeps the form open with field errors.
+        $editCrawler = $this->client->request('GET', sprintf('/settings/connectors/%s/edit', $connector->getId()), server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $editForm = $editCrawler->filter('form')->form();
+        $editValues = $editForm->getPhpValues();
+        $editValues['connector']['domain'] = '';
+
+        $this->client->request('POST', sprintf('/settings/connectors/%s/edit', $connector->getId()), $editValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        self::assertResponseStatusCodeSame(422);
+        $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertFalse($data['success']);
+        self::assertArrayHasKey('connector[domain]', $data['invalid']);
+
+        // Create with missing domain keeps the form open with field errors.
+        $createCrawler = $this->client->request('GET', '/settings/connectors/new', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $createForm = $createCrawler->filter('form')->form();
+        $createValues = $createForm->getPhpValues();
+        $createValues['connector']['domain'] = '';
+        $createValues['connector']['name'] = 'Broken Connector';
+
+        $this->client->request('POST', '/settings/connectors/new', $createValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        self::assertResponseStatusCodeSame(422);
+        $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertFalse($data['success']);
+        self::assertArrayHasKey('connector[domain]', $data['invalid']);
+
         $this->client->request('POST', sprintf('/settings/connectors/%s', $connector->getId()), ['_token' => 'invalid'], [], ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseRedirects('/settings/connectors');
-        self::assertNotNull($this->entityManager->find(MailboxConnector::class, (string) $connector->getId()));
+        self::assertNotNull($this->entityManager->find(Connector::class, (string) $connector->getId()));
     }
 
     public function testConnectorControllerSupportsSuccessfulCreateEditAndDelete(): void
     {
         $this->loginAdmin();
 
-        $mailbox = $this->createMailbox('Primary Mailbox', 'primary@example.com');
+        $account = $this->createAccount('Primary Account', 'primary@example.com');
 
         $createCrawler = $this->client->request('GET', '/settings/connectors/new', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
 
         $createForm = $createCrawler->filter('form')->form();
         $createValues = $createForm->getPhpValues();
-        $createValues['mailbox_connector']['mailbox'] = (string) $mailbox->getId();
-        $createValues['mailbox_connector']['name'] = 'Created Connector';
-        $createValues['mailbox_connector']['email'] = 'created-connector@example.com';
-        $createValues['mailbox_connector']['pop3Host'] = 'pop.example.com';
-        $createValues['mailbox_connector']['pop3Port'] = '995';
-        $createValues['mailbox_connector']['pop3Username'] = 'pop-user';
-        $createValues['mailbox_connector']['pop3Password'] = 'pop-secret';
-        $createValues['mailbox_connector']['pop3Security'] = 'ssl';
-        $createValues['mailbox_connector']['smtpHost'] = 'smtp.example.com';
-        $createValues['mailbox_connector']['smtpPort'] = '587';
-        $createValues['mailbox_connector']['smtpUsername'] = 'smtp-user';
-        $createValues['mailbox_connector']['smtpPassword'] = 'smtp-secret';
-        $createValues['mailbox_connector']['smtpSecurity'] = 'tls';
-        $createValues['mailbox_connector']['isPrimary'] = '1';
+        $createValues['connector']['defaultAccount'] = (string) $account->getId();
+        $createValues['connector']['name'] = 'Created Connector';
+        $createValues['connector']['domain'] = 'created-connector.example.com';
+        $createValues['connector']['pop3Host'] = 'pop.example.com';
+        $createValues['connector']['pop3Port'] = '995';
+        $createValues['connector']['pop3Username'] = 'pop-user';
+        $createValues['connector']['pop3Password'] = 'pop-secret';
+        $createValues['connector']['pop3Security'] = 'ssl';
+        $createValues['connector']['smtpHost'] = 'smtp.example.com';
+        $createValues['connector']['smtpPort'] = '587';
+        $createValues['connector']['smtpUsername'] = 'smtp-user';
+        $createValues['connector']['smtpPassword'] = 'smtp-secret';
+        $createValues['connector']['smtpSecurity'] = 'tls';
 
         $this->client->request('POST', '/settings/connectors/new', $createValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
@@ -316,8 +384,8 @@ final class AdminControllerTest extends WebTestCase
         self::assertTrue($data['success']);
         self::assertArrayHasKey('redirect', $data);
 
-        $createdConnector = $this->entityManager->getRepository(MailboxConnector::class)->findOneBy(['email' => 'created-connector@example.com']);
-        self::assertInstanceOf(MailboxConnector::class, $createdConnector);
+        $createdConnector = $this->entityManager->getRepository(Connector::class)->findOneBy(['domain' => 'created-connector.example.com']);
+        self::assertInstanceOf(Connector::class, $createdConnector);
         self::assertSame('pop-secret', $createdConnector->getPop3Password());
         self::assertSame('smtp-secret', $createdConnector->getSmtpPassword());
 
@@ -326,19 +394,19 @@ final class AdminControllerTest extends WebTestCase
 
         $editForm = $editCrawler->filter('form')->form();
         $editValues = $editForm->getPhpValues();
-        $editValues['mailbox_connector']['mailbox'] = (string) $mailbox->getId();
-        $editValues['mailbox_connector']['name'] = 'Updated Connector';
-        $editValues['mailbox_connector']['email'] = 'updated-connector@example.com';
-        $editValues['mailbox_connector']['pop3Host'] = 'pop-updated.example.com';
-        $editValues['mailbox_connector']['pop3Port'] = '110';
-        $editValues['mailbox_connector']['pop3Username'] = 'updated-pop-user';
-        $editValues['mailbox_connector']['pop3Password'] = 'updated-pop-secret';
-        $editValues['mailbox_connector']['pop3Security'] = 'tls';
-        $editValues['mailbox_connector']['smtpHost'] = 'smtp-updated.example.com';
-        $editValues['mailbox_connector']['smtpPort'] = '25';
-        $editValues['mailbox_connector']['smtpUsername'] = 'updated-smtp-user';
-        $editValues['mailbox_connector']['smtpPassword'] = 'updated-smtp-secret';
-        $editValues['mailbox_connector']['smtpSecurity'] = 'ssl';
+        $editValues['connector']['defaultAccount'] = (string) $account->getId();
+        $editValues['connector']['name'] = 'Updated Connector';
+        $editValues['connector']['domain'] = 'updated-connector.example.com';
+        $editValues['connector']['pop3Host'] = 'pop-updated.example.com';
+        $editValues['connector']['pop3Port'] = '110';
+        $editValues['connector']['pop3Username'] = 'updated-pop-user';
+        $editValues['connector']['pop3Password'] = 'updated-pop-secret';
+        $editValues['connector']['pop3Security'] = 'tls';
+        $editValues['connector']['smtpHost'] = 'smtp-updated.example.com';
+        $editValues['connector']['smtpPort'] = '25';
+        $editValues['connector']['smtpUsername'] = 'updated-smtp-user';
+        $editValues['connector']['smtpPassword'] = 'updated-smtp-secret';
+        $editValues['connector']['smtpSecurity'] = 'ssl';
 
         $this->client->request('POST', sprintf('/settings/connectors/%s/edit', $createdConnector->getId()), $editValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
@@ -347,10 +415,10 @@ final class AdminControllerTest extends WebTestCase
         self::assertArrayHasKey('redirect', $data);
 
         $this->entityManager->clear();
-        $updatedConnector = $this->entityManager->find(MailboxConnector::class, (string) $createdConnector->getId());
-        self::assertInstanceOf(MailboxConnector::class, $updatedConnector);
+        $updatedConnector = $this->entityManager->find(Connector::class, (string) $createdConnector->getId());
+        self::assertInstanceOf(Connector::class, $updatedConnector);
         self::assertSame('Updated Connector', $updatedConnector->getName());
-        self::assertSame('updated-connector@example.com', $updatedConnector->getEmail());
+        self::assertSame('updated-connector.example.com', $updatedConnector->getDomain());
         self::assertSame('updated-pop-secret', $updatedConnector->getPop3Password());
         self::assertSame('updated-smtp-secret', $updatedConnector->getSmtpPassword());
 
@@ -361,7 +429,7 @@ final class AdminControllerTest extends WebTestCase
         self::assertResponseRedirects('/settings/connectors');
 
         $this->entityManager->clear();
-        self::assertNull($this->entityManager->find(MailboxConnector::class, (string) $updatedConnector->getId()));
+        self::assertNull($this->entityManager->find(Connector::class, (string) $updatedConnector->getId()));
     }
 
     private function loginAdmin(): void
@@ -378,8 +446,8 @@ final class AdminControllerTest extends WebTestCase
         $this->entityManager->persist($user);
         $this->entityManager->flush();
 
-        $mailbox = $this->createMailbox('Restricted Mailbox', 'restricted-mailbox@example.com');
-        $connector = $this->createConnector($mailbox, 'Restricted Connector', 'restricted-connector@example.com');
+        $account = $this->createAccount('Restricted Account', 'restricted-account@example.com');
+        $connector = $this->createConnector($account, 'Restricted Connector', 'restricted-connector@example.com');
 
         $this->client->loginUser($user);
 
@@ -396,26 +464,26 @@ final class AdminControllerTest extends WebTestCase
         self::assertResponseStatusCodeSame(403);
     }
 
-    private function createMailbox(string $name, string $email): Mailbox
+    private function createAccount(string $name, string $email): Account
     {
-        $mailbox = (new Mailbox())
+        $account = (new Account())
             ->setName($name)
             ->setEmail($email);
 
-        $this->entityManager->persist($mailbox);
+        $this->entityManager->persist($account);
         $this->entityManager->flush();
 
-        return $mailbox;
+        return $account;
     }
 
-    private function createMailboxWithBlockedFolder(string $name, string $email): Mailbox
+    private function createAccountWithBlockedFolder(string $name, string $email): Account
     {
-        $mailbox = $this->createMailbox($name, $email);
+        $account = $this->createAccount($name, $email);
         $folder = (new Folder())->setName('Archive');
         $this->entityManager->persist($folder);
 
         $emailEntity = (new Email())
-            ->setMailbox($mailbox)
+            ->setAccount($account)
             ->setSubject('Archived mail')
             ->setReceivedAt(new \DateTimeImmutable('2026-01-01 10:00:00'));
         $this->entityManager->persist($emailEntity);
@@ -425,18 +493,19 @@ final class AdminControllerTest extends WebTestCase
             ->setFolder($folder);
         $this->entityManager->persist($link);
 
-        $mailbox->addFolder($folder);
+        $account->addFolder($folder);
         $this->entityManager->flush();
 
-        return $mailbox;
+        return $account;
     }
 
-    private function createConnector(Mailbox $mailbox, string $name, string $email): MailboxConnector
+    private function createConnector(Account $account, string $name, string $email): Connector
     {
-        $connector = (new MailboxConnector())
-            ->setMailbox($mailbox)
+        $domain = substr($email, (int) strrpos($email, '@') + 1);
+        $connector = (new Connector())
             ->setName($name)
-            ->setEmail($email);
+            ->setDomain($domain)
+            ->setDefaultAccount($account);
 
         $this->entityManager->persist($connector);
         $this->entityManager->flush();

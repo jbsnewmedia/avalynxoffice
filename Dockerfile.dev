@@ -1,9 +1,13 @@
-# Development image: like the production image, but ships the dev
-# dependencies and the composer-bin tooling (PHPUnit, PHPStan, ECS, Rector)
-# so the full quality gate set runs against a mounted working copy or
-# directly inside the image. Published as jbsnewmedia/avalynxoffice-dev
-# (latest) by the docker-image workflow.
-FROM webdevops/php-apache:8.5
+# Development image: same structure and bootstrap as the production image
+# (docker/prod/Dockerfile — wait for the database, run migrations, ensure
+# the admin user, then start the web server), with these differences:
+#   - built on the webdevops dev base image (webdevops/php-apache-dev),
+#   - Symfony runs in dev mode (APP_ENV=dev, APP_DEBUG=1),
+#   - Composer dev dependencies and the composer-bin tooling
+#     (vendor-bin: phpunit, phpstan, ecs, rector) are included.
+# Published as jbsnewmedia/avalynxoffice-dev (latest) by the docker-image
+# workflow.
+FROM webdevops/php-apache-dev:8.5
 
 ENV WEB_DOCUMENT_ROOT=/app/public \
     APP_ENV=dev \
@@ -21,4 +25,12 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 COPY . /app
 
 RUN COMPOSER_MEMORY_LIMIT=-1 composer install --optimize-autoloader --no-interaction --no-progress \
-    && chown -R application:application /app
+    && chown -R application:application /app \
+    && COMPOSER_MEMORY_LIMIT=-1 composer bin all install
+
+# Same bootstrap as production (see docker/prod/Dockerfile).
+COPY docker/prod/office-entrypoint.sh /usr/local/bin/office-entrypoint
+RUN chmod +x /usr/local/bin/office-entrypoint
+
+ENTRYPOINT ["/usr/local/bin/office-entrypoint"]
+CMD ["supervisord"]

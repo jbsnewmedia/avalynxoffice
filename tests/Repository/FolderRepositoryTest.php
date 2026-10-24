@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace AvalynxOffice\Tests\Repository;
 
 use AvalynxOffice\Entity\Folder;
-use AvalynxOffice\Entity\FolderMailbox;
-use AvalynxOffice\Entity\Mailbox;
+use AvalynxOffice\Entity\FolderAccount;
+use AvalynxOffice\Entity\Account;
 use AvalynxOffice\Repository\FolderRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\Query;
@@ -15,98 +15,98 @@ use PHPUnit\Framework\TestCase;
 
 final class FolderRepositoryTest extends TestCase
 {
-    public function testFindByMailboxOrderByAssignmentSortsAndDeduplicatesFolders(): void
+    public function testFindByAccountOrderByAssignmentSortsAndDeduplicatesFolders(): void
     {
         $repository = $this->createRepository();
-        $mailbox = new Mailbox();
+        $account = new Account();
         $zeta = (new Folder())->setName('Zeta');
         $alpha = (new Folder())->setName('Alpha');
-        $mailbox->addFolder($zeta, 10);
-        $mailbox->addFolder($alpha, 10);
-        $mailbox->addFolder($zeta, 5);
+        $account->addFolder($zeta, 10);
+        $account->addFolder($alpha, 10);
+        $account->addFolder($zeta, 5);
 
-        $folders = $repository->findByMailboxOrderByAssignment($mailbox);
+        $folders = $repository->findByAccountOrderByAssignment($account);
 
         self::assertSame([$zeta, $alpha], $folders);
     }
 
-    public function testFindByMailboxOrderByAssignmentSortsEqualPrioritiesByName(): void
+    public function testFindByAccountOrderByAssignmentSortsEqualPrioritiesByName(): void
     {
         $repository = $this->createRepository();
-        $mailbox = new Mailbox();
+        $account = new Account();
         $beta = (new Folder())->setName('Beta');
         $alpha = (new Folder())->setName('Alpha');
-        $mailbox->addFolder($beta, 10);
-        $mailbox->addFolder($alpha, 10);
+        $account->addFolder($beta, 10);
+        $account->addFolder($alpha, 10);
 
-        self::assertSame([$alpha, $beta], $repository->findByMailboxOrderByAssignment($mailbox));
+        self::assertSame([$alpha, $beta], $repository->findByAccountOrderByAssignment($account));
     }
 
-    public function testFindByMailboxOrderByAssignmentSkipsDuplicateFolderLinks(): void
+    public function testFindByAccountOrderByAssignmentSkipsDuplicateFolderLinks(): void
     {
         $repository = $this->createRepository();
-        $mailbox = new Mailbox();
+        $account = new Account();
         $folder = (new Folder())->setName('Alpha');
 
-        $firstLink = (new FolderMailbox())
-            ->setMailbox($mailbox)
+        $firstLink = (new FolderAccount())
+            ->setAccount($account)
             ->setFolder($folder)
             ->setSortOrder(1);
-        $secondLink = (new FolderMailbox())
-            ->setMailbox($mailbox)
+        $secondLink = (new FolderAccount())
+            ->setAccount($account)
             ->setFolder($folder)
             ->setSortOrder(2);
 
-        $linksProperty = new \ReflectionProperty(Mailbox::class, 'folderLinks');
-        $linksProperty->setValue($mailbox, new ArrayCollection([$firstLink, $secondLink]));
+        $linksProperty = new \ReflectionProperty(Account::class, 'folderLinks');
+        $linksProperty->setValue($account, new ArrayCollection([$firstLink, $secondLink]));
 
-        self::assertSame([$folder], $repository->findByMailboxOrderByAssignment($mailbox));
+        self::assertSame([$folder], $repository->findByAccountOrderByAssignment($account));
     }
 
-    public function testFindFirstFolderForMailboxReturnsBestSortedFolder(): void
+    public function testFindFirstFolderForAccountReturnsBestSortedFolder(): void
     {
         $repository = $this->createRepository();
-        $mailbox = new Mailbox();
+        $account = new Account();
         $beta = (new Folder())->setName('Beta');
         $alpha = (new Folder())->setName('Alpha');
-        $mailbox->addFolder($beta, 2);
-        $mailbox->addFolder($alpha, 2);
+        $account->addFolder($beta, 2);
+        $account->addFolder($alpha, 2);
 
-        self::assertSame($alpha, $repository->findFirstFolderForMailbox($mailbox));
-        self::assertNull($repository->findFirstFolderForMailbox(new Mailbox()));
+        self::assertSame($alpha, $repository->findFirstFolderForAccount($account));
+        self::assertNull($repository->findFirstFolderForAccount(new Account()));
     }
 
     public function testFolderRepositoryIgnoresLinksWithoutFolders(): void
     {
         $repository = $this->createRepository();
-        $mailbox = new Mailbox();
+        $account = new Account();
         $folder = (new Folder())->setName('Alpha');
-        $mailbox->addFolder($folder, 1);
+        $account->addFolder($folder, 1);
 
-        $linksProperty = new \ReflectionProperty(Mailbox::class, 'folderLinks');
-        $linksProperty->setValue($mailbox, new ArrayCollection([
-            new class extends FolderMailbox {
+        $linksProperty = new \ReflectionProperty(Account::class, 'folderLinks');
+        $linksProperty->setValue($account, new ArrayCollection([
+            new class extends FolderAccount {
                 #[\Override]
                 public function getFolder(): ?Folder
                 {
                     return null;
                 }
             },
-            ...$mailbox->getFolderLinks()->toArray(),
+            ...$account->getFolderLinks()->toArray(),
         ]));
 
-        self::assertSame([$folder], $repository->findByMailboxOrderByAssignment($mailbox));
-        self::assertSame($folder, $repository->findFirstFolderForMailbox($mailbox));
+        self::assertSame([$folder], $repository->findByAccountOrderByAssignment($account));
+        self::assertSame($folder, $repository->findFirstFolderForAccount($account));
     }
 
-    public function testFindFoldersLinkedToAnyMailboxUsesExpectedQueryBuilderChain(): void
+    public function testFindFoldersLinkedToAnyAccountUsesExpectedQueryBuilderChain(): void
     {
         $expected = [(new Folder())->setName('Inbox')];
         $query = $this->createMock(Query::class);
         $query->expects(self::once())->method('getResult')->willReturn($expected);
 
         $queryBuilder = $this->createMock(QueryBuilder::class);
-        $queryBuilder->expects(self::once())->method('innerJoin')->with('f.mailboxLinks', 'fm')->willReturnSelf();
+        $queryBuilder->expects(self::once())->method('innerJoin')->with('f.accountLinks', 'fm')->willReturnSelf();
         $queryBuilder->expects(self::once())->method('addSelect')->with('fm')->willReturnSelf();
         $queryBuilder->expects(self::once())->method('orderBy')->with('f.name', 'ASC')->willReturnSelf();
         $queryBuilder->expects(self::once())->method('getQuery')->willReturn($query);
@@ -117,7 +117,7 @@ final class FolderRepositoryTest extends TestCase
             ->getMock();
         $repository->expects(self::once())->method('createQueryBuilder')->with('f')->willReturn($queryBuilder);
 
-        self::assertSame($expected, $repository->findFoldersLinkedToAnyMailbox());
+        self::assertSame($expected, $repository->findFoldersLinkedToAnyAccount());
     }
 
     private function createRepository(): FolderRepository
@@ -128,8 +128,8 @@ final class FolderRepositoryTest extends TestCase
         return $repository;
     }
 
-    public function testFindFoldersLinkedToMailboxesReturnsEmptyArrayWithoutMailboxes(): void
+    public function testFindFoldersLinkedToAccountsReturnsEmptyArrayWithoutAccounts(): void
     {
-        self::assertSame([], $this->createRepository()->findFoldersLinkedToMailboxes([]));
+        self::assertSame([], $this->createRepository()->findFoldersLinkedToAccounts([]));
     }
 }

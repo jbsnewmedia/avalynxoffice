@@ -9,9 +9,9 @@ declare(strict_types=1);
 
 namespace AvalynxOffice\Repository;
 
+use AvalynxOffice\Entity\Account;
+use AvalynxOffice\Entity\AccountAddress;
 use AvalynxOffice\Entity\Address;
-use AvalynxOffice\Entity\Mailbox;
-use AvalynxOffice\Entity\MailboxAddress;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -49,24 +49,24 @@ class AddressRepository extends ServiceEntityRepository
     }
 
     /**
-     * Contacts flagged for EAS sync that belong to the given mailboxes,
+     * Contacts flagged for EAS sync that belong to the given accounts,
      * optionally filtered by a search term across name, company and email.
      *
-     * @param list<Mailbox> $mailboxes
+     * @param list<Account> $accounts
      *
      * @return list<Address>
      */
-    public function findContactsForMailboxes(array $mailboxes, string $search = ''): array
+    public function findContactsForAccounts(array $accounts, string $search = ''): array
     {
-        if ([] === $mailboxes) {
+        if ([] === $accounts) {
             return [];
         }
 
         $normalizedSearch = mb_strtolower(trim($search));
         $queryBuilder = $this->createQueryBuilder('address')
             ->andWhere('address.isContact = true')
-            ->andWhere('EXISTS (SELECT 1 FROM '.MailboxAddress::class.' link WHERE link.address = address AND link.mailbox IN (:mailboxes))')
-            ->setParameter('mailboxes', $mailboxes)
+            ->andWhere('EXISTS (SELECT 1 FROM '.AccountAddress::class.' link WHERE link.address = address AND link.account IN (:accounts))')
+            ->setParameter('accounts', $accounts)
             ->orderBy('address.lastname', 'ASC')
             ->addOrderBy('address.firstname', 'ASC')
             ->addOrderBy('address.name', 'ASC')

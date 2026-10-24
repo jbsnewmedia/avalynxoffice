@@ -17,7 +17,7 @@ use Symfony\Component\Uid\UuidV7;
 
 /**
  * Administrator-assisted password reset request for a user who cannot access
- * the mailbox (no mail access). The request carries two secrets: a token
+ * the account (no mail access). The request carries two secrets: a token
  * shown once to the user and a 4-digit release number shown once to the
  * administrator. Both are stored hashed; only the requesting administrator
  * and the released-by administrator (for the audit trail) are kept as IDs.

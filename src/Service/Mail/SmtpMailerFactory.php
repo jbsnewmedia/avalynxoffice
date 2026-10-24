@@ -9,14 +9,14 @@ declare(strict_types=1);
 
 namespace AvalynxOffice\Service\Mail;
 
-use AvalynxOffice\Entity\MailboxConnector;
+use AvalynxOffice\Entity\Connector;
 use Symfony\Component\Mailer\Mailer;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Mailer\Transport;
 
 class SmtpMailerFactory
 {
-    public function fromConnector(MailboxConnector $connector): MailerInterface
+    public function fromConnector(Connector $connector): MailerInterface
     {
         $user = urlencode($connector->getSmtpUsername() ?? '');
         $pass = urlencode($connector->getSmtpPassword() ?? '');

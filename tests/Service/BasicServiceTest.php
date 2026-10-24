@@ -15,13 +15,15 @@ use AvalynxOffice\Entity\EmailFolder;
 use AvalynxOffice\Entity\Enum\BodyContentType;
 use AvalynxOffice\Entity\Enum\EmailAddressType;
 use AvalynxOffice\Entity\Folder;
-use AvalynxOffice\Entity\Mailbox;
-use AvalynxOffice\Entity\MailboxConnector;
+use AvalynxOffice\Entity\Account;
+use AvalynxOffice\Entity\AccountAlias;
+use AvalynxOffice\Entity\Connector;
 use AvalynxOffice\Repository\FolderRepository;
-use AvalynxOffice\Repository\MailboxRepository;
+use AvalynxOffice\Repository\AccountRepository;
 use AvalynxOffice\Service\AppService;
 use AvalynxOffice\Service\DataService;
-use AvalynxOffice\Service\MailboxConnectorService;
+use AvalynxOffice\Service\ConnectorService;
+use AvalynxOffice\Service\Mail\MailRoutingService;
 use Doctrine\Common\Collections\ArrayCollection;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
@@ -50,9 +52,9 @@ final class BasicServiceTest extends TestCase
         self::assertSame('dev', $service->getVersion());
     }
 
-    public function testMailboxConnectorServicePersistsFlushesAndRemoves(): void
+    public function testAccountConnectorServicePersistsFlushesAndRemoves(): void
     {
-        $connector = new MailboxConnector();
+        $connector = new Connector();
 
         $entityManager = $this->createMock(\Doctrine\ORM\EntityManagerInterface::class);
         $entityManager->expects(self::once())
@@ -64,24 +66,27 @@ final class BasicServiceTest extends TestCase
             ->method('remove')
             ->with($connector);
 
-        $service = new MailboxConnectorService($entityManager);
+        $service = new ConnectorService($entityManager, $this->createStub(MailRoutingService::class));
         $service->save($connector, true);
         $service->save($connector, false);
         $service->delete($connector);
     }
 
-    public function testDataServiceMapsMailboxFolderEmailAndAttachmentData(): void
+    public function testDataServiceMapsAccountFolderEmailAndAttachmentData(): void
     {
-        $mailbox = (new Mailbox())
+        $account = (new Account())
             ->setName('Support')
             ->setEmail('support@example.com');
-        $mailbox->addAddress((new Address())->setEmail('alias@example.com')->setName('Alias'));
 
-        $connector = (new MailboxConnector())
+        $connector = (new Connector())
             ->setName('Primary')
-            ->setEmail('connector@example.com')
-            ->setIsPrimary(true);
-        $mailbox->addConnector($connector);
+            ->setDomain('example.com');
+        $alias = (new AccountAlias())
+            ->setAccount($account)
+            ->setConnector($connector)
+            ->setLocalPart('alias');
+        $account->addAlias($alias);
+        $account->addAddress((new Address())->setEmail('alias@example.com')->setName('Alias'));
 
         $folder = (new Folder())->setName('Inbox');
         $email = (new Email())
@@ -115,20 +120,21 @@ final class BasicServiceTest extends TestCase
         $email->addEmailFolder($emailFolder);
         $this->setPrivateProperty($folder, 'emailFolders', new ArrayCollection([$emailFolder]));
 
-        $mailboxRepository = $this->createStub(MailboxRepository::class);
-        $mailboxRepository->method('findBy')
-            ->willReturnCallback(static fn (array $criteria, array $orderBy): array => [] === $criteria && ['name' => 'ASC'] === $orderBy ? [$mailbox] : []);
+        $accountRepository = $this->createStub(AccountRepository::class);
+        $accountRepository->method('findBy')
+            ->willReturnCallback(static fn (array $criteria, array $orderBy): array => [] === $criteria && ['name' => 'ASC'] === $orderBy ? [$account] : []);
 
         $folderRepository = $this->createStub(FolderRepository::class);
-        $folderRepository->method('findByMailboxOrderByAssignment')
-            ->willReturnCallback(static fn (Mailbox $value): array => $value === $mailbox ? [$folder] : []);
+        $folderRepository->method('findByAccountOrderByAssignment')
+            ->willReturnCallback(static fn (Account $value): array => $value === $account ? [$folder] : []);
 
-        $data = (new DataService($mailboxRepository, $folderRepository))->getAllData();
+        $data = (new DataService($accountRepository, $folderRepository))->getAllData();
 
         self::assertCount(1, $data);
         self::assertSame('Support', $data[0]['name']);
         self::assertSame('support@example.com', $data[0]['email']);
-        self::assertSame('Primary', $data[0]['connectors'][0]['name']);
+        self::assertSame('alias', $data[0]['aliases'][0]['localPart']);
+        self::assertSame('alias@example.com', $data[0]['aliases'][0]['address']);
         self::assertSame('alias@example.com', $data[0]['addresses'][0]['email']);
         self::assertSame('Inbox', $data[0]['folders'][0]['name']);
         self::assertSame('Subject', $data[0]['folders'][0]['emails'][0]['subject']);

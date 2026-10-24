@@ -15,12 +15,14 @@ use AvalynxOffice\Entity\EmailFolder;
 use AvalynxOffice\Entity\Enum\BodyContentType;
 use AvalynxOffice\Entity\Enum\EmailAddressType;
 use AvalynxOffice\Entity\Folder;
-use AvalynxOffice\Entity\Mailbox;
+use AvalynxOffice\Entity\Account;
+use AvalynxOffice\Entity\AccountAlias;
+use AvalynxOffice\Entity\Connector;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Repository\EmailFolderRepository;
 use AvalynxOffice\Repository\EmailRepository;
 use AvalynxOffice\Repository\FolderRepository;
-use AvalynxOffice\Repository\MailboxRepository;
+use AvalynxOffice\Repository\AccountRepository;
 use AvalynxOffice\Service\Mail\AttachmentStorage;
 use AvalynxOffice\Service\Mail\FolderManager;
 use AvalynxOffice\Service\Mail\MailService;
@@ -66,7 +68,7 @@ final class MailActionControllerTest extends KernelTestCase
         $emailRepository = $container->get(EmailRepository::class);
         $folderRepository = $container->get(FolderRepository::class);
         $mailService = $container->get(MailService::class);
-        $mailboxRepository = $container->get(MailboxRepository::class);
+        $accountRepository = $container->get(AccountRepository::class);
         $emailFolderRepository = $container->get(EmailFolderRepository::class);
         $folderManager = $this->createStub(FolderManager::class);
         $folderManager->method('syncEmailSystemFolders');
@@ -80,7 +82,7 @@ final class MailActionControllerTest extends KernelTestCase
         });
 
         $emailActionService = new EmailActionService($this->entityManager, $emailFolderRepository);
-        $mailDraftService = new MailDraftService($this->entityManager, $mailboxRepository, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
+        $mailDraftService = new MailDraftService($this->entityManager, $accountRepository, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
 
         $this->controller = new MailActionController(
             $translator,
@@ -295,7 +297,7 @@ final class MailActionControllerTest extends KernelTestCase
         self::assertSame(Response::HTTP_OK, $response->getStatusCode());
         self::assertStringContainsString('<form', $response->getContent());
         self::assertStringContainsString('Draft content with links', $response->getContent());
-        self::assertStringContainsString('Named Sender &lt;sender.named@example.com&gt;', $response->getContent());
+        self::assertStringContainsString('Support editable &lt;sender.named@example.com&gt;', $response->getContent());
         self::assertStringContainsString('recipient@example.com', $response->getContent());
         self::assertStringContainsString('stored.txt', $response->getContent());
     }
@@ -793,11 +795,11 @@ final class MailActionControllerTest extends KernelTestCase
     private function createPersistedDraftEmail(string $suffix): Email
     {
         [$user] = $this->createFixtureData('draft-'.$suffix);
-        $mailbox = $user->getMailboxes()->first();
-        self::assertInstanceOf(Mailbox::class, $mailbox);
+        $account = $user->getAccounts()->first();
+        self::assertInstanceOf(Account::class, $account);
 
         $email = (new Email())
-            ->setMailbox($mailbox)
+            ->setAccount($account)
             ->setSubject('Draft '.$suffix)
             ->setPreviewBody('Draft preview')
             ->setIsOutgoing(true)
@@ -812,28 +814,34 @@ final class MailActionControllerTest extends KernelTestCase
     private function createEditableDraftWithFormDefaults(): Email
     {
         [$user] = $this->createFixtureData('editable');
-        $mailbox = $user->getMailboxes()->first();
-        self::assertInstanceOf(Mailbox::class, $mailbox);
+        $account = $user->getAccounts()->first();
+        self::assertInstanceOf(Account::class, $account);
 
-        foreach ([
-            (new Address())->setEmail(''),
-            (new Address())->setEmail('sender.named@example.com')->setName('Named Sender'),
-            (new Address())->setEmail('SENDER.NAMED@example.com')->setName('Duplicate Sender'),
-            (new Address())->setEmail('plain.sender@example.com'),
-        ] as $mailboxAddress) {
-            $mailbox->addAddress($mailboxAddress);
-            $this->entityManager->persist($mailboxAddress);
+        $connector = (new Connector())
+            ->setName('Example')
+            ->setDomain('example.com');
+        $this->entityManager->persist($connector);
+        foreach (['', 'sender.named', 'plain.sender'] as $localPart) {
+            if ('' === $localPart) {
+                continue;
+            }
+            $alias = (new AccountAlias())
+                ->setAccount($account)
+                ->setConnector($connector)
+                ->setLocalPart($localPart);
+            $account->addAlias($alias);
+            $this->entityManager->persist($alias);
         }
 
         $email = (new Email())
-            ->setMailbox($mailbox)
+            ->setAccount($account)
             ->setSubject('Editable draft')
             ->setPreviewBody('Editable preview')
             ->setIsOutgoing(true)
             ->setIsDraft(true);
 
         $this->entityManager->persist($email);
-        $this->entityManager->persist($mailbox);
+        $this->entityManager->persist($account);
         $this->addEmailAddress($email, EmailAddressType::SENDER, 'sender.named@example.com', 'Named Sender');
         $this->addEmailAddress($email, EmailAddressType::RECIPIENT, 'recipient@example.com', 'Recipient Name');
         $this->addEmailAddress($email, EmailAddressType::CC, 'cc@example.com', null);
@@ -912,22 +920,22 @@ final class MailActionControllerTest extends KernelTestCase
      */
     private function createFixtureData(string $suffix): array
     {
-        $mailbox = (new Mailbox())
+        $account = (new Account())
             ->setName('Support '.$suffix)
             ->setEmail($suffix.'+support@example.com');
 
         $sourceFolder = (new Folder())->setName('Inbox');
         $targetFolder = (new Folder())->setName('Archive');
-        $mailbox->addFolder($sourceFolder);
-        $mailbox->addFolder($targetFolder);
+        $account->addFolder($sourceFolder);
+        $account->addFolder($targetFolder);
 
         $user = (new User())
             ->setEmail($suffix.'+user@example.com')
             ->setPassword('secret');
-        $user->addMailbox($mailbox);
+        $user->addAccount($account);
 
         $email = (new Email())
-            ->setMailbox($mailbox)
+            ->setAccount($account)
             ->setSubject('Hello world '.$suffix)
             ->setPreviewBody('Hello world preview')
             ->setReceivedAt(new \DateTimeImmutable('2026-04-27 10:15:00'));
@@ -956,7 +964,7 @@ final class MailActionControllerTest extends KernelTestCase
         $email->addEmailBody($bodyLink);
         $email->addEmailFolder($folderLink);
 
-        $this->entityManager->persist($mailbox);
+        $this->entityManager->persist($account);
         $this->entityManager->persist($sourceFolder);
         $this->entityManager->persist($targetFolder);
         $this->entityManager->persist($user);

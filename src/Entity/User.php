@@ -47,10 +47,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $lastAuthAt = null;
     /**
-     * @var Collection<int, UserMailbox>
+     * @var Collection<int, UserAccount>
      */
-    #[ORM\OneToMany(mappedBy: 'user', targetEntity: UserMailbox::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
-    private Collection $mailboxLinks;
+    #[ORM\OneToMany(mappedBy: 'user', targetEntity: UserAccount::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
+    private Collection $accountLinks;
     /**
      * Recovery-only email addresses (maximum two). They never take part in
      * mail retrieval or sending and exclusively receive account-recovery
@@ -64,7 +64,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function __construct()
     {
         $this->id = Uuid::v7();
-        $this->mailboxLinks = new ArrayCollection();
+        $this->accountLinks = new ArrayCollection();
         $this->recoveryAddresses = new ArrayCollection();
     }
 
@@ -165,50 +165,50 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     /**
-     * @return Collection<int, UserMailbox>
+     * @return Collection<int, UserAccount>
      */
-    public function getMailboxLinks(): Collection
+    public function getAccountLinks(): Collection
     {
-        return $this->mailboxLinks;
+        return $this->accountLinks;
     }
 
     /**
-     * @return Collection<int, Mailbox>
+     * @return Collection<int, Account>
      */
-    public function getMailboxes(): Collection
+    public function getAccounts(): Collection
     {
-        /** @var ArrayCollection<int, Mailbox> $mailboxes */
-        $mailboxes = new ArrayCollection();
-        foreach ($this->mailboxLinks as $link) {
-            $mb = $link->getMailbox();
-            if ($mb && !$mailboxes->contains($mb)) {
-                $mailboxes->add($mb);
+        /** @var ArrayCollection<int, Account> $accounts */
+        $accounts = new ArrayCollection();
+        foreach ($this->accountLinks as $link) {
+            $mb = $link->getAccount();
+            if ($mb && !$accounts->contains($mb)) {
+                $accounts->add($mb);
             }
         }
 
-        return $mailboxes;
+        return $accounts;
     }
 
-    public function addMailbox(Mailbox $mailbox): self
+    public function addAccount(Account $account): self
     {
-        foreach ($this->mailboxLinks as $link) {
-            if ($link->getMailbox() === $mailbox) {
+        foreach ($this->accountLinks as $link) {
+            if ($link->getAccount() === $account) {
                 return $this;
             }
         }
-        $link = new UserMailbox();
+        $link = new UserAccount();
         $link->setUser($this);
-        $link->setMailbox($mailbox);
-        $this->mailboxLinks->add($link);
+        $link->setAccount($account);
+        $this->accountLinks->add($link);
 
         return $this;
     }
 
-    public function removeMailbox(Mailbox $mailbox): self
+    public function removeAccount(Account $account): self
     {
-        foreach ($this->mailboxLinks as $link) {
-            if ($link->getMailbox() === $mailbox) {
-                $this->mailboxLinks->removeElement($link);
+        foreach ($this->accountLinks as $link) {
+            if ($link->getAccount() === $account) {
+                $this->accountLinks->removeElement($link);
                 break;
             }
         }

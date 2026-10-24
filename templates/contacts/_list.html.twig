@@ -1,9 +1,9 @@
-{% set scopeParams = activeMailboxId is defined and activeMailboxId != 'all' ? {mailbox: activeMailboxId} : {} %}
+{% set scopeParams = activeAccountId is defined and activeAccountId != 'all' ? {account: activeAccountId} : {} %}
 {% set contactBasePath = path('contact_group', {groupId: activeGroup}|merge(scopeParams)) %}
 <div class="sticky-top bg-body border-bottom shadow-sm">
     <form class="p-3" method="get" action="{{ contactBasePath }}" role="search">
-        {% if activeMailboxId is defined and activeMailboxId != 'all' %}
-            <input type="hidden" name="mailbox" value="{{ activeMailboxId }}">
+        {% if activeAccountId is defined and activeAccountId != 'all' %}
+            <input type="hidden" name="account" value="{{ activeAccountId }}">
         {% endif %}
         <div class="input-group search-group">
             <input type="search" class="form-control" id="contact-search-input" name="q" value="{{ search }}" placeholder="{{ 'search.placeholder'|trans }}" aria-label="{{ 'contact.search'|trans }}">
@@ -26,16 +26,16 @@
                data-contact="{{ contact.id }}"
                {% if activeContact and activeContact.id == contact.id %}aria-current="true"{% endif %}
                aria-label="{{ 'contact.item_aria'|trans({'%name%': contact.displayName, '%email%': contact.email == fallbackEmail ? '' : contact.email}) }}">
-                {% set itemMailboxes = activeMailbox ? [] : (contactMailboxes[contact.id.toRfc4122()] ?? []) %}
-                {% if itemMailboxes is not empty %}
-                    <div class="mailbox-tag bg-body-tertiary text-body-secondary small px-3 py-1 border-bottom" style="font-size: 0.75rem;">
+                {% set itemAccounts = activeAccount ? [] : (contactAccounts[contact.id.toRfc4122()] ?? []) %}
+                {% if itemAccounts is not empty %}
+                    <div class="account-tag bg-body-tertiary text-body-secondary small px-3 py-1 border-bottom" style="font-size: 0.75rem;">
                         <i class="fa-solid fa-inbox me-1 small"></i>
-                        {%- for itemMailbox in itemMailboxes -%}
-                            {{- itemMailbox.name }}{% if not loop.last %}, {% endif -%}
+                        {%- for itemAccount in itemAccounts -%}
+                            {{- itemAccount.name }}{% if not loop.last %}, {% endif -%}
                         {%- endfor -%}
                     </div>
                 {% endif %}
-                <div class="email-item-content px-3 {{ itemMailboxes is not empty ? 'pt-2 pb-3' : 'py-3' }} d-flex align-items-center gap-3">
+                <div class="email-item-content px-3 {{ itemAccounts is not empty ? 'pt-2 pb-3' : 'py-3' }} d-flex align-items-center gap-3">
                     <span class="rounded-circle text-bg-primary d-inline-flex align-items-center justify-content-center fw-semibold flex-shrink-0" style="width:2.5rem;height:2.5rem;" aria-hidden="true">{{ contact.displayName|slice(0, 1)|upper }}</span>
                     <span class="flex-grow-1 min-w-0">
                         <span class="d-block fw-semibold text-truncate">{{ contact.displayName }}</span>

@@ -1,9 +1,9 @@
 {# Params:
     grid (array<string, mixed>) — week grid data: {anchor, start, end, days: 7 day cells}
-    activeMailboxId (string) — active mailbox id or 'all'
+    activeAccountId (string) — active account id or 'all'
     search (string) — active search term
 #}
-{% set scopeParams = activeMailboxId != 'all' ? {mailbox: activeMailboxId} : {} %}
+{% set scopeParams = activeAccountId != 'all' ? {account: activeAccountId} : {} %}
 {% set qParams = search is not empty ? {q: search} : {} %}
 <div class="calendar-grid calendar-grid-week" role="grid" aria-label="{{ 'calendar.view.week'|trans }}">
     <div class="calendar-grid-header" role="row">

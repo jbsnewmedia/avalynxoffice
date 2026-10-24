@@ -18,7 +18,7 @@
     </div>
     <div class="offcanvas-body p-0">
         <aside class="bg-body">
-            {% embed '_mailbox_filter.html.twig' with { mailboxes: mailboxes, activeMailbox: activeMailbox, activeMailboxId: activeMailboxId, optionRoute: 'contact_group', optionParams: {groupId: activeGroup}, allLabel: 'mailbox.all'|trans } %}
+            {% embed '_account_filter.html.twig' with { accounts: accounts, activeAccount: activeAccount, activeAccountId: activeAccountId, optionRoute: 'contact_group', optionParams: {groupId: activeGroup}, allLabel: 'account.all'|trans } %}
                 {% block action %}
                     <a href="{{ path('contact_new_modal') }}" class="btn btn-primary w-100 d-flex align-items-center justify-content-center gap-2 action-btn-modal {{ license_manager.isReadOnly ? 'disabled' }}" {{ license_manager.isReadOnly ? 'aria-disabled="true"' }} data-title="{{ 'contact.new'|trans }}" data-modal-size="modal-lg">
                         <i class="fa-solid fa-user-plus" aria-hidden="true"></i>{{ 'contact.new'|trans }}
@@ -26,7 +26,7 @@
                 {% endblock %}
             {% endembed %}
             <div id="folders-container">
-                {% include 'contacts/_groups.html.twig' with { groups: groups, activeGroup: activeGroup, search: search, totalContacts: totalContacts, activeMailboxId: activeMailboxId } %}
+                {% include 'contacts/_groups.html.twig' with { groups: groups, activeGroup: activeGroup, search: search, totalContacts: totalContacts, activeAccountId: activeAccountId } %}
             </div>
         </aside>
     </div>
@@ -38,24 +38,24 @@
     </div>
     <div class="offcanvas-body p-0">
         <section class="bg-body">
-            {% include 'contacts/_list.html.twig' with { contacts: contacts, activeContact: activeContact, activeGroup: activeGroup, search: search, activeMailboxId: activeMailboxId } %}
+            {% include 'contacts/_list.html.twig' with { contacts: contacts, activeContact: activeContact, activeGroup: activeGroup, search: search, activeAccountId: activeAccountId } %}
         </section>
     </div>
 </div>
 <div class="container-fluid">
     <div class="row">
         <aside class="col-xxl-2 d-none d-xxl-block mail-body-height overflow-auto bg-body shadow-sm p-0 border-end">
-            {% embed '_mailbox_filter.html.twig' with { mailboxes: mailboxes, activeMailbox: activeMailbox, activeMailboxId: activeMailboxId, optionRoute: 'contact_group', optionParams: {groupId: activeGroup}, allLabel: 'mailbox.all'|trans } %}
+            {% embed '_account_filter.html.twig' with { accounts: accounts, activeAccount: activeAccount, activeAccountId: activeAccountId, optionRoute: 'contact_group', optionParams: {groupId: activeGroup}, allLabel: 'account.all'|trans } %}
                 {% block action %}
                     <a href="{{ path('contact_new_modal') }}" class="btn btn-primary w-100 d-flex align-items-center justify-content-center gap-2 action-btn-modal {{ license_manager.isReadOnly ? 'disabled' }}" {{ license_manager.isReadOnly ? 'aria-disabled="true"' }} data-title="{{ 'contact.new'|trans }}" data-modal-size="modal-lg">
                         <i class="fa-solid fa-user-plus" aria-hidden="true"></i>{{ 'contact.new'|trans }}
                     </a>
                 {% endblock %}
             {% endembed %}
-            {% include 'contacts/_groups.html.twig' with { groups: groups, activeGroup: activeGroup, search: search, totalContacts: totalContacts, activeMailboxId: activeMailboxId } %}
+            {% include 'contacts/_groups.html.twig' with { groups: groups, activeGroup: activeGroup, search: search, totalContacts: totalContacts, activeAccountId: activeAccountId } %}
         </aside>
         <section class="col-xxl-3 d-none d-xxl-block mail-body-height overflow-auto p-0 bg-body border-end">
-            {% include 'contacts/_list.html.twig' with { contacts: contacts, activeContact: activeContact, activeGroup: activeGroup, search: search, activeMailboxId: activeMailboxId } %}
+            {% include 'contacts/_list.html.twig' with { contacts: contacts, activeContact: activeContact, activeGroup: activeGroup, search: search, activeAccountId: activeAccountId } %}
         </section>
         <main class="col-xxl-7 col-12 mail-body-height overflow-auto bg-body p-0">
             <div id="contact-detail">

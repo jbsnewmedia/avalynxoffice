@@ -15,12 +15,12 @@ use AvalynxOffice\Entity\EmailFolder;
 use AvalynxOffice\Entity\Enum\BodyContentType;
 use AvalynxOffice\Entity\Enum\EmailAddressType;
 use AvalynxOffice\Entity\Folder;
-use AvalynxOffice\Entity\FolderMailbox;
-use AvalynxOffice\Entity\Mailbox;
-use AvalynxOffice\Entity\MailboxAddress;
-use AvalynxOffice\Entity\MailboxConnector;
+use AvalynxOffice\Entity\FolderAccount;
+use AvalynxOffice\Entity\Account;
+use AvalynxOffice\Entity\AccountAddress;
+use AvalynxOffice\Entity\Connector;
 use AvalynxOffice\Entity\User;
-use AvalynxOffice\Entity\UserMailbox;
+use AvalynxOffice\Entity\UserAccount;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Uid\UuidV7;
@@ -123,29 +123,28 @@ final class EntityGapFillTest extends TestCase
         self::assertNotSame($beforeUpdate, $email->getUpdatedAt());
     }
 
-    public function testMailboxLinkEntitiesAndConnectorProperties(): void
+    public function testAccountLinkEntitiesAndConnectorProperties(): void
     {
-        $mailbox = (new Mailbox())
+        $account = (new Account())
             ->setName('Support')
             ->setEmail('support@example.com');
         $folder = (new Folder())->setName('Inbox');
         $address = (new Address())->setEmail('support+alias@example.com');
         $user = (new User())->setEmail('user@example.com')->setPassword('secret');
 
-        $folderMailbox = (new FolderMailbox())
-            ->setMailbox($mailbox)
+        $folderAccount = (new FolderAccount())
+            ->setAccount($account)
             ->setFolder($folder)
             ->setSortOrder(5);
-        $mailboxAddress = (new MailboxAddress())
-            ->setMailbox($mailbox)
+        $accountAddress = (new AccountAddress())
+            ->setAccount($account)
             ->setAddress($address);
-        $userMailbox = (new UserMailbox())
+        $userAccount = (new UserAccount())
             ->setUser($user)
-            ->setMailbox($mailbox);
-        $connector = (new MailboxConnector())
-            ->setMailbox($mailbox)
+            ->setAccount($account);
+        $connector = (new Connector())
             ->setName('Primary')
-            ->setEmail('connector@example.com')
+            ->setDomain('example.com')
             ->setPop3Host('pop.example.com')
             ->setPop3Port(995)
             ->setPop3Username('pop-user')
@@ -157,22 +156,22 @@ final class EntityGapFillTest extends TestCase
             ->setSmtpUsername('smtp-user')
             ->setSmtpPassword('smtp-pass')
             ->setSmtpSecurity('tls')
-            ->setIsPrimary(true);
+            ->setDefaultAccount($account);
 
-        self::assertSame($mailbox, $folderMailbox->getMailbox());
-        self::assertSame($folder, $folderMailbox->getFolder());
-        self::assertSame(5, $folderMailbox->getSortOrder());
+        self::assertSame($account, $folderAccount->getAccount());
+        self::assertSame($folder, $folderAccount->getFolder());
+        self::assertSame(5, $folderAccount->getSortOrder());
 
-        self::assertSame($mailbox, $mailboxAddress->getMailbox());
-        self::assertSame($address, $mailboxAddress->getAddress());
+        self::assertSame($account, $accountAddress->getAccount());
+        self::assertSame($address, $accountAddress->getAddress());
 
-        self::assertSame($user, $userMailbox->getUser());
-        self::assertSame($mailbox, $userMailbox->getMailbox());
+        self::assertSame($user, $userAccount->getUser());
+        self::assertSame($account, $userAccount->getAccount());
 
         self::assertNotNull($connector->getId());
-        self::assertSame($mailbox, $connector->getMailbox());
+        self::assertSame($account, $connector->getDefaultAccount());
         self::assertSame('Primary', $connector->getName());
-        self::assertSame('connector@example.com', $connector->getEmail());
+        self::assertSame('example.com', $connector->getDomain());
         self::assertSame('pop.example.com', $connector->getPop3Host());
         self::assertSame(995, $connector->getPop3Port());
         self::assertSame('pop-user', $connector->getPop3Username());
@@ -184,27 +183,26 @@ final class EntityGapFillTest extends TestCase
         self::assertSame('smtp-user', $connector->getSmtpUsername());
         self::assertSame('smtp-pass', $connector->getSmtpPassword());
         self::assertSame('tls', $connector->getSmtpSecurity());
-        self::assertTrue($connector->isPrimary());
     }
 
-    public function testUserIdentifierRolesAndMailboxRemovalBranches(): void
+    public function testUserIdentifierRolesAndAccountRemovalBranches(): void
     {
         $user = (new User())
             ->setEmail('USER@Example.com')
             ->setPassword('secret')
             ->setRoles(['ROLE_ADMIN', 'ROLE_ADMIN']);
-        $mailbox = (new Mailbox())
+        $account = (new Account())
             ->setName('Inbox')
             ->setEmail('inbox@example.com');
 
-        $user->addMailbox($mailbox);
-        $user->removeMailbox(new Mailbox());
-        $user->removeMailbox($mailbox);
+        $user->addAccount($account);
+        $user->removeAccount(new Account());
+        $user->removeAccount($account);
 
         self::assertSame('user@example.com', $user->getEmail());
         self::assertSame('user@example.com', $user->getUserIdentifier());
         self::assertSame(['ROLE_ADMIN', 'ROLE_USER'], $user->getRoles());
-        self::assertCount(0, $user->getMailboxes());
+        self::assertCount(0, $user->getAccounts());
 
         $emptyUser = (new User())
             ->setEmail('')
@@ -215,16 +213,16 @@ final class EntityGapFillTest extends TestCase
         $emptyUser->getUserIdentifier();
     }
 
-    public function testUserMailboxLinksAndDuplicateAdd(): void
+    public function testUserAccountLinksAndDuplicateAdd(): void
     {
         $user = (new User())->setEmail('owner@example.com')->setPassword('secret');
-        $mailbox = (new Mailbox())->setName('Inbox')->setEmail('inbox@example.com');
+        $account = (new Account())->setName('Inbox')->setEmail('inbox@example.com');
 
-        $user->addMailbox($mailbox);
-        $user->addMailbox($mailbox);
+        $user->addAccount($account);
+        $user->addAccount($account);
 
-        self::assertCount(1, $user->getMailboxLinks());
-        self::assertCount(1, $user->getMailboxes());
+        self::assertCount(1, $user->getAccountLinks());
+        self::assertCount(1, $user->getAccounts());
     }
 
     public function testEmailFolderIdentifierAndUpdatedAtSetter(): void

@@ -7,7 +7,7 @@ namespace AvalynxOffice\Tests\Controller;
 use AvalynxOffice\Entity\Email;
 use AvalynxOffice\Entity\EmailFolder;
 use AvalynxOffice\Entity\Folder;
-use AvalynxOffice\Entity\Mailbox;
+use AvalynxOffice\Entity\Account;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Tests\Support\RefreshDatabaseTrait;
 use Doctrine\ORM\EntityManagerInterface;
@@ -66,29 +66,29 @@ class MailFolderSelectionControllerTest extends WebTestCase
      */
     private function createFixtureData(int $emailCount, int $selectedIndex): array
     {
-        $mailbox = new Mailbox();
-        $mailbox->setName('Support');
-        $mailbox->setEmail('support@example.com');
+        $account = new Account();
+        $account->setName('Support');
+        $account->setEmail('support@example.com');
 
         $folder = new Folder();
         $folder->setName('Posteingang');
 
-        $mailbox->addFolder($folder);
+        $account->addFolder($folder);
 
         $user = new User();
         $user->setEmail('user@example.com');
         $user->setPassword('secret');
-        $user->addMailbox($mailbox);
+        $user->addAccount($account);
 
         $selectedEmail = null;
 
-        $this->entityManager->persist($mailbox);
+        $this->entityManager->persist($account);
         $this->entityManager->persist($folder);
         $this->entityManager->persist($user);
 
         for ($index = 1; $index <= $emailCount; ++$index) {
             $email = new Email();
-            $email->setMailbox($mailbox);
+            $email->setAccount($account);
             $email->setSubject(sprintf('Mail %02d', $index));
             $email->setPreviewBody(sprintf('Vorschau %02d', $index));
             $email->setReceivedAt(new \DateTimeImmutable(sprintf('2026-01-%02d 10:00:00', $index)));

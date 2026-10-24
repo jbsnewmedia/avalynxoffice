@@ -14,9 +14,11 @@ use AvalynxOffice\Entity\EmailFolder;
 use AvalynxOffice\Entity\Enum\BodyContentType;
 use AvalynxOffice\Entity\Enum\EmailAddressType;
 use AvalynxOffice\Entity\Folder;
-use AvalynxOffice\Entity\FolderMailbox;
-use AvalynxOffice\Entity\Mailbox;
-use AvalynxOffice\Repository\MailboxRepository;
+use AvalynxOffice\Entity\FolderAccount;
+use AvalynxOffice\Entity\Account;
+use AvalynxOffice\Entity\AccountAlias;
+use AvalynxOffice\Entity\Connector;
+use AvalynxOffice\Repository\AccountRepository;
 use AvalynxOffice\Service\Mail\AttachmentStorage;
 use AvalynxOffice\Service\Mail\FolderManager;
 use AvalynxOffice\Tests\Support\AllowAllLicenseEnforcement;
@@ -30,37 +32,37 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 
 final class MailDraftServiceTest extends TestCase
 {
-    public function testCreateComposeDraftUsesFirstMailboxAsSender(): void
+    public function testCreateComposeDraftUsesFirstAccountAsSender(): void
     {
         $entityManager = $this->createMock(EntityManagerInterface::class);
-        $mailboxRepository = $this->createMock(MailboxRepository::class);
+        $accountRepository = $this->createMock(AccountRepository::class);
         $folderManager = $this->createStub(FolderManager::class);
         $attachmentStorage = $this->createStub(AttachmentStorage::class);
         $translator = $this->createStub(TranslatorInterface::class);
 
-        $mailbox = (new Mailbox())
+        $account = (new Account())
             ->setName('Primary')
             ->setEmail('primary@example.com');
-        $mailbox->addAddress(
+        $account->addAddress(
             (new Address())
                 ->setEmail('alias@example.com')
                 ->setName('Alias')
         );
         $address = (new Address())
-            ->setEmail('alias@example.com')
-            ->setName('Alias');
+            ->setEmail('primary@example.com')
+            ->setName('Primary');
 
         $addressRepository = $this->createMock(EntityRepository::class);
         $addressRepository
             ->expects(self::once())
             ->method('findOneBy')
-            ->with(['email' => 'alias@example.com'])
+            ->with(['email' => 'primary@example.com'])
             ->willReturn($address);
 
-        $mailboxRepository
+        $accountRepository
             ->expects(self::once())
             ->method('findAll')
-            ->willReturn([$mailbox]);
+            ->willReturn([$account]);
 
         $entityManager
             ->expects(self::once())
@@ -72,27 +74,27 @@ final class MailDraftServiceTest extends TestCase
             ->expects(self::never())
             ->method('persist');
 
-        $service = new MailDraftService($entityManager, $mailboxRepository, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
+        $service = new MailDraftService($entityManager, $accountRepository, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
 
         $draft = $service->createComposeDraft();
 
         self::assertTrue($draft->isOutgoing());
         self::assertTrue($draft->isDraft());
-        self::assertSame($mailbox, $draft->getMailbox());
+        self::assertSame($account, $draft->getAccount());
         self::assertCount(1, $draft->getEmailAddresses());
         self::assertSame(EmailAddressType::SENDER, $draft->getEmailAddresses()->first()->getType());
-        self::assertSame('alias@example.com', $draft->getEmailAddresses()->first()->getAddress()?->getEmail());
+        self::assertSame('primary@example.com', $draft->getEmailAddresses()->first()->getAddress()?->getEmail());
     }
 
-    public function testCreateComposeDraftWithoutMailboxReturnsEmptyDraft(): void
+    public function testCreateComposeDraftWithoutAccountReturnsEmptyDraft(): void
     {
         $entityManager = $this->createMock(EntityManagerInterface::class);
-        $mailboxRepository = $this->createMock(MailboxRepository::class);
+        $accountRepository = $this->createMock(AccountRepository::class);
         $folderManager = $this->createStub(FolderManager::class);
         $attachmentStorage = $this->createStub(AttachmentStorage::class);
         $translator = $this->createStub(TranslatorInterface::class);
 
-        $mailboxRepository
+        $accountRepository
             ->expects(self::once())
             ->method('findAll')
             ->willReturn([]);
@@ -101,30 +103,30 @@ final class MailDraftServiceTest extends TestCase
             ->expects(self::never())
             ->method('getRepository');
 
-        $service = new MailDraftService($entityManager, $mailboxRepository, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
+        $service = new MailDraftService($entityManager, $accountRepository, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
         $draft = $service->createComposeDraft();
 
         self::assertTrue($draft->isOutgoing());
         self::assertTrue($draft->isDraft());
-        self::assertNull($draft->getMailbox());
+        self::assertNull($draft->getAccount());
         self::assertCount(0, $draft->getEmailAddresses());
     }
 
     public function testCreateReplyDraftCopiesParticipantsAndQuotedBody(): void
     {
         $entityManager = $this->createMock(EntityManagerInterface::class);
-        $mailboxRepository = $this->createStub(MailboxRepository::class);
+        $accountRepository = $this->createStub(AccountRepository::class);
         $folderManager = $this->createMock(FolderManager::class);
         $attachmentStorage = $this->createStub(AttachmentStorage::class);
         $translator = $this->createTranslatorStub();
-        $service = new MailDraftService($entityManager, $mailboxRepository, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
+        $service = new MailDraftService($entityManager, $accountRepository, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
 
-        $mailbox = (new Mailbox())
+        $account = (new Account())
             ->setName('Primary')
             ->setEmail('primary@example.com');
 
         $originalEmail = (new Email())
-            ->setMailbox($mailbox)
+            ->setAccount($account)
             ->setSubject('Original subject')
             ->setPreviewBody('Preview excerpt')
             ->setReceivedAt(new \DateTimeImmutable('2026-04-27 10:15:00'));
@@ -169,7 +171,7 @@ final class MailDraftServiceTest extends TestCase
         $draftBodies = array_values($draft->getEmailBodies()->toArray());
 
         self::assertSame('Re Original subject', $draft->getSubject());
-        self::assertSame($mailbox, $draft->getMailbox());
+        self::assertSame($account, $draft->getAccount());
         self::assertCount(2, $draftAddresses);
         self::assertSame(EmailAddressType::SENDER, $draftAddresses[0]->getType());
         self::assertSame('primary@example.com', $draftAddresses[0]->getAddress()?->getEmail());
@@ -182,18 +184,18 @@ final class MailDraftServiceTest extends TestCase
     public function testCreateReplyAllDraftAddsReplyToRecipientsAndCc(): void
     {
         $entityManager = $this->createMock(EntityManagerInterface::class);
-        $mailboxRepository = $this->createStub(MailboxRepository::class);
+        $accountRepository = $this->createStub(AccountRepository::class);
         $folderManager = $this->createMock(FolderManager::class);
         $attachmentStorage = $this->createStub(AttachmentStorage::class);
         $translator = $this->createTranslatorStub();
-        $service = new MailDraftService($entityManager, $mailboxRepository, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
+        $service = new MailDraftService($entityManager, $accountRepository, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
 
-        $mailbox = (new Mailbox())
+        $account = (new Account())
             ->setName('Primary')
             ->setEmail('primary@example.com');
 
         $originalEmail = (new Email())
-            ->setMailbox($mailbox)
+            ->setAccount($account)
             ->setSubject('Original subject')
             ->setPreviewBody('Preview excerpt')
             ->setReceivedAt(new \DateTimeImmutable('2026-04-27 10:15:00'));
@@ -247,13 +249,13 @@ final class MailDraftServiceTest extends TestCase
     public function testCreateForwardDraftCopiesAttachments(): void
     {
         $entityManager = $this->createMock(EntityManagerInterface::class);
-        $mailboxRepository = $this->createStub(MailboxRepository::class);
+        $accountRepository = $this->createStub(AccountRepository::class);
         $folderManager = $this->createMock(FolderManager::class);
         $attachmentStorage = $this->createStub(AttachmentStorage::class);
         $translator = $this->createTranslatorStub();
-        $service = new MailDraftService($entityManager, $mailboxRepository, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
+        $service = new MailDraftService($entityManager, $accountRepository, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
 
-        $mailbox = (new Mailbox())
+        $account = (new Account())
             ->setName('Primary')
             ->setEmail('primary@example.com');
 
@@ -265,7 +267,7 @@ final class MailDraftServiceTest extends TestCase
             ->setFilePath('offer.pdf');
 
         $originalEmail = (new Email())
-            ->setMailbox($mailbox)
+            ->setAccount($account)
             ->setSubject('Original subject')
             ->setPreviewBody('Preview excerpt')
             ->setReceivedAt(new \DateTimeImmutable('2026-04-27 10:15:00'));
@@ -301,16 +303,16 @@ final class MailDraftServiceTest extends TestCase
         $folderManager = $this->createMock(FolderManager::class);
         $service = new MailDraftService(
             $entityManager,
-            $this->createStub(MailboxRepository::class),
+            $this->createStub(AccountRepository::class),
             $folderManager,
             $this->createStub(AttachmentStorage::class),
             $this->createTranslatorStub(),
             new AllowAllLicenseEnforcement(),
         );
 
-        $mailbox = (new Mailbox())->setName('Primary')->setEmail('primary@example.com');
+        $account = (new Account())->setName('Primary')->setEmail('primary@example.com');
         $originalEmail = (new Email())
-            ->setMailbox($mailbox)
+            ->setAccount($account)
             ->setSubject('Original subject')
             ->setPreviewBody('Preview fallback');
         $originalEmail->addEmailAddress((new EmailAddressLink())
@@ -339,18 +341,18 @@ final class MailDraftServiceTest extends TestCase
     public function testSaveEmailFromFormReplacesRecipientsAndBodyAndAssignsFolder(): void
     {
         $entityManager = $this->createMock(EntityManagerInterface::class);
-        $mailboxRepository = $this->createStub(MailboxRepository::class);
+        $accountRepository = $this->createStub(AccountRepository::class);
         $folderManager = $this->createMock(FolderManager::class);
         $attachmentStorage = $this->createStub(AttachmentStorage::class);
         $translator = $this->createStub(TranslatorInterface::class);
-        $service = new MailDraftService($entityManager, $mailboxRepository, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
+        $service = new MailDraftService($entityManager, $accountRepository, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
 
-        $mailbox = (new Mailbox())
+        $account = (new Account())
             ->setName('Primary')
             ->setEmail('primary@example.com');
 
         $email = (new Email())
-            ->setMailbox($mailbox)
+            ->setAccount($account)
             ->setIsDraft(true);
 
         $existingRecipient = (new EmailAddressLink())
@@ -424,14 +426,14 @@ final class MailDraftServiceTest extends TestCase
         self::assertSame('Body payload', $bodies[0]->getBody()?->getContent());
     }
 
-    public function testSaveEmailFromFormSkipsFolderSyncWithoutMailbox(): void
+    public function testSaveEmailFromFormSkipsFolderSyncWithoutAccount(): void
     {
         $entityManager = $this->createMock(EntityManagerInterface::class);
-        $mailboxRepository = $this->createStub(MailboxRepository::class);
+        $accountRepository = $this->createStub(AccountRepository::class);
         $folderManager = $this->createMock(FolderManager::class);
         $attachmentStorage = $this->createStub(AttachmentStorage::class);
         $translator = $this->createStub(TranslatorInterface::class);
-        $service = new MailDraftService($entityManager, $mailboxRepository, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
+        $service = new MailDraftService($entityManager, $accountRepository, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
 
         $email = new Email();
 
@@ -453,26 +455,26 @@ final class MailDraftServiceTest extends TestCase
         self::assertSame('Standalone draft', $email->getPreviewBody());
     }
 
-    public function testPrivateHelpersResolveMailboxAndSenderFallbacks(): void
+    public function testPrivateHelpersResolveAccountAndSenderFallbacks(): void
     {
         $entityManager = $this->createMock(EntityManagerInterface::class);
-        $mailboxRepository = $this->createStub(MailboxRepository::class);
+        $accountRepository = $this->createStub(AccountRepository::class);
         $folderManager = $this->createStub(FolderManager::class);
         $attachmentStorage = $this->createStub(AttachmentStorage::class);
         $translator = $this->createTranslatorStub();
-        $service = new MailDraftService($entityManager, $mailboxRepository, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
+        $service = new MailDraftService($entityManager, $accountRepository, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
 
-        $mailbox = (new Mailbox())
+        $account = (new Account())
             ->setName('Primary')
             ->setEmail('primary@example.com');
         $folder = (new Folder())->setName('Inbox');
-        $mailboxLink = (new FolderMailbox())
-            ->setMailbox($mailbox)
+        $accountLink = (new FolderAccount())
+            ->setAccount($account)
             ->setFolder($folder);
-        $mailbox->addFolder($folder);
+        $account->addFolder($folder);
 
-        $mailboxLinksProperty = new \ReflectionProperty(Folder::class, 'mailboxLinks');
-        $mailboxLinksProperty->setValue($folder, new ArrayCollection([$mailboxLink]));
+        $accountLinksProperty = new \ReflectionProperty(Folder::class, 'accountLinks');
+        $accountLinksProperty->setValue($folder, new ArrayCollection([$accountLink]));
 
         $originalEmail = (new Email())
             ->setPreviewBody('Preview only');
@@ -481,8 +483,8 @@ final class MailDraftServiceTest extends TestCase
             ->setFolder($folder);
         $originalEmail->addEmailFolder($folderLink);
 
-        $resolveMailbox = new \ReflectionMethod(MailDraftService::class, 'resolveMailbox');
-        self::assertSame($mailbox, $resolveMailbox->invoke($service, $originalEmail));
+        $resolveAccount = new \ReflectionMethod(MailDraftService::class, 'resolveAccount');
+        self::assertSame($account, $resolveAccount->invoke($service, $originalEmail));
 
         $resolveOriginalContent = new \ReflectionMethod(MailDraftService::class, 'resolveOriginalContent');
         self::assertSame('Preview only', $resolveOriginalContent->invoke($service, $originalEmail));
@@ -504,28 +506,28 @@ final class MailDraftServiceTest extends TestCase
             ->expects(self::atLeastOnce())
             ->method('persist');
 
-        $draft = (new Email())->setMailbox($mailbox);
-        $copyMailboxAddressAsSender = new \ReflectionMethod(MailDraftService::class, 'copyMailboxAddressAsSender');
-        $copyMailboxAddressAsSender->invoke($service, $originalEmail, $draft);
+        $draft = (new Email())->setAccount($account);
+        $copyAccountAddressAsSender = new \ReflectionMethod(MailDraftService::class, 'copyAccountAddressAsSender');
+        $copyAccountAddressAsSender->invoke($service, $originalEmail, $draft);
 
         self::assertCount(1, $draft->getEmailAddresses());
         self::assertSame('primary@example.com', $draft->getEmailAddresses()->first()->getAddress()?->getEmail());
         self::assertSame(EmailAddressType::SENDER, $draft->getEmailAddresses()->first()->getType());
     }
 
-    public function testPrivateHelpersReturnNullMailboxAndMatchMailboxAliasSenderWithoutDuplicates(): void
+    public function testPrivateHelpersReturnNullAccountAndMatchAccountAliasSenderWithoutDuplicates(): void
     {
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $service = new MailDraftService(
             $entityManager,
-            $this->createStub(MailboxRepository::class),
+            $this->createStub(AccountRepository::class),
             $this->createStub(FolderManager::class),
             $this->createStub(AttachmentStorage::class),
             $this->createTranslatorStub(),
             new AllowAllLicenseEnforcement(),
         );
 
-        $resolveMailbox = new \ReflectionMethod(MailDraftService::class, 'resolveMailbox');
+        $resolveAccount = new \ReflectionMethod(MailDraftService::class, 'resolveAccount');
 
         $emailWithMissingFolder = new Email();
         $emailWithMissingFolder->addEmailFolder((new class extends EmailFolder {
@@ -536,13 +538,18 @@ final class MailDraftServiceTest extends TestCase
             }
         })->setEmail($emailWithMissingFolder));
 
-        self::assertNull($resolveMailbox->invoke($service, $emailWithMissingFolder));
+        self::assertNull($resolveAccount->invoke($service, $emailWithMissingFolder));
 
         $alias = (new Address())->setEmail('alias@example.com')->setName('Alias');
-        $mailbox = (new Mailbox())
+        $account = (new Account())
             ->setName('Primary')
             ->setEmail('primary@example.com');
-        $mailbox->addAddress($alias);
+        $account->addAlias(
+            (new AccountAlias())
+                ->setAccount($account)
+                ->setConnector((new Connector())->setName('Example')->setDomain('example.com'))
+                ->setLocalPart('alias'),
+        );
 
         $originalEmail = new Email();
         $originalEmail->addEmailAddress((new EmailAddressLink())
@@ -553,7 +560,7 @@ final class MailDraftServiceTest extends TestCase
             ->setEmail($originalEmail)
             ->setType(EmailAddressType::RECIPIENT));
 
-        $draft = (new Email())->setMailbox($mailbox);
+        $draft = (new Email())->setAccount($account);
         $draft->addEmailAddress((new EmailAddressLink())
             ->setEmail($draft)
             ->setAddress($alias)
@@ -561,8 +568,8 @@ final class MailDraftServiceTest extends TestCase
 
         $entityManager->expects(self::never())->method('persist');
 
-        $copyMailboxAddressAsSender = new \ReflectionMethod(MailDraftService::class, 'copyMailboxAddressAsSender');
-        $copyMailboxAddressAsSender->invoke($service, $originalEmail, $draft);
+        $copyAccountAddressAsSender = new \ReflectionMethod(MailDraftService::class, 'copyAccountAddressAsSender');
+        $copyAccountAddressAsSender->invoke($service, $originalEmail, $draft);
 
         self::assertCount(1, array_filter(
             $draft->getEmailAddresses()->toArray(),
@@ -576,7 +583,7 @@ final class MailDraftServiceTest extends TestCase
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $service = new MailDraftService(
             $entityManager,
-            $this->createStub(MailboxRepository::class),
+            $this->createStub(AccountRepository::class),
             $this->createStub(FolderManager::class),
             $this->createStub(AttachmentStorage::class),
             $this->createTranslatorStub(),
@@ -601,8 +608,8 @@ final class MailDraftServiceTest extends TestCase
 
         $entityManager->expects(self::once())->method('persist');
 
-        $copyMailboxAddressAsSender = new \ReflectionMethod(MailDraftService::class, 'copyMailboxAddressAsSender');
-        $copyMailboxAddressAsSender->invoke($service, $originalEmail, $draft);
+        $copyAccountAddressAsSender = new \ReflectionMethod(MailDraftService::class, 'copyAccountAddressAsSender');
+        $copyAccountAddressAsSender->invoke($service, $originalEmail, $draft);
 
         self::assertCount(1, $draft->getEmailAddresses());
         self::assertSame($recipientAddress, $draft->getEmailAddresses()->first()?->getAddress());
@@ -613,7 +620,7 @@ final class MailDraftServiceTest extends TestCase
     {
         $service = new MailDraftService(
             $this->createStub(EntityManagerInterface::class),
-            $this->createStub(MailboxRepository::class),
+            $this->createStub(AccountRepository::class),
             $this->createStub(FolderManager::class),
             $this->createStub(AttachmentStorage::class),
             $this->createTranslatorStub(),
@@ -638,7 +645,7 @@ final class MailDraftServiceTest extends TestCase
         $attachmentStorage = $this->createMock(AttachmentStorage::class);
         $service = new MailDraftService(
             $entityManager,
-            $this->createStub(MailboxRepository::class),
+            $this->createStub(AccountRepository::class),
             $this->createStub(FolderManager::class),
             $attachmentStorage,
             $this->createTranslatorStub(),
@@ -725,14 +732,14 @@ final class MailDraftServiceTest extends TestCase
         $attachmentStorage = $this->createStub(AttachmentStorage::class);
         $service = new MailDraftService(
             $entityManager,
-            $this->createStub(MailboxRepository::class),
+            $this->createStub(AccountRepository::class),
             $this->createStub(FolderManager::class),
             $attachmentStorage,
             $this->createTranslatorStub(),
             new AllowAllLicenseEnforcement(),
         );
 
-        $mailbox = (new Mailbox())
+        $account = (new Account())
             ->setName('Primary')
             ->setEmail('primary@example.com');
         $existingAddress = (new Address())->setEmail('primary@example.com');
@@ -752,7 +759,7 @@ final class MailDraftServiceTest extends TestCase
         $entityManager->expects(self::never())->method('persist');
 
         $resolveSenderAddress = new \ReflectionMethod(MailDraftService::class, 'resolveSenderAddress');
-        self::assertSame($existingAddress, $resolveSenderAddress->invoke($service, $mailbox));
+        self::assertSame($existingAddress, $resolveSenderAddress->invoke($service, $account));
         self::assertSame('Primary', $existingAddress->getName());
 
         $source = new Email();

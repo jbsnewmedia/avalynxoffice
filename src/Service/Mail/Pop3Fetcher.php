@@ -9,9 +9,11 @@ declare(strict_types=1);
 
 namespace AvalynxOffice\Service\Mail;
 
+use AvalynxOffice\Entity\Account;
 use AvalynxOffice\Entity\Address;
 use AvalynxOffice\Entity\Attachment;
 use AvalynxOffice\Entity\Body;
+use AvalynxOffice\Entity\Connector;
 use AvalynxOffice\Entity\Email;
 use AvalynxOffice\Entity\EmailAddressLink;
 use AvalynxOffice\Entity\EmailAttachmentLink;
@@ -20,8 +22,6 @@ use AvalynxOffice\Entity\EmailFolder;
 use AvalynxOffice\Entity\Enum\BodyContentType;
 use AvalynxOffice\Entity\Enum\EmailAddressType;
 use AvalynxOffice\Entity\Enum\FolderFunction;
-use AvalynxOffice\Entity\Mailbox;
-use AvalynxOffice\Entity\MailboxConnector;
 use AvalynxOffice\Repository\EmailRepository;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
@@ -39,6 +39,7 @@ class Pop3Fetcher
         private readonly FolderManager $folderManager,
         private readonly AttachmentStorage $attachmentStorage,
         private readonly Pop3StorageFactory $pop3StorageFactory,
+        private readonly MailRoutingService $mailRoutingService,
     ) {
     }
 
@@ -67,7 +68,7 @@ class Pop3Fetcher
         }
     }
 
-    private function logError(int $num, ?string $uidl, ?string $subject, \Throwable $e, ?MailboxConnector $connector = null, ?\Laminas\Mail\Storage\Pop3 $storage = null): void
+    private function logError(int $num, ?string $uidl, ?string $subject, \Throwable $e, ?Connector $connector = null, ?\Laminas\Mail\Storage\Pop3 $storage = null): void
     {
         $msg = sprintf('Error on message %d (UIDL: %s): %s — subject: %s', $num, $uidl ?? 'unknown', $e->getMessage(), $subject ?? '(no subject)');
         $this->log($msg, 'error');
@@ -90,7 +91,7 @@ class Pop3Fetcher
         }
     }
 
-    private function dumpRawError(int $num, ?string $uidl, MailboxConnector $connector, \Laminas\Mail\Storage\Pop3 $storage, string $errorReason): void
+    private function dumpRawError(int $num, ?string $uidl, Connector $connector, \Laminas\Mail\Storage\Pop3 $storage, string $errorReason): void
     {
         $raw = $this->fetchRawViaProtocol($storage, $num);
         if (null === $raw) {
@@ -233,14 +234,8 @@ class Pop3Fetcher
     /**
      * @return array{imported: int, skipped: int, errors: int}
      */
-    public function fetchForConnector(MailboxConnector $connector, ?int $limit = null, ?bool $deleteAfter = null, bool $oldestFirst = false): array
+    public function fetchForConnector(Connector $connector, ?int $limit = null, ?bool $deleteAfter = null, bool $oldestFirst = false): array
     {
-        $mailbox = $connector->getMailbox();
-        if (!$mailbox instanceof Mailbox) {
-            $this->log('Connector is not assigned to a mailbox.', 'error');
-
-            return ['imported' => 0, 'skipped' => 0, 'errors' => 0];
-        }
         if (!$connector->getPop3Host() || !$connector->getPop3Username() || !$connector->getPop3Password()) {
             $this->log('POP3 configuration incomplete.', 'error');
 
@@ -276,7 +271,6 @@ class Pop3Fetcher
             $this->log('Listing messages on the server ...');
             $count = $storage->countMessages();
             $this->log(sprintf('%d messages found.', $count));
-            $this->ensureInboxForMailbox($mailbox);
             $indices = [];
             if (null !== $limit && !$oldestFirst) {
                 for ($i = $count; $i > max(0, $count - $limit); --$i) {
@@ -343,9 +337,22 @@ class Pop3Fetcher
                     }
                     $subject = $this->safeHeader($msg, 'subject');
                     $this->log(sprintf('Processing message: "%s" (hash: %s)', $subject, substr($contentHash, 0, 8)));
+                    $recipients = $this->collectRecipientAddresses($msg);
+                    $target = $this->mailRoutingService->resolveTarget($connector, $recipients);
+                    if (null === $target) {
+                        $this->log(sprintf('No account found for message "%s" (no alias match, no default account). Message stays on the server.', (string) $subject), 'error');
+                        ++$errors;
+                        continue;
+                    }
+                    $targetAccount = $target['account'];
+                    $matchedLocalPart = $target['alias']?->getLocalPart();
+                    $this->ensureInboxForAccount($targetAccount);
+                    $this->log(sprintf('Routing message to account "%s"%s.', $targetAccount->getEmail(), null !== $matchedLocalPart ? sprintf(' (alias %s)', $matchedLocalPart) : ' (default account)'));
                     $this->dumpOriginalMessage($msg, $connector, null, $importKey, 'pending');
                     try {
-                        $email = $this->convertMessageToEntity($msg, $mailbox, $importKey, $hadEncodingIssues);
+                        $email = $this->convertMessageToEntity($msg, $targetAccount, $importKey, $hadEncodingIssues);
+                        $email->setConnector($connector);
+                        $email->setMatchedLocalPart($matchedLocalPart);
                         $email->setContentHash($contentHash);
                         $this->log(sprintf('Speichere in Datenbank (ID: %s) ...', $email->getId()));
                         $this->em->persist($email);
@@ -377,7 +384,7 @@ class Pop3Fetcher
                         break;
                     }
                     $this->em->clear();
-                    $mailbox = $this->em->find(Mailbox::class, $mailbox->getId()) ?? $mailbox;
+                    $connector = $this->em->find(Connector::class, $connector->getId()) ?? $connector;
                 }
             }
         } finally {
@@ -388,16 +395,34 @@ class Pop3Fetcher
         return compact('imported', 'skipped', 'errors');
     }
 
-    private function ensureInboxForMailbox(Mailbox $mailbox): void
+    private function ensureInboxForAccount(Account $account): void
     {
-        $this->folderManager->ensureSystemFolder($mailbox, FolderFunction::MAILBOX);
-        $this->folderManager->ensureSystemFolder($mailbox, FolderFunction::INBOX);
+        $this->folderManager->ensureSystemFolder($account, FolderFunction::MAILBOX);
+        $this->folderManager->ensureSystemFolder($account, FolderFunction::INBOX);
     }
 
-    private function convertMessageToEntity(StorageMessage $msg, Mailbox $mailbox, string $importKey, bool $hasEncodingIssues = false): Email
+    /**
+     * Collects all To and Cc addresses of the message in header order
+     * (To before Cc) for alias routing.
+     *
+     * @return list<string>
+     */
+    private function collectRecipientAddresses(StorageMessage $msg): array
+    {
+        $recipients = [];
+        foreach (['to', 'cc'] as $header) {
+            foreach ($this->parseAddresses($this->safeHeader($msg, $header)) as $address) {
+                $recipients[] = $address['email'];
+            }
+        }
+
+        return $recipients;
+    }
+
+    private function convertMessageToEntity(StorageMessage $msg, Account $account, string $importKey, bool $hasEncodingIssues = false): Email
     {
         $email = new Email();
-        $email->setMailbox($mailbox);
+        $email->setAccount($account);
         $email->setIsOutgoing(false)->setIsRead(false);
         $email->setImportKey($importKey);
         $email->setHasEncodingIssues($hasEncodingIssues);
@@ -453,7 +478,7 @@ class Pop3Fetcher
             $this->em->persist($bl);
             $email->setPreviewBody(mb_substr((string) $textBody, 0, 500));
         }
-        $folder = $mailbox->getInboxFolder() ?? $this->folderManager->ensureSystemFolder($mailbox, FolderFunction::MAILBOX);
+        $folder = $account->getInboxFolder() ?? $this->folderManager->ensureSystemFolder($account, FolderFunction::MAILBOX);
         $ef = new EmailFolder();
         $ef->setEmail($email);
         $ef->setFolder($folder);
@@ -738,14 +763,14 @@ class Pop3Fetcher
         return null;
     }
 
-    private function getConnectorDumpKey(MailboxConnector $connector): string
+    private function getConnectorDumpKey(Connector $connector): string
     {
-        $name = $connector->getEmail() ?: $connector->getPop3Username() ?: (string) $connector->getId();
+        $name = $connector->getDomain() ?: $connector->getPop3Username() ?: (string) $connector->getId();
 
         return preg_replace('/[^a-zA-Z0-9@._-]/', '_', $name) ?? 'unknown_connector';
     }
 
-    private function removePendingDump(MailboxConnector $connector, string $importKey, ?\DateTimeImmutable $date = null): void
+    private function removePendingDump(Connector $connector, string $importKey, ?\DateTimeImmutable $date = null): void
     {
         try {
             $connectorKey = $this->getConnectorDumpKey($connector);
@@ -759,7 +784,7 @@ class Pop3Fetcher
         }
     }
 
-    private function dumpOriginalMessage(StorageMessage $msg, MailboxConnector $connector, ?Email $email, ?string $importKey = null, string $status = 'success', ?string $errorReason = null): void
+    private function dumpOriginalMessage(StorageMessage $msg, Connector $connector, ?Email $email, ?string $importKey = null, string $status = 'success', ?string $errorReason = null): void
     {
         try {
             $date = $email?->getReceivedAt() ?? $this->extractDateFromMessage($msg) ?? new \DateTimeImmutable();

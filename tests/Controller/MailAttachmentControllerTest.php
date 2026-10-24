@@ -7,7 +7,7 @@ namespace AvalynxOffice\Tests\Controller;
 use AvalynxOffice\Entity\Attachment;
 use AvalynxOffice\Entity\Email;
 use AvalynxOffice\Entity\EmailAttachmentLink;
-use AvalynxOffice\Entity\Mailbox;
+use AvalynxOffice\Entity\Account;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Service\Mail\AttachmentStorage;
 use AvalynxOffice\Tests\Support\RefreshDatabaseTrait;
@@ -60,16 +60,16 @@ class MailAttachmentControllerTest extends WebTestCase
     {
         [, $email, $attachment] = $this->createFixtureData(true);
 
-        $mailbox = new Mailbox();
-        $mailbox->setName('Andere Mailbox');
-        $mailbox->setEmail('other@example.com');
+        $account = new Account();
+        $account->setName('Andere Account');
+        $account->setEmail('other@example.com');
 
         $user = new User();
         $user->setEmail('reader@example.com');
         $user->setPassword('secret');
-        $user->addMailbox($mailbox);
+        $user->addAccount($account);
 
-        $this->entityManager->persist($mailbox);
+        $this->entityManager->persist($account);
         $this->entityManager->persist($user);
         $this->entityManager->flush();
         $this->entityManager->clear();
@@ -83,21 +83,21 @@ class MailAttachmentControllerTest extends WebTestCase
     /**
      * @return array{0: User, 1: Email, 2: Attachment, 3: string}
      */
-    private function createFixtureData(bool $assignMailboxToUser): array
+    private function createFixtureData(bool $assignAccountToUser): array
     {
-        $mailbox = new Mailbox();
-        $mailbox->setName('Inbox');
-        $mailbox->setEmail('inbox@example.com');
+        $account = new Account();
+        $account->setName('Inbox');
+        $account->setEmail('inbox@example.com');
 
         $user = new User();
         $user->setEmail('user@example.com');
         $user->setPassword('secret');
-        if ($assignMailboxToUser) {
-            $user->addMailbox($mailbox);
+        if ($assignAccountToUser) {
+            $user->addAccount($account);
         }
 
         $email = new Email();
-        $email->setMailbox($mailbox);
+        $email->setAccount($account);
         $email->setSubject('Angebot');
 
         $attachment = new Attachment();
@@ -114,7 +114,7 @@ class MailAttachmentControllerTest extends WebTestCase
         $link->setAttachment($attachment);
         $email->addEmailAttachment($link);
 
-        $this->entityManager->persist($mailbox);
+        $this->entityManager->persist($account);
         $this->entityManager->persist($user);
         $this->entityManager->persist($email);
         $this->entityManager->persist($attachment);

@@ -19,7 +19,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(
     name: 'app:mail:clear',
-    description: 'Leert die Tabellen Address, Attachment, Body, Email, EmailAddressLink, EmailAttachmentLink, EmailBodyLink, EmailFolder, Folder, FolderMailbox',
+    description: 'Leert die Tabellen Address, Attachment, Body, Email, EmailAddressLink, EmailAttachmentLink, EmailBodyLink, EmailFolder, Folder, FolderAccount',
 )]
 class MailClearCommand extends Command
 {
@@ -31,7 +31,7 @@ class MailClearCommand extends Command
         'email_attachment_link',
         'email_body_link',
         'email_folder',
-        'mailbox_folder',
+        'account_folder',
         'address',
         'attachment',
         'body',
@@ -73,7 +73,7 @@ class MailClearCommand extends Command
             }
             $connection->beginTransaction();
             if (str_contains($platformName, 'postgresql')) {
-                $connection->executeStatement('UPDATE mailbox SET inbox_folder_id = NULL');
+                $connection->executeStatement('UPDATE account SET inbox_folder_id = NULL');
                 $tableList = implode(', ', $this->tables);
                 $io->write('Leere alle Tabellen in PostgreSQL... ');
                 try {
@@ -92,7 +92,7 @@ class MailClearCommand extends Command
                 }
             } else {
                 try {
-                    $connection->executeStatement('UPDATE mailbox SET inbox_folder_id = NULL');
+                    $connection->executeStatement('UPDATE account SET inbox_folder_id = NULL');
                 } catch (\Exception) {
                 }
                 foreach ($this->tables as $table) {

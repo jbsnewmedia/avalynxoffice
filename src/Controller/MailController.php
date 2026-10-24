@@ -9,15 +9,15 @@ declare(strict_types=1);
 
 namespace AvalynxOffice\Controller;
 
+use AvalynxOffice\Entity\Account;
 use AvalynxOffice\Entity\Email;
 use AvalynxOffice\Entity\Folder;
-use AvalynxOffice\Entity\Mailbox;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Licensing\Service\LicenseEnforcementInterface;
 use AvalynxOffice\Licensing\Service\LicenseOperation;
+use AvalynxOffice\Repository\AccountRepository;
 use AvalynxOffice\Repository\EmailRepository;
 use AvalynxOffice\Repository\FolderRepository;
-use AvalynxOffice\Repository\MailboxRepository;
 use AvalynxOffice\Service\Mail\AttachmentStorage;
 use AvalynxOffice\Service\Mail\EmailDetailTemplateResolver;
 use AvalynxOffice\Service\Mail\FolderManager;
@@ -39,7 +39,7 @@ class MailController extends AbstractController
         private readonly MailService $mailService,
         private readonly FolderManager $folderManager,
         private readonly EmailDetailTemplateResolver $emailDetailTemplateResolver,
-        private readonly MailboxRepository $mailboxRepo,
+        private readonly AccountRepository $accountRepo,
         private readonly FolderRepository $folderRepo,
         private readonly EmailRepository $emailRepo,
         private readonly EntityManagerInterface $entityManager,
@@ -56,19 +56,19 @@ class MailController extends AbstractController
     #[Route(path: '/mails', name: 'mail_index')]
     public function index(): Response
     {
-        $mailboxes = $this->mailboxesForUser();
-        foreach ($mailboxes as $mb) {
+        $accounts = $this->accountsForUser();
+        foreach ($accounts as $mb) {
             $this->folderManager->ensureDefaultFolders($mb);
         }
-        $firstFolderByMailbox = $this->mailService->getFirstFolderByMailbox($mailboxes);
-        if (0 === count($mailboxes)) {
+        $firstFolderByAccount = $this->mailService->getFirstFolderByAccount($accounts);
+        if (0 === count($accounts)) {
             return $this->renderMailIndex([
-                'mailboxes' => $mailboxes,
-                'firstFolderByMailbox' => $firstFolderByMailbox,
+                'accounts' => $accounts,
+                'firstFolderByAccount' => $firstFolderByAccount,
                 'allMails' => true,
             ]);
         }
-        $rawFolders = $this->folderRepo->findFoldersLinkedToMailboxes($mailboxes);
+        $rawFolders = $this->folderRepo->findFoldersLinkedToAccounts($accounts);
         $rawCounts = $this->mailService->countEmailsPerFolder($rawFolders);
         $grouped = $this->mailService->groupFoldersByName($rawFolders, $rawCounts);
         $emails = $this->allMailsInFolders($rawFolders);
@@ -78,15 +78,15 @@ class MailController extends AbstractController
         $emails = array_slice($emails, 0, $limit);
 
         return $this->renderMailIndex([
-            'mailboxes' => $mailboxes,
-            'activeMailbox' => null,
+            'accounts' => $accounts,
+            'activeAccount' => null,
             'folders' => $grouped['folders'],
             'activeFolder' => null,
             'allMails' => true,
             'emails' => $emails,
             'activeEmail' => $emails[0] ?? null,
             'folderEmailCounts' => $grouped['counts'],
-            'firstFolderByMailbox' => $firstFolderByMailbox,
+            'firstFolderByAccount' => $firstFolderByAccount,
             'totalEmails' => $totalEmails,
             'totalMails' => $totalMails,
             'limit' => $limit,
@@ -94,34 +94,34 @@ class MailController extends AbstractController
         ]);
     }
 
-    #[Route(path: '/mails/{mailboxId}/{folderId}/{emailId}', name: 'mail_folder_email', requirements: ['mailboxId' => 'all|[0-9a-fA-F\-]{36}', 'folderId' => 'all|[0-9a-fA-F\-]{36}', 'emailId' => '[0-9a-fA-F\-]{36}'])]
-    #[Route(path: '/mails/{mailboxId}/{folderId}', name: 'mail_folder', requirements: ['mailboxId' => 'all|[0-9a-fA-F\-]{36}', 'folderId' => 'all|[0-9a-fA-F\-]{36}'])]
-    public function folder(string $mailboxId, string $folderId, ?string $emailId = null): Response
+    #[Route(path: '/mails/{accountId}/{folderId}/{emailId}', name: 'mail_folder_email', requirements: ['accountId' => 'all|[0-9a-fA-F\-]{36}', 'folderId' => 'all|[0-9a-fA-F\-]{36}', 'emailId' => '[0-9a-fA-F\-]{36}'])]
+    #[Route(path: '/mails/{accountId}/{folderId}', name: 'mail_folder', requirements: ['accountId' => 'all|[0-9a-fA-F\-]{36}', 'folderId' => 'all|[0-9a-fA-F\-]{36}'])]
+    public function folder(string $accountId, string $folderId, ?string $emailId = null): Response
     {
-        $mailboxes = $this->mailboxesForUser();
-        foreach ($mailboxes as $mb) {
+        $accounts = $this->accountsForUser();
+        foreach ($accounts as $mb) {
             $this->folderManager->ensureDefaultFolders($mb);
         }
-        $firstFolderByMailbox = $this->mailService->getFirstFolderByMailbox($mailboxes);
-        $activeMailbox = 'all' === $mailboxId ? null : $this->mailboxRepo->find($mailboxId);
-        if (null !== $activeMailbox && !in_array($activeMailbox, $this->mailboxesForUser(), true)) {
+        $firstFolderByAccount = $this->mailService->getFirstFolderByAccount($accounts);
+        $activeAccount = 'all' === $accountId ? null : $this->accountRepo->find($accountId);
+        if (null !== $activeAccount && !in_array($activeAccount, $this->accountsForUser(), true)) {
             throw $this->createAccessDeniedException();
         }
         $allMails = 'all' === $folderId;
         $activeFolder = $allMails ? null : $this->folderRepo->find($folderId);
-        if (0 === count($mailboxes)) {
+        if (0 === count($accounts)) {
             return $this->renderMailIndex([
-                'mailboxes' => $mailboxes,
-                'firstFolderByMailbox' => $firstFolderByMailbox,
+                'accounts' => $accounts,
+                'firstFolderByAccount' => $firstFolderByAccount,
                 'allMails' => $allMails,
             ]);
         }
-        if ($activeMailbox) {
-            $folders = $this->folderRepo->findByMailboxOrderByAssignment($activeMailbox);
+        if ($activeAccount) {
+            $folders = $this->folderRepo->findByAccountOrderByAssignment($activeAccount);
             $folderEmailCounts = $this->mailService->countEmailsPerFolder($folders);
             $rawFolders = $folders;
         } else {
-            $rawFolders = $this->folderRepo->findFoldersLinkedToMailboxes($mailboxes);
+            $rawFolders = $this->folderRepo->findFoldersLinkedToAccounts($accounts);
             $rawCounts = $this->mailService->countEmailsPerFolder($rawFolders);
             $grouped = $this->mailService->groupFoldersByName($rawFolders, $rawCounts);
             $folders = $grouped['folders'];
@@ -143,7 +143,7 @@ class MailController extends AbstractController
             $emails = $this->allMailsInFolders($rawFolders);
             $totalEmails = count($emails);
         } elseif ($activeFolder) {
-            if (!$activeMailbox) {
+            if (!$activeAccount) {
                 $emails = $this->mailService->collectEmails(
                     $this->mailService->foldersInSameGroup($rawFolders, $activeFolder),
                 );
@@ -181,15 +181,15 @@ class MailController extends AbstractController
         $activeEmail ??= $emails[0] ?? null;
 
         return $this->renderMailIndex([
-            'mailboxes' => $mailboxes,
-            'activeMailbox' => $activeMailbox,
+            'accounts' => $accounts,
+            'activeAccount' => $activeAccount,
             'folders' => $folders,
             'activeFolder' => $activeFolder,
             'allMails' => $allMails,
             'emails' => $emails,
             'activeEmail' => $activeEmail,
             'folderEmailCounts' => $folderEmailCounts,
-            'firstFolderByMailbox' => $firstFolderByMailbox,
+            'firstFolderByAccount' => $firstFolderByAccount,
             'totalEmails' => $totalEmails,
             'totalMails' => $totalMails,
             'limit' => $limit,
@@ -208,7 +208,7 @@ class MailController extends AbstractController
 
         return $this->render($this->emailDetailTemplateResolver->resolveTemplate(), [
             'email' => $email,
-            'activeMailboxId' => $request->query->get('mailboxId'),
+            'activeAccountId' => $request->query->get('accountId'),
         ]);
     }
 
@@ -269,27 +269,27 @@ class MailController extends AbstractController
         if ($offset < 0) {
             $offset = 0;
         }
-        $mailboxId = (string) $request->query->get('mailboxId', 'all');
-        $activeMailbox = 'all' === $mailboxId ? null : $this->mailboxRepo->find($mailboxId);
+        $accountId = (string) $request->query->get('accountId', 'all');
+        $activeAccount = 'all' === $accountId ? null : $this->accountRepo->find($accountId);
         $folder = null;
 
         if ('all' === $folderId) {
-            if (null !== $activeMailbox && !in_array($activeMailbox, $this->mailboxesForUser(), true)) {
+            if (null !== $activeAccount && !in_array($activeAccount, $this->accountsForUser(), true)) {
                 return new Response($this->translator->trans('common.access_denied'), Response::HTTP_FORBIDDEN);
             }
-            $scopeFolders = $activeMailbox
-                ? $this->folderRepo->findByMailboxOrderByAssignment($activeMailbox)
-                : $this->folderRepo->findFoldersLinkedToMailboxes($this->mailboxesForUser());
+            $scopeFolders = $activeAccount
+                ? $this->folderRepo->findByAccountOrderByAssignment($activeAccount)
+                : $this->folderRepo->findFoldersLinkedToAccounts($this->accountsForUser());
             $emails = $this->mailService->collectEmails($scopeFolders);
         } else {
             $folder = $this->folderRepo->find($folderId);
             if (!$folder) {
                 return new Response($this->translator->trans('folder.not_found'), Response::HTTP_NOT_FOUND);
             }
-            $emails = 'all' === $mailboxId
+            $emails = 'all' === $accountId
                 ? $this->mailService->collectEmails(
                     $this->mailService->foldersInSameGroup(
-                        $this->folderRepo->findFoldersLinkedToMailboxes($this->mailboxesForUser()),
+                        $this->folderRepo->findFoldersLinkedToAccounts($this->accountsForUser()),
                         $folder,
                     ),
                 )
@@ -300,7 +300,7 @@ class MailController extends AbstractController
         $html = $this->renderView('mail/_email_items.html.twig', [
             'emails' => $slice,
             'activeEmail' => null,
-            'activeMailbox' => $activeMailbox,
+            'activeAccount' => $activeAccount,
             'activeFolder' => $folder,
         ]);
 
@@ -327,15 +327,15 @@ class MailController extends AbstractController
     private function renderMailIndex(array $params): Response
     {
         return $this->render('mail/index.html.twig', array_merge([
-            'mailboxes' => [],
-            'activeMailbox' => null,
+            'accounts' => [],
+            'activeAccount' => null,
             'folders' => [],
             'activeFolder' => null,
             'allMails' => false,
             'emails' => [],
             'activeEmail' => null,
             'folderEmailCounts' => [],
-            'firstFolderByMailbox' => [],
+            'firstFolderByAccount' => [],
             'totalEmails' => 0,
             'totalMails' => 0,
             'limit' => self::DEFAULT_LIMIT,
@@ -355,13 +355,13 @@ class MailController extends AbstractController
             return;
         }
 
-        $mailbox = $email->getMailbox();
-        if (null === $mailbox) {
+        $account = $email->getAccount();
+        if (null === $account) {
             throw $this->createAccessDeniedException();
         }
 
-        foreach ($user->getMailboxes() as $allowedMailbox) {
-            if ($allowedMailbox === $mailbox) {
+        foreach ($user->getAccounts() as $allowedAccount) {
+            if ($allowedAccount === $account) {
                 return;
             }
         }
@@ -370,19 +370,19 @@ class MailController extends AbstractController
     }
 
     /**
-     * Mailboxes visible to the current user. Users with the admin role see
-     * every mailbox, all other users only the mailboxes linked to them.
+     * Accounts visible to the current user. Users with the admin role see
+     * every account, all other users only the accounts linked to them.
      *
-     * @return array<Mailbox>
+     * @return array<Account>
      */
-    private function mailboxesForUser(): array
+    private function accountsForUser(): array
     {
         $user = $this->getUser();
 
         if ($user instanceof User && !in_array('ROLE_ADMIN', $user->getRoles(), true)) {
-            return $user->getMailboxes()->toArray();
+            return $user->getAccounts()->toArray();
         }
 
-        return $this->mailboxRepo->findBy([], ['name' => 'ASC']);
+        return $this->accountRepo->findBy([], ['name' => 'ASC']);
     }
 }

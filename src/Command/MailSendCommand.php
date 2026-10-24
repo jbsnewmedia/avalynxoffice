@@ -9,14 +9,16 @@ declare(strict_types=1);
 
 namespace AvalynxOffice\Command;
 
+use AvalynxOffice\Entity\Connector;
 use AvalynxOffice\Entity\Email;
 use AvalynxOffice\Entity\Enum\BodyContentType;
 use AvalynxOffice\Entity\Enum\EmailAddressType;
-use AvalynxOffice\Entity\MailboxConnector;
 use AvalynxOffice\Licensing\Service\LicenseEnforcementInterface;
+use AvalynxOffice\Repository\ConnectorRepository;
 use AvalynxOffice\Repository\EmailRepository;
 use AvalynxOffice\Service\Mail\AttachmentStorage;
 use AvalynxOffice\Service\Mail\FolderManager;
+use AvalynxOffice\Service\Mail\MailRoutingService;
 use AvalynxOffice\Service\Mail\SmtpMailerFactory;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -38,6 +40,7 @@ class MailSendCommand extends Command
         private readonly FolderManager $folderManager,
         private readonly AttachmentStorage $attachmentStorage,
         private readonly SmtpMailerFactory $mailerFactory,
+        private readonly ConnectorRepository $connectorRepository,
         private readonly LicenseEnforcementInterface $licenseEnforcement,
     ) {
         parent::__construct();
@@ -107,10 +110,9 @@ class MailSendCommand extends Command
     private function sendEmail(Email $email, OutputInterface $output): void
     {
         $output->writeln(sprintf('Sending mail: %s (ID: %s)', $email->getSubject(), $email->getId()));
-        $mailbox = $email->getMailbox();
-        $connector = $mailbox?->getPrimaryConnector();
-        if (!$mailbox || !($connector instanceof MailboxConnector) || !$connector->getSmtpHost()) {
-            $output->writeln('  [ERROR] No SMTP configuration found for this mail/mailbox.');
+        $connector = $this->resolveConnectorForEmail($email);
+        if (!($connector instanceof Connector) || !$connector->getSmtpHost()) {
+            $output->writeln('  [ERROR] No SMTP configuration found for this mail/account.');
 
             return;
         }
@@ -161,7 +163,7 @@ class MailSendCommand extends Command
             $mailer->send($symfonyEmail);
             $email->setIsSent(true);
             $email->setSentAt(new \DateTimeImmutable());
-            if ($email->getMailbox()) {
+            if ($email->getAccount()) {
                 $this->folderManager->syncEmailSystemFolders($email);
             }
             $output->writeln('  [OK] Mail sent successfully.');
@@ -171,5 +173,32 @@ class MailSendCommand extends Command
             $email->setIsSending(false);
             $this->entityManager->flush();
         }
+    }
+
+    /**
+     * Resolves the connector that must deliver the message: the domain of
+     * the sender address decides (fallback: the domain of the account's
+     * main address).
+     */
+    private function resolveConnectorForEmail(Email $email): ?Connector
+    {
+        $senderAddress = null;
+        foreach ($email->getEmailAddresses() as $link) {
+            if (EmailAddressType::SENDER === $link->getType()) {
+                $senderAddress = $link->getAddress()?->getEmail();
+                break;
+            }
+        }
+        $senderAddress ??= $email->getAccount()?->getEmail();
+        if (!is_string($senderAddress) || '' === $senderAddress) {
+            return null;
+        }
+
+        $domain = MailRoutingService::domainOf($senderAddress);
+        if (null === $domain) {
+            return null;
+        }
+
+        return $this->connectorRepository->findOneBy(['domain' => $domain]);
     }
 }

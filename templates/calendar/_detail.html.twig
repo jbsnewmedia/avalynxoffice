@@ -1,7 +1,7 @@
 <div class="sticky-top bg-body border-bottom shadow-sm">
-    {% if activeMailboxId|default(null) == 'all' and activeEvent.mailbox is not null %}
-        <div class="mailbox-tag bg-body-tertiary text-body-secondary small px-3 py-1 border-bottom" style="font-size: 0.75rem;">
-            <i class="fa-solid fa-inbox me-1 small" aria-hidden="true"></i>{{ activeEvent.mailbox.name ?: activeEvent.mailbox.email }}
+    {% if activeAccountId|default(null) == 'all' and activeEvent.account is not null %}
+        <div class="account-tag bg-body-tertiary text-body-secondary small px-3 py-1 border-bottom" style="font-size: 0.75rem;">
+            <i class="fa-solid fa-inbox me-1 small" aria-hidden="true"></i>{{ activeEvent.account.name ?: activeEvent.account.email }}
         </div>
     {% endif %}
     <div class="p-3 email-action-bar d-flex justify-content-between align-items-center">
@@ -51,9 +51,9 @@
                 <dt class="col-sm-3"><i class="fa-solid fa-repeat me-2 text-body-secondary" aria-hidden="true"></i>{{ 'calendar.recurrence'|trans }}</dt>
                 <dd class="col-sm-9 text-break">{{ ('calendar.recurrence.' ~ activeEvent.recurrenceType)|trans }}{% if activeEvent.recurrenceInterval is not null and activeEvent.recurrenceInterval > 1 %}, {{ 'calendar.recurrence_every'|trans({'%count%': activeEvent.recurrenceInterval}) }}{% endif %}{% if activeEvent.recurrenceUntil is not empty %}, {{ 'calendar.recurrence_until'|trans({'%date%': activeEvent.recurrenceUntil|date('d.m.Y')}) }}{% endif %}</dd>
             {% endif %}
-            {% if activeEvent.mailbox is not null %}
-                <dt class="col-sm-3"><i class="fa-solid fa-inbox me-2 text-body-secondary" aria-hidden="true"></i>{{ 'calendar.mailbox'|trans }}</dt>
-                <dd class="col-sm-9 text-break">{{ activeEvent.mailbox.email }}</dd>
+            {% if activeEvent.account is not null %}
+                <dt class="col-sm-3"><i class="fa-solid fa-inbox me-2 text-body-secondary" aria-hidden="true"></i>{{ 'calendar.account'|trans }}</dt>
+                <dd class="col-sm-9 text-break">{{ activeEvent.account.email }}</dd>
             {% endif %}
             {% if activeEvent.busyStatus is not null %}
                 <dt class="col-sm-3"><i class="fa-solid fa-hourglass-half me-2 text-body-secondary" aria-hidden="true"></i>{{ 'calendar.form.busy'|trans }}</dt>

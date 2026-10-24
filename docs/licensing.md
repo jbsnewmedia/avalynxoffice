@@ -164,7 +164,7 @@ Bei blockierter Operation wird `LicenseReadOnlyException` geworfen; der
 Mailordner ändern, Mailbox-/Connector-Verwaltung,
 Termin-CRUD, Kontakt-CRUD.
 
-**Geräte-Sync (avalynxofficeeas):** Exchange ActiveSync ist als separates
+**Geräte-Sync (AvalynxOfficeEAS):** Exchange ActiveSync ist als separates
 AGPL-3.0-Projekt ausgelagert (`avalynxofficeeas`, eigener Container/Prozess).
 Es spiegelt den Read-Only-Status: vor jeder geräteinitiierten Schreiboperation
 liest das Plugin `license_state.last_known_status` und lehnt Mutationen im
@@ -240,7 +240,7 @@ Private Signaturschlüssel dürfen niemals in die Anwendung, in öffentliche
 Docker-Images oder in das Git-Repository gelangen. Die Anwendung enthält nur
 öffentliche Verifikationsschlüssel.
 
-## Device-Sync (avalynxofficeeas, separates Projekt)
+## Device-Sync (AvalynxOfficeEAS, separates Projekt)
 
 Exchange ActiveSync läuft im separaten AGPL-3.0-Projekt
 `avalynxofficeeas` (eigener Container/Prozess, gemeinsame Datenbank):

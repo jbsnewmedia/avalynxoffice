@@ -8,8 +8,8 @@ use AvalynxOffice\Entity\Address;
 use AvalynxOffice\Entity\Email;
 use AvalynxOffice\Entity\EmailFolder;
 use AvalynxOffice\Entity\Folder;
-use AvalynxOffice\Entity\Mailbox;
-use AvalynxOffice\Entity\MailboxConnector;
+use AvalynxOffice\Entity\Account;
+use AvalynxOffice\Entity\Connector;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Tests\Support\RefreshDatabaseTrait;
 use Doctrine\ORM\EntityManagerInterface;
@@ -25,7 +25,7 @@ final class PublicControllerTest extends WebTestCase
     private KernelBrowser $client;
     private EntityManagerInterface $entityManager;
     private User $adminUser;
-    private Mailbox $mailbox;
+    private Account $account;
     private Folder $folder;
     private Email $email;
 
@@ -36,7 +36,7 @@ final class PublicControllerTest extends WebTestCase
         $this->entityManager = static::getContainer()->get(EntityManagerInterface::class);
 
         $this->refreshDatabase($this->entityManager);
-        [$this->adminUser, $this->mailbox, $this->folder, $this->email] = $this->seedData();
+        [$this->adminUser, $this->account, $this->folder, $this->email] = $this->seedData();
     }
 
     public function testAnonymousControllersRedirectToLoginWhenNotXmlHttpRequest(): void
@@ -193,7 +193,7 @@ final class PublicControllerTest extends WebTestCase
     }
 
     /**
-     * @return array{0: User, 1: Mailbox, 2: Folder, 3: Email}
+     * @return array{0: User, 1: Account, 2: Folder, 3: Email}
      */
     private function seedData(): array
     {
@@ -202,29 +202,27 @@ final class PublicControllerTest extends WebTestCase
             ->setPassword('secret')
             ->setRoles(['ROLE_ADMIN']);
 
-        $mailbox = (new Mailbox())
+        $account = (new Account())
             ->setName('Main')
             ->setEmail('main@example.com');
 
         $address = (new Address())
             ->setEmail('main@example.com')
             ->setName('Main');
-        $mailbox->addAddress($address);
+        $account->addAddress($address);
 
-        $connector = (new MailboxConnector())
+        $connector = (new Connector())
             ->setName('Main Connector')
-            ->setEmail('connector@example.com')
-            ->setIsPrimary(true)
-            ->setMailbox($mailbox);
-        $mailbox->addConnector($connector);
+            ->setDomain('example.com')
+            ->setDefaultAccount($account);
 
         $folder = (new Folder())
             ->setName('Posteingang')
             ->setFunctions(['inbox']);
-        $mailbox->addFolder($folder);
+        $account->addFolder($folder);
 
         $email = (new Email())
-            ->setMailbox($mailbox)
+            ->setAccount($account)
             ->setSubject('Willkommen')
             ->setPreviewBody('Vorschau')
             ->setReceivedAt(new \DateTimeImmutable('2026-01-01 10:00:00'));
@@ -234,10 +232,10 @@ final class PublicControllerTest extends WebTestCase
             ->setFolder($folder);
         $email->addEmailFolder($emailFolder);
 
-        $admin->addMailbox($mailbox);
+        $admin->addAccount($account);
 
         $this->entityManager->persist($admin);
-        $this->entityManager->persist($mailbox);
+        $this->entityManager->persist($account);
         $this->entityManager->persist($address);
         $this->entityManager->persist($connector);
         $this->entityManager->persist($folder);
@@ -245,6 +243,6 @@ final class PublicControllerTest extends WebTestCase
         $this->entityManager->persist($emailFolder);
         $this->entityManager->flush();
 
-        return [$admin, $mailbox, $folder, $email];
+        return [$admin, $account, $folder, $email];
     }
 }

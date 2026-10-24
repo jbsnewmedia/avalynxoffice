@@ -165,17 +165,17 @@ document.addEventListener('DOMContentLoaded', function () {
             navigator.serviceWorker.register('/sw.js').catch(function(e){console.warn('SW reg failed', e);});
         });
     }
-    const initMailboxListEditors = (root) => {
-        (root || document).querySelectorAll('[data-mailbox-list-editor]').forEach((editor) => {
-            if (editor.dataset.mailboxListInitialized === 'true') {
+    const initAccountListEditors = (root) => {
+        (root || document).querySelectorAll('[data-account-list-editor]').forEach((editor) => {
+            if (editor.dataset.accountListInitialized === 'true') {
                 return;
             }
 
-            const storage = editor.querySelector('[data-mailbox-list-storage]');
-            const addButton = editor.querySelector('[data-mailbox-list-add]');
-            const itemsContainer = editor.querySelector('[data-mailbox-list-items]');
-            const emptyState = editor.querySelector('[data-mailbox-list-empty]');
-            const type = editor.dataset.mailboxListType || 'alias';
+            const storage = editor.querySelector('[data-account-list-storage]');
+            const addButton = editor.querySelector('[data-account-list-add]');
+            const itemsContainer = editor.querySelector('[data-account-list-items]');
+            const emptyState = editor.querySelector('[data-account-list-empty]');
+            const type = editor.dataset.accountListType || 'alias';
             let folderFunctionOptions = [];
 
             if (type === 'folder' && editor.dataset.folderFunctionOptions) {
@@ -189,11 +189,23 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             }
 
+            let connectorOptions = [];
+            if (type === 'alias' && editor.dataset.aliasConnectorOptions) {
+                try {
+                    const parsedOptions = JSON.parse(editor.dataset.aliasConnectorOptions);
+                    if (Array.isArray(parsedOptions)) {
+                        connectorOptions = parsedOptions.filter(option => typeof option?.value === 'string' && typeof option?.label === 'string');
+                    }
+                } catch (_error) {
+                    connectorOptions = [];
+                }
+            }
+
             if (!storage || !addButton || !itemsContainer || !emptyState) {
                 return;
             }
 
-            editor.dataset.mailboxListInitialized = 'true';
+            editor.dataset.accountListInitialized = 'true';
 
             const normalizeItem = (item) => {
                 if (type === 'folder') {
@@ -217,6 +229,13 @@ document.addEventListener('DOMContentLoaded', function () {
                     };
                 }
 
+                if (connectorOptions.length > 0) {
+                    const connectorId = typeof item?.connectorId === 'string' ? item.connectorId.trim() : '';
+                    const localPart = typeof item?.localPart === 'string' ? item.localPart.trim() : '';
+
+                    return { connectorId, localPart };
+                }
+
                 const email = typeof item?.email === 'string' ? item.email.trim() : '';
                 const name = typeof item?.name === 'string' ? item.name.trim() : '';
 
@@ -236,7 +255,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const sanitizeItems = () => items
                 .map(normalizeItem)
-                .filter((item) => type === 'folder' ? item.name !== '' : item.email !== '');
+                .filter((item) => {
+                    if (type === 'folder') {
+                        return item.name !== '';
+                    }
+                    if (connectorOptions.length > 0) {
+                        return item.connectorId !== '' && item.localPart !== '';
+                    }
+
+                    return item.email !== '';
+                });
 
             const syncStorage = (sanitize = false) => {
                 const payload = sanitize ? sanitizeItems() : items.map(normalizeItem);
@@ -246,7 +274,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const buildField = (labelText, type, placeholder, value, onInput) => {
                 const wrapper = document.createElement('div');
-                wrapper.className = 'mailbox-list-field';
+                wrapper.className = 'account-list-field';
 
                 const label = document.createElement('label');
                 label.className = 'form-label small text-body-secondary mb-1';
@@ -267,7 +295,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const buildMultiSelectField = (labelText, options, selectedValues, onInput) => {
                 const wrapper = document.createElement('div');
-                wrapper.className = 'mailbox-list-field';
+                wrapper.className = 'account-list-field';
 
                 const label = document.createElement('label');
                 label.className = 'form-label small text-body-secondary mb-1';
@@ -293,45 +321,104 @@ document.addEventListener('DOMContentLoaded', function () {
                 return { wrapper, select };
             };
 
+            const buildSelectField = (labelText, options, selectedValue, onChange) => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'account-list-field';
+
+                const label = document.createElement('label');
+                label.className = 'form-label small text-body-secondary mb-1';
+                label.textContent = labelText;
+
+                const select = document.createElement('select');
+                select.className = 'form-select';
+                select.addEventListener('change', onChange);
+
+                const emptyOption = document.createElement('option');
+                emptyOption.value = '';
+                emptyOption.textContent = '—';
+                select.appendChild(emptyOption);
+
+                options.forEach((optionConfig) => {
+                    const option = document.createElement('option');
+                    option.value = optionConfig.value;
+                    option.textContent = optionConfig.label;
+                    option.selected = optionConfig.value === selectedValue;
+                    select.appendChild(option);
+                });
+
+                wrapper.appendChild(label);
+                wrapper.appendChild(select);
+
+                return { wrapper, select };
+            };
+
             const renderItems = () => {
                 const removeLabel = itemsContainer.dataset.removeLabel || 'Remove';
                 itemsContainer.innerHTML = '';
 
                 items.forEach((value, index) => {
                     const row = document.createElement('div');
-                    row.className = 'mailbox-list-row';
+                    row.className = 'account-list-row';
+                    let firstFocusable = null;
 
-                    const primaryField = buildField(
-                        editor.dataset.primaryLabel || '',
-                        type === 'folder' ? 'text' : 'email',
-                        editor.dataset.primaryPlaceholder || '',
-                        type === 'folder' ? value.name : value.email,
-                        function (event) {
-                            if (type === 'folder') {
-                                items[index].name = event.target.value;
-                            } else {
-                                items[index].email = event.target.value;
+                    if (type === 'alias' && connectorOptions.length > 0) {
+                        const connectorField = buildSelectField(
+                            editor.dataset.primaryLabel || '',
+                            connectorOptions,
+                            value.connectorId || '',
+                            function (event) {
+                                items[index].connectorId = event.target.value;
+                                syncStorage();
                             }
-                            syncStorage();
-                        }
-                    );
-                    row.appendChild(primaryField.wrapper);
+                        );
+                        row.appendChild(connectorField.wrapper);
+                        firstFocusable = connectorField.select;
 
-                    const secondaryField = buildField(
-                        editor.dataset.secondaryLabel || '',
-                        type === 'folder' ? 'number' : 'text',
-                        editor.dataset.secondaryPlaceholder || '',
-                        type === 'folder' ? String(value.sortOrder ?? 0) : (value.name || ''),
-                        function (event) {
-                            if (type === 'folder') {
-                                items[index].sortOrder = event.target.value;
-                            } else {
-                                items[index].name = event.target.value;
+                        const localPartField = buildField(
+                            editor.dataset.secondaryLabel || '',
+                            'text',
+                            editor.dataset.secondaryPlaceholder || '',
+                            value.localPart || '',
+                            function (event) {
+                                items[index].localPart = event.target.value;
+                                syncStorage();
                             }
-                            syncStorage();
-                        }
-                    );
-                    row.appendChild(secondaryField.wrapper);
+                        );
+                        row.appendChild(localPartField.wrapper);
+                    } else {
+                        const primaryField = buildField(
+                            editor.dataset.primaryLabel || '',
+                            type === 'folder' ? 'text' : 'email',
+                            editor.dataset.primaryPlaceholder || '',
+                            type === 'folder' ? value.name : value.email,
+                            function (event) {
+                                if (type === 'folder') {
+                                    items[index].name = event.target.value;
+                                } else {
+                                    items[index].email = event.target.value;
+                                }
+                                syncStorage();
+                            }
+                        );
+                        row.appendChild(primaryField.wrapper);
+                        firstFocusable = primaryField.input;
+
+                        const secondaryField = buildField(
+                            editor.dataset.secondaryLabel || '',
+                            type === 'folder' ? 'number' : 'text',
+                            editor.dataset.secondaryPlaceholder || '',
+                            type === 'folder' ? String(value.sortOrder ?? 0) : (value.name || ''),
+                            function (event) {
+                                if (type === 'folder') {
+                                    items[index].sortOrder = event.target.value;
+                                } else {
+                                    items[index].name = event.target.value;
+                                }
+                                syncStorage();
+                            }
+                        );
+                        row.appendChild(secondaryField.wrapper);
+                    }
 
                     if (type === 'folder' && folderFunctionOptions.length > 0) {
                         const tertiaryField = buildMultiSelectField(
@@ -359,9 +446,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
                     const removeButton = document.createElement('button');
                     removeButton.type = 'button';
-                    removeButton.className = 'mailbox-list-row-remove btn btn-outline-danger';
-                    removeButton.dataset.mailboxListRemove = String(index);
-                    removeButton.setAttribute('aria-label', removeLabel + ': ' + (type === 'folder' ? value.name : value.email));
+                    removeButton.className = 'account-list-row-remove btn btn-outline-danger';
+                    removeButton.dataset.accountListRemove = String(index);
+                    let removeTarget = value.email;
+                    if (type === 'folder') {
+                        removeTarget = value.name;
+                    } else if (connectorOptions.length > 0) {
+                        removeTarget = value.localPart;
+                    }
+                    removeButton.setAttribute('aria-label', removeLabel + ': ' + removeTarget);
                     removeButton.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
 
                     row.appendChild(removeButton);
@@ -372,27 +465,35 @@ document.addEventListener('DOMContentLoaded', function () {
             };
 
             const addItem = () => {
-                items.push(type === 'folder' ? { name: '', sortOrder: items.length, functions: [] } : { email: '', name: '' });
+                if (type === 'folder') {
+                    items.push({ name: '', sortOrder: items.length, functions: [] });
+                } else if (connectorOptions.length > 0) {
+                    items.push({ connectorId: '', localPart: '' });
+                } else {
+                    items.push({ email: '', name: '' });
+                }
                 syncStorage();
                 renderItems();
 
                 const lastRow = itemsContainer.lastElementChild;
-                const firstInput = lastRow ? lastRow.querySelector('input') : null;
+                const firstInput = lastRow ? (firstFocusableInRow(lastRow) ?? lastRow.querySelector('input')) : null;
                 if (firstInput) {
                     firstInput.focus();
                 }
             };
 
-            editor.__flushMailboxListInput = () => syncStorage(true);
+            const firstFocusableInRow = (row) => row.querySelector('select, input');
+
+            editor.__flushAccountListInput = () => syncStorage(true);
 
             addButton.addEventListener('click', addItem);
             itemsContainer.addEventListener('click', function (event) {
-                const removeButton = event.target.closest('[data-mailbox-list-remove]');
+                const removeButton = event.target.closest('[data-account-list-remove]');
                 if (!removeButton) {
                     return;
                 }
 
-                const index = Number(removeButton.dataset.mailboxListRemove);
+                const index = Number(removeButton.dataset.accountListRemove);
                 if (Number.isNaN(index)) {
                     return;
                 }
@@ -403,11 +504,11 @@ document.addEventListener('DOMContentLoaded', function () {
             });
 
             const form = editor.closest('form');
-            if (form && typeof form.__syncMailboxListEditors !== 'function') {
-                form.__syncMailboxListEditors = () => {
-                    form.querySelectorAll('[data-mailbox-list-editor]').forEach((listEditor) => {
-                        if (typeof listEditor.__flushMailboxListInput === 'function') {
-                            listEditor.__flushMailboxListInput();
+            if (form && typeof form.__syncAccountListEditors !== 'function') {
+                form.__syncAccountListEditors = () => {
+                    form.querySelectorAll('[data-account-list-editor]').forEach((listEditor) => {
+                        if (typeof listEditor.__flushAccountListInput === 'function') {
+                            listEditor.__flushAccountListInput();
                         }
                     });
                 };
@@ -882,8 +983,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
                 form.addEventListener('submit', function(e) {
                     e.preventDefault();
-                    if (typeof form.__syncMailboxListEditors === 'function') {
-                        form.__syncMailboxListEditors();
+                    if (typeof form.__syncAccountListEditors === 'function') {
+                        form.__syncAccountListEditors();
                     }
                     const formData = new FormData(form);
                     modalLoader.classList.remove('d-none');
@@ -907,7 +1008,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             window.location.reload(); // Simple reload for now to reflect changes
                         } else if (typeof data === 'string' && data.includes('modal-form-ajax-success')) {
                             modalContent.innerHTML = data;
-                            initMailboxListEditors(modalContent);
+                            initAccountListEditors(modalContent);
                             initComposeEditors(modalContent);
                             const newFormAfterNav = modalContent.querySelector('form');
                             if (newFormAfterNav) {
@@ -915,7 +1016,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             }
                         } else {
                             modalContent.innerHTML = data;
-                            initMailboxListEditors(modalContent);
+                            initAccountListEditors(modalContent);
                             initComposeEditors(modalContent);
                             updateModalFooterButtons();
                             const errorForm = modalContent.querySelector('form');
@@ -939,7 +1040,7 @@ document.addEventListener('DOMContentLoaded', function () {
             .then(html => {
                 modalLoader.classList.add('d-none');
                 modalContent.innerHTML = html;
-                initMailboxListEditors(modalContent);
+                initAccountListEditors(modalContent);
                 initComposeEditors(modalContent);
                 updateModalFooterButtons();
                 const form = modalContent.querySelector('form');
@@ -1068,7 +1169,7 @@ document.addEventListener('DOMContentLoaded', function () {
     })();
     (function(){
         var emailListEl = document.getElementById('emailListOffcanvas');
-        var mailboxEl = document.getElementById('mailboxOffcanvas');
+        var accountEl = document.getElementById('accountOffcanvas');
         if (emailListEl && window.AppEnv && window.AppEnv.isMobileLike && !(window.AppEnv.isDesktopXXL)){
             try {
                 var alreadyShown = emailListEl.classList.contains('show');
@@ -1078,24 +1179,24 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             } catch(e){ console.warn('Open emailListOffcanvas failed', e); }
         }
-        if (mailboxEl){
+        if (accountEl){
             var folderClicked = false;
-            mailboxEl.addEventListener('click', function(ev){
+            accountEl.addEventListener('click', function(ev){
                 var a = ev.target.closest('a.list-group-item');
-                if (a && mailboxEl.contains(a) && a.matches('[data-folder-id]')){
+                if (a && accountEl.contains(a) && a.matches('[data-folder-id]')){
                     folderClicked = true; // let navigation proceed
                 }
             });
-            mailboxEl.addEventListener('hidden.bs.offcanvas', function(){
+            accountEl.addEventListener('hidden.bs.offcanvas', function(){
                 if (folderClicked && emailListEl && window.AppEnv && window.AppEnv.isMobileLike && window.bootstrap && window.bootstrap.Offcanvas){
                     try { window.bootstrap.Offcanvas.getOrCreateInstance(emailListEl, {backdrop: true, scroll: true}).show(); } catch(_){}
                 }
                 folderClicked = false;
             });
-            mailboxEl.addEventListener('click', function(ev){
-                var opt = ev.target.closest('.mailbox-option');
+            accountEl.addEventListener('click', function(ev){
+                var opt = ev.target.closest('.account-option');
                 if (!opt) return;
-                if (!mailboxEl.contains(opt)) return;
+                if (!accountEl.contains(opt)) return;
                 var href = opt.getAttribute('href');
                 if (!href) return;
                 ev.preventDefault();
@@ -1105,12 +1206,12 @@ document.addEventListener('DOMContentLoaded', function () {
                         var tmp = document.createElement('div');
                         tmp.innerHTML = html;
                         var newFolders = tmp.querySelector('#folders-container');
-                        var target = mailboxEl.querySelector('#folders-container');
+                        var target = accountEl.querySelector('#folders-container');
                         if (newFolders && target){
                             target.innerHTML = newFolders.innerHTML;
                         }
                     })
-                    .catch(function(e){ console.warn('Mailbox folders reload failed', e); });
+                    .catch(function(e){ console.warn('Account folders reload failed', e); });
             });
         }
     })();
@@ -1155,9 +1256,9 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!folderId) {
             return;
         }
-        const mailboxId = listContainer.getAttribute('data-mailbox-id') || 'all';
-        const nextUrl = '/mails/' + encodeURIComponent(mailboxId) + '/' + encodeURIComponent(folderId) + '/' + encodeURIComponent(emailId);
-        window.history.replaceState({mailboxId, folderId, emailId}, '', nextUrl);
+        const accountId = listContainer.getAttribute('data-account-id') || 'all';
+        const nextUrl = '/mails/' + encodeURIComponent(accountId) + '/' + encodeURIComponent(folderId) + '/' + encodeURIComponent(emailId);
+        window.history.replaceState({accountId, folderId, emailId}, '', nextUrl);
     }
     function setupEmailActionOverflow(root){
         try{
@@ -1268,8 +1369,8 @@ document.addEventListener('DOMContentLoaded', function () {
         detailContainer.innerHTML = '<div class="p-5 text-center text-body-secondary">' + loadingText + '</div>';
         try {
             const listContainer = clickedEl ? clickedEl.closest('.email-list-container') : document.querySelector('.email-list-container');
-            const mailboxId = listContainer ? listContainer.getAttribute('data-mailbox-id') : 'all';
-            const resp = await fetch('/email/' + encodeURIComponent(id) + '?mailboxId=' + encodeURIComponent(mailboxId), {headers: {'X-Requested-With': 'XMLHttpRequest'}});
+            const accountId = listContainer ? listContainer.getAttribute('data-account-id') : 'all';
+            const resp = await fetch('/email/' + encodeURIComponent(id) + '?accountId=' + encodeURIComponent(accountId), {headers: {'X-Requested-With': 'XMLHttpRequest'}});
             if (!resp.ok) throw new Error('HTTP ' + resp.status);
             const html = await resp.text();
             detailContainer.innerHTML = html;
@@ -1347,12 +1448,12 @@ document.addEventListener('DOMContentLoaded', function () {
             if (input) { clearBtn.classList.toggle('d-none', (input.value || '').trim() === ''); }
         }
     });
-    document.querySelectorAll('.mailbox-dropdown').forEach(function (dd) {
+    document.querySelectorAll('.account-dropdown').forEach(function (dd) {
         const menu = dd.querySelector('.dropdown-menu');
-        const input = dd.querySelector('.mailbox-search');
-        const clearBtn = dd.querySelector('[data-action="clear-mailbox-search"]');
-        const options = menu ? menu.querySelectorAll('.mailbox-option') : [];
-        const noRes = dd.querySelector('.mailbox-no-results');
+        const input = dd.querySelector('.account-search');
+        const clearBtn = dd.querySelector('[data-action="clear-account-search"]');
+        const options = menu ? menu.querySelectorAll('.account-option') : [];
+        const noRes = dd.querySelector('.account-no-results');
         function applyFilter(query) {
             const q = (query || '').trim().toLowerCase();
             let visible = 0;
@@ -1400,7 +1501,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const sentinel = container.querySelector('.email-load-more-sentinel');
         if (!sentinel) return;
         const folderId = container.getAttribute('data-folder-id') || '';
-        const mailboxId = container.getAttribute('data-mailbox-id') || '';
+        const accountId = container.getAttribute('data-account-id') || '';
         let total = parseInt(container.getAttribute('data-total') || '0', 10);
         let offset = parseInt(container.getAttribute('data-offset') || '0', 10);
         const limit = parseInt(container.getAttribute('data-limit') || '10', 10);
@@ -1414,8 +1515,8 @@ document.addEventListener('DOMContentLoaded', function () {
             sentinel.innerHTML = '<div class="text-center text-body-secondary py-2">' + moreText + '</div>';
             try {
                 let url = '/folder/' + encodeURIComponent(folderId) + '/more?offset=' + encodeURIComponent(offset) + '&limit=' + encodeURIComponent(limit);
-                if (mailboxId) {
-                    url += '&mailboxId=' + encodeURIComponent(mailboxId);
+                if (accountId) {
+                    url += '&accountId=' + encodeURIComponent(accountId);
                 }
                 const resp = await fetch(url, {headers: {'X-Requested-With': 'XMLHttpRequest'}});
                 if (!resp.ok) throw new Error('HTTP ' + resp.status);
@@ -1709,10 +1810,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
             });
         }
-        // Full-page admin areas (settings, connectors, mailboxes, legal)
+        // Full-page admin areas (settings, connectors, accounts, legal)
         // render their editors server-side, so initialize them on load —
         // the modal flow initializes its content itself after insertion.
-        initMailboxListEditors(document);
+        initAccountListEditors(document);
         initComposeEditors(document);
         setupFolderDrops(document);
         const mo = new MutationObserver(function(){ setupFolderDrops(document); });

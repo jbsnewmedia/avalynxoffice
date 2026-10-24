@@ -6,7 +6,8 @@ namespace AvalynxOffice\Tests;
 
 use AvalynxOffice\DataFixtures\AppFixtures;
 use AvalynxOffice\Entity\EmailFolder;
-use AvalynxOffice\Entity\Mailbox;
+use AvalynxOffice\Entity\Account;
+use AvalynxOffice\Entity\Connector;
 use AvalynxOffice\Tests\Support\RefreshDatabaseTrait;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\Group;
@@ -42,32 +43,32 @@ class FixturesIntegrityTest extends KernelTestCase
         }
     }
 
-    public function testAllEmailFoldersPointToMailboxFolders(): void
+    public function testAllEmailFoldersPointToAccountFolders(): void
     {
         $efRepo = $this->em->getRepository(EmailFolder::class);
         $links = $efRepo->findAll();
-        $folderIdsWithMailbox = [];
-        $mailboxes = $this->em->getRepository(Mailbox::class)->findAll();
-        foreach ($mailboxes as $mb) {
+        $folderIdsWithAccount = [];
+        $accounts = $this->em->getRepository(Account::class)->findAll();
+        foreach ($accounts as $mb) {
             foreach ($mb->getFolderLinks() as $link) {
                 $f = $link->getFolder();
                 if ($f) {
-                    $folderIdsWithMailbox[(string) $f->getId()] = true;
+                    $folderIdsWithAccount[(string) $f->getId()] = true;
                 }
             }
         }
         foreach ($links as $l) {
-            $this->assertArrayHasKey((string) $l->getFolder()->getId(), $folderIdsWithMailbox, 'Every EmailFolder folder should be linked to at least one mailbox');
+            $this->assertArrayHasKey((string) $l->getFolder()->getId(), $folderIdsWithAccount, 'Every EmailFolder folder should be linked to at least one account');
         }
     }
 
-    public function testEachMailboxHasAtLeastOneFolderWithEmails(): void
+    public function testEachAccountHasAtLeastOneFolderWithEmails(): void
     {
-        $mailboxes = $this->em->getRepository(Mailbox::class)->findAll();
-        $this->assertNotEmpty($mailboxes);
-        foreach ($mailboxes as $mb) {
+        $accounts = $this->em->getRepository(Account::class)->findAll();
+        $this->assertNotEmpty($accounts);
+        foreach ($accounts as $mb) {
             $folders = $mb->getFolders()->toArray();
-            $this->assertNotEmpty($folders, 'Mailbox should have folders');
+            $this->assertNotEmpty($folders, 'Account should have folders');
 
             $hasEmails = false;
             foreach ($folders as $folder) {
@@ -83,17 +84,23 @@ class FixturesIntegrityTest extends KernelTestCase
                     break;
                 }
             }
-            $this->assertTrue($hasEmails, 'Expected mailbox to have at least one folder containing emails');
+            $this->assertTrue($hasEmails, 'Expected account to have at least one folder containing emails');
         }
     }
 
-    public function testEachMailboxHasPrimaryConnectorAndAddresses(): void
+    public function testEachAccountHasAliasesAndAddresses(): void
     {
-        $mailboxes = $this->em->getRepository(Mailbox::class)->findAll();
-        $this->assertNotEmpty($mailboxes);
-        foreach ($mailboxes as $mailbox) {
-            $this->assertNotNull($mailbox->getPrimaryConnector(), 'Expected mailbox to have a primary connector');
-            $this->assertNotEmpty($mailbox->getAddresses(), 'Expected mailbox to have assigned addresses');
+        $accounts = $this->em->getRepository(Account::class)->findAll();
+        $this->assertNotEmpty($accounts);
+        foreach ($accounts as $account) {
+            $this->assertNotEmpty($account->getAliases(), 'Expected account to have aliases');
+            $this->assertNotEmpty($account->getAddresses(), 'Expected account to have assigned addresses');
+        }
+
+        $connectors = $this->em->getRepository(Connector::class)->findAll();
+        $this->assertNotEmpty($connectors);
+        foreach ($connectors as $connector) {
+            $this->assertNotNull($connector->getDefaultAccount(), 'Expected connector to have a default account');
         }
     }
 }

@@ -28,8 +28,8 @@
 
         new AvalynxForm(form.id, {
             onBeforeSubmit: (submittedForm) => {
-                if (typeof submittedForm.__syncMailboxListEditors === 'function') {
-                    submittedForm.__syncMailboxListEditors();
+                if (typeof submittedForm.__syncAccountListEditors === 'function') {
+                    submittedForm.__syncAccountListEditors();
                 }
 
                 return true;

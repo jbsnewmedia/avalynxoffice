@@ -9,30 +9,38 @@
             <table class="table align-middle mb-0">
                 <thead>
                     <tr>
-                        <th>{{ 'mailbox.name'|trans }}</th>
-                        <th>{{ 'mailbox.email'|trans }}</th>
-                        <th>{{ 'connector.mailbox'|trans }}</th>
-                        <th>{{ 'mailbox.pop3'|trans }}</th>
-                        <th>{{ 'mailbox.smtp_optional'|trans }}</th>
-                        <th>{{ 'mailbox.actions'|trans }}</th>
+                        <th>{{ 'connector.name'|trans }}</th>
+                        <th>{{ 'connector.domain'|trans }}</th>
+                        <th>{{ 'connector.default_account'|trans }}</th>
+                        <th>{{ 'connector.aliases'|trans }}</th>
+                        <th>{{ 'connector.pop3'|trans }}</th>
+                        <th>{{ 'connector.smtp_optional'|trans }}</th>
+                        <th>{{ 'connector.actions'|trans }}</th>
                     </tr>
                 </thead>
                 <tbody>
                 {% for connector in items %}
                     <tr>
+                        <td><div class="fw-medium">{{ connector.name }}</div></td>
+                        <td>{{ connector.domain }}</td>
                         <td>
-                            <div class="fw-medium">{{ connector.name }}</div>
-                            {% if connector.isPrimary %}
-                                <div class="small text-body-secondary">{{ 'connector.primary'|trans }}</div>
+                            {% if connector.defaultAccount %}
+                                <div>{{ connector.defaultAccount.name }}</div>
+                                <div class="small text-body-secondary">{{ connector.defaultAccount.email }}</div>
+                            {% else %}
+                                <span class="text-body-secondary small">{{ 'connector.no_default_account'|trans }}</span>
                             {% endif %}
                         </td>
-                        <td>{{ connector.email }}</td>
                         <td>
-                            {% if connector.mailbox %}
-                                <div>{{ connector.mailbox.name }}</div>
-                                <div class="small text-body-secondary">{{ connector.mailbox.email }}</div>
+                            {% if connector.aliases|length > 0 %}
+                                {% for alias in connector.aliases|slice(0, 4) %}
+                                    <div class="small">{{ alias.localPart }}@{{ connector.domain }}</div>
+                                {% endfor %}
+                                {% if connector.aliases|length > 4 %}
+                                    <div class="small text-body-secondary">+{{ connector.aliases|length - 4 }}</div>
+                                {% endif %}
                             {% else %}
-                                <span class="text-body-secondary small">{{ 'mailbox.no_mailbox'|trans }}</span>
+                                <span class="text-body-secondary small">—</span>
                             {% endif %}
                         </td>
                         <td>
@@ -57,7 +65,7 @@
                     </tr>
                 {% else %}
                     <tr>
-                        <td colspan="6" class="text-body-secondary text-center py-4">{{ 'connector.none'|trans }}</td>
+                        <td colspan="7" class="text-body-secondary text-center py-4">{{ 'connector.none'|trans }}</td>
                     </tr>
                 {% endfor %}
                 </tbody>

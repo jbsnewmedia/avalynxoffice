@@ -9,15 +9,15 @@ declare(strict_types=1);
 
 namespace AvalynxOffice\Controller;
 
+use AvalynxOffice\Entity\Account;
 use AvalynxOffice\Entity\CalendarEvent;
-use AvalynxOffice\Entity\Mailbox;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Form\CalendarEventFormType;
 use AvalynxOffice\Licensing\Service\LicenseEnforcementInterface;
 use AvalynxOffice\Licensing\Service\LicenseOperation;
+use AvalynxOffice\Repository\AccountRepository;
 use AvalynxOffice\Repository\CalendarEventRepository;
-use AvalynxOffice\Repository\MailboxRepository;
-use AvalynxOffice\Service\Mail\UserMailboxProvider;
+use AvalynxOffice\Service\Mail\UserAccountProvider;
 use AvalynxOffice\Util\AvalynxFormResponse;
 use AvalynxOffice\Util\FormInvalidMapper;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -39,9 +39,9 @@ final class CalendarController extends AbstractController
     private const string VIEW_COOKIE = 'calendar_view';
 
     public function __construct(
-        private readonly UserMailboxProvider $mailboxProvider,
+        private readonly UserAccountProvider $accountProvider,
         private readonly CalendarEventRepository $eventRepository,
-        private readonly MailboxRepository $mailboxRepository,
+        private readonly AccountRepository $accountRepository,
         private readonly TranslatorInterface $translator,
         private readonly LicenseEnforcementInterface $licenseEnforcement,
     ) {
@@ -81,7 +81,7 @@ final class CalendarController extends AbstractController
 
         $form = $this->createForm(CalendarEventFormType::class, $event, [
             'action' => $this->generateUrl('calendar_new_modal'),
-            'mailboxes' => $this->mailboxProvider->forUser($user),
+            'accounts' => $this->accountProvider->forUser($user),
         ]);
 
         return $this->render('calendar/_modal_form.html.twig', [
@@ -101,7 +101,7 @@ final class CalendarController extends AbstractController
         $event = new CalendarEvent();
         $form = $this->createForm(CalendarEventFormType::class, $event, [
             'action' => $this->generateUrl('calendar_new_modal'),
-            'mailboxes' => $this->mailboxProvider->forUser($user),
+            'accounts' => $this->accountProvider->forUser($user),
         ]);
         $form->handleRequest($request);
 
@@ -109,13 +109,13 @@ final class CalendarController extends AbstractController
             return AvalynxFormResponse::invalid(FormInvalidMapper::map($form));
         }
 
-        $mailbox = $form->get('mailbox')->getData();
-        \assert($mailbox instanceof Mailbox);
+        $account = $form->get('account')->getData();
+        \assert($account instanceof Account);
 
         $this->licenseEnforcement->assertCanPerform(LicenseOperation::CALENDAR_WRITE);
         $event->setUid(\Symfony\Component\Uid\Uuid::v7()->toRfc4122());
 
-        $this->eventRepository->createFromForm($mailbox, $event);
+        $this->eventRepository->createFromForm($account, $event);
 
         return AvalynxFormResponse::success($this->resolveCalendarRedirect($request, 'all'));
     }
@@ -193,7 +193,7 @@ final class CalendarController extends AbstractController
 
         $user = $this->getUser();
         \assert($user instanceof User);
-        $groups = $this->buildGroups($this->eventRepository->findEventsForMailboxes($this->mailboxProvider->forUser($user)));
+        $groups = $this->buildGroups($this->eventRepository->findEventsForAccounts($this->accountProvider->forUser($user)));
 
         return $this->redirectToRoute('calendar_month', ['monthKey' => isset($groups[$monthKey]) ? $monthKey : 'all']);
     }
@@ -205,19 +205,19 @@ final class CalendarController extends AbstractController
 
         $user = $this->getUser();
         \assert($user instanceof User);
-        $mailboxes = $this->mailboxProvider->forUser($user);
-        $activeMailbox = $this->resolveMailbox($request, $mailboxes);
-        $scopeMailboxes = null !== $activeMailbox ? [$activeMailbox] : $mailboxes;
+        $accounts = $this->accountProvider->forUser($user);
+        $activeAccount = $this->resolveAccount($request, $accounts);
+        $scopeAccounts = null !== $activeAccount ? [$activeAccount] : $accounts;
         $search = trim((string) ($request->query->get('q', '') ?? ''));
 
         $view = $this->resolveView($request);
-        $groups = $this->buildGroups($this->eventRepository->findEventsForMailboxes($scopeMailboxes));
-        $viewLinks = $this->viewLinks($view, $this->resolveAnchor($monthKey, $request), $groups, $this->mailboxId($activeMailbox), $search);
+        $groups = $this->buildGroups($this->eventRepository->findEventsForAccounts($scopeAccounts));
+        $viewLinks = $this->viewLinks($view, $this->resolveAnchor($monthKey, $request), $groups, $this->accountId($activeAccount), $search);
 
         return $this->render('calendar/_detail.html.twig', [
             'activeEvent' => $this->resolveEvent($eventId),
             'activeMonth' => $monthKey,
-            'activeMailboxId' => $this->mailboxId($activeMailbox),
+            'activeAccountId' => $this->accountId($activeAccount),
             'view' => $view,
             'viewLinks' => $viewLinks,
         ]);
@@ -229,16 +229,16 @@ final class CalendarController extends AbstractController
         \assert($user instanceof User);
         $request ??= Request::createFromGlobals();
 
-        $mailboxes = $this->mailboxProvider->forUser($user);
-        $activeMailbox = $this->resolveMailbox($request, $mailboxes);
-        $scopeMailboxes = null !== $activeMailbox ? [$activeMailbox] : $mailboxes;
+        $accounts = $this->accountProvider->forUser($user);
+        $activeAccount = $this->resolveAccount($request, $accounts);
+        $scopeAccounts = null !== $activeAccount ? [$activeAccount] : $accounts;
         $search = trim((string) ($request->query->get('q', '') ?? ''));
 
         // The event detail URL always renders the three-pane list layout so
         // the requested event is guaranteed to be selectable.
         $activeView = null !== $activeEventId ? 'list' : $this->resolveView($request);
 
-        $allEvents = $this->eventRepository->findEventsForMailboxes($scopeMailboxes);
+        $allEvents = $this->eventRepository->findEventsForAccounts($scopeAccounts);
         $groups = $this->buildGroups($allEvents);
 
         if ('list' === $activeView && 'all' !== $monthKey && !isset($groups[$monthKey])) {
@@ -247,13 +247,13 @@ final class CalendarController extends AbstractController
 
         $anchor = $this->resolveAnchor($monthKey, $request);
         $events = '' !== $search
-            ? $this->eventRepository->findEventsForMailboxes($scopeMailboxes, $search)
+            ? $this->eventRepository->findEventsForAccounts($scopeAccounts, $search)
             : $allEvents;
 
         $data = [
-            'mailboxes' => $mailboxes,
-            'activeMailbox' => $activeMailbox,
-            'activeMailboxId' => $this->mailboxId($activeMailbox),
+            'accounts' => $accounts,
+            'activeAccount' => $activeAccount,
+            'activeAccountId' => $this->accountId($activeAccount),
             'groups' => $groups,
             'activeMonth' => $monthKey,
             'events' => [],
@@ -262,7 +262,7 @@ final class CalendarController extends AbstractController
             'totalEvents' => count($allEvents),
             'view' => $activeView,
             'grid' => null,
-            'viewLinks' => $this->viewLinks($activeView, $anchor, $groups, $this->mailboxId($activeMailbox), $search),
+            'viewLinks' => $this->viewLinks($activeView, $anchor, $groups, $this->accountId($activeAccount), $search),
             'navigation' => null,
             'monthLabel' => 'all' === $monthKey ? null : $this->monthLabel($monthKey),
         ];
@@ -292,7 +292,7 @@ final class CalendarController extends AbstractController
             $data['events'] = $events;
         } else {
             $data['grid'] = $this->buildGrid($activeView, $gridAnchor, $events);
-            $data['navigation'] = $this->navigationUrls($activeView, $gridAnchor, $this->mailboxId($activeMailbox), $search);
+            $data['navigation'] = $this->navigationUrls($activeView, $gridAnchor, $this->accountId($activeAccount), $search);
         }
 
         $response = $this->render('calendar/index.html.twig', $data);
@@ -374,16 +374,16 @@ final class CalendarController extends AbstractController
     }
 
     /**
-     * Links to all non-active views, preserving the current period, mailbox
+     * Links to all non-active views, preserving the current period, account
      * scope and search. Periods without events fall back to the full list.
      *
      * @param array<string, array{label: string, count: int}> $groups
      *
      * @return array<string, string>
      */
-    private function viewLinks(string $activeView, \DateTimeImmutable $anchor, array $groups, string $mailboxId, string $search): array
+    private function viewLinks(string $activeView, \DateTimeImmutable $anchor, array $groups, string $accountId, string $search): array
     {
-        $common = $this->scopeParams($mailboxId, $search);
+        $common = $this->scopeParams($accountId, $search);
         $anchorMonth = $anchor->format('Y-m');
 
         $links = [];
@@ -416,9 +416,9 @@ final class CalendarController extends AbstractController
      *
      * @return array{prev: string, today: string, next: string}
      */
-    private function navigationUrls(string $view, \DateTimeImmutable $anchor, string $mailboxId, string $search): array
+    private function navigationUrls(string $view, \DateTimeImmutable $anchor, string $accountId, string $search): array
     {
-        $common = $this->scopeParams($mailboxId, $search);
+        $common = $this->scopeParams($accountId, $search);
 
         [$previous, $next] = match ($view) {
             'day' => [$anchor->modify('-1 day'), $anchor->modify('+1 day')],
@@ -504,12 +504,12 @@ final class CalendarController extends AbstractController
     /**
      * @return array<string, string>
      */
-    private function scopeParams(string $mailboxId, string $search): array
+    private function scopeParams(string $accountId, string $search): array
     {
         $params = [];
 
-        if ('all' !== $mailboxId) {
-            $params['mailbox'] = $mailboxId;
+        if ('all' !== $accountId) {
+            $params['account'] = $accountId;
         }
 
         if ('' !== $search) {
@@ -520,7 +520,7 @@ final class CalendarController extends AbstractController
     }
 
     /**
-     * Finds an event by id among the events of the user's mailboxes.
+     * Finds an event by id among the events of the user's accounts.
      */
     private function resolveEvent(string $eventId): CalendarEvent
     {
@@ -537,8 +537,8 @@ final class CalendarController extends AbstractController
 
         if (
             null === $event
-            || null === $event->getMailbox()
-            || !in_array($event->getMailbox(), $this->mailboxProvider->forUser($user), true)
+            || null === $event->getAccount()
+            || !in_array($event->getAccount(), $this->accountProvider->forUser($user), true)
         ) {
             throw new NotFoundHttpException('Event not found.');
         }
@@ -554,31 +554,31 @@ final class CalendarController extends AbstractController
     }
 
     /**
-     * Resolves the mailbox scope from the request. A mailbox the user has no
+     * Resolves the account scope from the request. A account the user has no
      * access to is rejected instead of silently ignored.
      *
-     * @param list<Mailbox> $mailboxes
+     * @param list<Account> $accounts
      */
-    private function resolveMailbox(?Request $request, array $mailboxes): ?Mailbox
+    private function resolveAccount(?Request $request, array $accounts): ?Account
     {
-        $mailboxId = (string) ($request?->query->get('mailbox', 'all') ?? 'all');
+        $accountId = (string) ($request?->query->get('account', 'all') ?? 'all');
 
-        if ('all' === $mailboxId || '' === $mailboxId) {
+        if ('all' === $accountId || '' === $accountId) {
             return null;
         }
 
-        $mailbox = $this->mailboxRepository->find($mailboxId);
+        $account = $this->accountRepository->find($accountId);
 
-        if (null === $mailbox || !in_array($mailbox, $mailboxes, true)) {
+        if (null === $account || !in_array($account, $accounts, true)) {
             throw new AccessDeniedException();
         }
 
-        return $mailbox;
+        return $account;
     }
 
-    private function mailboxId(?Mailbox $mailbox): string
+    private function accountId(?Account $account): string
     {
-        return null !== $mailbox ? (string) $mailbox->getId() : 'all';
+        return null !== $account ? (string) $account->getId() : 'all';
     }
 
     /**

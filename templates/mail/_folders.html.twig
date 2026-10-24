@@ -1,7 +1,7 @@
 <div class="p-3">
     <h6 class="text-uppercase text-body-secondary fw-bold small mb-2">{{ 'mail.folders'|trans }}</h6>
     <div class="list-group list-group-flush">
-        <a href="{{ path('mail_folder', {mailboxId: activeMailbox ? activeMailbox.id : 'all', folderId: 'all'}) }}"
+        <a href="{{ path('mail_folder', {accountId: activeAccount ? activeAccount.id : 'all', folderId: 'all'}) }}"
            class="list-group-item list-group-item-action d-flex align-items-center {{ allMails|default(false) ? 'active' : '' }}"
            {% if allMails|default(false) %}aria-current="page"{% endif %}
            aria-label="{{ 'mail.open_all_mails'|trans }}">
@@ -12,7 +12,7 @@
         {% for folder in folders %}
             {% set fid = folder.id ~ '' %}
             {% set cnt = folderEmailCounts[fid] ?? 0 %}
-            <a href="{{ path('mail_folder', {mailboxId: activeMailbox ? activeMailbox.id : 'all', folderId: folder.id}) }}"
+            <a href="{{ path('mail_folder', {accountId: activeAccount ? activeAccount.id : 'all', folderId: folder.id}) }}"
                class="list-group-item list-group-item-action d-flex align-items-center folder-drop-target {{ activeFolder and activeFolder.id == folder.id ? 'active' : '' }}"
                data-folder-id="{{ folder.id }}" data-folder-name="{{ folder.name }}"
                aria-label="{{ 'folder.open'|trans({'%name%': folder.name}) }}">

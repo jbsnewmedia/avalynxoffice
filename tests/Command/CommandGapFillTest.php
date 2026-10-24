@@ -6,8 +6,9 @@ namespace AvalynxOffice\Tests\Command;
 
 use AvalynxOffice\Command\CompileScssCommand;
 use AvalynxOffice\Command\ListCssClassesCommand;
-use AvalynxOffice\Command\MailboxAddCommand;
-use AvalynxOffice\Command\MailboxConfigureSmtpCommand;
+use AvalynxOffice\Command\AccountAddCommand;
+use AvalynxOffice\Command\ConnectorAddCommand;
+use AvalynxOffice\Command\ConnectorConfigureSmtpCommand;
 use AvalynxOffice\Command\MailClearCommand;
 use AvalynxOffice\Command\MailFetchCommand;
 use AvalynxOffice\Command\MailSendCommand;
@@ -21,12 +22,12 @@ use AvalynxOffice\Entity\EmailAttachmentLink;
 use AvalynxOffice\Entity\EmailBodyLink;
 use AvalynxOffice\Entity\Enum\BodyContentType;
 use AvalynxOffice\Entity\Enum\EmailAddressType;
-use AvalynxOffice\Entity\Mailbox;
-use AvalynxOffice\Entity\MailboxConnector;
+use AvalynxOffice\Entity\Account;
+use AvalynxOffice\Entity\Connector;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Repository\EmailRepository;
-use AvalynxOffice\Repository\MailboxConnectorRepository;
-use AvalynxOffice\Repository\MailboxRepository;
+use AvalynxOffice\Repository\ConnectorRepository;
+use AvalynxOffice\Repository\AccountRepository;
 use AvalynxOffice\Repository\UserRepository;
 use AvalynxOffice\Service\Mail\AttachmentStorage;
 use AvalynxOffice\Service\Mail\FolderManager;
@@ -133,49 +134,45 @@ final class CommandGapFillTest extends TestCase
         }
     }
 
-    public function testMailFetchCommandHandlesMissingMailboxesAndEmptyRepositories(): void
+    public function testMailFetchCommandHandlesMissingAccountsAndEmptyRepositories(): void
     {
-        $mailboxRepository = $this->createMock(MailboxRepository::class);
-        $mailboxRepository->expects(self::once())
+        $connectorRepository = $this->createMock(ConnectorRepository::class);
+        $connectorRepository->expects(self::once())
             ->method('find')
             ->with('missing@example.com')
             ->willReturn(null);
-        $mailboxRepository->expects(self::once())
+        $connectorRepository->expects(self::once())
             ->method('findOneBy')
-            ->with(['email' => 'missing@example.com'])
+            ->with(['domain' => 'missing@example.com'])
             ->willReturn(null);
 
         $fetcher = $this->createMock(Pop3Fetcher::class);
         $fetcher->expects(self::never())->method('fetchForConnector');
 
-        $missing = new CommandTester(new MailFetchCommand($mailboxRepository, $fetcher));
-        self::assertSame(Command::FAILURE, $missing->execute(['--mailbox' => 'missing@example.com']));
-        self::assertStringContainsString('Mailbox not found', $missing->getDisplay());
+        $missing = new CommandTester(new MailFetchCommand($connectorRepository, $fetcher));
+        self::assertSame(Command::FAILURE, $missing->execute(['--connector' => 'missing@example.com']));
+        self::assertStringContainsString('Connector not found', $missing->getDisplay());
 
-        $emptyRepository = $this->createMock(MailboxRepository::class);
+        $emptyRepository = $this->createMock(ConnectorRepository::class);
         $emptyRepository->expects(self::once())
-            ->method('findAll')
+            ->method('findBy')
             ->willReturn([]);
 
         $empty = new CommandTester(new MailFetchCommand($emptyRepository, $fetcher));
         self::assertSame(Command::SUCCESS, $empty->execute([]));
-        self::assertStringContainsString('Keine Mailboxen vorhanden.', $empty->getDisplay());
+        self::assertStringContainsString('Keine Connectoren vorhanden.', $empty->getDisplay());
     }
 
     public function testMailFetchCommandCreatesErrorLogDirectoryAndInformsOutput(): void
     {
-        $mailbox = (new Mailbox())
-            ->setName('Support')
-            ->setEmail('support@example.com');
-        $connector = (new MailboxConnector())
+        $connector = (new Connector())
             ->setName('Primary')
-            ->setEmail('connector@example.com');
-        $mailbox->addConnector($connector);
+            ->setDomain('example.com');
 
-        $mailboxRepository = $this->createMock(MailboxRepository::class);
-        $mailboxRepository->expects(self::once())
-            ->method('findAll')
-            ->willReturn([$mailbox]);
+        $connectorRepository = $this->createMock(ConnectorRepository::class);
+        $connectorRepository->expects(self::once())
+            ->method('findBy')
+            ->willReturn([$connector]);
 
         $fetcher = $this->createMock(Pop3Fetcher::class);
         $fetcher->expects(self::once())->method('setOutput')->willReturnSelf();
@@ -183,7 +180,7 @@ final class CommandGapFillTest extends TestCase
         $fetcher->method('fetchForConnector')->willReturn(['imported' => 0, 'skipped' => 0, 'errors' => 0]);
 
         $logPath = sys_get_temp_dir().'/mail-fetch-log-'.bin2hex(random_bytes(4)).'/nested/fetch-errors.log';
-        $tester = new CommandTester(new MailFetchCommand($mailboxRepository, $fetcher));
+        $tester = new CommandTester(new MailFetchCommand($connectorRepository, $fetcher));
         self::assertSame(Command::SUCCESS, $tester->execute(['--error-log' => $logPath]));
 
         self::assertStringContainsString('Fehler-Log: '.$logPath, $tester->getDisplay());
@@ -193,41 +190,34 @@ final class CommandGapFillTest extends TestCase
 
     public function testMailFetchCommandFallsBackToEmailLookupWhenIdLookupFails(): void
     {
-        $mailboxRepository = $this->createMock(MailboxRepository::class);
-        $mailboxRepository->expects(self::once())
+        $connectorRepository = $this->createMock(ConnectorRepository::class);
+        $connectorRepository->expects(self::once())
             ->method('find')
             ->with('fallback@example.com')
             ->willThrowException(new \RuntimeException('db kaputt'));
-        $mailboxRepository->expects(self::once())
+        $connectorRepository->expects(self::once())
             ->method('findOneBy')
-            ->with(['email' => 'fallback@example.com'])
+            ->with(['domain' => 'fallback@example.com'])
             ->willReturn(null);
 
         $fetcher = $this->createMock(Pop3Fetcher::class);
         $fetcher->expects(self::never())->method('fetchForConnector');
 
-        $tester = new CommandTester(new MailFetchCommand($mailboxRepository, $fetcher));
-        self::assertSame(Command::FAILURE, $tester->execute(['--mailbox' => 'fallback@example.com']));
-        self::assertStringContainsString('Mailbox not found', $tester->getDisplay());
+        $tester = new CommandTester(new MailFetchCommand($connectorRepository, $fetcher));
+        self::assertSame(Command::FAILURE, $tester->execute(['--connector' => 'fallback@example.com']));
+        self::assertStringContainsString('Connector not found', $tester->getDisplay());
     }
 
     public function testMailFetchCommandProcessesConnectorsAndReportsTotals(): void
     {
-        $mailboxWithoutConnectors = (new Mailbox())
-            ->setName('Empty')
-            ->setEmail('empty@example.com');
-        $mailbox = (new Mailbox())
-            ->setName('Support')
-            ->setEmail('support@example.com');
-        $connector = (new MailboxConnector())
+        $connector = (new Connector())
             ->setName('Primary')
-            ->setEmail('connector@example.com');
-        $mailbox->addConnector($connector);
+            ->setDomain('example.com');
 
-        $mailboxRepository = $this->createMock(MailboxRepository::class);
-        $mailboxRepository->expects(self::once())
-            ->method('findAll')
-            ->willReturn([$mailboxWithoutConnectors, $mailbox]);
+        $connectorRepository = $this->createMock(ConnectorRepository::class);
+        $connectorRepository->expects(self::once())
+            ->method('findBy')
+            ->willReturn([$connector]);
 
         $fetcher = $this->createMock(Pop3Fetcher::class);
         $fetcher->expects(self::once())->method('setOutput');
@@ -236,40 +226,35 @@ final class CommandGapFillTest extends TestCase
             ->with($connector, 2, true, true)
             ->willReturn(['imported' => 3, 'skipped' => 1, 'errors' => 1]);
 
-        $tester = new CommandTester(new MailFetchCommand($mailboxRepository, $fetcher));
+        $tester = new CommandTester(new MailFetchCommand($connectorRepository, $fetcher));
         self::assertSame(Command::FAILURE, $tester->execute([
             '--limit' => '2',
             '--oldest' => true,
             '--delete-after' => true,
         ]));
 
-        self::assertStringContainsString('No connector configured.', $tester->getDisplay());
         self::assertStringContainsString('Abruf startet', $tester->getDisplay());
         self::assertStringContainsString('Total: imported=3, skipped=1, errors=1', $tester->getDisplay());
     }
 
     public function testMailFetchCommandReportsWhenNoConnectorsCanBeProcessed(): void
     {
-        $mailbox = (new Mailbox())
-            ->setName('Empty')
-            ->setEmail('empty@example.com');
-
-        $mailboxRepository = $this->createMock(MailboxRepository::class);
-        $mailboxRepository->expects(self::once())
-            ->method('findAll')
-            ->willReturn([$mailbox]);
+        $connectorRepository = $this->createMock(ConnectorRepository::class);
+        $connectorRepository->expects(self::once())
+            ->method('findBy')
+            ->willReturn([]);
 
         $fetcher = $this->createMock(Pop3Fetcher::class);
         $fetcher->expects(self::never())->method('fetchForConnector');
 
-        $tester = new CommandTester(new MailFetchCommand($mailboxRepository, $fetcher));
+        $tester = new CommandTester(new MailFetchCommand($connectorRepository, $fetcher));
         self::assertSame(Command::SUCCESS, $tester->execute([]));
         self::assertStringContainsString('Keine Connectoren vorhanden.', $tester->getDisplay());
     }
 
-    public function testMailboxAddCommandCreatesMailboxConnectorAndAssignsAdminUserWhenAvailable(): void
+    public function testAccountAddCommandCreatesAccountAndAssignsUserWhenAvailable(): void
     {
-        $admin = (new User())
+        $user = (new User())
             ->setEmail('admin@example.com')
             ->setPassword('secret');
 
@@ -277,7 +262,7 @@ final class CommandGapFillTest extends TestCase
         $repository->expects(self::once())
             ->method('findOneBy')
             ->with(['email' => 'admin@example.com'])
-            ->willReturn($admin);
+            ->willReturn($user);
 
         $persisted = [];
         $entityManager = $this->createMock(EntityManagerInterface::class);
@@ -285,20 +270,85 @@ final class CommandGapFillTest extends TestCase
             ->method('getRepository')
             ->with(User::class)
             ->willReturn($repository);
-        $entityManager->expects(self::exactly(2))
+        $entityManager->expects(self::once())
             ->method('persist')
             ->willReturnCallback(static function (object $entity) use (&$persisted): void {
                 $persisted[] = $entity;
             });
         $entityManager->expects(self::once())->method('flush');
 
-        $tester = new CommandTester(new MailboxAddCommand($entityManager));
+        $tester = new CommandTester(new AccountAddCommand($entityManager));
         self::assertSame(Command::SUCCESS, $tester->execute([
-            'email' => 'mailbox@example.com',
+            'email' => 'account@example.com',
+            '--name' => 'Account',
+            '--user' => 'admin@example.com',
+        ]));
+
+        self::assertCount(1, $persisted);
+        self::assertInstanceOf(Account::class, $persisted[0]);
+        self::assertSame('account@example.com', $persisted[0]->getEmail());
+        self::assertSame('Account', $persisted[0]->getName());
+        self::assertSame([$user], $persisted[0]->getUsers()->toArray());
+        self::assertStringContainsString('Account is assigned to user admin@example.com.', $tester->getDisplay());
+        self::assertStringContainsString('has been created', $tester->getDisplay());
+    }
+
+    public function testAccountAddCommandRejectsInvalidEmailAndMissingUser(): void
+    {
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->expects(self::never())->method('persist');
+
+        $tester = new CommandTester(new AccountAddCommand($entityManager));
+        self::assertSame(Command::FAILURE, $tester->execute(['email' => 'not-an-email']));
+        self::assertStringContainsString('Invalid e-mail address', $tester->getDisplay());
+
+        $repository = $this->createMock(UserRepository::class);
+        $repository->expects(self::once())
+            ->method('findOneBy')
+            ->with(['email' => 'ghost@example.com'])
+            ->willReturn(null);
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->expects(self::once())
+            ->method('getRepository')
+            ->with(User::class)
+            ->willReturn($repository);
+        $entityManager->expects(self::never())->method('persist');
+
+        $tester = new CommandTester(new AccountAddCommand($entityManager));
+        self::assertSame(Command::FAILURE, $tester->execute([
+            'email' => 'account@example.com',
+            '--user' => 'ghost@example.com',
+        ]));
+        self::assertStringContainsString('User not found', $tester->getDisplay());
+    }
+
+    public function testConnectorAddCommandCreatesStandaloneConnectorWithDefaultAccount(): void
+    {
+        $account = (new Account())
+            ->setName('Support')
+            ->setEmail('support@example.com');
+
+        $accountRepository = $this->createMock(AccountRepository::class);
+        $accountRepository->expects(self::once())
+            ->method('findOneBy')
+            ->with(['email' => 'support@example.com'])
+            ->willReturn($account);
+
+        $persisted = [];
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->expects(self::once())
+            ->method('persist')
+            ->willReturnCallback(static function (object $entity) use (&$persisted): void {
+                $persisted[] = $entity;
+            });
+        $entityManager->expects(self::once())->method('flush');
+
+        $tester = new CommandTester(new ConnectorAddCommand($entityManager, $accountRepository));
+        self::assertSame(Command::SUCCESS, $tester->execute([
+            'domain' => 'JBS-NewMedia.DE',
             'password' => 'secret',
-            '--name' => 'Mailbox',
-            '--connector-email' => 'connector@example.com',
-            '--connector-name' => 'Connector',
+            '--name' => 'Firma',
+            '--default-account' => 'support@example.com',
             '--host' => 'pop.example.com',
             '--port' => '995',
             '--user' => 'pop-user',
@@ -310,50 +360,75 @@ final class CommandGapFillTest extends TestCase
             '--smtp-security' => 'tls',
         ]));
 
-        self::assertCount(2, $persisted);
-        self::assertInstanceOf(Mailbox::class, $persisted[0]);
-        self::assertInstanceOf(MailboxConnector::class, $persisted[1]);
-        self::assertSame('mailbox@example.com', $persisted[0]->getEmail());
-        self::assertSame('smtp.example.com', $persisted[1]->getSmtpHost());
-        self::assertCount(1, $admin->getMailboxes());
-        self::assertStringContainsString('Mailbox is assigned to user admin@example.com.', $tester->getDisplay());
+        self::assertCount(1, $persisted);
+        $connector = $persisted[0];
+        self::assertInstanceOf(Connector::class, $connector);
+        self::assertSame('jbs-newmedia.de', $connector->getDomain());
+        self::assertSame('Firma', $connector->getName());
+        self::assertSame($account, $connector->getDefaultAccount());
+        self::assertSame('pop.example.com', $connector->getPop3Host());
+        self::assertSame(995, $connector->getPop3Port());
+        self::assertSame('pop-user', $connector->getPop3Username());
+        self::assertSame('secret', $connector->getPop3Password());
+        self::assertSame('ssl', $connector->getPop3Security());
+        self::assertTrue($connector->getPop3DeleteAfterFetch());
+        self::assertSame('smtp.example.com', $connector->getSmtpHost());
+        self::assertSame(587, $connector->getSmtpPort());
+        self::assertSame('smtp-user', $connector->getSmtpUsername());
+        self::assertSame('smtp-secret', $connector->getSmtpPassword());
+        self::assertSame('tls', $connector->getSmtpSecurity());
         self::assertStringContainsString('has been created', $tester->getDisplay());
     }
 
-    public function testMailboxConfigureSmtpCommandHandlesConnectorLookupMailboxFallbackAndMissingIdentifier(): void
+    public function testConnectorAddCommandRejectsInvalidDomainAndUnknownAccount(): void
     {
-        $connector = (new MailboxConnector())
-            ->setEmail('connector@example.com');
-        $mailbox = (new Mailbox())
-            ->setName('Mailbox')
-            ->setEmail('mailbox@example.com');
-        $mailbox->addConnector((new MailboxConnector())->setEmail('primary@example.com')->setIsPrimary(true));
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->expects(self::never())->method('persist');
 
-        $connectorRepository = $this->createStub(MailboxConnectorRepository::class);
+        $accountRepository = $this->createStub(AccountRepository::class);
+
+        $tester = new CommandTester(new ConnectorAddCommand($entityManager, $accountRepository));
+        self::assertSame(Command::FAILURE, $tester->execute([
+            'domain' => 'not a domain',
+            'password' => 'secret',
+        ]));
+        self::assertStringContainsString('Invalid domain', $tester->getDisplay());
+
+        $accountRepository = $this->createMock(AccountRepository::class);
+        $accountRepository->expects(self::once())
+            ->method('findOneBy')
+            ->with(['email' => 'ghost@example.com'])
+            ->willReturn(null);
+
+        $tester = new CommandTester(new ConnectorAddCommand($entityManager, $accountRepository));
+        self::assertSame(Command::FAILURE, $tester->execute([
+            'domain' => 'example.com',
+            'password' => 'secret',
+            '--default-account' => 'ghost@example.com',
+        ]));
+        self::assertStringContainsString('Account not found', $tester->getDisplay());
+    }
+
+    public function testConnectorConfigureSmtpCommandHandlesLookupByIdAndDomainAndMissingIdentifier(): void
+    {
+        $connector = (new Connector())
+            ->setName('Primary')
+            ->setDomain('example.com');
+
+        $connectorRepository = $this->createStub(ConnectorRepository::class);
         $connectorRepository->method('findOneBy')
-            ->willReturnCallback(static fn (array $criteria): ?MailboxConnector => match ($criteria['email'] ?? null) {
-                'connector@example.com' => $connector,
-                'mailbox@example.com' => null,
-                'missing@example.com' => null,
-                default => null,
-            });
+            ->willReturnCallback(static fn (array $criteria): ?Connector => 'example.com' === ($criteria['domain'] ?? null) ? $connector : null);
         $connectorRepository->method('find')
-            ->willReturnCallback(static fn (string $id): ?MailboxConnector => 'missing@example.com' === $id ? null : null);
-
-        $mailboxRepository = $this->createStub(MailboxRepository::class);
-        $mailboxRepository->method('findOneBy')
-            ->willReturnCallback(static fn (array $criteria): ?Mailbox => 'mailbox@example.com' === ($criteria['email'] ?? null) ? $mailbox : null);
-        $mailboxRepository->method('find')
-            ->willReturnCallback(static fn (string $id): ?Mailbox => 'missing@example.com' === $id ? null : null);
+            ->willReturnCallback(static fn (string $id): ?Connector => 'by-id' === $id ? $connector : null);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->expects(self::exactly(2))->method('flush');
 
-        $command = new MailboxConfigureSmtpCommand($mailboxRepository, $connectorRepository, $entityManager);
+        $command = new ConnectorConfigureSmtpCommand($connectorRepository, $entityManager);
 
         $direct = new CommandTester($command);
         self::assertSame(Command::SUCCESS, $direct->execute([
-            'identifier' => 'connector@example.com',
+            'identifier' => 'example.com',
             '--host' => 'smtp.example.com',
             '--port' => '2525',
             '--user' => 'smtp-user',
@@ -368,16 +443,24 @@ final class CommandGapFillTest extends TestCase
 
         $fallback = new CommandTester($command);
         self::assertSame(Command::SUCCESS, $fallback->execute([
-            'identifier' => 'mailbox@example.com',
+            'identifier' => 'by-id',
             '--host' => 'fallback.example.com',
         ]));
-        self::assertSame('fallback.example.com', $mailbox->getPrimaryConnector()?->getSmtpHost());
+        self::assertSame('fallback.example.com', $connector->getSmtpHost());
 
         $missing = new CommandTester($command);
         self::assertSame(Command::FAILURE, $missing->execute([
-            'identifier' => 'missing@example.com',
+            'identifier' => 'missing.example.com',
         ]));
-        self::assertStringContainsString('missing@example.com', $missing->getDisplay());
+        self::assertStringContainsString('missing.example.com', $missing->getDisplay());
+
+        $throwingRepository = $this->createStub(ConnectorRepository::class);
+        $throwingRepository->method('findOneBy')->willReturn(null);
+        $throwingRepository->method('find')->willThrowException(new \RuntimeException('db kaputt'));
+        $command = new ConnectorConfigureSmtpCommand($throwingRepository, $this->createStub(EntityManagerInterface::class));
+
+        $broken = new CommandTester($command);
+        self::assertSame(Command::FAILURE, $broken->execute(['identifier' => 'broken-id']));
     }
 
     public function testMailClearCommandAbortsWhenConfirmationIsDenied(): void
@@ -403,7 +486,7 @@ final class CommandGapFillTest extends TestCase
         $connection->expects(self::any())
             ->method('executeStatement')
             ->willReturnCallback(static function (string $sql): int {
-                if ('UPDATE mailbox SET inbox_folder_id = NULL' === $sql) {
+                if ('UPDATE account SET inbox_folder_id = NULL' === $sql) {
                     throw new \RuntimeException('ignored');
                 }
 
@@ -431,7 +514,7 @@ final class CommandGapFillTest extends TestCase
             'email_attachment_link',
             'email_body_link',
             'email_folder',
-            'mailbox_folder',
+            'account_folder',
             'address',
             'attachment',
             'body',
@@ -522,7 +605,7 @@ final class CommandGapFillTest extends TestCase
         $folderManager->expects(self::never())->method('syncEmailSystemFolders');
         $attachmentStorage = $this->createStub(AttachmentStorage::class);
 
-        $tester = new CommandTester(new MailSendCommand($repository, $entityManager, $folderManager, $attachmentStorage, $this->createStub(SmtpMailerFactory::class), new AllowAllLicenseEnforcement()));
+        $tester = new CommandTester(new MailSendCommand($repository, $entityManager, $folderManager, $attachmentStorage, $this->createStub(SmtpMailerFactory::class), $this->connectorRepositoryFor(null), new AllowAllLicenseEnforcement()));
 
         self::assertSame(Command::SUCCESS, $tester->execute([]));
         self::assertStringContainsString('No pending emails found to send.', $tester->getDisplay());
@@ -536,9 +619,9 @@ final class CommandGapFillTest extends TestCase
             ->setIsDraft(false)
             ->setScheduledAt(new \DateTimeImmutable('+1 day'));
 
-        $sendableEmail = $this->createOutgoingEmail((new MailboxConnector())
+        $sendableEmail = $this->createOutgoingEmail((new Connector())
             ->setName('SMTP')
-            ->setEmail('smtp@example.com')
+            ->setDomain('example.com')
             ->setSmtpHost('127.0.0.1')
             ->setSmtpPort(2525));
 
@@ -559,7 +642,7 @@ final class CommandGapFillTest extends TestCase
             ->method('fromConnector')
             ->willReturn(new Mailer(new NullTransport()));
 
-        $tester = new CommandTester(new MailSendCommand($repository, $entityManager, $folderManager, $attachmentStorage, $mailerFactory, new AllowAllLicenseEnforcement()));
+        $tester = new CommandTester(new MailSendCommand($repository, $entityManager, $folderManager, $attachmentStorage, $mailerFactory, $this->connectorRepositoryFor(null), new AllowAllLicenseEnforcement()));
 
         self::assertSame(Command::SUCCESS, $tester->execute([]));
         self::assertTrue($sendableEmail->isSent());
@@ -579,10 +662,25 @@ final class CommandGapFillTest extends TestCase
         $folderManager->expects(self::never())->method('syncEmailSystemFolders');
         $attachmentStorage = $this->createStub(AttachmentStorage::class);
 
-        $command = new MailSendCommand($repository, $entityManager, $folderManager, $attachmentStorage, $this->createStub(SmtpMailerFactory::class), new AllowAllLicenseEnforcement());
+        $command = new MailSendCommand($repository, $entityManager, $folderManager, $attachmentStorage, $this->createStub(SmtpMailerFactory::class), $this->connectorRepositoryFor(null), new AllowAllLicenseEnforcement());
         $output = new BufferedOutput();
 
         $this->invokeMailSend($command, (new Email())->setSubject('Missing config'), $output);
+
+        self::assertStringContainsString('No SMTP configuration', $output->fetch());
+
+        // A sender address without a resolvable domain cannot pick a connector.
+        $brokenSender = (new Email())
+            ->setSubject('Broken sender')
+            ->setAccount((new Account())->setName('Account')->setEmail('account@example.com'));
+        $brokenSender->addEmailAddress(
+            (new EmailAddressLink())
+                ->setType(EmailAddressType::SENDER)
+                ->setAddress((new Address())->setEmail('not-an-address'))
+        );
+        $output = new BufferedOutput();
+
+        $this->invokeMailSend($command, $brokenSender, $output);
 
         self::assertStringContainsString('No SMTP configuration', $output->fetch());
     }
@@ -604,17 +702,16 @@ final class CommandGapFillTest extends TestCase
             ->method('fromConnector')
             ->willReturn($failingMailer);
 
-        $command = new MailSendCommand($repository, $entityManager, $folderManager, $attachmentStorage, $mailerFactory, new AllowAllLicenseEnforcement());
-
         foreach (['tls', 'ssl'] as $security) {
-            $email = $this->createOutgoingEmail((new MailboxConnector())
+            $email = $this->createOutgoingEmail((new Connector())
                 ->setName('SMTP')
-                ->setEmail('smtp@example.com')
+                ->setDomain('example.com')
                 ->setSmtpHost('127.0.0.1')
                 ->setSmtpPort(2525)
                 ->setSmtpSecurity($security));
             $output = new BufferedOutput();
 
+            $command = new MailSendCommand($repository, $entityManager, $folderManager, $attachmentStorage, $mailerFactory, $this->connectorRepositoryFor(null), new AllowAllLicenseEnforcement());
             $this->invokeMailSend($command, $email, $output);
 
             self::assertFalse($email->isSent());
@@ -717,15 +814,13 @@ final class CommandGapFillTest extends TestCase
         self::assertNull($this->invokePurgeHelper($command, 'normalizeClassName', ["'\"  "]));
     }
 
-    public function testMailFetchCommandProcessesSingleMailboxResolvedById(): void
+    public function testMailFetchCommandProcessesSingleAccountResolvedById(): void
     {
-        $mailbox = (new Mailbox())->setName('Support')->setEmail('support@example.com');
-        $connector = (new MailboxConnector())->setName('Primary')->setEmail('connector@example.com');
-        $mailbox->addConnector($connector);
+        $connector = (new Connector())->setName('Primary')->setDomain('example.com');
 
-        $mailboxRepository = $this->createMock(MailboxRepository::class);
-        $mailboxRepository->expects(self::once())->method('find')->with('mailbox-id')->willReturn($mailbox);
-        $mailboxRepository->expects(self::never())->method('findAll');
+        $connectorRepository = $this->createMock(ConnectorRepository::class);
+        $connectorRepository->expects(self::once())->method('find')->with('account-id')->willReturn($connector);
+        $connectorRepository->expects(self::never())->method('findBy');
 
         $fetcher = $this->createMock(Pop3Fetcher::class);
         $fetcher->expects(self::once())->method('setOutput');
@@ -733,16 +828,16 @@ final class CommandGapFillTest extends TestCase
             ->method('fetchForConnector')
             ->willReturn(['imported' => 2, 'skipped' => 0, 'errors' => 0]);
 
-        $tester = new CommandTester(new MailFetchCommand($mailboxRepository, $fetcher));
-        self::assertSame(Command::SUCCESS, $tester->execute(['--mailbox' => 'mailbox-id']));
+        $tester = new CommandTester(new MailFetchCommand($connectorRepository, $fetcher));
+        self::assertSame(Command::SUCCESS, $tester->execute(['--connector' => 'account-id']));
         self::assertStringContainsString('Total: imported=2', $tester->getDisplay());
     }
 
     public function testMailSendCommandAttachesFilesAndSkipsNullAttachments(): void
     {
-        $email = $this->createOutgoingEmail((new MailboxConnector())
+        $email = $this->createOutgoingEmail((new Connector())
             ->setName('SMTP')
-            ->setEmail('smtp@example.com')
+            ->setDomain('example.com')
             ->setSmtpHost('127.0.0.1')
             ->setSmtpPort(2525));
         $email->addEmailAttachment(
@@ -772,7 +867,7 @@ final class CommandGapFillTest extends TestCase
         $mailerFactory = $this->createMock(SmtpMailerFactory::class);
         $mailerFactory->expects(self::once())->method('fromConnector')->willReturn(new Mailer(new NullTransport()));
 
-        $tester = new CommandTester(new MailSendCommand($repository, $entityManager, $folderManager, $attachmentStorage, $mailerFactory, new AllowAllLicenseEnforcement()));
+        $tester = new CommandTester(new MailSendCommand($repository, $entityManager, $folderManager, $attachmentStorage, $mailerFactory, $this->connectorRepositoryFor(null), new AllowAllLicenseEnforcement()));
 
         self::assertSame(Command::SUCCESS, $tester->execute([]));
         self::assertTrue($email->isSent());
@@ -1091,18 +1186,30 @@ final class CommandGapFillTest extends TestCase
         };
     }
 
-    private function createOutgoingEmail(MailboxConnector $connector): Email
+    private ?Connector $lastOutgoingConnector = null;
+
+    private function connectorRepositoryFor(?Connector $connector): ConnectorRepository
     {
-        $mailbox = (new Mailbox())
-            ->setName('Mailbox')
-            ->setEmail('mailbox@example.com');
-        $mailbox->addConnector($connector->setIsPrimary(true));
+        $connector ??= $this->lastOutgoingConnector;
+        $repository = $this->createStub(ConnectorRepository::class);
+        $repository->method('findOneBy')
+            ->willReturnCallback(static fn (array $criteria): ?Connector => null !== $connector && ($criteria['domain'] ?? null) === $connector->getDomain() ? $connector : null);
+
+        return $repository;
+    }
+
+    private function createOutgoingEmail(Connector $connector): Email
+    {
+        $this->lastOutgoingConnector = $connector;
+        $account = (new Account())
+            ->setName('Account')
+            ->setEmail('account@example.com');
 
         $email = (new Email())
             ->setSubject('Test mail')
             ->setIsOutgoing(true)
             ->setIsDraft(false)
-            ->setMailbox($mailbox);
+            ->setAccount($account);
 
         $email->addEmailAddress(
             (new EmailAddressLink())

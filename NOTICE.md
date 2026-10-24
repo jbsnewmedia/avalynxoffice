@@ -25,7 +25,7 @@ available via `composer show` (PHP dependencies) in the repository.
 
 **Note on Exchange ActiveSync:** device synchronization is **not** part of
 this repository. It is provided by the separate, independently installed
-project **avalynxofficeeas** (AGPL-3.0, based on Z-Push
+project **AvalynxOfficeEAS** (`avalynxofficeeas`, AGPL-3.0, based on Z-Push
 https://github.com/Z-Hub/Z-Push). That project runs as its own process,
 contains no core code, and is licensed and documented in its own repository.
 

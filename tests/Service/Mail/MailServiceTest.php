@@ -7,7 +7,7 @@ namespace AvalynxOffice\Tests\Service\Mail;
 use AvalynxOffice\Entity\Email;
 use AvalynxOffice\Entity\EmailFolder;
 use AvalynxOffice\Entity\Folder;
-use AvalynxOffice\Entity\Mailbox;
+use AvalynxOffice\Entity\Account;
 use AvalynxOffice\Repository\FolderRepository;
 use AvalynxOffice\Service\Mail\MailService;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -77,29 +77,29 @@ final class MailServiceTest extends TestCase
         self::assertSame([$drafts], $service->foldersInSameGroup([$archiveUpper, $archiveLower, $drafts], $drafts));
     }
 
-    public function testGetFirstFolderByMailboxReturnsOnlyResolvedFolders(): void
+    public function testGetFirstFolderByAccountReturnsOnlyResolvedFolders(): void
     {
-        $mailboxA = (new Mailbox())
+        $accountA = (new Account())
             ->setName('A')
             ->setEmail('a@example.com');
-        $mailboxB = (new Mailbox())
+        $accountB = (new Account())
             ->setName('B')
             ->setEmail('b@example.com');
 
         $folder = (new Folder())
             ->setName('Inbox');
-        $mailboxA->addFolder($folder, -10);
+        $accountA->addFolder($folder, -10);
 
         $repository = $this->createMock(FolderRepository::class);
         $repository->expects(self::exactly(2))
-            ->method('findFirstFolderForMailbox')
-            ->willReturnCallback(static fn (Mailbox $mailbox): ?Folder => 'a@example.com' === $mailbox->getEmail() ? $folder : null);
+            ->method('findFirstFolderForAccount')
+            ->willReturnCallback(static fn (Account $account): ?Folder => 'a@example.com' === $account->getEmail() ? $folder : null);
 
         $service = new MailService($repository);
 
         self::assertSame(
-            [((string) $mailboxA->getId()) => $folder],
-            $service->getFirstFolderByMailbox([$mailboxA, $mailboxB]),
+            [((string) $accountA->getId()) => $folder],
+            $service->getFirstFolderByAccount([$accountA, $accountB]),
         );
     }
 

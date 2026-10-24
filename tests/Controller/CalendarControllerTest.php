@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace AvalynxOffice\Tests\Controller;
 
 use AvalynxOffice\Entity\CalendarEvent;
-use AvalynxOffice\Entity\Mailbox;
+use AvalynxOffice\Entity\Account;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Tests\Support\RefreshDatabaseTrait;
 use Doctrine\ORM\EntityManagerInterface;
@@ -21,8 +21,8 @@ final class CalendarControllerTest extends WebTestCase
     private KernelBrowser $client;
     private EntityManagerInterface $entityManager;
     private User $adminUser;
-    private Mailbox $mailbox;
-    private Mailbox $salesMailbox;
+    private Account $account;
+    private Account $salesAccount;
     private CalendarEvent $kickoff;
     private CalendarEvent $review;
 
@@ -58,9 +58,9 @@ final class CalendarControllerTest extends WebTestCase
         self::assertSelectorExists('#event-detail .calendar-view-switcher-dropdown a[href*="view=day"]');
         self::assertSelectorExists('#event-detail .calendar-view-switcher-dropdown a[href*="view=week"]');
         self::assertSelectorExists('#event-detail .calendar-view-switcher-dropdown a[href*="view=month"]');
-        // The origin account of the event is shown in the mailbox tag (like mails and contacts).
-        self::assertSelectorExists('#event-detail .mailbox-tag');
-        self::assertSelectorTextContains('#event-detail .mailbox-tag', 'Support');
+        // The origin account of the event is shown in the account tag (like mails and contacts).
+        self::assertSelectorExists('#event-detail .account-tag');
+        self::assertSelectorTextContains('#event-detail .account-tag', 'Support');
 
         // Three-pane layout: period groups, list with search, readonly detail.
         self::assertSelectorExists('aside .list-group');
@@ -129,24 +129,24 @@ final class CalendarControllerTest extends WebTestCase
         self::assertStringContainsString('No events matched your search.', (string) $this->client->getResponse()->getContent());
     }
 
-    public function testLimitedUserSeesOnlyEventsOfOwnMailboxes(): void
+    public function testLimitedUserSeesOnlyEventsOfOwnAccounts(): void
     {
         $user = (new User())
             ->setEmail('limited@example.com')
             ->setPassword('secret')
             ->setRoles(['ROLE_USER']);
-        $ownMailbox = (new Mailbox())
+        $ownAccount = (new Account())
             ->setName('Private')
             ->setEmail('private@example.com');
-        $user->addMailbox($ownMailbox);
+        $user->addAccount($ownAccount);
 
         $ownEvent = (new CalendarEvent())
             ->setTitle('Privater Termin')
             ->setStartAt(new \DateTimeImmutable('2026-03-01 10:00:00'));
-        $ownEvent->setMailbox($ownMailbox);
+        $ownEvent->setAccount($ownAccount);
 
         $this->entityManager->persist($user);
-        $this->entityManager->persist($ownMailbox);
+        $this->entityManager->persist($ownAccount);
         $this->entityManager->persist($ownEvent);
         $this->entityManager->flush();
 
@@ -160,7 +160,7 @@ final class CalendarControllerTest extends WebTestCase
         self::assertStringNotContainsString('Projekt-Kickoff', $content);
     }
 
-    public function testUserWithoutMailboxesSeesEmptyState(): void
+    public function testUserWithoutAccountsSeesEmptyState(): void
     {
         $user = (new User())
             ->setEmail('lonely@example.com')
@@ -176,13 +176,13 @@ final class CalendarControllerTest extends WebTestCase
         self::assertStringContainsString('Select an event from the list.', (string) $this->client->getResponse()->getContent());
     }
 
-    public function testMailboxScopeFiltersEvents(): void
+    public function testAccountScopeFiltersEvents(): void
     {
         $this->client->loginUser($this->adminUser);
 
-        $salesMailboxId = (string) $this->salesMailbox->getId();
+        $salesAccountId = (string) $this->salesAccount->getId();
 
-        $this->client->request('GET', '/calendar', ['mailbox' => $salesMailboxId]);
+        $this->client->request('GET', '/calendar', ['account' => $salesAccountId]);
         self::assertResponseIsSuccessful();
         $content = (string) $this->client->getResponse()->getContent();
         self::assertStringContainsString('Sales-Treffen', $content);
@@ -195,30 +195,30 @@ final class CalendarControllerTest extends WebTestCase
         self::assertStringContainsString('Projekt-Kickoff', $content);
     }
 
-    public function testForeignMailboxScopeIsDenied(): void
+    public function testForeignAccountScopeIsDenied(): void
     {
-        $foreignMailbox = (new Mailbox())
+        $foreignAccount = (new Account())
             ->setName('Foreign')
             ->setEmail('foreign@example.com');
-        $this->entityManager->persist($foreignMailbox);
+        $this->entityManager->persist($foreignAccount);
         $this->entityManager->flush();
-        $foreignMailboxId = (string) $foreignMailbox->getId();
+        $foreignAccountId = (string) $foreignAccount->getId();
 
         $user = (new User())
             ->setEmail('restricted@example.com')
             ->setPassword('secret')
             ->setRoles(['ROLE_USER']);
-        $ownMailbox = (new Mailbox())
+        $ownAccount = (new Account())
             ->setName('Own')
             ->setEmail('own-box@example.com');
-        $user->addMailbox($ownMailbox);
+        $user->addAccount($ownAccount);
         $this->entityManager->persist($user);
-        $this->entityManager->persist($ownMailbox);
+        $this->entityManager->persist($ownAccount);
         $this->entityManager->flush();
 
         $this->client->loginUser($user);
 
-        $this->client->request('GET', '/calendar', ['mailbox' => $foreignMailboxId]);
+        $this->client->request('GET', '/calendar', ['account' => $foreignAccountId]);
         self::assertResponseStatusCodeSame(403);
     }
 
@@ -245,16 +245,16 @@ final class CalendarControllerTest extends WebTestCase
             ->setEmail('stranger@example.com')
             ->setPassword('secret')
             ->setRoles(['ROLE_USER']);
-        $foreignMailbox = (new Mailbox())
+        $foreignAccount = (new Account())
             ->setName('Foreign')
             ->setEmail('foreign-cal@example.com');
         $foreignEvent = (new CalendarEvent())
             ->setTitle('Geheimer Termin')
             ->setStartAt(new \DateTimeImmutable('2026-03-05 09:00:00'));
-        $foreignEvent->setMailbox($foreignMailbox);
-        $user->addMailbox($this->mailbox);
+        $foreignEvent->setAccount($foreignAccount);
+        $user->addAccount($this->account);
         $this->entityManager->persist($user);
-        $this->entityManager->persist($foreignMailbox);
+        $this->entityManager->persist($foreignAccount);
         $this->entityManager->persist($foreignEvent);
         $this->entityManager->flush();
 
@@ -319,11 +319,11 @@ final class CalendarControllerTest extends WebTestCase
         self::assertResponseStatusCodeSame(422);
     }
 
-    public function testEventCreateAddsEventToSelectedMailbox(): void
+    public function testEventCreateAddsEventToSelectedAccount(): void
     {
         $this->client->loginUser($this->adminUser);
 
-        $salesMailboxId = (string) $this->salesMailbox->getId();
+        $salesAccountId = (string) $this->salesAccount->getId();
 
         $crawler = $this->client->request('GET', '/calendar/new', [], [], ['HTTP_X-Requested-With' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
@@ -336,7 +336,7 @@ final class CalendarControllerTest extends WebTestCase
                 'startAt' => '2026-05-20T09:00:00',
                 'endAt' => '2026-05-20T10:00:00',
                 'location' => 'Raum Köln',
-                'mailbox' => $salesMailboxId,
+                'account' => $salesAccountId,
             ],
         ], [], ['HTTP_X-Requested-With' => 'XMLHttpRequest']);
 
@@ -348,8 +348,8 @@ final class CalendarControllerTest extends WebTestCase
         $this->entityManager->clear();
         $created = $this->entityManager->getRepository(CalendarEvent::class)->findOneBy(['title' => 'Neuer Sales-Termin']);
         self::assertInstanceOf(CalendarEvent::class, $created);
-        self::assertNotNull($created->getMailbox());
-        self::assertTrue($created->getMailbox()->getId()->equals($this->salesMailbox->getId()));
+        self::assertNotNull($created->getAccount());
+        self::assertTrue($created->getAccount()->getId()->equals($this->salesAccount->getId()));
     }
 
     public function testEventCreateDebugDump(): void
@@ -367,7 +367,7 @@ final class CalendarControllerTest extends WebTestCase
                 'startAt' => '2026-05-20T09:00:00',
                 'endAt' => '2026-05-20T10:00:00',
                 'location' => 'Raum Köln',
-                'mailbox' => (string) $this->salesMailbox->getId(),
+                'account' => (string) $this->salesAccount->getId(),
             ],
         ], [], ['HTTP_X-Requested-With' => 'XMLHttpRequest']);
 
@@ -476,7 +476,7 @@ final class CalendarControllerTest extends WebTestCase
             $overflow = (new CalendarEvent())
                 ->setTitle(sprintf('Overflow-Termin %d', $i))
                 ->setStartAt(new \DateTimeImmutable(sprintf('2026-03-16 0%d:00:00', $i)));
-            $overflow->setMailbox($this->mailbox);
+            $overflow->setAccount($this->account);
             $this->entityManager->persist($overflow);
         }
         $this->entityManager->flush();
@@ -702,7 +702,7 @@ final class CalendarControllerTest extends WebTestCase
             ->setPassword('secret')
             ->setRoles(['ROLE_ADMIN']);
 
-        $this->mailbox = (new Mailbox())
+        $this->account = (new Account())
             ->setName('Support')
             ->setEmail('support@example.com');
 
@@ -712,20 +712,20 @@ final class CalendarControllerTest extends WebTestCase
             ->setDescription('Vorstellung des Projektplans.')
             ->setStartAt(new \DateTimeImmutable('2026-03-10 10:00:00'))
             ->setEndAt(new \DateTimeImmutable('2026-03-10 11:30:00'));
-        $this->kickoff->setMailbox($this->mailbox);
+        $this->kickoff->setAccount($this->account);
 
         $this->review = (new CalendarEvent())
             ->setTitle('Quartals-Review')
             ->setLocation('Raum Online')
             ->setStartAt(new \DateTimeImmutable('2026-04-02 00:00:00'))
             ->setIsAllDay(true);
-        $this->review->setMailbox($this->mailbox);
+        $this->review->setAccount($this->account);
 
-        $otherMailboxEvent = (new CalendarEvent())
+        $otherAccountEvent = (new CalendarEvent())
             ->setTitle('Fremder Termin')
             ->setStartAt(new \DateTimeImmutable('2026-03-11 09:00:00'));
 
-        $this->salesMailbox = (new Mailbox())
+        $this->salesAccount = (new Account())
             ->setName('Vertrieb')
             ->setEmail('vertrieb@example.com');
         $salesEvent = (new CalendarEvent())
@@ -733,17 +733,17 @@ final class CalendarControllerTest extends WebTestCase
             ->setLocation('Raum Bonn')
             ->setStartAt(new \DateTimeImmutable('2026-03-12 14:00:00'))
             ->setEndAt(new \DateTimeImmutable('2026-03-12 15:00:00'));
-        $salesEvent->setMailbox($this->salesMailbox);
+        $salesEvent->setAccount($this->salesAccount);
 
-        $this->adminUser->addMailbox($this->mailbox);
-        $this->adminUser->addMailbox($this->salesMailbox);
+        $this->adminUser->addAccount($this->account);
+        $this->adminUser->addAccount($this->salesAccount);
 
         $this->entityManager->persist($this->adminUser);
-        $this->entityManager->persist($this->mailbox);
-        $this->entityManager->persist($this->salesMailbox);
+        $this->entityManager->persist($this->account);
+        $this->entityManager->persist($this->salesAccount);
         $this->entityManager->persist($this->kickoff);
         $this->entityManager->persist($this->review);
-        $this->entityManager->persist($otherMailboxEvent);
+        $this->entityManager->persist($otherAccountEvent);
         $this->entityManager->persist($salesEvent);
         $this->entityManager->flush();
     }

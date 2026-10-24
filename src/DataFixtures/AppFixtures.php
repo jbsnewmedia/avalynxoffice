@@ -9,10 +9,13 @@ declare(strict_types=1);
 
 namespace AvalynxOffice\DataFixtures;
 
+use AvalynxOffice\Entity\Account;
+use AvalynxOffice\Entity\AccountAlias;
 use AvalynxOffice\Entity\Address;
 use AvalynxOffice\Entity\Attachment;
 use AvalynxOffice\Entity\Body;
 use AvalynxOffice\Entity\CalendarEvent;
+use AvalynxOffice\Entity\Connector;
 use AvalynxOffice\Entity\Email;
 use AvalynxOffice\Entity\EmailAddressLink;
 use AvalynxOffice\Entity\EmailAttachmentLink;
@@ -22,9 +25,7 @@ use AvalynxOffice\Entity\Enum\BodyContentType;
 use AvalynxOffice\Entity\Enum\EmailAddressType;
 use AvalynxOffice\Entity\Enum\FolderFunction;
 use AvalynxOffice\Entity\Folder;
-use AvalynxOffice\Entity\FolderMailbox;
-use AvalynxOffice\Entity\Mailbox;
-use AvalynxOffice\Entity\MailboxConnector;
+use AvalynxOffice\Entity\FolderAccount;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Factory\AddressFactory;
 use AvalynxOffice\Factory\AttachmentFactory;
@@ -61,65 +62,78 @@ class AppFixtures extends Fixture
     public function load(ObjectManager $manager): void
     {
         $extraFolders = array_map(self::unproxy(...), FolderFactory::createMany(8));
-        $mailboxes = [
-            $this->createMailbox(
+        $connectorExample = $this->createConnector(
+            $manager,
+            name: 'Example',
+            domain: 'example.com',
+            hostPrefix: 'example',
+            defaultAccount: null,
+        );
+        $connectorFirma = $this->createConnector(
+            $manager,
+            name: 'Firma',
+            domain: 'firma.example',
+            hostPrefix: 'firma',
+            defaultAccount: null,
+        );
+        $accounts = [
+            $this->createAccount(
                 $manager,
                 name: 'Info',
                 email: 'info@example.com',
-                connectorName: 'Info Connector',
-                connectorEmail: 'info@connector.example',
-                assignedAddresses: ['info@firma.example'],
-                hostPrefix: 'info'
+                aliases: [
+                    [$connectorFirma, 'info'],
+                ],
             ),
-            $this->createMailbox(
+            $this->createAccount(
                 $manager,
                 name: 'Office',
                 email: 'office@example.com',
-                connectorName: 'Buero Connector',
-                connectorEmail: 'buero@connector.example',
-                assignedAddresses: [
-                    'j.schwind@example.com',
-                    'e.schwind@example.com',
-                    'es@example.com',
-                    'js@example.com',
+                aliases: [
+                    [$connectorExample, 'j.schwind'],
+                    [$connectorExample, 'e.schwind'],
+                    [$connectorExample, 'es'],
+                    [$connectorExample, 'js'],
                 ],
-                hostPrefix: 'buero'
             ),
-            $this->createMailbox(
+            $this->createAccount(
                 $manager,
                 name: 'Support',
                 email: 'support@example.com',
-                connectorName: 'Support Connector',
-                connectorEmail: 'support@connector.example',
-                assignedAddresses: ['help@example.com', 'service@example.com'],
-                hostPrefix: 'support'
+                aliases: [
+                    [$connectorExample, 'help'],
+                    [$connectorExample, 'service'],
+                ],
             ),
         ];
+        $connectorExample->setDefaultAccount($accounts[2]);
+        $connectorFirma->setDefaultAccount($accounts[0]);
+        $manager->flush();
 
-        /** @var array<string, array{mailbox: Folder, inbox: Folder, outbox: Folder, drafts: Folder, others: list<Folder>}> $foldersByMailbox */
-        $foldersByMailbox = [];
-        foreach ($mailboxes as $mailbox) {
-            $this->folderManager->ensureDefaultFolders($mailbox);
+        /** @var array<string, array{account: Folder, inbox: Folder, outbox: Folder, drafts: Folder, others: list<Folder>}> $foldersByAccount */
+        $foldersByAccount = [];
+        foreach ($accounts as $account) {
+            $this->folderManager->ensureDefaultFolders($account);
 
             $others = [];
             $pick = self::randomUniqueSubset($extraFolders, random_int(1, 3));
             $order = 0;
             foreach ($pick as $folder) {
                 \assert($folder instanceof Folder);
-                $link = new FolderMailbox();
-                $link->setMailbox($mailbox);
+                $link = new FolderAccount();
+                $link->setAccount($account);
                 $link->setFolder($folder);
                 $link->setSortOrder($order++);
                 $manager->persist($link);
-                $mailbox->getFolderLinks()->add($link);
+                $account->getFolderLinks()->add($link);
                 $others[] = $folder;
             }
 
-            $foldersByMailbox[(string) $mailbox->getId()] = [
-                'mailbox' => $this->folderManager->ensureSystemFolder($mailbox, FolderFunction::MAILBOX),
-                'inbox' => $this->folderManager->ensureSystemFolder($mailbox, FolderFunction::INBOX),
-                'outbox' => $this->folderManager->ensureSystemFolder($mailbox, FolderFunction::OUTBOX),
-                'drafts' => $this->folderManager->ensureSystemFolder($mailbox, FolderFunction::DRAFTS),
+            $foldersByAccount[(string) $account->getId()] = [
+                'account' => $this->folderManager->ensureSystemFolder($account, FolderFunction::MAILBOX),
+                'inbox' => $this->folderManager->ensureSystemFolder($account, FolderFunction::INBOX),
+                'outbox' => $this->folderManager->ensureSystemFolder($account, FolderFunction::OUTBOX),
+                'drafts' => $this->folderManager->ensureSystemFolder($account, FolderFunction::DRAFTS),
                 'others' => $others,
             ];
         }
@@ -129,23 +143,23 @@ class AppFixtures extends Fixture
         $user->setRoles(['ROLE_ADMIN']);
         $user->setPassword($this->passwordHasher->hashPassword($user, 'admin'));
         $user->setLastAuthAt(new \DateTimeImmutable('now'));
-        foreach ($mailboxes as $mailbox) {
-            $user->addMailbox($mailbox);
+        foreach ($accounts as $account) {
+            $user->addAccount($account);
         }
         $manager->persist($user);
 
         $addresses = array_map(self::unproxy(...), AddressFactory::createMany(25));
         $addresses = array_values(array_filter($addresses, static fn (mixed $address): bool => $address instanceof Address));
-        foreach ($mailboxes as $mailbox) {
-            $addresses[] = $this->findOrCreateAddress($manager, $mailbox->getEmail(), $mailbox->getName());
-            foreach ($mailbox->getAddresses() as $address) {
+        foreach ($accounts as $account) {
+            $addresses[] = $this->findOrCreateAddress($manager, $account->getEmail(), $account->getName());
+            foreach ($account->getAddresses() as $address) {
                 $addresses[] = $address;
             }
         }
         $addresses = $this->deduplicateAddresses($addresses);
 
-        foreach ($mailboxes as $mailbox) {
-            foreach (array_slice($mailbox->getAddresses()->toArray(), 0, 2) as $contactAddress) {
+        foreach ($accounts as $account) {
+            foreach (array_slice($account->getAddresses()->toArray(), 0, 2) as $contactAddress) {
                 $contactAddress->setIsContact(true);
                 $contactAddress->setFirstname($this->contactNamePart($contactAddress->getName(), 0));
                 $contactAddress->setLastname($this->contactNamePart($contactAddress->getName(), 1));
@@ -155,7 +169,7 @@ class AppFixtures extends Fixture
 
         $bodies = BodyFactory::createMany(40);
 
-        $this->seedCalendarEvents($manager, $mailboxes[0]);
+        $this->seedCalendarEvents($manager, $accounts[0]);
         $attachments = array_map(self::unproxy(...), AttachmentFactory::createMany(30));
         $attachments = array_values(array_filter($attachments, static fn (mixed $attachment): bool => $attachment instanceof Attachment));
         foreach ($attachments as $attachment) {
@@ -168,15 +182,15 @@ class AppFixtures extends Fixture
         foreach ($emails as $emailProxy) {
             /** @var Email $email */
             $email = self::unproxy($emailProxy);
-            $mailbox = self::randomElement($mailboxes);
-            \assert($mailbox instanceof Mailbox);
-            $email->setMailbox($mailbox);
-            $mailboxAddresses = $this->mailboxAddresses($manager, $mailbox);
+            $account = self::randomElement($accounts);
+            \assert($account instanceof Account);
+            $email->setAccount($account);
+            $accountAddresses = $this->accountAddresses($manager, $account);
             $externalAddresses = array_values(array_filter(
                 $addresses,
-                static fn (Address $address): bool => !in_array($address->getEmail(), array_map(static fn (Address $mailboxAddress): string => $mailboxAddress->getEmail(), $mailboxAddresses), true)
+                static fn (Address $address): bool => !in_array($address->getEmail(), array_map(static fn (Address $accountAddress): string => $accountAddress->getEmail(), $accountAddresses), true)
             ));
-            $mbId = (string) $mailbox->getId();
+            $mbId = (string) $account->getId();
             $isOutgoing = random_int(0, 100) < 35;
             $email->setIsOutgoing($isOutgoing);
             $targetFolders = [];
@@ -186,20 +200,20 @@ class AppFixtures extends Fixture
                     $email->setSentAt(new \DateTimeImmutable('-'.random_int(0, 30).' days'));
                     $email->setIsSent(true);
                     $email->setIsDraft(false);
-                    $targetFolders[] = $foldersByMailbox[$mbId]['outbox'];
+                    $targetFolders[] = $foldersByAccount[$mbId]['outbox'];
                 } elseif ($rand < 95) {
                     $email->setSentAt(null);
                     $email->setIsSent(false);
                     $email->setIsDraft(true);
-                    $targetFolders[] = $foldersByMailbox[$mbId]['drafts'];
+                    $targetFolders[] = $foldersByAccount[$mbId]['drafts'];
                 } else {
                     $email->setSentAt(null);
                     $email->setIsSent(false);
                     $email->setIsDraft(false);
-                    $targetFolders[] = $foldersByMailbox[$mbId]['outbox'];
+                    $targetFolders[] = $foldersByAccount[$mbId]['outbox'];
                 }
                 $email->setIsRead(true);
-                $sender = self::randomElement($mailboxAddresses);
+                $sender = self::randomElement($accountAddresses);
                 $this->linkAddress($manager, $email, $sender, EmailAddressType::SENDER);
                 $recipients = self::randomUniqueSubset($externalAddresses, random_int(1, 3));
                 foreach ($recipients as $recipient) {
@@ -208,19 +222,19 @@ class AppFixtures extends Fixture
             } else {
                 $email->setReceivedAt(new \DateTimeImmutable('-'.random_int(0, 30).' days'));
                 $email->setIsRead(random_int(0, 100) < 40);
-                $targetFolders[] = $foldersByMailbox[$mbId]['mailbox'];
-                $targetFolders[] = $foldersByMailbox[$mbId]['inbox'];
-                $externalAddresses = [] !== $externalAddresses ? $externalAddresses : $mailboxAddresses;
+                $targetFolders[] = $foldersByAccount[$mbId]['account'];
+                $targetFolders[] = $foldersByAccount[$mbId]['inbox'];
+                $externalAddresses = [] !== $externalAddresses ? $externalAddresses : $accountAddresses;
                 $sender = self::randomElement($externalAddresses);
                 $this->linkAddress($manager, $email, $sender, EmailAddressType::SENDER);
-                $recipientMax = max(1, count($mailboxAddresses));
-                $recipients = self::randomUniqueSubset($mailboxAddresses, random_int(1, min(2, $recipientMax)));
+                $recipientMax = max(1, count($accountAddresses));
+                $recipients = self::randomUniqueSubset($accountAddresses, random_int(1, min(2, $recipientMax)));
                 foreach ($recipients as $recipient) {
                     $this->linkAddress($manager, $email, $recipient, EmailAddressType::RECIPIENT);
                 }
             }
-            if (random_int(0, 100) < 20 && !empty($foldersByMailbox[$mbId]['others'])) {
-                $targetFolders[] = self::randomElement($foldersByMailbox[$mbId]['others']);
+            if (random_int(0, 100) < 20 && !empty($foldersByAccount[$mbId]['others'])) {
+                $targetFolders[] = self::randomElement($foldersByAccount[$mbId]['others']);
             }
             foreach (array_unique($targetFolders, SORT_REGULAR) as $folder) {
                 \assert($folder instanceof Folder);
@@ -234,7 +248,7 @@ class AppFixtures extends Fixture
                 $this->linkAddress($manager, $email, $bcc, EmailAddressType::BCC);
             }
             if (random_int(0, 100) < 20) {
-                $reply = self::randomElement($mailboxAddresses);
+                $reply = self::randomElement($accountAddresses);
                 $this->linkAddress($manager, $email, $reply, EmailAddressType::REPLY_TO);
             }
             $email->setIsFavorite(random_int(0, 100) < 25);
@@ -292,47 +306,60 @@ class AppFixtures extends Fixture
     }
 
     /**
-     * @param array<string> $assignedAddresses
+     * @param list<array{0: Connector, 1: string}> $aliases
      */
-    private function createMailbox(
+    private function createAccount(
         ObjectManager $manager,
         string $name,
         string $email,
-        string $connectorName,
-        string $connectorEmail,
-        array $assignedAddresses,
-        string $hostPrefix,
-    ): Mailbox {
-        $mailbox = new Mailbox();
-        $mailbox->setName($name);
-        $mailbox->setEmail($email);
-        $manager->persist($mailbox);
+        array $aliases,
+    ): Account {
+        $account = new Account();
+        $account->setName($name);
+        $account->setEmail($email);
+        $manager->persist($account);
 
-        $connector = new MailboxConnector();
-        $connector->setName($connectorName);
-        $connector->setEmail($connectorEmail);
+        foreach ($aliases as [$connector, $localPart]) {
+            $alias = new AccountAlias();
+            $alias->setAccount($account);
+            $alias->setConnector($connector);
+            $alias->setLocalPart($localPart);
+            $manager->persist($alias);
+            $account->addAlias($alias);
+            $account->addAddress($this->findOrCreateAddress($manager, $alias->getAddress(), $name));
+        }
+
+        $manager->flush();
+
+        return $account;
+    }
+
+    private function createConnector(
+        ObjectManager $manager,
+        string $name,
+        string $domain,
+        string $hostPrefix,
+        ?Account $defaultAccount,
+    ): Connector {
+        $connector = new Connector();
+        $connector->setName($name);
+        $connector->setDomain($domain);
         $connector->setPop3Host(sprintf('pop3.%s.example', $hostPrefix));
         $connector->setPop3Port(995);
-        $connector->setPop3Username($connectorEmail);
+        $connector->setPop3Username($domain);
         $connector->setPop3Password('secret');
         $connector->setPop3Security('ssl');
         $connector->setPop3DeleteAfterFetch(false);
         $connector->setSmtpHost(sprintf('smtp.%s.example', $hostPrefix));
         $connector->setSmtpPort(465);
-        $connector->setSmtpUsername($connectorEmail);
+        $connector->setSmtpUsername($domain);
         $connector->setSmtpPassword('secret');
         $connector->setSmtpSecurity('ssl');
-        $connector->setIsPrimary(true);
-        $mailbox->addConnector($connector);
+        $connector->setDefaultAccount($defaultAccount);
         $manager->persist($connector);
-
-        foreach ($assignedAddresses as $assignedAddress) {
-            $mailbox->addAddress($this->findOrCreateAddress($manager, $assignedAddress));
-        }
-
         $manager->flush();
 
-        return $mailbox;
+        return $connector;
     }
 
     private function findOrCreateAddress(ObjectManager $manager, string $email, ?string $name = null): Address
@@ -358,13 +385,11 @@ class AppFixtures extends Fixture
     /**
      * @return array<int, Address>
      */
-    private function mailboxAddresses(ObjectManager $manager, Mailbox $mailbox): array
+    private function accountAddresses(ObjectManager $manager, Account $account): array
     {
-        $addresses = [$this->findOrCreateAddress($manager, $mailbox->getEmail(), $mailbox->getName())];
-        foreach ($mailbox->getAddresses() as $address) {
-            if ($address instanceof Address) {
-                $addresses[] = $address;
-            }
+        $addresses = [$this->findOrCreateAddress($manager, $account->getEmail(), $account->getName())];
+        foreach ($account->getAliases() as $alias) {
+            $addresses[] = $this->findOrCreateAddress($manager, $alias->getAddress(), $account->getName());
         }
 
         return $this->deduplicateAddresses($addresses);
@@ -400,7 +425,7 @@ class AppFixtures extends Fixture
      * Seeds a handful of calendar events around the current date so the
      * calendar module has content in development environments.
      */
-    private function seedCalendarEvents(ObjectManager $manager, Mailbox $mailbox): void
+    private function seedCalendarEvents(ObjectManager $manager, Account $account): void
     {
         $now = new \DateTimeImmutable();
 
@@ -421,7 +446,7 @@ class AppFixtures extends Fixture
                 ->setStartAt($definition['start'])
                 ->setEndAt($definition['end'])
                 ->setIsAllDay($definition['allDay'])
-                ->setMailbox($mailbox);
+                ->setAccount($account);
             $manager->persist($event);
         }
 

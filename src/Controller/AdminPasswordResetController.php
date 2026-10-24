@@ -22,7 +22,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
  * Administration interface "Passwort-Resets": start a two-key reset for a
- * user without mailbox access, watch the open requests and release them by
+ * user without account access, watch the open requests and release them by
  * confirming the release number the user spoke.
  */
 final class AdminPasswordResetController extends AbstractController

@@ -17,7 +17,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 /**
- * Two-key password reset handshake for users without mailbox access:
+ * Two-key password reset handshake for users without account access:
  * - The user starts the flow, receives a token AND the 4-digit release number.
  * - The user hands both to the administrator in person.
  * - The administrator confirms the number (max 3 attempts) and releases the flow.

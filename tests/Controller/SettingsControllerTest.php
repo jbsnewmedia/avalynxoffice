@@ -53,7 +53,7 @@ final class SettingsControllerTest extends WebTestCase
         self::assertStringContainsString('no-store', $cacheControl);
         $content = (string) $this->client->getResponse()->getContent();
         self::assertStringContainsString('id="settingsNavDropdown"', $content);
-        // The overview is a neutral dashboard: no mailbox card, no appearance form.
+        // The overview is a neutral dashboard: no account card, no appearance form.
         self::assertStringNotContainsString('Manage Accounts', $content);
         self::assertStringNotContainsString('primary_color', $content);
     }

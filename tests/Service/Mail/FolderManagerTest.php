@@ -6,7 +6,7 @@ namespace AvalynxOffice\Tests\Service\Mail;
 
 use AvalynxOffice\Entity\Email;
 use AvalynxOffice\Entity\Folder;
-use AvalynxOffice\Entity\Mailbox;
+use AvalynxOffice\Entity\Account;
 use AvalynxOffice\Repository\FolderRepository;
 use AvalynxOffice\Service\Mail\FolderManager;
 use Doctrine\ORM\EntityManagerInterface;
@@ -59,39 +59,39 @@ class FolderManagerTest extends TestCase
         $this->assertSame(['mailbox', 'outbox'], FolderManager::normalizeFunctions(['mailbox', 'none', 'sent', 'invalid']));
     }
 
-    public function testEnsureFolderCreatesMailboxFolderAndSetsInboxFolder(): void
+    public function testEnsureFolderCreatesAccountFolderAndSetsInboxFolder(): void
     {
         $folderRepo = $this->createStub(FolderRepository::class);
-        $folderRepo->method('findByMailboxOrderByAssignment')->willReturn([]);
+        $folderRepo->method('findByAccountOrderByAssignment')->willReturn([]);
         $folderManager = new FolderManager($this->createStub(EntityManagerInterface::class), $folderRepo);
-        $mailbox = new Mailbox();
+        $account = new Account();
 
-        $folder = $folderManager->ensureFolder($mailbox, FolderManager::FOLDER_MAILBOX, -100, ['mailbox']);
+        $folder = $folderManager->ensureFolder($account, FolderManager::FOLDER_MAILBOX, -100, ['mailbox']);
 
         $this->assertSame(FolderManager::FOLDER_MAILBOX, $folder->getName());
         $this->assertSame(['mailbox'], $folder->getFunctions());
-        $this->assertSame($folder, $mailbox->getInboxFolder());
-        $this->assertCount(1, $mailbox->getFolderLinks());
-        $this->assertSame(-100, $mailbox->getFolderLinks()->first()->getSortOrder());
+        $this->assertSame($folder, $account->getInboxFolder());
+        $this->assertCount(1, $account->getFolderLinks());
+        $this->assertSame(-100, $account->getFolderLinks()->first()->getSortOrder());
     }
 
     public function testEnsureSystemFolderUpdatesExistingFolderAndLink(): void
     {
-        $mailbox = new Mailbox();
+        $account = new Account();
         $folder = (new Folder())->setName(FolderManager::FOLDER_MAILBOX)->setFunctions([]);
-        $mailbox->addFolder($folder, 5);
+        $account->addFolder($folder, 5);
 
         $folderRepo = $this->createMock(FolderRepository::class);
-        $folderRepo->expects($this->atLeastOnce())->method('findByMailboxOrderByAssignment')->with($mailbox)->willReturn([$folder]);
+        $folderRepo->expects($this->atLeastOnce())->method('findByAccountOrderByAssignment')->with($account)->willReturn([$folder]);
         $folderManager = new FolderManager($this->createStub(EntityManagerInterface::class), $folderRepo);
 
-        $result = $folderManager->ensureSystemFolder($mailbox, 'mailbox');
+        $result = $folderManager->ensureSystemFolder($account, 'mailbox');
 
         $this->assertSame($folder, $result);
         $this->assertTrue($folder->hasFunction('mailbox'));
-        $this->assertSame($folder, $mailbox->getInboxFolder());
-        $this->assertSame(-100, $mailbox->getFolderLinks()->first()->getSortOrder());
-        $this->assertSame($folder, $folderManager->getFolderByFunction($mailbox, 'mailbox'));
+        $this->assertSame($folder, $account->getInboxFolder());
+        $this->assertSame(-100, $account->getFolderLinks()->first()->getSortOrder());
+        $this->assertSame($folder, $folderManager->getFolderByFunction($account, 'mailbox'));
     }
 
     public function testMoveEmailToFolderReusesExistingFolderLink(): void
@@ -107,22 +107,22 @@ class FolderManagerTest extends TestCase
         $this->assertSame($target, $email->getEmailFolders()->first()->getFolder());
     }
 
-    public function testSyncEmailSystemFoldersMovesIncomingMailToMailboxAndInbox(): void
+    public function testSyncEmailSystemFoldersMovesIncomingMailToAccountAndInbox(): void
     {
-        $mailbox = new Mailbox();
+        $account = new Account();
         $email = (new Email())
-            ->setMailbox($mailbox)
+            ->setAccount($account)
             ->setReceivedAt(new \DateTimeImmutable());
         $draftsFolder = (new Folder())->setName(FolderManager::FOLDER_DRAFTS)->setFunctions(['drafts']);
-        $mailboxFolder = (new Folder())->setName(FolderManager::FOLDER_MAILBOX)->setFunctions(['mailbox']);
+        $accountFolder = (new Folder())->setName(FolderManager::FOLDER_MAILBOX)->setFunctions(['mailbox']);
         $inboxFolder = (new Folder())->setName(FolderManager::FOLDER_INBOX)->setFunctions(['inbox']);
-        $mailbox->addFolder($draftsFolder, -70);
-        $mailbox->addFolder($mailboxFolder, -100);
-        $mailbox->addFolder($inboxFolder, -90);
+        $account->addFolder($draftsFolder, -70);
+        $account->addFolder($accountFolder, -100);
+        $account->addFolder($inboxFolder, -90);
         $this->folderManager->assignEmailToFolder($email, $draftsFolder);
 
         $folderRepo = $this->createMock(FolderRepository::class);
-        $folderRepo->expects($this->atLeastOnce())->method('findByMailboxOrderByAssignment')->with($mailbox)->willReturn([$mailboxFolder, $inboxFolder, $draftsFolder]);
+        $folderRepo->expects($this->atLeastOnce())->method('findByAccountOrderByAssignment')->with($account)->willReturn([$accountFolder, $inboxFolder, $draftsFolder]);
         $folderManager = new FolderManager($this->createStub(EntityManagerInterface::class), $folderRepo);
 
         $folderManager->syncEmailSystemFolders($email);
@@ -137,55 +137,55 @@ class FolderManagerTest extends TestCase
 
     public function testEnsureFolderUpdatesMatchingFunctionFolderAndLink(): void
     {
-        $mailbox = new Mailbox();
+        $account = new Account();
         $folder = (new Folder())->setName('Altname')->setFunctions(['mailbox']);
-        $mailbox->addFolder($folder, 5);
+        $account->addFolder($folder, 5);
 
         $folderRepo = $this->createStub(FolderRepository::class);
-        $folderRepo->method('findByMailboxOrderByAssignment')->willReturn([$folder]);
+        $folderRepo->method('findByAccountOrderByAssignment')->willReturn([$folder]);
         $folderManager = new FolderManager($this->createStub(EntityManagerInterface::class), $folderRepo);
 
-        $result = $folderManager->ensureFolder($mailbox, FolderManager::FOLDER_MAILBOX, -100, ['mailbox', 'inbox']);
+        $result = $folderManager->ensureFolder($account, FolderManager::FOLDER_MAILBOX, -100, ['mailbox', 'inbox']);
 
         $this->assertSame($folder, $result);
         $this->assertSame(FolderManager::FOLDER_MAILBOX, $folder->getName());
         $this->assertSame(['mailbox', 'inbox'], $folder->getFunctions());
-        $this->assertSame($folder, $mailbox->getInboxFolder());
-        $this->assertSame(-100, $mailbox->getFolderLinks()->first()->getSortOrder());
+        $this->assertSame($folder, $account->getInboxFolder());
+        $this->assertSame(-100, $account->getFolderLinks()->first()->getSortOrder());
     }
 
     public function testEnsureFolderReturnsMatchingFolderWithoutChangesWhenAlreadyConsistent(): void
     {
-        $mailbox = new Mailbox();
+        $account = new Account();
         $folder = (new Folder())->setName('Posteingang Extra')->setFunctions(['inbox']);
-        $mailbox->addFolder($folder, -90);
+        $account->addFolder($folder, -90);
 
         $folderRepo = $this->createStub(FolderRepository::class);
-        $folderRepo->method('findByMailboxOrderByAssignment')->willReturn([$folder]);
+        $folderRepo->method('findByAccountOrderByAssignment')->willReturn([$folder]);
         $folderManager = new FolderManager($this->createStub(EntityManagerInterface::class), $folderRepo);
 
-        $result = $folderManager->ensureFolder($mailbox, 'Posteingang Extra', -90, ['inbox']);
+        $result = $folderManager->ensureFolder($account, 'Posteingang Extra', -90, ['inbox']);
 
         $this->assertSame($folder, $result);
         $this->assertSame(['inbox'], $folder->getFunctions());
-        $this->assertNull($mailbox->getInboxFolder());
+        $this->assertNull($account->getInboxFolder());
     }
 
     public function testSyncEmailSystemFoldersMovesSentOutgoingMailToOutbox(): void
     {
-        $mailbox = new Mailbox();
+        $account = new Account();
         $email = (new Email())
-            ->setMailbox($mailbox)
+            ->setAccount($account)
             ->setIsOutgoing(true)
             ->setIsSent(true);
         $inboxFolder = (new Folder())->setName(FolderManager::FOLDER_INBOX)->setFunctions(['inbox']);
         $outboxFolder = (new Folder())->setName(FolderManager::FOLDER_OUTBOX)->setFunctions(['outbox']);
-        $mailbox->addFolder($inboxFolder, -90);
-        $mailbox->addFolder($outboxFolder, -80);
+        $account->addFolder($inboxFolder, -90);
+        $account->addFolder($outboxFolder, -80);
         $this->folderManager->assignEmailToFolder($email, $inboxFolder);
 
         $folderRepo = $this->createMock(FolderRepository::class);
-        $folderRepo->expects($this->atLeastOnce())->method('findByMailboxOrderByAssignment')->with($mailbox)->willReturn([$inboxFolder, $outboxFolder]);
+        $folderRepo->expects($this->atLeastOnce())->method('findByAccountOrderByAssignment')->with($account)->willReturn([$inboxFolder, $outboxFolder]);
         $folderManager = new FolderManager($this->createStub(EntityManagerInterface::class), $folderRepo);
 
         $folderManager->syncEmailSystemFolders($email);
@@ -215,7 +215,7 @@ class FolderManagerTest extends TestCase
         $this->assertSame(['Existing', 'Target'], $names);
     }
 
-    public function testSyncEmailSystemFoldersReturnsWhenEmailHasNoMailbox(): void
+    public function testSyncEmailSystemFoldersReturnsWhenEmailHasNoAccount(): void
     {
         $email = new Email();
 
@@ -226,18 +226,18 @@ class FolderManagerTest extends TestCase
 
     public function testSyncEmailSystemFoldersKeepsNonSystemFolderWhileAssigningTargetFolder(): void
     {
-        $mailbox = new Mailbox();
+        $account = new Account();
         $email = (new Email())
-            ->setMailbox($mailbox)
+            ->setAccount($account)
             ->setIsOutgoing(true)
             ->setIsSent(true);
         $customFolder = (new Folder())->setName('Custom')->setFunctions([]);
         $outboxFolder = (new Folder())->setName(FolderManager::FOLDER_OUTBOX)->setFunctions(['outbox']);
-        $mailbox->addFolder($outboxFolder, -80);
+        $account->addFolder($outboxFolder, -80);
         $this->folderManager->assignEmailToFolder($email, $customFolder);
 
         $folderRepo = $this->createStub(FolderRepository::class);
-        $folderRepo->method('findByMailboxOrderByAssignment')->willReturn([$outboxFolder]);
+        $folderRepo->method('findByAccountOrderByAssignment')->willReturn([$outboxFolder]);
         $folderManager = new FolderManager($this->createStub(EntityManagerInterface::class), $folderRepo);
 
         $folderManager->syncEmailSystemFolders($email);
@@ -252,16 +252,16 @@ class FolderManagerTest extends TestCase
 
     public function testSyncEmailSystemFoldersKeepsExistingDraftSystemFolderForDraftEmail(): void
     {
-        $mailbox = new Mailbox();
+        $account = new Account();
         $email = (new Email())
-            ->setMailbox($mailbox)
+            ->setAccount($account)
             ->setIsDraft(true);
         $draftsFolder = (new Folder())->setName(FolderManager::FOLDER_DRAFTS)->setFunctions(['drafts']);
-        $mailbox->addFolder($draftsFolder, -70);
+        $account->addFolder($draftsFolder, -70);
         $this->folderManager->assignEmailToFolder($email, $draftsFolder);
 
         $folderRepo = $this->createStub(FolderRepository::class);
-        $folderRepo->method('findByMailboxOrderByAssignment')->willReturn([$draftsFolder]);
+        $folderRepo->method('findByAccountOrderByAssignment')->willReturn([$draftsFolder]);
         $folderManager = new FolderManager($this->createStub(EntityManagerInterface::class), $folderRepo);
 
         $folderManager->syncEmailSystemFolders($email);
@@ -270,48 +270,48 @@ class FolderManagerTest extends TestCase
         $this->assertSame($draftsFolder, $email->getEmailFolders()->first()->getFolder());
     }
 
-    public function testEnsureSystemFolderReturnsExistingUnlinkedFolderWithoutCreatingMailboxLink(): void
+    public function testEnsureSystemFolderReturnsExistingUnlinkedFolderWithoutCreatingAccountLink(): void
     {
-        $mailbox = new Mailbox();
+        $account = new Account();
         $folder = (new Folder())->setName(FolderManager::FOLDER_INBOX)->setFunctions(['inbox']);
 
         $folderRepo = $this->createStub(FolderRepository::class);
-        $folderRepo->method('findByMailboxOrderByAssignment')->willReturn([$folder]);
+        $folderRepo->method('findByAccountOrderByAssignment')->willReturn([$folder]);
         $folderManager = new FolderManager($this->createStub(EntityManagerInterface::class), $folderRepo);
 
-        $result = $folderManager->ensureSystemFolder($mailbox, 'inbox');
+        $result = $folderManager->ensureSystemFolder($account, 'inbox');
 
         $this->assertSame($folder, $result);
-        $this->assertCount(0, $mailbox->getFolderLinks());
+        $this->assertCount(0, $account->getFolderLinks());
     }
 
     public function testEnsureSystemFolderUpdatesExistingLinkedSystemFolderSortOrder(): void
     {
-        $mailbox = new Mailbox();
+        $account = new Account();
         $folder = (new Folder())->setName(FolderManager::FOLDER_INBOX)->setFunctions(['inbox']);
-        $mailbox->addFolder($folder, 10);
+        $account->addFolder($folder, 10);
 
         $folderRepo = $this->createStub(FolderRepository::class);
-        $folderRepo->method('findByMailboxOrderByAssignment')->willReturn([$folder]);
+        $folderRepo->method('findByAccountOrderByAssignment')->willReturn([$folder]);
         $folderManager = new FolderManager($this->createStub(EntityManagerInterface::class), $folderRepo);
 
-        $result = $folderManager->ensureSystemFolder($mailbox, 'inbox');
+        $result = $folderManager->ensureSystemFolder($account, 'inbox');
 
         $this->assertSame($folder, $result);
-        $this->assertSame(-90, $mailbox->getFolderLinks()->first()->getSortOrder());
+        $this->assertSame(-90, $account->getFolderLinks()->first()->getSortOrder());
     }
 
     public function testEnsureDefaultFoldersCreatesAllRequiredSystemFolders(): void
     {
-        $mailbox = new Mailbox();
+        $account = new Account();
 
         $folderRepo = $this->createStub(FolderRepository::class);
-        $folderRepo->method('findByMailboxOrderByAssignment')->willReturn([]);
+        $folderRepo->method('findByAccountOrderByAssignment')->willReturn([]);
         $folderManager = new FolderManager($this->createStub(EntityManagerInterface::class), $folderRepo);
 
-        $folderManager->ensureDefaultFolders($mailbox);
+        $folderManager->ensureDefaultFolders($account);
 
-        $this->assertCount(4, $mailbox->getFolderLinks());
-        $this->assertSame(FolderManager::FOLDER_MAILBOX, $mailbox->getInboxFolder()?->getName());
+        $this->assertCount(4, $account->getFolderLinks());
+        $this->assertSame(FolderManager::FOLDER_MAILBOX, $account->getInboxFolder()?->getName());
     }
 }

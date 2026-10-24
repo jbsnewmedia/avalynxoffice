@@ -9,7 +9,7 @@ use AvalynxOffice\Entity\Email;
 use AvalynxOffice\Entity\EmailAttachmentLink;
 use AvalynxOffice\Entity\EmailFolder;
 use AvalynxOffice\Entity\Folder;
-use AvalynxOffice\Entity\Mailbox;
+use AvalynxOffice\Entity\Account;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Service\Mail\AttachmentStorage;
 use AvalynxOffice\Tests\Support\RefreshDatabaseTrait;
@@ -27,7 +27,7 @@ final class MailControllerCoverageTest extends WebTestCase
     private EntityManagerInterface $entityManager;
     private AttachmentStorage $attachmentStorage;
     private User $adminUser;
-    private Mailbox $mailbox;
+    private Account $account;
     private Folder $folder;
     private Email $email;
     private Attachment $attachment;
@@ -40,14 +40,14 @@ final class MailControllerCoverageTest extends WebTestCase
         $this->attachmentStorage = static::getContainer()->get(AttachmentStorage::class);
 
         $this->refreshDatabase($this->entityManager);
-        [$this->adminUser, $this->mailbox, $this->folder, $this->email, $this->attachment] = $this->seedData();
+        [$this->adminUser, $this->account, $this->folder, $this->email, $this->attachment] = $this->seedData();
     }
 
     public function testIndexFolderEmailFavoriteAndMoreRoutesWorkForAuthorizedUser(): void
     {
         $this->loginAdmin();
 
-        $mailboxId = (string) $this->mailbox->getId();
+        $accountId = (string) $this->account->getId();
         $folderId = (string) $this->folder->getId();
         $emailId = (string) $this->email->getId();
 
@@ -55,7 +55,7 @@ final class MailControllerCoverageTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSelectorExists('a[href="/mail/compose"]');
 
-        $this->client->request('GET', sprintf('/mails/%s/%s/%s', $mailboxId, $folderId, $emailId));
+        $this->client->request('GET', sprintf('/mails/%s/%s/%s', $accountId, $folderId, $emailId));
         self::assertResponseIsSuccessful();
 
         $this->client->request('POST', sprintf('/email/%s/favorite', $emailId), ['favorite' => '1']);
@@ -66,10 +66,10 @@ final class MailControllerCoverageTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertJsonStringEqualsJsonString('{"success":true,"favorite":false}', (string) $this->client->getResponse()->getContent());
 
-        $this->client->request('GET', sprintf('/folder/%s/more?mailboxId=%s&offset=0&limit=1', $folderId, $mailboxId));
+        $this->client->request('GET', sprintf('/folder/%s/more?accountId=%s&offset=0&limit=1', $folderId, $accountId));
         self::assertResponseIsSuccessful();
 
-        $this->client->request('GET', sprintf('/folder/%s/more?mailboxId=all&offset=0&limit=1', $folderId));
+        $this->client->request('GET', sprintf('/folder/%s/more?accountId=all&offset=0&limit=1', $folderId));
         self::assertResponseIsSuccessful();
 
         $this->client->request('GET', sprintf('/email/%s', '00000000-0000-0000-0000-000000000000'));
@@ -90,11 +90,11 @@ final class MailControllerCoverageTest extends WebTestCase
         self::assertResponseStatusCodeSame(403);
     }
 
-    public function testGuestUserIsDeniedAccessToForeignMailboxFolder(): void
+    public function testGuestUserIsDeniedAccessToForeignAccountFolder(): void
     {
         $this->loginGuestUser();
 
-        $this->client->request('GET', sprintf('/mails/%s/%s', $this->mailbox->getId(), $this->folder->getId()));
+        $this->client->request('GET', sprintf('/mails/%s/%s', $this->account->getId(), $this->folder->getId()));
         self::assertResponseStatusCodeSame(403);
     }
 
@@ -107,7 +107,7 @@ final class MailControllerCoverageTest extends WebTestCase
         self::assertSame('application/pdf', (string) $this->client->getResponse()->headers->get('Content-Type'));
     }
 
-    public function testIndexAndFolderRenderEmptyStateWithoutMailboxes(): void
+    public function testIndexAndFolderRenderEmptyStateWithoutAccounts(): void
     {
         $this->refreshDatabase($this->entityManager);
 
@@ -150,7 +150,7 @@ final class MailControllerCoverageTest extends WebTestCase
     {
         $this->loginAdmin();
         $this->entityManager->clear();
-        $mailboxId = (string) $this->mailbox->getId();
+        $accountId = (string) $this->account->getId();
         $emailId = (string) $this->email->getId();
 
         $this->client->request('GET', '/mails/all/all');
@@ -158,29 +158,29 @@ final class MailControllerCoverageTest extends WebTestCase
         self::assertSelectorExists(sprintf('.email-item[data-email="%s"]', $emailId));
         self::assertSelectorTextContains('a[href="/mails/all/all"] .badge', '1');
 
-        $this->client->request('GET', sprintf('/mails/%s/all', $mailboxId));
+        $this->client->request('GET', sprintf('/mails/%s/all', $accountId));
         self::assertResponseIsSuccessful();
 
         $this->client->request('GET', sprintf('/mails/all/all/%s', $emailId));
         self::assertResponseIsSuccessful();
         self::assertSelectorExists(sprintf('.email-item.email-active[data-email="%s"]', $emailId));
 
-        $this->client->request('GET', '/folder/all/more?mailboxId=all&offset=0&limit=10');
+        $this->client->request('GET', '/folder/all/more?accountId=all&offset=0&limit=10');
         self::assertResponseIsSuccessful();
 
-        $this->client->request('GET', sprintf('/folder/all/more?mailboxId=%s&offset=0&limit=10', $mailboxId));
+        $this->client->request('GET', sprintf('/folder/all/more?accountId=%s&offset=0&limit=10', $accountId));
         self::assertResponseIsSuccessful();
     }
 
-    public function testAllMailsMoreDeniesForeignMailboxScope(): void
+    public function testAllMailsMoreDeniesForeignAccountScope(): void
     {
         $this->loginGuestUser();
 
-        $this->client->request('GET', sprintf('/folder/all/more?mailboxId=%s&offset=0&limit=10', $this->mailbox->getId()));
+        $this->client->request('GET', sprintf('/folder/all/more?accountId=%s&offset=0&limit=10', $this->account->getId()));
         self::assertResponseStatusCodeSame(403);
     }
 
-    public function testFolderResetsActiveFolderWhenNotLinkedToMailbox(): void
+    public function testFolderResetsActiveFolderWhenNotLinkedToAccount(): void
     {
         $this->loginAdmin();
 
@@ -190,7 +190,7 @@ final class MailControllerCoverageTest extends WebTestCase
         $this->entityManager->persist($unlinkedFolder);
         $this->entityManager->flush();
 
-        $this->client->request('GET', sprintf('/mails/%s/%s', $this->mailbox->getId(), $unlinkedFolder->getId()));
+        $this->client->request('GET', sprintf('/mails/%s/%s', $this->account->getId(), $unlinkedFolder->getId()));
         self::assertResponseIsSuccessful();
     }
 
@@ -212,7 +212,7 @@ final class MailControllerCoverageTest extends WebTestCase
 
         $emailId = (string) $this->email->getId();
         $folderId = (string) $this->folder->getId();
-        $mailboxId = (string) $this->mailbox->getId();
+        $accountId = (string) $this->account->getId();
         $brokenAttachmentId = (string) $brokenAttachment->getId();
         $missingUuid = '00000000-0000-0000-0000-000000000000';
 
@@ -234,14 +234,14 @@ final class MailControllerCoverageTest extends WebTestCase
         self::assertResponseStatusCodeSame(404);
         self::assertStringContainsString('"success":false', (string) $this->client->getResponse()->getContent());
 
-        $this->client->request('GET', sprintf('/folder/%s/more?mailboxId=%s&limit=0', $folderId, $mailboxId));
+        $this->client->request('GET', sprintf('/folder/%s/more?accountId=%s&limit=0', $folderId, $accountId));
         self::assertResponseIsSuccessful();
 
-        $this->client->request('GET', sprintf('/folder/%s/more?mailboxId=%s&offset=-1', $folderId, $mailboxId));
+        $this->client->request('GET', sprintf('/folder/%s/more?accountId=%s&offset=-1', $folderId, $accountId));
         self::assertResponseIsSuccessful();
     }
 
-    public function testGuestIsDeniedAccessToEmailWithoutMailbox(): void
+    public function testGuestIsDeniedAccessToEmailWithoutAccount(): void
     {
         $orphanEmail = (new Email())
             ->setSubject('Orphan')
@@ -273,7 +273,7 @@ final class MailControllerCoverageTest extends WebTestCase
     }
 
     /**
-     * @return array{0: User, 1: Mailbox, 2: Folder, 3: Email, 4: Attachment}
+     * @return array{0: User, 1: Account, 2: Folder, 3: Email, 4: Attachment}
      */
     private function seedData(): array
     {
@@ -282,17 +282,17 @@ final class MailControllerCoverageTest extends WebTestCase
             ->setPassword('secret')
             ->setRoles(['ROLE_ADMIN']);
 
-        $mailbox = (new Mailbox())
+        $account = (new Account())
             ->setName('Support')
             ->setEmail('support@example.com');
 
         $folder = (new Folder())
             ->setName('Posteingang')
             ->setFunctions(['inbox']);
-        $mailbox->addFolder($folder);
+        $account->addFolder($folder);
 
         $email = (new Email())
-            ->setMailbox($mailbox)
+            ->setAccount($account)
             ->setSubject('Willkommen')
             ->setPreviewBody('Vorschau')
             ->setReceivedAt(new \DateTimeImmutable('2026-01-01 10:00:00'));
@@ -315,10 +315,10 @@ final class MailControllerCoverageTest extends WebTestCase
             ->setAttachment($attachment);
         $email->addEmailAttachment($attachmentLink);
 
-        $admin->addMailbox($mailbox);
+        $admin->addAccount($account);
 
         $this->entityManager->persist($admin);
-        $this->entityManager->persist($mailbox);
+        $this->entityManager->persist($account);
         $this->entityManager->persist($folder);
         $this->entityManager->persist($email);
         $this->entityManager->persist($emailFolder);
@@ -326,6 +326,6 @@ final class MailControllerCoverageTest extends WebTestCase
         $this->entityManager->persist($attachmentLink);
         $this->entityManager->flush();
 
-        return [$admin, $mailbox, $folder, $email, $attachment];
+        return [$admin, $account, $folder, $email, $attachment];
     }
 }

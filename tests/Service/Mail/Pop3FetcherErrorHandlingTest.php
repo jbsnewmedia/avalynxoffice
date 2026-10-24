@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace AvalynxOffice\Tests\Service\Mail;
 
-use AvalynxOffice\Entity\MailboxConnector;
+use AvalynxOffice\Entity\Connector;
 use AvalynxOffice\Repository\EmailRepository;
 use AvalynxOffice\Service\Mail\AttachmentStorage;
 use AvalynxOffice\Service\Mail\FolderManager;
 use AvalynxOffice\Service\Mail\Pop3Fetcher;
 use AvalynxOffice\Service\Mail\Pop3FetcherTestFunctionOverrides;
+use AvalynxOffice\Service\Mail\MailRoutingService;
 use AvalynxOffice\Service\Mail\Pop3StorageFactory;
 use Doctrine\ORM\EntityManagerInterface;
 use Laminas\Mail\Storage\Message as StorageMessage;
@@ -83,7 +84,7 @@ final class Pop3FetcherErrorHandlingTest extends TestCase
 
         $this->callPrivate('logError', [3, 'uid-3', null, new \RuntimeException('kaputt'), $connector, $storage]);
 
-        $dumpDir = $this->tempDir.'/mail_dumps/support@example.com/'.date('Y/m/d').'/error';
+        $dumpDir = $this->tempDir.'/mail_dumps/example.com/'.date('Y/m/d').'/error';
         $dumps = glob($dumpDir.'/*.eml') ?: [];
         self::assertCount(1, $dumps);
         self::assertStringContainsString('X-Mail-Fetch-Status: error', (string) file_get_contents($dumps[0]));
@@ -106,8 +107,8 @@ final class Pop3FetcherErrorHandlingTest extends TestCase
         self::assertStringContainsString('Could not read raw content of message 4', $content);
         self::assertStringContainsString('POP3 RETR fallback for message 4 failed', $content);
 
-        $brokenConnector = $this->createStub(MailboxConnector::class);
-        $brokenConnector->method('getEmail')->willThrowException(new \RuntimeException('connector kaputt'));
+        $brokenConnector = $this->createStub(Connector::class);
+        $brokenConnector->method('getDomain')->willThrowException(new \RuntimeException('connector kaputt'));
         $storageWithRaw = $this->createStorage();
         $storageWithRaw->method('getRawHeader')->willThrowException(new \RuntimeException('no api'));
         $this->setProtocol($storageWithRaw, new FakeProtocol("Subject: Test\r\n\r\nBody"));
@@ -231,9 +232,9 @@ final class Pop3FetcherErrorHandlingTest extends TestCase
         $message->method('getContent')->willReturn('Body');
         $message->method('isMultipart')->willReturn(false);
 
-        $this->callPrivate('dumpOriginalMessage', [$message, $connector, null, 'mailbox:uid-9', 'error', 'Header kaputt']);
+        $this->callPrivate('dumpOriginalMessage', [$message, $connector, null, 'account:uid-9', 'error', 'Header kaputt']);
 
-        $dumpDir = $this->tempDir.'/mail_dumps/support@example.com/'.date('Y/m/d').'/error';
+        $dumpDir = $this->tempDir.'/mail_dumps/example.com/'.date('Y/m/d').'/error';
         $dumps = glob($dumpDir.'/*.eml') ?: [];
         self::assertCount(1, $dumps);
         $content = (string) file_get_contents($dumps[0]);
@@ -244,11 +245,11 @@ final class Pop3FetcherErrorHandlingTest extends TestCase
 
     public function testFetchForConnectorSanitizesMessagesWithBrokenHeaders(): void
     {
-        $mailbox = (new \AvalynxOffice\Entity\Mailbox())
+        $account = (new \AvalynxOffice\Entity\Account())
             ->setName('Support')
             ->setEmail('support@example.com');
-        $mailbox->setInboxFolder((new \AvalynxOffice\Entity\Folder())->setName('Postfach'));
-        $connector = $this->createConnector($mailbox);
+        $account->setInboxFolder((new \AvalynxOffice\Entity\Folder())->setName('Postfach'));
+        $connector = $this->createConnector($account);
 
         $storage = $this->createStorage();
         $storage->method('countMessages')->willReturn(1);
@@ -277,7 +278,7 @@ final class Pop3FetcherErrorHandlingTest extends TestCase
         $factory = $this->createStub(Pop3StorageFactory::class);
         $factory->method('create')->willReturn($storage);
 
-        $fetcher = new Pop3Fetcher($entityManager, $emailRepository, $folderManager, $this->createStub(AttachmentStorage::class), $factory);
+        $fetcher = new Pop3Fetcher($entityManager, $emailRepository, $folderManager, $this->createStub(AttachmentStorage::class), $factory, $this->createRouting($account ?? null));
         $fetcher->setOutput($this->output);
 
         self::assertSame(['imported' => 1, 'skipped' => 0, 'errors' => 0], $fetcher->fetchForConnector($connector));
@@ -285,10 +286,10 @@ final class Pop3FetcherErrorHandlingTest extends TestCase
 
     public function testFetchForConnectorReportsErrorAndClearsEntityManagerWhenSanitizationFails(): void
     {
-        $mailbox = (new \AvalynxOffice\Entity\Mailbox())
+        $account = (new \AvalynxOffice\Entity\Account())
             ->setName('Support')
             ->setEmail('support@example.com');
-        $connector = $this->createConnector($mailbox);
+        $connector = $this->createConnector($account);
         $errorLogPath = $this->tempDir.'/err.log';
 
         $storage = $this->createStorage();
@@ -308,12 +309,12 @@ final class Pop3FetcherErrorHandlingTest extends TestCase
         $entityManager->method('find')->willReturn(null);
 
         $folderManager = $this->createMock(FolderManager::class);
-        $folderManager->expects(self::exactly(2))->method('ensureSystemFolder');
+        $folderManager->expects(self::never())->method('ensureSystemFolder');
 
         $factory = $this->createStub(Pop3StorageFactory::class);
         $factory->method('create')->willReturn($storage);
 
-        $fetcher = new Pop3Fetcher($entityManager, $emailRepository, $folderManager, $this->createStub(AttachmentStorage::class), $factory);
+        $fetcher = new Pop3Fetcher($entityManager, $emailRepository, $folderManager, $this->createStub(AttachmentStorage::class), $factory, $this->createRouting($account ?? null));
         $fetcher->setOutput($this->output);
         $fetcher->setErrorLogPath($errorLogPath);
 
@@ -323,16 +324,16 @@ final class Pop3FetcherErrorHandlingTest extends TestCase
         self::assertStringContainsString('Error on message 1', $content);
         self::assertStringContainsString('Header kaputt', $content);
 
-        $dumpDir = $this->tempDir.'/mail_dumps/support@example.com/'.date('Y/m/d').'/error';
+        $dumpDir = $this->tempDir.'/mail_dumps/example.com/'.date('Y/m/d').'/error';
         self::assertNotEmpty(glob($dumpDir.'/*.eml'));
     }
 
     public function testFetchForConnectorReportsErrorWhenRawMailIsUnreadable(): void
     {
-        $mailbox = (new \AvalynxOffice\Entity\Mailbox())
+        $account = (new \AvalynxOffice\Entity\Account())
             ->setName('Support')
             ->setEmail('support@example.com');
-        $connector = $this->createConnector($mailbox);
+        $connector = $this->createConnector($account);
 
         $storage = $this->createStorage();
         $storage->method('countMessages')->willReturn(1);
@@ -345,26 +346,40 @@ final class Pop3FetcherErrorHandlingTest extends TestCase
         $entityManager->method('isOpen')->willReturn(false);
 
         $folderManager = $this->createMock(FolderManager::class);
-        $folderManager->expects(self::exactly(2))->method('ensureSystemFolder');
+        $folderManager->expects(self::never())->method('ensureSystemFolder');
 
         $factory = $this->createStub(Pop3StorageFactory::class);
         $factory->method('create')->willReturn($storage);
 
-        $fetcher = new Pop3Fetcher($entityManager, $this->createStub(EmailRepository::class), $folderManager, $this->createStub(AttachmentStorage::class), $factory);
+        $fetcher = new Pop3Fetcher($entityManager, $this->createStub(EmailRepository::class), $folderManager, $this->createStub(AttachmentStorage::class), $factory, $this->createRouting($account ?? null));
         $fetcher->setOutput($this->output);
 
         self::assertSame(['imported' => 0, 'skipped' => 0, 'errors' => 1], $fetcher->fetchForConnector($connector));
     }
 
-    private function createConnector(?\AvalynxOffice\Entity\Mailbox $mailbox = null): MailboxConnector
+
+    private function createRouting(?\AvalynxOffice\Entity\Account $account): MailRoutingService
     {
-        return (new MailboxConnector())
-            ->setMailbox($mailbox ?? (new \AvalynxOffice\Entity\Mailbox())->setName('Support')->setEmail('support@example.com'))
-            ->setEmail('support@example.com')
+        $routing = $this->createStub(MailRoutingService::class);
+        $routing->method('resolveTarget')->willReturnCallback(
+            static fn (): ?array => null !== $account ? ['account' => $account, 'alias' => null] : null,
+        );
+
+        return $routing;
+    }
+
+    private function createConnector(?\AvalynxOffice\Entity\Account $account = null): Connector
+    {
+        $connector = (new Connector())
+            ->setName('Support')
+            ->setDomain('example.com')
             ->setPop3Host('mail.example.com')
             ->setPop3Port(110)
             ->setPop3Username('user')
             ->setPop3Password('secret');
+        $connector->setDefaultAccount($account);
+
+        return $connector;
     }
 
     private function createFetcher(): Pop3Fetcher
@@ -375,6 +390,7 @@ final class Pop3FetcherErrorHandlingTest extends TestCase
             $this->createStub(FolderManager::class),
             $this->createStub(AttachmentStorage::class),
             $this->createStub(Pop3StorageFactory::class),
+            $this->createStub(MailRoutingService::class),
         );
     }
 

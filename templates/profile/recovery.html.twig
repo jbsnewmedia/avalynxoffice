@@ -40,7 +40,7 @@
                             <form id="profile-recovery-add-form" method="post" action="{{ path('app_profile_recovery_add') }}" class="needs-validation" novalidate data-avalynxform="1">
                                 <div class="form-group">
                                     <label for="recoveryEmail" class="form-label visually-hidden">{{ 'profile.recovery.email_label'|trans }}</label>
-                                    <input type="email" class="form-control" id="recoveryEmail" name="email" placeholder="{{ 'profile.recovery.email_placeholder'|trans }}" autocomplete="email" required />
+                                    <input type="email" class="form-control" id="recoveryEmail" name="email" autocomplete="email" required />
                                     <div class="invalid-feedback" aria-live="polite"></div>
                                 </div>
                                 <div class="text-end mt-3">

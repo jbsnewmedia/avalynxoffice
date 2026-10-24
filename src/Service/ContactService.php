@@ -9,9 +9,9 @@ declare(strict_types=1);
 
 namespace AvalynxOffice\Service;
 
+use AvalynxOffice\Entity\Account;
+use AvalynxOffice\Entity\AccountAddress;
 use AvalynxOffice\Entity\Address;
-use AvalynxOffice\Entity\Mailbox;
-use AvalynxOffice\Entity\MailboxAddress;
 use AvalynxOffice\Licensing\Service\LicenseEnforcementInterface;
 use AvalynxOffice\Licensing\Service\LicenseOperation;
 use Doctrine\ORM\EntityManagerInterface;
@@ -31,11 +31,11 @@ final readonly class ContactService
     /**
      * @return Address[]
      */
-    public function contactsForMailbox(Mailbox $mailbox): array
+    public function contactsForAccount(Account $account): array
     {
         $contacts = [];
 
-        foreach ($mailbox->getAddressLinks() as $link) {
+        foreach ($account->getAddressLinks() as $link) {
             $address = $link->getAddress();
 
             if (null !== $address && $address->isContact()) {
@@ -48,9 +48,9 @@ final readonly class ContactService
         return $contacts;
     }
 
-    public function contactForMailbox(Mailbox $mailbox, string $addressId): ?Address
+    public function contactForAccount(Account $account, string $addressId): ?Address
     {
-        foreach ($this->contactsForMailbox($mailbox) as $address) {
+        foreach ($this->contactsForAccount($account) as $address) {
             if ($address->getId()?->toRfc4122() === strtolower($addressId)) {
                 return $address;
             }
@@ -63,11 +63,11 @@ final readonly class ContactService
      * Creates a contact from UI form data. The form has already applied the
      * submitted values to the given address.
      */
-    public function createFromForm(Mailbox $mailbox, Address $address): Address
+    public function createFromForm(Account $account, Address $address): Address
     {
         $this->licenseEnforcement->assertCanPerform(LicenseOperation::CONTACT_WRITE);
         $address->setIsContact(true);
-        $mailbox->addAddress($address);
+        $account->addAddress($address);
 
         $this->entityManager->persist($address);
         $this->entityManager->flush();
@@ -88,10 +88,10 @@ final readonly class ContactService
     public function delete(Address $address): void
     {
         $this->licenseEnforcement->assertCanPerform(LicenseOperation::CONTACT_WRITE);
-        // The mailbox links are not cascade-removed with the address; load
+        // The account links are not cascade-removed with the address; load
         // them explicitly so the rows and the in-memory state stay in sync.
-        foreach ($this->entityManager->getRepository(MailboxAddress::class)->findBy(['address' => $address]) as $link) {
-            $link->getMailbox()?->getAddressLinks()->removeElement($link);
+        foreach ($this->entityManager->getRepository(AccountAddress::class)->findBy(['address' => $address]) as $link) {
+            $link->getAccount()?->getAddressLinks()->removeElement($link);
             $this->entityManager->remove($link);
         }
 

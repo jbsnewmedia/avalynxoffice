@@ -39,7 +39,7 @@
                     <form method="post" action="{{ path('license_admin_add_keys') }}">
                         <input type="hidden" name="_token" value="{{ csrf_token('add_license_keys') }}">
                         <label for="license_keys_input" class="form-label">{{ 'license.keys.add'|trans }}</label>
-                        <textarea class="form-control font-monospace" id="license_keys_input" name="license_keys" rows="4" placeholder="WOL1.…" aria-label="{{ 'license.keys.add'|trans }}"></textarea>
+                        <textarea class="form-control font-monospace" id="license_keys_input" name="license_keys" rows="4" aria-label="{{ 'license.keys.add'|trans }}"></textarea>
                         <div class="form-text">{{ 'license.keys.help'|trans }}</div>
                         <button type="submit" class="btn btn-primary mt-3">
                             <i class="fa-solid fa-floppy-disk me-2" aria-hidden="true"></i>{{ 'license.keys.save'|trans }}
@@ -58,7 +58,7 @@
                                 <tr>
                                     <th>{{ 'license.keys.preview'|trans }}</th>
                                     <th>{{ 'license.keys.added_at'|trans }}</th>
-                                    <th class="text-end">{{ 'mailbox.actions'|trans }}</th>
+                                    <th class="text-end">{{ 'account.actions'|trans }}</th>
                                 </tr>
                             </thead>
                             <tbody>

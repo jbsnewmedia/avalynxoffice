@@ -79,7 +79,7 @@ class EmailExtendedTest extends TestCase
     public function testEmailImportKey(): void
     {
         $email = new Email();
-        $importKey = 'mailbox-123:uid-456';
+        $importKey = 'account-123:uid-456';
 
         $this->assertNull($email->getImportKey());
         $email->setImportKey($importKey);
@@ -210,5 +210,23 @@ class EmailExtendedTest extends TestCase
         $this->assertFalse($email->isSending());
         $this->assertTrue($email->isSent());
         $this->assertInstanceOf(\DateTimeImmutable::class, $email->getSentAt());
+    }
+
+    public function testConnectorRoutingFieldsRoundTrip(): void
+    {
+        $email = new Email();
+        $connector = (new \AvalynxOffice\Entity\Connector())
+            ->setName('Example')
+            ->setDomain('example.com');
+
+        $email->setConnector($connector);
+        $email->setMatchedLocalPart(' Info ');
+
+        self::assertSame($connector, $email->getConnector());
+        self::assertSame('info', $email->getMatchedLocalPart());
+
+        $email->setMatchedLocalPart(null);
+        self::assertNull($email->getMatchedLocalPart());
+        self::assertNull($email->getMatchedLocalPart());
     }
 }

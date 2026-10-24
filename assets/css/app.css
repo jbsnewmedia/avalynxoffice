@@ -6,7 +6,7 @@
 body {
     overflow-y: hidden;
 }
-/* Full pages (settings, profile, mailbox forms, login, ...) keep the navbar
+/* Full pages (settings, profile, account forms, login, ...) keep the navbar
    and the footer fixed and scroll only the content area below the navbar:
    the body becomes a full-height flex column, the page wrapper (.min-vh-100
    flex container) takes the remaining space and its flex child (main /
@@ -207,68 +207,68 @@ body:has(> .min-vh-100) > .min-vh-100 > .flex-grow-1 {
         max-width: min(1560px, calc(100vw - 4rem));
     }
 }
-.settings-mailbox-structure {
+.settings-account-structure {
     display: grid;
     gap: 1rem;
 }
-.settings-mailbox-card {
+.settings-account-card {
     border: 1px solid rgba(var(--bs-body-color-rgb), 0.12);
     border-radius: 0.75rem;
     padding: 1rem;
     background: rgba(var(--bs-body-color-rgb), 0.02);
 }
-.settings-mailbox-list-title {
+.settings-account-list-title {
     font-size: 0.85rem;
     font-weight: 600;
     letter-spacing: 0.04em;
     text-transform: uppercase;
     margin-bottom: 0.5rem;
 }
-.settings-mailbox-list {
+.settings-account-list {
     list-style: none;
     margin: 0;
     padding: 0;
     display: grid;
     gap: 0.5rem;
 }
-.settings-mailbox-list li {
+.settings-account-list li {
     border: 1px solid rgba(var(--bs-body-color-rgb), 0.08);
     border-radius: 0.5rem;
     padding: 0.625rem 0.75rem;
     background: var(--bs-body-bg);
 }
-[data-bs-theme=dark] .settings-mailbox-card {
+[data-bs-theme=dark] .settings-account-card {
     background: rgba(255, 255, 255, 0.02);
 }
-.mailbox-list-editor {
+.account-list-editor {
     height: 100%;
     padding: 1rem;
     border: 1px solid rgba(var(--bs-body-color-rgb), 0.12);
     border-radius: 0.75rem;
     background: rgba(var(--bs-body-color-rgb), 0.02);
 }
-.mailbox-list-editor .form-label {
+.account-list-editor .form-label {
     font-weight: 600;
     margin-bottom: 0.75rem;
 }
-.mailbox-list-editor .form-text,
-.mailbox-list-editor .invalid-feedback,
-.mailbox-list-editor .invalid-feedback ul {
+.account-list-editor .form-text,
+.account-list-editor .invalid-feedback,
+.account-list-editor .invalid-feedback ul {
     margin-top: 0.75rem;
     margin-bottom: 0;
 }
-.mailbox-list-editor .invalid-feedback ul {
+.account-list-editor .invalid-feedback ul {
     padding-left: 1rem;
 }
-.mailbox-list-editor-invalid {
+.account-list-editor-invalid {
     border-color: var(--bs-danger);
 }
-.mailbox-list-items {
+.account-list-items {
     display: grid;
     gap: 0.5rem;
     min-height: 3rem;
 }
-.mailbox-list-row {
+.account-list-row {
     display: grid;
     grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) auto;
     gap: 0.75rem;
@@ -278,27 +278,27 @@ body:has(> .min-vh-100) > .min-vh-100 > .flex-grow-1 {
     border-radius: 0.75rem;
     background: var(--bs-body-bg);
 }
-.mailbox-list-editor-folders .mailbox-list-row {
+.account-list-editor-folders .account-list-row {
     grid-template-columns: minmax(0, 1.5fr) 8rem auto;
 }
-.mailbox-list-field {
+.account-list-field {
     min-width: 0;
 }
-.mailbox-list-row-remove {
+.account-list-row-remove {
     width: 2.5rem;
     height: 2.5rem;
     padding: 0;
 }
 @media (max-width: 767.98px) {
-    .mailbox-list-row,
-    .mailbox-list-editor-folders .mailbox-list-row {
+    .account-list-row,
+    .account-list-editor-folders .account-list-row {
         grid-template-columns: 1fr;
     }
-    .mailbox-list-row-remove {
+    .account-list-row-remove {
         width: 100%;
     }
 }
-[data-bs-theme=dark] .mailbox-list-editor {
+[data-bs-theme=dark] .account-list-editor {
     background: rgba(255, 255, 255, 0.02);
 }
 .compose-setting {

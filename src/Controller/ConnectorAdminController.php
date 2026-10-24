@@ -9,12 +9,12 @@ declare(strict_types=1);
 
 namespace AvalynxOffice\Controller;
 
-use AvalynxOffice\Entity\MailboxConnector;
-use AvalynxOffice\Form\MailboxConnectorType;
+use AvalynxOffice\Entity\Connector;
+use AvalynxOffice\Form\ConnectorType;
 use AvalynxOffice\Licensing\Service\LicenseEnforcementInterface;
 use AvalynxOffice\Licensing\Service\LicenseOperation;
-use AvalynxOffice\Repository\MailboxConnectorRepository;
-use AvalynxOffice\Service\MailboxConnectorService;
+use AvalynxOffice\Repository\ConnectorRepository;
+use AvalynxOffice\Service\ConnectorService;
 use AvalynxOffice\Util\AvalynxFormResponse;
 use AvalynxOffice\Util\FormInvalidMapper;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -36,7 +36,7 @@ class ConnectorAdminController extends AbstractController
     }
 
     #[Route('', name: 'connector_index', methods: ['GET'])]
-    public function index(MailboxConnectorRepository $repo): Response
+    public function index(ConnectorRepository $repo): Response
     {
         return $this->render('connector/index.html.twig', [
             'items' => $repo->findBy([], ['name' => 'ASC']),
@@ -44,10 +44,10 @@ class ConnectorAdminController extends AbstractController
     }
 
     #[Route('/new', name: 'connector_new', methods: ['GET', 'POST'])]
-    public function new(Request $request, MailboxConnectorService $connectorService): Response
+    public function new(Request $request, ConnectorService $connectorService): Response
     {
-        $connector = new MailboxConnector();
-        $form = $this->createForm(MailboxConnectorType::class, $connector, [
+        $connector = new Connector();
+        $form = $this->createForm(ConnectorType::class, $connector, [
             'action' => $this->generateUrl('connector_new'),
         ]);
         $form->handleRequest($request);
@@ -72,9 +72,10 @@ class ConnectorAdminController extends AbstractController
     }
 
     #[Route('/{id}/edit', name: 'connector_edit', methods: ['GET', 'POST'])]
-    public function edit(MailboxConnector $connector, Request $request, MailboxConnectorService $connectorService): Response
+    public function edit(Connector $connector, Request $request, ConnectorService $connectorService): Response
     {
-        $form = $this->createForm(MailboxConnectorType::class, $connector, [
+        $formerDefaultAccount = $connector->getDefaultAccount();
+        $form = $this->createForm(ConnectorType::class, $connector, [
             'action' => $this->generateUrl('connector_edit', ['id' => $connector->getId()]),
         ]);
         $form->handleRequest($request);
@@ -82,7 +83,7 @@ class ConnectorAdminController extends AbstractController
         if ($form->isSubmitted() && $form->isValid()) {
             $this->licenseEnforcement->assertCanPerform(LicenseOperation::SETTINGS_WRITE);
             $this->applyPasswordFields($form, $connector);
-            $connectorService->save($connector);
+            $connectorService->save($connector, formerDefaultAccount: $formerDefaultAccount);
             $this->addFlash('success', $this->translator->trans('connector.saved'));
 
             return AvalynxFormResponse::success($this->generateUrl('connector_index'));
@@ -99,7 +100,7 @@ class ConnectorAdminController extends AbstractController
     }
 
     #[Route('/{id}', name: 'connector_delete', methods: ['POST'])]
-    public function delete(MailboxConnector $connector, Request $request, MailboxConnectorService $connectorService): Response
+    public function delete(Connector $connector, Request $request, ConnectorService $connectorService): Response
     {
         $tokenRaw = $request->request->get('_token');
         $token = is_scalar($tokenRaw) ? (string) $tokenRaw : null;
@@ -115,9 +116,9 @@ class ConnectorAdminController extends AbstractController
     }
 
     /**
-     * @param FormInterface<MailboxConnector> $form
+     * @param FormInterface<Connector> $form
      */
-    private function applyPasswordFields(FormInterface $form, MailboxConnector $connector): void
+    private function applyPasswordFields(FormInterface $form, Connector $connector): void
     {
         $pop3Password = $form->get('pop3Password')->getData();
         if (is_string($pop3Password) && '' !== $pop3Password) {

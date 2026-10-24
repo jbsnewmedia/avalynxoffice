@@ -1,4 +1,4 @@
-{% set scopeParams = activeMailboxId is defined and activeMailboxId != 'all' ? {mailbox: activeMailboxId} : {} %}
+{% set scopeParams = activeAccountId is defined and activeAccountId != 'all' ? {account: activeAccountId} : {} %}
 {% set qParams = search is defined and search is not empty ? {q: search} : {} %}
 {% set extraParams = scopeParams|merge(qParams) %}
 <div class="p-3">

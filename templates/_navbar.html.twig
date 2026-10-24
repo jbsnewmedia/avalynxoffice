@@ -3,14 +3,14 @@
     showMidToggle (bool) — whether to show the mid (list) toggle; defaults to true
     activeModule (string) — currently active module: 'mail'|'contacts'|'calendar'; empty = none
     userMenuActive (bool) — whether the user menu (right) is highlighted as active
-    leftToggle (array) — mobile toggle config {target, icon, label}; defaults to the mailboxes offcanvas
+    leftToggle (array) — mobile toggle config {target, icon, label}; defaults to the accounts offcanvas
     midToggle (array) — mobile toggle config {target, icon, label}; defaults to the email list offcanvas
 #}
 {% set showMailToggles = showMailToggles|default(false) %}
 {% set showMidToggle = showMidToggle|default(true) %}
 {% set activeModule = activeModule|default('') %}
 {% set userMenuActive = userMenuActive|default(false) %}
-{% set leftToggle = leftToggle|default({target: '#mailboxOffcanvas', icon: 'fa-inbox', label: 'nav.show_mailboxes'}) %}
+{% set leftToggle = leftToggle|default({target: '#accountOffcanvas', icon: 'fa-inbox', label: 'nav.show_accounts'}) %}
 {% set midToggle = midToggle|default({target: '#emailListOffcanvas', icon: 'fa-list', label: 'nav.show_email_list'}) %}
 {% set modules = {
     'mail': {route: 'mail_index', icon: 'fa-envelope', label: 'nav.mails'},

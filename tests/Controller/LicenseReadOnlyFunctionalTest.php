@@ -11,9 +11,9 @@ use AvalynxOffice\Entity\Email;
 use AvalynxOffice\Entity\EmailAttachmentLink;
 use AvalynxOffice\Entity\EmailFolder;
 use AvalynxOffice\Entity\Folder;
-use AvalynxOffice\Entity\Mailbox;
-use AvalynxOffice\Entity\MailboxAddress;
-use AvalynxOffice\Entity\MailboxConnector;
+use AvalynxOffice\Entity\Account;
+use AvalynxOffice\Entity\AccountAddress;
+use AvalynxOffice\Entity\Connector;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Licensing\Service\LicenseManager;
 use AvalynxOffice\Service\Mail\AttachmentStorage;
@@ -40,7 +40,7 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
 
     private User $admin;
 
-    private Mailbox $mailbox;
+    private Account $account;
 
     private Folder $inbox;
 
@@ -50,7 +50,7 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
 
     private CalendarEvent $event;
 
-    private MailboxConnector $connector;
+    private Connector $connector;
 
     protected function setUp(): void
     {
@@ -96,14 +96,14 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
         $state->setViolationStartedAt(new \DateTimeImmutable('-100 days', new \DateTimeZone('UTC')));
         $state->setGracePeriodEndsAt(new \DateTimeImmutable('-70 days', new \DateTimeZone('UTC')));
 
-        $this->mailbox = new Mailbox();
-        $this->mailbox->setName('Info')->setEmail('info@example.com');
-        $this->em->persist($this->mailbox);
+        $this->account = new Account();
+        $this->account->setName('Info')->setEmail('info@example.com');
+        $this->em->persist($this->account);
 
-        $this->connector = new MailboxConnector();
-        $this->connector->setMailbox($this->mailbox);
+        $this->connector = new Connector();
+        $this->connector->setDefaultAccount($this->account);
         $this->connector->setName('Primary');
-        $this->connector->setEmail('info@example.com');
+        $this->connector->setDomain('example.com');
         $this->connector->setPop3Host('pop3.example.com');
         $this->connector->setPop3Username('info');
         $this->connector->setPop3Password('secret');
@@ -113,15 +113,15 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
         $this->inbox = (new Folder())->setName('Posteingang');
         $this->inbox->setFunctions([\AvalynxOffice\Entity\Enum\FolderFunction::INBOX->value]);
         $this->em->persist($this->inbox);
-        $this->mailbox->setInboxFolder($this->inbox);
-        $inboxLink = new \AvalynxOffice\Entity\FolderMailbox();
-        $inboxLink->setMailbox($this->mailbox);
+        $this->account->setInboxFolder($this->inbox);
+        $inboxLink = new \AvalynxOffice\Entity\FolderAccount();
+        $inboxLink->setAccount($this->account);
         $inboxLink->setFolder($this->inbox);
         $this->em->persist($inboxLink);
 
         $this->email = new Email();
         $this->email->setSubject('Incoming message');
-        $this->email->setMailbox($this->mailbox);
+        $this->email->setAccount($this->account);
         $this->email->setPreviewBody('Body');
         $emailFolder = new EmailFolder();
         $emailFolder->setEmail($this->email);
@@ -134,15 +134,15 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
         $this->contact->setName('Contact');
         $this->contact->setIsContact(true);
         $this->em->persist($this->contact);
-        $mailboxAddress = new MailboxAddress();
-        $mailboxAddress->setMailbox($this->mailbox);
-        $mailboxAddress->setAddress($this->contact);
-        $this->em->persist($mailboxAddress);
+        $accountAddress = new AccountAddress();
+        $accountAddress->setAccount($this->account);
+        $accountAddress->setAddress($this->contact);
+        $this->em->persist($accountAddress);
 
         $this->event = new CalendarEvent();
         $this->event->setTitle('Review');
         $this->event->setStartAt(new \DateTimeImmutable('+1 day'));
-        $this->event->setMailbox($this->mailbox);
+        $this->event->setAccount($this->account);
         $this->em->persist($this->event);
 
         $this->em->flush();
@@ -301,18 +301,18 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
         self::assertSelectorTextContains('body', 'contact@example.com');
     }
 
-    public function testMailboxDeleteIsBlocked(): void
+    public function testAccountDeleteIsBlocked(): void
     {
         $this->client->loginUser($this->admin);
-        $token = $this->setCsrfToken('delete_mailbox_'.$this->mailbox->getId());
+        $token = $this->setCsrfToken('delete_account_'.$this->account->getId());
 
-        $this->client->request('POST', '/settings/mailboxes/'.$this->mailbox->getId(), ['_token' => $token], [], [
+        $this->client->request('POST', '/settings/accounts/'.$this->account->getId(), ['_token' => $token], [], [
             'HTTP_X-Requested-With' => 'XMLHttpRequest',
         ]);
 
         self::assertResponseStatusCodeSame(403);
         $this->em->clear();
-        self::assertNotNull($this->em->find(Mailbox::class, $this->mailbox->getId()));
+        self::assertNotNull($this->em->find(Account::class, $this->account->getId()));
     }
 
     public function testConnectorDeleteIsBlocked(): void
@@ -326,7 +326,7 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(403);
         $this->em->clear();
-        self::assertNotNull($this->em->find(MailboxConnector::class, $this->connector->getId()));
+        self::assertNotNull($this->em->find(Connector::class, $this->connector->getId()));
     }
 
     public function testLicenseKeyManagementStaysPossibleWhileReadOnly(): void
@@ -387,11 +387,11 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
         self::assertResponseRedirects('/admin/license/users');
     }
 
-    public function testFolderCreationForNewMailboxKeepsWorkingBecauseItIsTechnical(): void
+    public function testFolderCreationForNewAccountKeepsWorkingBecauseItIsTechnical(): void
     {
-        // Mailbox admin index (read-only view) must stay reachable.
+        // Account admin index (read-only view) must stay reachable.
         $this->client->loginUser($this->admin);
-        $this->client->request('GET', '/settings/mailboxes', [], [], [
+        $this->client->request('GET', '/settings/accounts', [], [], [
             'HTTP_X-Requested-With' => 'XMLHttpRequest',
         ]);
 
@@ -400,7 +400,7 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
 
     public function testMailImportKeepsWorkingWhileReadOnly(): void
     {
-        $mailbox = $this->mailbox;
+        $account = $this->account;
         $inbox = $this->inbox;
 
         // Build a fetcher against the real container services but a mocked
@@ -432,6 +432,7 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
             static::getContainer()->get(FolderManager::class),
             static::getContainer()->get(AttachmentStorage::class),
             $factory,
+            static::getContainer()->get(\AvalynxOffice\Service\Mail\MailRoutingService::class),
         );
 
         $result = $fetcher->fetchForConnector($connector);
@@ -445,7 +446,7 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
         self::assertNotNull($imported);
         self::assertSame('Imported while read-only', $imported->getSubject());
         self::assertFalse($imported->isRead());
-        // The message is assigned to an inbox folder of the mailbox.
+        // The message is assigned to an inbox folder of the account.
         $assignedToInbox = false;
         foreach ($imported->getEmailFolders() as $emailFolder) {
             $folder = $emailFolder->getFolder();
@@ -454,7 +455,7 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
             }
         }
         self::assertTrue($assignedToInbox);
-        self::assertSame($mailbox->getId()?->toRfc4122(), $imported->getMailbox()?->getId()?->toRfc4122());
+        self::assertSame($account->getId()?->toRfc4122(), $imported->getAccount()?->getId()?->toRfc4122());
 
         // A repeated import does not create duplicates.
         $storage2 = $this->createMock(\Laminas\Mail\Storage\Pop3::class);

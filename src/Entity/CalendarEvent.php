@@ -62,9 +62,9 @@ class CalendarEvent
     private ?int $sensitivity = null;
     #[ORM\Column(type: 'smallint', nullable: true)]
     private ?int $reminder = null;
-    #[ORM\ManyToOne(targetEntity: Mailbox::class)]
-    #[ORM\JoinColumn(name: 'mailbox_id', referencedColumnName: 'id', nullable: true)]
-    private ?Mailbox $mailbox = null;
+    #[ORM\ManyToOne(targetEntity: Account::class)]
+    #[ORM\JoinColumn(name: 'account_id', referencedColumnName: 'id', nullable: true)]
+    private ?Account $account = null;
 
     public function __construct()
     {
@@ -148,14 +148,14 @@ class CalendarEvent
         return $this;
     }
 
-    public function getMailbox(): ?Mailbox
+    public function getAccount(): ?Account
     {
-        return $this->mailbox;
+        return $this->account;
     }
 
-    public function setMailbox(?Mailbox $mailbox): self
+    public function setAccount(?Account $account): self
     {
-        $this->mailbox = $mailbox;
+        $this->account = $account;
 
         return $this;
     }

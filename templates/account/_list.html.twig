@@ -1,0 +1,96 @@
+<div class="p-4">
+    <div class="d-flex align-items-center mb-4">
+        <a href="{{ path('app_settings') }}" class="btn btn-outline-secondary me-2" aria-label="{{ 'common.back'|trans }}" title="{{ 'common.back'|trans }}">
+            <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+        </a>
+        <h4 class="m-0">{{ 'account.title'|trans }}</h4>
+        <div class="ms-auto d-flex gap-2">
+            <a href="{{ path('account_new') }}" class="btn btn-primary">
+                <i class="fa-solid fa-plus me-2" aria-hidden="true"></i>{{ 'account.new'|trans }}
+            </a>
+        </div>
+    </div>
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>{{ 'account.name'|trans }}</th>
+                        <th>{{ 'account.email'|trans }}</th>
+                        <th>{{ 'account.users'|trans }}</th>
+                        <th>{{ 'account.aliases'|trans }}</th>
+                        <th>{{ 'account.folders'|trans }}</th>
+                        <th>{{ 'account.actions'|trans }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for m in items %}
+                    <tr>
+                        <td>{{ m.name }}</td>
+                        <td>{{ m.email }}</td>
+                        <td>
+                            {% if m.users|length > 0 %}
+                                <div class="d-flex flex-wrap gap-1">
+                                    {% for user in m.users %}
+                                        <span class="badge bg-secondary-subtle text-body">{{ user.email }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <span class="text-body-secondary small">{{ 'account.no_users'|trans }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if m.aliases|length > 0 %}
+                                <div class="d-flex flex-wrap gap-1">
+                                    {% for alias in m.aliases %}
+                                        <span class="badge bg-secondary-subtle text-body">{{ alias.localPart }}@{{ alias.connector.domain }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <span class="text-body-secondary small">{{ 'account.no_addresses'|trans }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if m.folders|length > 0 %}
+                                <div class="d-flex flex-wrap gap-1">
+                                    {% for folder in m.folders %}
+                                        <span class="badge bg-light text-body border">
+                                            {{ folder.name }}
+                                            {% if folder.functions is empty %}
+                                                <span class="badge bg-secondary-subtle text-body ms-1">{{ 'folder.function.none'|trans }}</span>
+                                            {% else %}
+                                                {% for function in folder.functions %}
+                                                    <span class="badge bg-secondary-subtle text-body ms-1">{{ ('folder.function.' ~ function)|trans }}</span>
+                                                {% endfor %}
+                                            {% endif %}
+                                        </span>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <span class="text-body-secondary small">{{ 'folder.none'|trans }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-nowrap">
+                            <a href="{{ path('account_edit', {id: m.id}) }}" class="btn btn-sm btn-primary" title="{{ 'account.edit'|trans }}" aria-label="{{ 'account.edit'|trans }}">
+                                <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
+                            </a>
+                            <form method="post" action="{{ path('account_delete', {id: m.id}) }}" class="d-inline">
+                                <input type="hidden" name="_token" value="{{ csrf_token('delete_account_' ~ m.id) }}">
+                                <button type="button" class="btn btn-sm btn-outline-danger confirm-action" data-confirm="{{ 'account.confirm_delete'|trans }}" title="{{ 'email.delete'|trans }}" aria-label="{{ 'email.delete'|trans }}">
+                                    <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="6" class="text-body-secondary text-center py-4">{{ 'account.none'|trans }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        </div>
+    </div>
+</div>

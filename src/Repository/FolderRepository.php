@@ -9,8 +9,8 @@ declare(strict_types=1);
 
 namespace AvalynxOffice\Repository;
 
+use AvalynxOffice\Entity\Account;
 use AvalynxOffice\Entity\Folder;
-use AvalynxOffice\Entity\Mailbox;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -27,11 +27,11 @@ class FolderRepository extends ServiceEntityRepository
     /**
      * @return array<Folder>
      */
-    public function findFoldersLinkedToAnyMailbox(): array
+    public function findFoldersLinkedToAnyAccount(): array
     {
         /** @var array<Folder> $result */
         $result = $this->createQueryBuilder('f')
-            ->innerJoin('f.mailboxLinks', 'fm')
+            ->innerJoin('f.accountLinks', 'fm')
             ->addSelect('fm')
             ->orderBy('f.name', 'ASC')
             ->getQuery()
@@ -41,21 +41,21 @@ class FolderRepository extends ServiceEntityRepository
     }
 
     /**
-     * @param array<Mailbox> $mailboxes
+     * @param array<Account> $accounts
      *
      * @return array<Folder>
      */
-    public function findFoldersLinkedToMailboxes(array $mailboxes): array
+    public function findFoldersLinkedToAccounts(array $accounts): array
     {
-        if ([] === $mailboxes) {
+        if ([] === $accounts) {
             return [];
         }
 
         /** @var array<Folder> $result */
         $result = $this->createQueryBuilder('f')
-            ->innerJoin('f.mailboxLinks', 'fm')
-            ->where('fm.mailbox IN (:mailboxes)')
-            ->setParameter('mailboxes', $mailboxes)
+            ->innerJoin('f.accountLinks', 'fm')
+            ->where('fm.account IN (:accounts)')
+            ->setParameter('accounts', $accounts)
             ->addSelect('fm')
             ->orderBy('f.name', 'ASC')
             ->getQuery()
@@ -67,10 +67,10 @@ class FolderRepository extends ServiceEntityRepository
     /**
      * @return array<Folder>
      */
-    public function findByMailboxOrderByAssignment(Mailbox $mailbox): array
+    public function findByAccountOrderByAssignment(Account $account): array
     {
         $items = [];
-        foreach ($mailbox->getFolderLinks() as $link) {
+        foreach ($account->getFolderLinks() as $link) {
             $folder = $link->getFolder();
             if (!$folder) {
                 continue;
@@ -103,11 +103,11 @@ class FolderRepository extends ServiceEntityRepository
         return $folders;
     }
 
-    public function findFirstFolderForMailbox(Mailbox $mailbox): ?Folder
+    public function findFirstFolderForAccount(Account $account): ?Folder
     {
         $first = null;
         $bestKey = null; // tuple [sort, name]
-        foreach ($mailbox->getFolderLinks() as $link) {
+        foreach ($account->getFolderLinks() as $link) {
             $folder = $link->getFolder();
             if (!$folder) {
                 continue;

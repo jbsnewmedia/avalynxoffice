@@ -49,13 +49,14 @@ use AvalynxOffice\Entity\Address;
 use AvalynxOffice\Entity\Email;
 use AvalynxOffice\Entity\Enum\EmailAddressType;
 use AvalynxOffice\Entity\Folder;
-use AvalynxOffice\Entity\Mailbox;
-use AvalynxOffice\Entity\MailboxConnector;
+use AvalynxOffice\Entity\Account;
+use AvalynxOffice\Entity\Connector;
 use AvalynxOffice\Repository\EmailRepository;
 use AvalynxOffice\Service\Mail\AttachmentStorage;
 use AvalynxOffice\Service\Mail\FolderManager;
 use AvalynxOffice\Service\Mail\Pop3Fetcher;
 use AvalynxOffice\Service\Mail\Pop3FetcherTestFunctionOverrides;
+use AvalynxOffice\Service\Mail\MailRoutingService;
 use AvalynxOffice\Service\Mail\Pop3StorageFactory;
 use Doctrine\ORM\EntityManagerInterface;
 use Laminas\Mail\Header\HeaderInterface;
@@ -80,6 +81,7 @@ final class Pop3FetcherHelperTest extends TestCase
             $this->createStub(FolderManager::class),
             $this->createStub(AttachmentStorage::class),
             $this->createStub(Pop3StorageFactory::class),
+            $this->createStub(MailRoutingService::class),
         );
     }
 
@@ -90,10 +92,10 @@ final class Pop3FetcherHelperTest extends TestCase
         $output
             ->expects(self::once())
             ->method('writeln')
-            ->with('<error>   Connector is not assigned to a mailbox.</error>');
+            ->with('<error>   POP3 configuration incomplete.</error>');
 
         self::assertSame($this->fetcher, $this->fetcher->setOutput($output));
-        self::assertSame(['imported' => 0, 'skipped' => 0, 'errors' => 0], $this->fetcher->fetchForConnector(new MailboxConnector()));
+        self::assertSame(['imported' => 0, 'skipped' => 0, 'errors' => 0], $this->fetcher->fetchForConnector(new Connector()));
     }
 
     public function testSafeHeaderReturnsNullOnFailureAndDecodeHeaderCanUseMbDecodeFallback(): void
@@ -191,6 +193,7 @@ final class Pop3FetcherHelperTest extends TestCase
             $this->createStub(FolderManager::class),
             $attachmentStorage,
             $this->createStub(Pop3StorageFactory::class),
+            $this->createStub(MailRoutingService::class),
         );
         $email = new Email();
         $part = $this->createPartStub('payload', 'text/plain; charset=UTF-8', '', 'attachment; filename="file.txt"');
@@ -204,8 +207,9 @@ final class Pop3FetcherHelperTest extends TestCase
 
     public function testDumpOriginalMessageWritesPendingAndFinalFilesAndRemovesPendingDump(): void
     {
-        $connector = (new MailboxConnector())
-            ->setEmail('support@example.com')
+        $connector = (new Connector())
+            ->setName('Support')
+            ->setDomain('example.com')
             ->setPop3Username('support')
             ->setPop3Host('mail.example.com')
             ->setPop3Password('secret');
@@ -224,23 +228,23 @@ final class Pop3FetcherHelperTest extends TestCase
         try {
             chdir($tempDir);
 
-            $this->callPrivateMethod('dumpOriginalMessage', [$message, $connector, null, 'mailbox:uid-1', 'pending']);
-            self::assertFileExists($tempDir.'/mail_dumps/support@example.com/2024/01/02/pending/mailbox_uid-1.eml');
+            $this->callPrivateMethod('dumpOriginalMessage', [$message, $connector, null, 'account:uid-1', 'pending']);
+            self::assertFileExists($tempDir.'/mail_dumps/example.com/2024/01/02/pending/account_uid-1.eml');
             self::assertInstanceOf(\DateTimeImmutable::class, $this->callPrivateMethod('extractDateFromMessage', [$message]));
 
-            $this->callPrivateMethod('dumpOriginalMessage', [$message, $connector, $email, 'mailbox:uid-1', 'success']);
+            $this->callPrivateMethod('dumpOriginalMessage', [$message, $connector, $email, 'account:uid-1', 'success']);
 
-            self::assertFileDoesNotExist($tempDir.'/mail_dumps/support@example.com/2024/01/02/pending/mailbox_uid-1.eml');
-            self::assertFileExists($tempDir.'/mail_dumps/support@example.com/2024/01/02/success/hash123.eml');
-            self::assertSame('support@example.com', $this->callPrivateMethod('getConnectorDumpKey', [$connector]));
+            self::assertFileDoesNotExist($tempDir.'/mail_dumps/example.com/2024/01/02/pending/account_uid-1.eml');
+            self::assertFileExists($tempDir.'/mail_dumps/example.com/2024/01/02/success/hash123.eml');
+            self::assertSame('example.com', $this->callPrivateMethod('getConnectorDumpKey', [$connector]));
 
             $emailWithoutHash = (new Email())
                 ->setId(Uuid::v7())
                 ->setReceivedAt(new \DateTimeImmutable('2024-01-02 03:04:05'));
-            $this->callPrivateMethod('dumpOriginalMessage', [$message, $connector, null, 'mailbox:uid-2', 'pending']);
-            $this->callPrivateMethod('dumpOriginalMessage', [$message, $connector, $emailWithoutHash, 'mailbox:uid-2', 'success']);
-            self::assertFileExists($tempDir.'/mail_dumps/support@example.com/2024/01/02/success/'.$emailWithoutHash->getId().'.eml');
-            self::assertFileDoesNotExist($tempDir.'/mail_dumps/support@example.com/2024/01/02/pending/mailbox_uid-2.eml');
+            $this->callPrivateMethod('dumpOriginalMessage', [$message, $connector, null, 'account:uid-2', 'pending']);
+            $this->callPrivateMethod('dumpOriginalMessage', [$message, $connector, $emailWithoutHash, 'account:uid-2', 'success']);
+            self::assertFileExists($tempDir.'/mail_dumps/example.com/2024/01/02/success/'.$emailWithoutHash->getId().'.eml');
+            self::assertFileDoesNotExist($tempDir.'/mail_dumps/example.com/2024/01/02/pending/account_uid-2.eml');
 
             $invalidDateMessage = $this->createMessageStub("Date: invalid", 'body', 'invalid-date');
             self::assertNull($this->callPrivateMethod('extractDateFromMessage', [$invalidDateMessage]));
@@ -264,20 +268,20 @@ final class Pop3FetcherHelperTest extends TestCase
 
         $message = $this->createStub(StorageMessage::class);
         $message->method('getHeaders')->willThrowException(new \RuntimeException('cannot serialize'));
-        $connector = $this->createStub(MailboxConnector::class);
-        $connector->method('getEmail')->willReturn('support@example.com');
+        $connector = $this->createStub(Connector::class);
+        $connector->method('getDomain')->willReturn('example.com');
 
         $this->callPrivateMethod('dumpOriginalMessage', [$message, $connector, null, 'import:key']);
 
-        $brokenConnector = $this->createStub(MailboxConnector::class);
-        $brokenConnector->method('getEmail')->willThrowException(new \RuntimeException('connector broken'));
+        $brokenConnector = $this->createStub(Connector::class);
+        $brokenConnector->method('getDomain')->willThrowException(new \RuntimeException('connector broken'));
 
         $this->callPrivateMethod('removePendingDump', [$brokenConnector, 'import:key']);
     }
 
     public function testConvertMessageToEntityBuildsHtmlEmailAndFallbackInboxFolder(): void
     {
-        $mailbox = (new Mailbox())
+        $account = (new Account())
             ->setName('Support')
             ->setEmail('support@example.com');
         $folder = (new Folder())->setName('Postfach');
@@ -304,6 +308,7 @@ final class Pop3FetcherHelperTest extends TestCase
             $folderManager,
             $this->createStub(AttachmentStorage::class),
             $this->createStub(Pop3StorageFactory::class),
+            $this->createStub(MailRoutingService::class),
         );
         $message = $this->createRichMessageStub(
             [
@@ -321,7 +326,7 @@ final class Pop3FetcherHelperTest extends TestCase
         );
 
         /** @var Email $email */
-        $email = $this->callPrivateMethodOn($fetcher, 'convertMessageToEntity', [$message, $mailbox, 'import-key']);
+        $email = $this->callPrivateMethodOn($fetcher, 'convertMessageToEntity', [$message, $account, 'import-key']);
 
         self::assertSame('Subject line', $email->getSubject());
         self::assertSame('abc@example.com', $email->getMessageId());
@@ -335,10 +340,10 @@ final class Pop3FetcherHelperTest extends TestCase
 
     public function testConvertMessageToEntityBuildsTextPreviewAndHandlesInvalidDate(): void
     {
-        $mailbox = (new Mailbox())
+        $account = (new Account())
             ->setName('Support')
             ->setEmail('support@example.com');
-        $mailbox->setInboxFolder($folder = (new Folder())->setName('Inbox'));
+        $account->setInboxFolder($folder = (new Folder())->setName('Inbox'));
 
         $address = (new Address())->setEmail('sender@example.com');
         $addressRepository = $this->createStub(\Doctrine\ORM\EntityRepository::class);
@@ -358,6 +363,7 @@ final class Pop3FetcherHelperTest extends TestCase
             $folderManager,
             $this->createStub(AttachmentStorage::class),
             $this->createStub(Pop3StorageFactory::class),
+            $this->createStub(MailRoutingService::class),
         );
         $message = $this->createRichMessageStub(
             [
@@ -370,7 +376,7 @@ final class Pop3FetcherHelperTest extends TestCase
         );
 
         /** @var Email $email */
-        $email = $this->callPrivateMethodOn($fetcher, 'convertMessageToEntity', [$message, $mailbox, 'import-key']);
+        $email = $this->callPrivateMethodOn($fetcher, 'convertMessageToEntity', [$message, $account, 'import-key']);
 
         self::assertNull($email->getReceivedAt());
         self::assertSame('Plain text body', $email->getPreviewBody());
@@ -412,6 +418,7 @@ final class Pop3FetcherHelperTest extends TestCase
             $this->createStub(FolderManager::class),
             $attachmentStorage,
             $this->createStub(Pop3StorageFactory::class),
+            $this->createStub(MailRoutingService::class),
         );
         $rawMessage = implode("\r\n", [
             'Content-Type: multipart/mixed; boundary="pop3-boundary"',
@@ -473,6 +480,7 @@ final class Pop3FetcherHelperTest extends TestCase
             $this->createStub(FolderManager::class),
             $this->createStub(AttachmentStorage::class),
             $this->createStub(Pop3StorageFactory::class),
+            $this->createStub(MailRoutingService::class),
         );
         $email = new Email();
 

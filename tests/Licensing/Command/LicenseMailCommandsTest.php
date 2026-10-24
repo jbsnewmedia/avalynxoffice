@@ -7,7 +7,7 @@ namespace AvalynxOffice\Tests\Licensing\Command;
 use AvalynxOffice\Command\LicenseReleaseMailCommand;
 use AvalynxOffice\Command\MailSendCommand;
 use AvalynxOffice\Entity\Email;
-use AvalynxOffice\Entity\Mailbox;
+use AvalynxOffice\Entity\Account;
 use AvalynxOffice\Licensing\Service\LicenseManager;
 use AvalynxOffice\Repository\EmailRepository;
 use AvalynxOffice\Tests\Support\RefreshDatabaseTrait;
@@ -33,17 +33,17 @@ final class LicenseMailCommandsTest extends KernelTestCase
 
     private function createOutgoingEmail(bool $sent = false, bool $licenseHold = false, ?\DateTimeImmutable $scheduledAt = null): Email
     {
-        $mailbox = new Mailbox();
-        $mailbox->setName('Support')->setEmail('support@example.com');
+        $account = new Account();
+        $account->setName('Support')->setEmail('support@example.com');
         $email = new Email();
         $email->setSubject('Queued message');
-        $email->setMailbox($mailbox);
+        $email->setAccount($account);
         $email->setIsOutgoing(true);
         $email->setIsDraft(false);
         $email->setIsSent($sent);
         $email->setLicenseHold($licenseHold);
         $email->setScheduledAt($scheduledAt);
-        $this->em->persist($mailbox);
+        $this->em->persist($account);
         $this->em->persist($email);
         $this->em->flush();
 
@@ -189,6 +189,7 @@ final class LicenseMailCommandsTest extends KernelTestCase
             $this->createStub(\AvalynxOffice\Service\Mail\FolderManager::class),
             $this->createStub(\AvalynxOffice\Service\Mail\AttachmentStorage::class),
             $this->createStub(\AvalynxOffice\Service\Mail\SmtpMailerFactory::class),
+            $this->createStub(\AvalynxOffice\Repository\ConnectorRepository::class),
             new \AvalynxOffice\Tests\Support\FlippingReadOnlyLicenseEnforcement(2),
         );
 

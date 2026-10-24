@@ -6,8 +6,8 @@ namespace AvalynxOffice\Tests\Entity;
 
 use AvalynxOffice\Entity\Enum\FolderFunction;
 use AvalynxOffice\Entity\Folder;
-use AvalynxOffice\Entity\FolderMailbox;
-use AvalynxOffice\Entity\Mailbox;
+use AvalynxOffice\Entity\FolderAccount;
+use AvalynxOffice\Entity\Account;
 use PHPUnit\Framework\TestCase;
 
 final class FolderExtendedTest extends TestCase
@@ -39,20 +39,20 @@ final class FolderExtendedTest extends TestCase
         self::assertFalse($folder->hasAnyFunction());
     }
 
-    public function testGetMailboxesDeduplicatesFromLinks(): void
+    public function testGetAccountsDeduplicatesFromLinks(): void
     {
         $folder = (new Folder())->setName('Inbox');
-        $mailboxA = (new Mailbox())->setName('A')->setEmail('a@example.com');
-        $mailboxB = (new Mailbox())->setName('B')->setEmail('b@example.com');
+        $accountA = (new Account())->setName('A')->setEmail('a@example.com');
+        $accountB = (new Account())->setName('B')->setEmail('b@example.com');
 
-        $folder->getMailboxLinks()->add((new FolderMailbox())->setFolder($folder)->setMailbox($mailboxA));
-        $folder->getMailboxLinks()->add((new FolderMailbox())->setFolder($folder)->setMailbox($mailboxA));
-        $folder->getMailboxLinks()->add((new FolderMailbox())->setFolder($folder)->setMailbox($mailboxB));
+        $folder->getAccountLinks()->add((new FolderAccount())->setFolder($folder)->setAccount($accountA));
+        $folder->getAccountLinks()->add((new FolderAccount())->setFolder($folder)->setAccount($accountA));
+        $folder->getAccountLinks()->add((new FolderAccount())->setFolder($folder)->setAccount($accountB));
 
-        $mailboxes = $folder->getMailboxes();
+        $accounts = $folder->getAccounts();
 
-        self::assertCount(2, $mailboxes);
-        self::assertTrue($mailboxes->contains($mailboxA));
-        self::assertTrue($mailboxes->contains($mailboxB));
+        self::assertCount(2, $accounts);
+        self::assertTrue($accounts->contains($accountA));
+        self::assertTrue($accounts->contains($accountB));
     }
 }

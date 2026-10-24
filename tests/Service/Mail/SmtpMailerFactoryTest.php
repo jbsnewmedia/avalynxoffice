@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace AvalynxOffice\Tests\Service\Mail;
 
-use AvalynxOffice\Entity\MailboxConnector;
+use AvalynxOffice\Entity\Connector;
 use AvalynxOffice\Service\Mail\SmtpMailerFactory;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Mailer\MailerInterface;
@@ -13,9 +13,9 @@ final class SmtpMailerFactoryTest extends TestCase
 {
     public function testCreatesMailerForPlainSmtpConnector(): void
     {
-        $connector = (new MailboxConnector())
+        $connector = (new Connector())
             ->setName('SMTP')
-            ->setEmail('smtp@example.com')
+            ->setDomain('example.com')
             ->setSmtpHost('mail.example.com')
             ->setSmtpUsername('user@example.com')
             ->setSmtpPassword('secret pass')
@@ -28,9 +28,9 @@ final class SmtpMailerFactoryTest extends TestCase
 
     public function testCreatesMailerForSslConnectorWithDefaultPort(): void
     {
-        $connector = (new MailboxConnector())
+        $connector = (new Connector())
             ->setName('SMTP')
-            ->setEmail('smtp@example.com')
+            ->setDomain('example.com')
             ->setSmtpHost('mail.example.com')
             ->setSmtpSecurity('ssl');
 

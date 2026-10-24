@@ -24,12 +24,12 @@ final class DataControllerTest extends TestCase
         $dataService = $this->createMock(DataService::class);
         $dataService->expects(self::once())
             ->method('getAllData')
-            ->willReturn(['mailboxes' => [['id' => 1]]]);
+            ->willReturn(['accounts' => [['id' => 1]]]);
 
         $response = (new DataController())->all($dataService);
 
         self::assertSame(Response::HTTP_OK, $response->getStatusCode());
-        self::assertJsonStringEqualsJsonString('{"mailboxes":[{"id":1}]}', (string) $response->getContent());
+        self::assertJsonStringEqualsJsonString('{"accounts":[{"id":1}]}', (string) $response->getContent());
     }
 
     public function testAddressSuggestionsFormatsNamedAndUnnamedAddresses(): void

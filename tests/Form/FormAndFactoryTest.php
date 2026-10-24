@@ -9,17 +9,17 @@ use AvalynxOffice\Entity\Attachment;
 use AvalynxOffice\Entity\Body;
 use AvalynxOffice\Entity\Email;
 use AvalynxOffice\Entity\Folder;
-use AvalynxOffice\Entity\Mailbox;
-use AvalynxOffice\Entity\MailboxConnector;
+use AvalynxOffice\Entity\Account;
+use AvalynxOffice\Entity\Connector;
 use AvalynxOffice\Factory\AddressFactory;
 use AvalynxOffice\Factory\AttachmentFactory;
 use AvalynxOffice\Factory\BodyFactory;
 use AvalynxOffice\Factory\EmailFactory;
 use AvalynxOffice\Factory\FolderFactory;
-use AvalynxOffice\Factory\MailboxFactory;
+use AvalynxOffice\Factory\AccountFactory;
 use AvalynxOffice\Form\EmailReplyType;
-use AvalynxOffice\Form\MailboxConnectorType;
-use AvalynxOffice\Form\MailboxType;
+use AvalynxOffice\Form\ConnectorType;
+use AvalynxOffice\Form\AccountType;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Form\FormBuilderInterface;
@@ -43,39 +43,45 @@ final class FormAndFactoryTest extends TestCase
         self::assertSame([], $resolver->resolve()['sender_choices']);
     }
 
-    public function testMailboxTypeBuildsExpectedFieldsAndDefaults(): void
+    public function testAccountTypeBuildsExpectedFieldsAndDefaults(): void
     {
         $addedFields = [];
         $builder = $this->createBuilderSpy($addedFields);
-        $options = ['aliases_data' => 'aliases', 'folders_data' => 'folders'];
+        $options = [
+            'aliases_data' => 'aliases',
+            'folders_data' => 'folders',
+            'users_data' => [],
+        ];
 
-        (new MailboxType())->buildForm($builder, $options);
+        (new AccountType())->buildForm($builder, $options);
 
-        self::assertSame(['name', 'email', 'aliases', 'folders', 'save'], array_column($addedFields, 0));
-        self::assertSame('aliases', $addedFields[2][2]['data']);
-        self::assertSame('folders', $addedFields[3][2]['data']);
+        self::assertSame(['name', 'email', 'users', 'aliases', 'folders', 'save'], array_column($addedFields, 0));
+        self::assertSame([], $addedFields[2][2]['data']);
+        self::assertSame('aliases', $addedFields[3][2]['data']);
+        self::assertSame('folders', $addedFields[4][2]['data']);
 
         $resolver = new OptionsResolver();
-        (new MailboxType())->configureOptions($resolver);
+        (new AccountType())->configureOptions($resolver);
         $resolved = $resolver->resolve();
 
-        self::assertSame(Mailbox::class, $resolved['data_class']);
+        self::assertSame(Account::class, $resolved['data_class']);
         self::assertSame('', $resolved['aliases_data']);
         self::assertSame('', $resolved['folders_data']);
+        self::assertSame([], $resolved['users_data']);
+        self::assertSame([], $resolved['connector_options']);
     }
 
-    public function testMailboxConnectorTypeBuildsExpectedFieldsAndDefaults(): void
+    public function testAccountConnectorTypeBuildsExpectedFieldsAndDefaults(): void
     {
         $addedFields = [];
         $builder = $this->createBuilderSpy($addedFields);
 
-        (new MailboxConnectorType())->buildForm($builder, []);
+        (new ConnectorType())->buildForm($builder, []);
 
         self::assertSame([
-            'mailbox',
             'name',
-            'email',
-            'isPrimary',
+            'domain',
+            'defaultAccount',
             'pop3Host',
             'pop3Port',
             'pop3Username',
@@ -91,9 +97,9 @@ final class FormAndFactoryTest extends TestCase
         ], array_column($addedFields, 0));
 
         $resolver = new OptionsResolver();
-        (new MailboxConnectorType())->configureOptions($resolver);
+        (new ConnectorType())->configureOptions($resolver);
 
-        self::assertSame(MailboxConnector::class, $resolver->resolve()['data_class']);
+        self::assertSame(Connector::class, $resolver->resolve()['data_class']);
     }
 
     #[DataProvider('factoryProvider')]
@@ -142,6 +148,6 @@ final class FormAndFactoryTest extends TestCase
         yield 'body' => [BodyFactory::class, Body::class, ['content']];
         yield 'email' => [EmailFactory::class, Email::class, ['subject', 'previewBody', 'receivedAt']];
         yield 'folder' => [FolderFactory::class, Folder::class, ['functions', 'name']];
-        yield 'mailbox' => [MailboxFactory::class, Mailbox::class, ['name', 'email']];
+        yield 'account' => [AccountFactory::class, Account::class, ['name', 'email']];
     }
 }

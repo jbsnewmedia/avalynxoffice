@@ -43,13 +43,16 @@ echo '[avalynxoffice] Rebuilding the application cache ...'
 # The cache must be rebuilt after an image update, but a too-stale cache
 # (e.g. from a previous version with different class names) cannot even boot
 # the kernel for cache:clear. In that case remove it and warm up from scratch.
+# The cache directory follows APP_ENV (prod image: prod, dev image: dev).
+CACHE_DIR="/app/var/cache/${APP_ENV:-prod}"
+run_as_application "rm -rf ${CACHE_DIR}"
 if ! run_as_application 'php bin/console cache:clear --no-warmup 2>&1'; then
     echo '[avalynxoffice] cache:clear failed, removing the stale cache directory ...'
-    run_as_application 'rm -rf /app/var/cache/prod'
+    run_as_application "rm -rf ${CACHE_DIR}"
 fi
 if ! run_as_application 'php bin/console cache:warmup --quiet 2>&1'; then
     echo '[avalynxoffice] cache:warmup failed, retrying with a fresh cache directory ...'
-    run_as_application 'rm -rf /app/var/cache/prod'
+    run_as_application "rm -rf ${CACHE_DIR}"
     run_as_application 'php bin/console cache:warmup --quiet 2>&1'
 fi
 
