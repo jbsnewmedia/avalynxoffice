@@ -15,7 +15,7 @@ use Symfony\Component\Security\Core\User\UserCheckerInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
- * Blocks login for deactivated user accounts. Deactivation reduces the
+ * Blocks login for deactivated users. Deactivation reduces the
  * license seat usage and must stay possible in read-only mode.
  */
 final class UserChecker implements UserCheckerInterface

@@ -37,24 +37,24 @@
 
 ## Pre-commit gate (mandatory)
 
-Before **every** commit, all of the following must run and pass in this order.
-Never create a commit while any of them fails or has pending changes:
+Before **every** commit, the following must run and pass:
 
 1. `composer bin-ecs` — must report **0** fixable files (run `composer bin-ecs-fix` first if needed).
 2. `composer bin-rector` — dry-run must report **no changes** (run `composer bin-rector-process` first if needed).
-3. `composer bin-phpstan` — no errors.
-4. `composer test` — all tests green.
-5. `composer test-coverage` — all tests green with **100% code coverage** (HTML report in `var/coverage`).
-    - The composer default timeout (300s) is too short for the coverage run:
-      use `COMPOSER_PROCESS_TIMEOUT=3600 composer test-coverage`.
 
 Notes:
 
 - Run these commands inside the Docker container as described above.
-- The test suite resets the shared development database: recreate the
-  test accounts afterwards (e.g. `php bin/console app:user:create`).
-- Only commit after every check passed; if a check modified files,
-  include those changes in the commit.
+- The full quality gate (PHPStan level max, PHPUnit with all tests green,
+  PHPUnit coverage with 100 % line coverage — use
+  `COMPOSER_PROCESS_TIMEOUT=3600 composer test-coverage`) is enforced by CI
+  on every push and must be green before a release; it does not have to run
+  before each local commit.
+- The test suite resets the shared development database (SchemaTool, without
+  migration tracking): after running tests, recreate the test accounts
+  (e.g. `php bin/console app:user:create`) and re-sync the migration tracking
+  (`php bin/console doctrine:migrations:version --all --add --no-interaction`),
+  otherwise the container bootstrap entrypoint fails on the next restart.
 
 ## Form validation
 

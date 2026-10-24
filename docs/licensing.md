@@ -10,7 +10,7 @@ usedSeats    = count(active users with last_auth_at >= now - 30 days)
 ```
 
 - Gezählt werden **Active Seats** (APL 1.0, § 1): aktivierte persönliche
-  Benutzerkonten (`app_user.active = true`), die innerhalb der letzten 30
+  Benutzer (`app_user.active = true`), die innerhalb der letzten 30
   Kalendertage mindestens eine erfolgreiche Authentifizierung (Login/Sync)
   durchgeführt haben (`app_user.last_auth_at`). Das Fenster rolliert und ist
   an der 30-Tage-Grenze inklusiv (`>= cutoff`).
@@ -151,7 +151,7 @@ Bei blockierter Operation wird `LicenseReadOnlyException` geworfen; der
 
 - Login/Logout und die Aufzeichnung der Sitzplatzaktivität
   (`app_user.last_auth_at`), Passwortänderungen, Lizenzschlüsselverwaltung,
-  Deaktivierung von Benutzerkonten, technische Systemoperationen.
+  Deaktivierung von Benutzern, technische Systemoperationen.
 - Abruf externer Mailkonten (POP3), MIME-Verarbeitung, lokale Speicherung von
   Nachrichten und Anhängen, Duplikaterkennung, Ordner-Synchronisation —
   der Mail-Import ist von der Lizenzprüfung **bewusst nicht** betroffen.
@@ -216,7 +216,7 @@ erhalten. Die Lizenzierung greift an dieser Stelle nicht ein.
 
 - Route `/admin/license` (`ROLE_ADMIN`): Status, Active Seats, erkannte
   Lizenzen mit Diagnose, Kulanzfrist, Schlüsselverwaltung (Datenbank),
-  Benutzerkonten mit Aktivieren/Deaktivieren und letzter Authentifizierung.
+  Benutzer mit Aktivieren/Deaktivieren und letzter Authentifizierung.
 - Route `/license` (angemeldet): Status- und Lizenzinformationen für Benutzer.
 - Vollständige Lizenzschlüssel werden niemals angezeigt; Diagnose nutzt nur
   Vorschauen (`WOL1.erste24Zeichen…`).

@@ -15,7 +15,7 @@ namespace AvalynxOffice\Licensing\Model;
 enum LicenseStatus: string
 {
     /**
-     * At most three counted user accounts, no commercial license required.
+     * At most three counted users, no commercial license required.
      */
     case COMMUNITY = 'COMMUNITY';
 

@@ -127,7 +127,7 @@ final class LicenseControllerTest extends WebTestCase
         self::assertStringContainsString('LIC-TEST-000001', $content);
         self::assertStringContainsString('Invalid format', $content);
         self::assertStringNotContainsString($key, $content);
-        // The user accounts live on their own section now.
+        // The users live on their own section now.
         self::assertStringNotContainsString('admin@example.com', $content);
     }
 

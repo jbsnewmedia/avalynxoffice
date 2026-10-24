@@ -60,7 +60,7 @@ class UserRepository extends ServiceEntityRepository
     }
 
     /**
-     * Counts the Active Seats: activated user accounts with a successful
+     * Counts the Active Seats: activated users with a successful
      * authentication within the last 30 calendar days. Deactivated accounts
      * and accounts that never (or not recently) authenticated do not consume
      * a license seat. Called within the seat accounting transaction so that

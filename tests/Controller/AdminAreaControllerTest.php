@@ -62,7 +62,7 @@ final class AdminAreaControllerTest extends WebTestCase
         self::assertStringContainsString('Dashboard', $content);
         self::assertStringContainsString('User forgot password', $content);
         self::assertStringContainsString('License &amp; Usage', $content);
-        self::assertStringContainsString('User accounts', $content);
+        self::assertStringContainsString('Users', $content);
         self::assertStringContainsString('Connectors', $content);
         self::assertStringContainsString('Legal', $content);
         self::assertStringContainsString('id="adminNavDropdown"', $content);
