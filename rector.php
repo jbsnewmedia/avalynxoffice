@@ -13,6 +13,7 @@ return static function (RectorConfig $rectorConfig): void {
         __DIR__.'/src',
         __DIR__ . '/plugins/jbsnewmedia/mail-action-bundle/src',
         __DIR__ . '/plugins/jbsnewmedia/mail-view-bundle/src',
+        __DIR__ . '/plugins/jbsnewmedia/pop3-connector-bundle/src',
     ]);
     $rectorConfig->fileExtensions(['php']);
 

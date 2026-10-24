@@ -12,6 +12,7 @@ use AvalynxOffice\Entity\EmailBodyLink;
 use AvalynxOffice\Entity\Folder;
 use AvalynxOffice\Entity\Account;
 use AvalynxOffice\Entity\Connector;
+use AvalynxOffice\Entity\ConnectorConfig;
 use AvalynxOffice\Repository\AttachmentRepository;
 use AvalynxOffice\Repository\BodyRepository;
 use AvalynxOffice\Repository\EmailAddressLinkRepository;
@@ -19,6 +20,7 @@ use AvalynxOffice\Repository\EmailAttachmentLinkRepository;
 use AvalynxOffice\Repository\EmailBodyLinkRepository;
 use AvalynxOffice\Repository\FolderRepository;
 use AvalynxOffice\Repository\ConnectorRepository;
+use AvalynxOffice\Repository\ConnectorConfigRepository;
 use AvalynxOffice\Repository\AccountRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Mapping\ClassMetadata;
@@ -59,5 +61,6 @@ final class RepositoryInstantiationTest extends TestCase
         yield 'folder' => [FolderRepository::class, Folder::class];
         yield 'account' => [AccountRepository::class, Account::class];
         yield 'account-connector' => [ConnectorRepository::class, Connector::class];
+        yield 'connector-config' => [ConnectorConfigRepository::class, ConnectorConfig::class];
     }
 }

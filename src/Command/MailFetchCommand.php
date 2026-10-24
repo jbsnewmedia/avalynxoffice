@@ -10,8 +10,9 @@ declare(strict_types=1);
 namespace AvalynxOffice\Command;
 
 use AvalynxOffice\Entity\Connector;
+use AvalynxOffice\Plugin\Contract\ConnectorFetchRequest;
 use AvalynxOffice\Repository\ConnectorRepository;
-use AvalynxOffice\Service\Mail\Pop3Fetcher;
+use AvalynxOffice\Service\ConnectorPluginRegistry;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -20,13 +21,13 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 #[AsCommand(
     name: 'app:mail:fetch',
-    description: 'Fetches mail via POP3 for all connectors and routes each message to its account.'
+    description: 'Fetches data for all connectors via the configured connector plugins and routes each message to its account.'
 )]
 class MailFetchCommand extends Command
 {
     public function __construct(
         private readonly ConnectorRepository $connectorRepo,
-        private readonly Pop3Fetcher $fetcher,
+        private readonly ConnectorPluginRegistry $pluginRegistry,
     ) {
         parent::__construct();
     }
@@ -85,19 +86,32 @@ class MailFetchCommand extends Command
 
             return Command::SUCCESS;
         }
+        $request = new ConnectorFetchRequest();
+        $request->limit = $limit;
+        $request->deleteAfter = $deleteAfter;
+        $request->oldestFirst = $oldest;
+        $request->output = $output;
+        $request->errorLogPath = $errorLogPath;
         $totalImported = 0;
         $totalSkipped = 0;
         $totalErrors = 0;
         foreach ($connectors as $connector) {
             $label = sprintf('%s (%s)', $connector->getName(), $connector->getDomain());
-            $output->writeln(sprintf('<info>[%s]</info> Abruf startet …', $label));
-            $this->fetcher->setOutput($output);
-            $this->fetcher->setErrorLogPath($errorLogPath);
-            $result = $this->fetcher->fetchForConnector($connector, $limit, $deleteAfter, $oldest);
-            $output->writeln(sprintf('   imported: %d, skipped: %d, errors: %d', $result['imported'], $result['skipped'], $result['errors']));
-            $totalImported += $result['imported'];
-            $totalSkipped += $result['skipped'];
-            $totalErrors += $result['errors'];
+            $fetchers = $this->pluginRegistry->getFetchers($connector);
+            if ([] === $fetchers) {
+                $output->writeln(sprintf('<comment>[%s]</comment> Kein Eingangs-Plugin konfiguriert.', $label));
+
+                continue;
+            }
+            foreach ($fetchers as $fetcher) {
+                $plugin = $fetcher['plugin'];
+                $output->writeln(sprintf('<info>[%s] %s</info> Abruf startet …', $label, $plugin->getKey()));
+                $result = $plugin->fetch($connector, $fetcher['config'], $request);
+                $output->writeln(sprintf('   imported: %d, skipped: %d, errors: %d', $result['imported'], $result['skipped'], $result['errors']));
+                $totalImported += $result['imported'];
+                $totalSkipped += $result['skipped'];
+                $totalErrors += $result['errors'];
+            }
         }
         $output->writeln('—');
         $output->writeln(sprintf('<info>Done.</info> Total: imported=%d, skipped=%d, errors=%d', $totalImported, $totalSkipped, $totalErrors));

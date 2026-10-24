@@ -7,13 +7,14 @@ declare(strict_types=1);
  * Licensed under the AvalynxOffice Public License (APL) version 1.0.
  */
 
-namespace AvalynxOffice\Service\Mail;
+namespace JBSNewMedia\Pop3ConnectorBundle\Service;
 
 use AvalynxOffice\Entity\Account;
 use AvalynxOffice\Entity\Address;
 use AvalynxOffice\Entity\Attachment;
 use AvalynxOffice\Entity\Body;
 use AvalynxOffice\Entity\Connector;
+use AvalynxOffice\Entity\ConnectorConfig;
 use AvalynxOffice\Entity\Email;
 use AvalynxOffice\Entity\EmailAddressLink;
 use AvalynxOffice\Entity\EmailAttachmentLink;
@@ -22,9 +23,15 @@ use AvalynxOffice\Entity\EmailFolder;
 use AvalynxOffice\Entity\Enum\BodyContentType;
 use AvalynxOffice\Entity\Enum\EmailAddressType;
 use AvalynxOffice\Entity\Enum\FolderFunction;
+use AvalynxOffice\Plugin\Contract\ConnectorFetchRequest;
+use AvalynxOffice\Repository\ConnectorConfigRepository;
 use AvalynxOffice\Repository\EmailRepository;
+use AvalynxOffice\Service\Mail\AttachmentStorage;
+use AvalynxOffice\Service\Mail\FolderManager;
+use AvalynxOffice\Service\Mail\MailRoutingService;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
+use JBSNewMedia\Pop3ConnectorBundle\Plugin\Pop3ConnectorPlugin;
 use Laminas\Mail\Storage\Message as StorageMessage;
 use Symfony\Component\Console\Output\OutputInterface;
 
@@ -40,6 +47,7 @@ class Pop3Fetcher
         private readonly AttachmentStorage $attachmentStorage,
         private readonly Pop3StorageFactory $pop3StorageFactory,
         private readonly MailRoutingService $mailRoutingService,
+        private readonly ConnectorConfigRepository $connectorConfigRepository,
     ) {
     }
 
@@ -68,7 +76,7 @@ class Pop3Fetcher
         }
     }
 
-    private function logError(int $num, ?string $uidl, ?string $subject, \Throwable $e, ?Connector $connector = null, ?\Laminas\Mail\Storage\Pop3 $storage = null): void
+    private function logError(int $num, ?string $uidl, ?string $subject, \Throwable $e, ?string $connectorKey = null, ?\Laminas\Mail\Storage\Pop3 $storage = null): void
     {
         $msg = sprintf('Error on message %d (UIDL: %s): %s — subject: %s', $num, $uidl ?? 'unknown', $e->getMessage(), $subject ?? '(no subject)');
         $this->log($msg, 'error');
@@ -86,12 +94,12 @@ class Pop3Fetcher
             );
             @file_put_contents($this->errorLogPath, $detail, FILE_APPEND);
         }
-        if ($connector && $storage) {
-            $this->dumpRawError($num, $uidl, $connector, $storage, $e->getMessage());
+        if (null !== $connectorKey && $storage) {
+            $this->dumpRawError($num, $uidl, $connectorKey, $storage, $e->getMessage());
         }
     }
 
-    private function dumpRawError(int $num, ?string $uidl, Connector $connector, \Laminas\Mail\Storage\Pop3 $storage, string $errorReason): void
+    private function dumpRawError(int $num, ?string $uidl, string $connectorKey, \Laminas\Mail\Storage\Pop3 $storage, string $errorReason): void
     {
         $raw = $this->fetchRawViaProtocol($storage, $num);
         if (null === $raw) {
@@ -100,7 +108,6 @@ class Pop3Fetcher
             return;
         }
         try {
-            $connectorKey = $this->getConnectorDumpKey($connector);
             $date = new \DateTimeImmutable();
             $dir = 'mail_dumps/'.$connectorKey.'/'.$date->format('Y/m/d').'/error';
             if (!is_dir($dir)) {
@@ -232,35 +239,40 @@ class Pop3Fetcher
     }
 
     /**
+     * @param array<string, mixed> $config stored plugin config of the connector
+     *
      * @return array{imported: int, skipped: int, errors: int}
      */
-    public function fetchForConnector(Connector $connector, ?int $limit = null, ?bool $deleteAfter = null, bool $oldestFirst = false): array
+    public function fetch(Connector $connector, array $config, ConnectorFetchRequest $request): array
     {
-        if (!$connector->getPop3Host() || !$connector->getPop3Username() || !$connector->getPop3Password()) {
+        $this->output = $request->output ?? $this->output;
+        $this->errorLogPath = $request->errorLogPath ?? $this->errorLogPath;
+        $host = self::stringValue($config, 'pop3Host');
+        $username = self::stringValue($config, 'pop3Username');
+        $password = self::stringValue($config, 'pop3Password');
+        if ('' === $host || '' === $username || '' === $password) {
             $this->log('POP3 configuration incomplete.', 'error');
 
             return ['imported' => 0, 'skipped' => 0, 'errors' => 0];
         }
-        $this->log(sprintf('Verbinde mit %s:%d (Sicherheit: %s) ...',
-            $connector->getPop3Host(),
-            $connector->getPop3Port() ?: 110,
-            $connector->getPop3Security() ?: 'keine'
-        ));
-        $config = [
-            'host' => $connector->getPop3Host(),
-            'user' => $connector->getPop3Username(),
-            'password' => $connector->getPop3Password(),
-            'port' => $connector->getPop3Port() ?: null,
+        $port = self::intValue($config, 'pop3Port');
+        $security = strtolower(self::stringValue($config, 'pop3Security'));
+        $delete = $request->deleteAfter ?? self::boolValue($config, 'pop3DeleteAfterFetch', true);
+        $this->log(sprintf('Verbinde mit %s:%d (Sicherheit: %s) ...', $host, $port ?: 110, '' !== $security ? $security : 'keine'));
+        $storageConfig = [
+            'host' => $host,
+            'user' => $username,
+            'password' => $password,
+            'port' => $port ?: null,
             'ssl' => null,
         ];
-        $security = strtolower((string) $connector->getPop3Security());
         if ('ssl' === $security || 'tls' === $security) {
-            $config['ssl'] = 'ssl' === $security ? 'SSL' : 'TLS';
+            $storageConfig['ssl'] = 'ssl' === $security ? 'SSL' : 'TLS';
         }
-        $delete = $deleteAfter ?? $connector->getPop3DeleteAfterFetch();
+        $connectorKey = $this->getConnectorDumpKey($connector, $username);
         $imported = $skipped = $errors = 0;
         try {
-            $storage = $this->pop3StorageFactory->create($config);
+            $storage = $this->pop3StorageFactory->create($storageConfig);
             $this->log('Connection established successfully.');
         } catch (\Throwable $e) {
             $this->log(sprintf('Verbindungsfehler: %s', $e->getMessage()), 'error');
@@ -272,17 +284,18 @@ class Pop3Fetcher
             $count = $storage->countMessages();
             $this->log(sprintf('%d messages found.', $count));
             $indices = [];
-            if (null !== $limit && !$oldestFirst) {
+            $limit = $request->limit;
+            if (null !== $limit && !$request->oldestFirst) {
                 for ($i = $count; $i > max(0, $count - $limit); --$i) {
                     $indices[] = $i;
                 }
                 $this->log(sprintf('Processing the newest %d messages ...', count($indices)));
-            } elseif (null !== $limit && $oldestFirst) {
+            } elseif (null !== $limit && $request->oldestFirst) {
                 for ($i = 1; $i <= min($count, $limit); ++$i) {
                     $indices[] = $i;
                 }
                 $this->log(sprintf('Processing the oldest %d messages ...', count($indices)));
-            } elseif ($oldestFirst) {
+            } elseif ($request->oldestFirst) {
                 for ($i = 1; $i <= $count; ++$i) {
                     $indices[] = $i;
                 }
@@ -320,7 +333,7 @@ class Pop3Fetcher
                         }
                         $parsedMsg = $this->parseMessageWithSanitizedHeaders($raw);
                         if (null === $parsedMsg) {
-                            $this->dumpRawError($num, $uidl, $connector, $storage, 'Header sanitization failed: '.$parseError->getMessage());
+                            $this->dumpRawError($num, $uidl, $connectorKey, $storage, 'Header sanitization failed: '.$parseError->getMessage());
                             throw $parseError;
                         }
                         $msg = $parsedMsg;
@@ -348,7 +361,7 @@ class Pop3Fetcher
                     $matchedLocalPart = $target['alias']?->getLocalPart();
                     $this->ensureInboxForAccount($targetAccount);
                     $this->log(sprintf('Routing message to account "%s"%s.', $targetAccount->getEmail(), null !== $matchedLocalPart ? sprintf(' (alias %s)', $matchedLocalPart) : ' (default account)'));
-                    $this->dumpOriginalMessage($msg, $connector, null, $importKey, 'pending');
+                    $this->dumpOriginalMessage($msg, $connectorKey, null, $importKey, 'pending');
                     try {
                         $email = $this->convertMessageToEntity($msg, $targetAccount, $importKey, $hadEncodingIssues);
                         $email->setConnector($connector);
@@ -365,9 +378,9 @@ class Pop3Fetcher
                             }
                             continue;
                         }
-                        $this->dumpOriginalMessage($msg, $connector, $email, $importKey);
+                        $this->dumpOriginalMessage($msg, $connectorKey, $email, $importKey);
                     } catch (\Throwable $e) {
-                        $this->removePendingDump($connector, $importKey, $this->extractDateFromMessage($msg));
+                        $this->removePendingDump($connectorKey, $importKey, $this->extractDateFromMessage($msg));
                         throw $e;
                     }
                     if ($delete) {
@@ -377,7 +390,7 @@ class Pop3Fetcher
                     $this->log('Message imported successfully.', 'info');
                     ++$imported;
                 } catch (\Throwable $e) {
-                    $this->logError($num, $uidl, $subject, $e, $connector, $storage);
+                    $this->logError($num, $uidl, $subject, $e, $connectorKey, $storage);
                     ++$errors;
                     if (!$this->em->isOpen()) {
                         $this->log('EntityManager is closed. Trying to re-open (warning: state may be lost).', 'error');
@@ -387,12 +400,37 @@ class Pop3Fetcher
                     $connector = $this->em->find(Connector::class, $connector->getId()) ?? $connector;
                 }
             }
+            $this->updateServerTotal($connector, $config, $count, $delete, $imported);
         } finally {
             $storage->close();
             $this->log('Verbindung geschlossen.');
         }
 
         return compact('imported', 'skipped', 'errors');
+    }
+
+    /**
+     * Updates the fetch progress in the stored plugin config: server_total
+     * is the number of messages this connector has to have local in total
+     * (messages still on the server plus everything already imported).
+     *
+     * @param array<string, mixed> $config
+     */
+    private function updateServerTotal(Connector $connector, array $config, int $serverCountAtStart, bool $delete, int $imported): void
+    {
+        try {
+            $serverAfter = max(0, $serverCountAtStart - ($delete ? $imported : 0));
+            $local = (int) $this->emailRepo->count(['connector' => $connector]);
+            $entity = $this->connectorConfigRepository->findOneBy(['connector' => $connector, 'pluginKey' => Pop3ConnectorPlugin::KEY]);
+            if (!$entity instanceof ConnectorConfig) {
+                return;
+            }
+            $config['server_total'] = $delete ? $local + $serverAfter : $serverAfter;
+            $entity->setConfig($config);
+            $this->em->flush();
+        } catch (\Throwable $e) {
+            $this->log('Could not update the fetch status: '.$e->getMessage(), 'error');
+        }
     }
 
     private function ensureInboxForAccount(Account $account): void
@@ -763,17 +801,16 @@ class Pop3Fetcher
         return null;
     }
 
-    private function getConnectorDumpKey(Connector $connector): string
+    private function getConnectorDumpKey(Connector $connector, string $pop3Username): string
     {
-        $name = $connector->getDomain() ?: $connector->getPop3Username() ?: (string) $connector->getId();
+        $name = $connector->getDomain() ?: $pop3Username ?: (string) $connector->getId();
 
         return preg_replace('/[^a-zA-Z0-9@._-]/', '_', $name) ?? 'unknown_connector';
     }
 
-    private function removePendingDump(Connector $connector, string $importKey, ?\DateTimeImmutable $date = null): void
+    private function removePendingDump(string $connectorKey, string $importKey, ?\DateTimeImmutable $date = null): void
     {
         try {
-            $connectorKey = $this->getConnectorDumpKey($connector);
             $date ??= new \DateTimeImmutable();
             $dir = 'mail_dumps/'.$connectorKey.'/'.$date->format('Y/m/d').'/pending';
             $pendingFile = $dir.'/'.str_replace([':', '/'], '_', $importKey).'.eml';
@@ -784,11 +821,10 @@ class Pop3Fetcher
         }
     }
 
-    private function dumpOriginalMessage(StorageMessage $msg, Connector $connector, ?Email $email, ?string $importKey = null, string $status = 'success', ?string $errorReason = null): void
+    private function dumpOriginalMessage(StorageMessage $msg, string $connectorKey, ?Email $email, ?string $importKey = null, string $status = 'success', ?string $errorReason = null): void
     {
         try {
             $date = $email?->getReceivedAt() ?? $this->extractDateFromMessage($msg) ?? new \DateTimeImmutable();
-            $connectorKey = $this->getConnectorDumpKey($connector);
             $dir = 'mail_dumps/'.$connectorKey.'/'.$date->format('Y/m/d').'/'.$status;
             if (!is_dir($dir)) {
                 @mkdir($dir, 0775, true);
@@ -808,7 +844,7 @@ class Pop3Fetcher
             }
             file_put_contents($dir.'/'.$filename, $rawContent);
             if ('success' === $status && $email?->getId() && $importKey) {
-                $this->removePendingDump($connector, $importKey, $date);
+                $this->removePendingDump($connectorKey, $importKey, $date);
             }
         } catch (\Throwable $e) {
             $this->log('Error dumping the original message: '.$e->getMessage(), 'error');
@@ -826,5 +862,35 @@ class Pop3Fetcher
         }
 
         return null;
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     */
+    private static function stringValue(array $config, string $key): string
+    {
+        $value = $config[$key] ?? '';
+
+        return is_string($value) ? $value : '';
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     */
+    private static function intValue(array $config, string $key): int
+    {
+        $value = $config[$key] ?? 0;
+
+        return is_numeric($value) ? (int) $value : 0;
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     */
+    private static function boolValue(array $config, string $key, bool $default): bool
+    {
+        $value = $config[$key] ?? $default;
+
+        return is_bool($value) ? $value : $default;
     }
 }

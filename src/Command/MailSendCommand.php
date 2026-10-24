@@ -16,15 +16,16 @@ use AvalynxOffice\Entity\Enum\EmailAddressType;
 use AvalynxOffice\Licensing\Service\LicenseEnforcementInterface;
 use AvalynxOffice\Repository\ConnectorRepository;
 use AvalynxOffice\Repository\EmailRepository;
+use AvalynxOffice\Service\ConnectorPluginRegistry;
 use AvalynxOffice\Service\Mail\AttachmentStorage;
 use AvalynxOffice\Service\Mail\FolderManager;
 use AvalynxOffice\Service\Mail\MailRoutingService;
-use AvalynxOffice\Service\Mail\SmtpMailerFactory;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Mime\Address as SymfonyAddress;
 use Symfony\Component\Mime\Email as SymfonyEmail;
 
@@ -39,7 +40,7 @@ class MailSendCommand extends Command
         private readonly EntityManagerInterface $entityManager,
         private readonly FolderManager $folderManager,
         private readonly AttachmentStorage $attachmentStorage,
-        private readonly SmtpMailerFactory $mailerFactory,
+        private readonly ConnectorPluginRegistry $pluginRegistry,
         private readonly ConnectorRepository $connectorRepository,
         private readonly LicenseEnforcementInterface $licenseEnforcement,
     ) {
@@ -111,7 +112,13 @@ class MailSendCommand extends Command
     {
         $output->writeln(sprintf('Sending mail: %s (ID: %s)', $email->getSubject(), $email->getId()));
         $connector = $this->resolveConnectorForEmail($email);
-        if (!($connector instanceof Connector) || !$connector->getSmtpHost()) {
+        if (!$connector instanceof Connector) {
+            $output->writeln('  [ERROR] No SMTP configuration found for this mail/account.');
+
+            return;
+        }
+        $mailer = $this->pluginRegistry->createMailer($connector);
+        if (!$mailer instanceof MailerInterface) {
             $output->writeln('  [ERROR] No SMTP configuration found for this mail/account.');
 
             return;
@@ -119,7 +126,6 @@ class MailSendCommand extends Command
         $email->setIsSending(true);
         $this->entityManager->flush();
         try {
-            $mailer = $this->mailerFactory->fromConnector($connector);
             $symfonyEmail = new SymfonyEmail();
             $symfonyEmail->subject((string) $email->getSubject());
             foreach ($email->getEmailAddresses() as $link) {

@@ -15,6 +15,7 @@ use AvalynxOffice\Entity\Enum\BodyContentType;
 use AvalynxOffice\Entity\Enum\EmailAddressType;
 use AvalynxOffice\Entity\Account;
 use AvalynxOffice\Entity\Connector;
+use AvalynxOffice\Entity\ConnectorConfig;
 use AvalynxOffice\Service\Mail\AttachmentStorage;
 use AvalynxOffice\Service\Mail\FolderManager;
 use Doctrine\Persistence\ObjectManager;
@@ -132,7 +133,11 @@ final class AppFixturesUnitTest extends TestCase
 
         self::assertInstanceOf(Connector::class, $connector);
         self::assertSame('example.com', $connector->getDomain());
-        self::assertSame('pop3.example.example', $connector->getPop3Host());
+        $persistedConfigs = array_filter($persisted, static fn (object $entity): bool => $entity instanceof ConnectorConfig);
+        self::assertCount(1, $persistedConfigs);
+        $config = array_values($persistedConfigs)[0];
+        self::assertSame('pop3', $config->getPluginKey());
+        self::assertSame('pop3.example.example', $config->getConfig()['pop3Host']);
         self::assertContainsOnlyInstancesOf(Connector::class, array_filter($persisted, static fn (object $entity): bool => $entity instanceof Connector));
 
         $createAccount = new \ReflectionMethod(AppFixtures::class, 'createAccount');

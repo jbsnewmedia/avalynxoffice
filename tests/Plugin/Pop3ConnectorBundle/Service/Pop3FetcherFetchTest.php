@@ -2,18 +2,20 @@
 
 declare(strict_types=1);
 
-namespace AvalynxOffice\Tests\Service\Mail;
+namespace AvalynxOffice\Tests\Plugin\Pop3ConnectorBundle\Service;
 
 use AvalynxOffice\Entity\Address;
 use AvalynxOffice\Entity\Folder;
 use AvalynxOffice\Entity\Account;
 use AvalynxOffice\Entity\Connector;
+use AvalynxOffice\Repository\ConnectorConfigRepository;
 use AvalynxOffice\Repository\EmailRepository;
 use AvalynxOffice\Service\Mail\AttachmentStorage;
 use AvalynxOffice\Service\Mail\FolderManager;
-use AvalynxOffice\Service\Mail\Pop3Fetcher;
+use AvalynxOffice\Plugin\Contract\ConnectorFetchRequest;
+use JBSNewMedia\Pop3ConnectorBundle\Service\Pop3Fetcher;
 use AvalynxOffice\Service\Mail\MailRoutingService;
-use AvalynxOffice\Service\Mail\Pop3StorageFactory;
+use JBSNewMedia\Pop3ConnectorBundle\Service\Pop3StorageFactory;
 use Doctrine\DBAL\Driver\Exception as DriverException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
@@ -32,11 +34,9 @@ final class Pop3FetcherFetchTest extends TestCase
 
         $withoutCredentials = (new Connector())
             ->setName('Support')
-            ->setDomain('example.com')
-            ->setPop3Host('mail.example.com')
-            ->setPop3Username('user');
+            ->setDomain('example.com');
 
-        self::assertSame(['imported' => 0, 'skipped' => 0, 'errors' => 0], $fetcher->fetchForConnector($withoutCredentials));
+        self::assertSame(['imported' => 0, 'skipped' => 0, 'errors' => 0], $fetcher->fetch($withoutCredentials, self::partialConfig(), self::request()));
     }
 
     public function testFetchForConnectorReturnsEarlyOnConnectionFailure(): void
@@ -54,11 +54,12 @@ final class Pop3FetcherFetchTest extends TestCase
             $this->createStub(AttachmentStorage::class),
             $factory,
             $this->createStub(MailRoutingService::class),
+            $this->createStub(ConnectorConfigRepository::class),
         );
 
         $connector = $this->createConnector();
 
-        self::assertSame(['imported' => 0, 'skipped' => 0, 'errors' => 0], $fetcher->fetchForConnector($connector));
+        self::assertSame(['imported' => 0, 'skipped' => 0, 'errors' => 0], $fetcher->fetch($connector, self::config(), self::request()));
     }
 
     public function testFetchForConnectorSkipsAlreadyImportedMessages(): void
@@ -89,9 +90,10 @@ final class Pop3FetcherFetchTest extends TestCase
             $this->createStub(AttachmentStorage::class),
             $factory,
             $this->createStub(MailRoutingService::class),
+            $this->createStub(ConnectorConfigRepository::class),
         );
 
-        self::assertSame(['imported' => 0, 'skipped' => 1, 'errors' => 0], $fetcher->fetchForConnector($connector));
+        self::assertSame(['imported' => 0, 'skipped' => 1, 'errors' => 0], $fetcher->fetch($connector, self::config(), self::request()));
     }
 
     public function testFetchForConnectorImportsNewMessage(): void
@@ -139,9 +141,10 @@ final class Pop3FetcherFetchTest extends TestCase
             $this->createStub(AttachmentStorage::class),
             $factory,
             $this->createRoutingService($account),
+            $this->createStub(ConnectorConfigRepository::class),
         );
 
-        $result = $fetcher->fetchForConnector($connector);
+        $result = $fetcher->fetch($connector, self::config(), self::request());
 
         self::assertSame(['imported' => 1, 'skipped' => 0, 'errors' => 0], $result);
     }
@@ -172,9 +175,10 @@ final class Pop3FetcherFetchTest extends TestCase
             $this->createStub(AttachmentStorage::class),
             $factory,
             $this->createRoutingService(null),
+            $this->createStub(ConnectorConfigRepository::class),
         );
 
-        self::assertSame(['imported' => 0, 'skipped' => 0, 'errors' => 1], $fetcher->fetchForConnector($connector));
+        self::assertSame(['imported' => 0, 'skipped' => 0, 'errors' => 1], $fetcher->fetch($connector, self::config(), self::request()));
     }
 
     public function testFetchForConnectorSkipsMessageByContentHash(): void
@@ -211,16 +215,16 @@ final class Pop3FetcherFetchTest extends TestCase
             $this->createStub(AttachmentStorage::class),
             $factory,
             $this->createRoutingService($account),
+            $this->createStub(ConnectorConfigRepository::class),
         );
 
-        self::assertSame(['imported' => 0, 'skipped' => 1, 'errors' => 0], $fetcher->fetchForConnector($connector));
+        self::assertSame(['imported' => 0, 'skipped' => 1, 'errors' => 0], $fetcher->fetch($connector, self::config(), self::request()));
     }
 
 
     public function testFetchForConnectorPassesTlsConfigAndProcessesOldestMessagesWithLimit(): void
     {
         $connector = $this->createConnector();
-        $connector->setPop3Security('tls');
         $processed = [];
 
         $storage = $this->createMock(Pop3Storage::class);
@@ -252,9 +256,10 @@ final class Pop3FetcherFetchTest extends TestCase
             $this->createStub(AttachmentStorage::class),
             $factory,
             $this->createStub(MailRoutingService::class),
+            $this->createStub(ConnectorConfigRepository::class),
         );
 
-        self::assertSame(['imported' => 0, 'skipped' => 2, 'errors' => 0], $fetcher->fetchForConnector($connector, 2, false, true));
+        self::assertSame(['imported' => 0, 'skipped' => 2, 'errors' => 0], $fetcher->fetch($connector, self::config(['pop3Security' => 'tls']), self::request(2, false, true)));
         self::assertSame([1, 2], $processed);
     }
 
@@ -288,9 +293,10 @@ final class Pop3FetcherFetchTest extends TestCase
             $this->createStub(AttachmentStorage::class),
             $factory,
             $this->createStub(MailRoutingService::class),
+            $this->createStub(ConnectorConfigRepository::class),
         );
 
-        self::assertSame(['imported' => 0, 'skipped' => 2, 'errors' => 0], $fetcher->fetchForConnector($connector, null, false, true));
+        self::assertSame(['imported' => 0, 'skipped' => 2, 'errors' => 0], $fetcher->fetch($connector, self::config(), self::request(null, false, true)));
         self::assertSame([1, 2], $processed);
     }
 
@@ -333,9 +339,10 @@ final class Pop3FetcherFetchTest extends TestCase
             $this->createStub(AttachmentStorage::class),
             $factory,
             $this->createRoutingService($account),
+            $this->createStub(ConnectorConfigRepository::class),
         );
 
-        self::assertSame(['imported' => 0, 'skipped' => 0, 'errors' => 0], $fetcher->fetchForConnector($connector));
+        self::assertSame(['imported' => 0, 'skipped' => 0, 'errors' => 0], $fetcher->fetch($connector, self::config(), self::request()));
     }
 
     public function testFetchForConnectorCountsErrorWhenClosedEntityManagerReportsUniqueConstraint(): void
@@ -377,9 +384,10 @@ final class Pop3FetcherFetchTest extends TestCase
             $this->createStub(AttachmentStorage::class),
             $factory,
             $this->createRoutingService($account),
+            $this->createStub(ConnectorConfigRepository::class),
         );
 
-        self::assertSame(['imported' => 0, 'skipped' => 0, 'errors' => 1], $fetcher->fetchForConnector($connector));
+        self::assertSame(['imported' => 0, 'skipped' => 0, 'errors' => 1], $fetcher->fetch($connector, self::config(), self::request()));
     }
 
     public function testFetchForConnectorDeletesImportedMessagesAndUsesNewestOrderWithLimit(): void
@@ -427,9 +435,10 @@ final class Pop3FetcherFetchTest extends TestCase
             $this->createStub(AttachmentStorage::class),
             $factory,
             $this->createRoutingService($account),
+            $this->createStub(ConnectorConfigRepository::class),
         );
 
-        self::assertSame(['imported' => 2, 'skipped' => 0, 'errors' => 0], $fetcher->fetchForConnector($connector, 2, true));
+        self::assertSame(['imported' => 2, 'skipped' => 0, 'errors' => 0], $fetcher->fetch($connector, self::config(), self::request(2, true)));
         self::assertSame([3, 2], $processed);
     }
 
@@ -465,9 +474,10 @@ final class Pop3FetcherFetchTest extends TestCase
             $this->createStub(AttachmentStorage::class),
             $factory,
             $this->createStub(MailRoutingService::class),
+            $this->createStub(ConnectorConfigRepository::class),
         );
 
-        self::assertSame(['imported' => 0, 'skipped' => 0, 'errors' => 1], $fetcher->fetchForConnector($connector));
+        self::assertSame(['imported' => 0, 'skipped' => 0, 'errors' => 1], $fetcher->fetch($connector, self::config(), self::request()));
         self::assertSame([2], $processed);
     }
 
@@ -491,18 +501,137 @@ final class Pop3FetcherFetchTest extends TestCase
             $this->createStub(AttachmentStorage::class),
             $this->createStub(Pop3StorageFactory::class),
             $this->createStub(MailRoutingService::class),
+            $this->createStub(ConnectorConfigRepository::class),
         );
+    }
+
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function partialConfig(): array
+    {
+        return ['pop3Host' => 'mail.example.com', 'pop3Username' => 'user'];
+    }
+
+    /**
+     * @param array<string, mixed> $overrides
+     *
+     * @return array<string, mixed>
+     */
+    private static function config(array $overrides = []): array
+    {
+        return array_merge([
+            'pop3Host' => 'mail.example.com',
+            'pop3Port' => 110,
+            'pop3Username' => 'user',
+            'pop3Password' => 'pass',
+            'pop3Security' => 'ssl',
+            'pop3DeleteAfterFetch' => true,
+        ], $overrides);
+    }
+
+    private static function request(?int $limit = null, ?bool $deleteAfter = null, bool $oldestFirst = false): ConnectorFetchRequest
+    {
+        $request = new ConnectorFetchRequest();
+        $request->limit = $limit;
+        $request->deleteAfter = $deleteAfter;
+        $request->oldestFirst = $oldestFirst;
+
+        return $request;
+    }
+    public function testFetchUpdatesServerTotalInStoredConfig(): void
+    {
+        $account = (new Account())
+            ->setName('Support')
+            ->setEmail('support@example.com');
+        $account->setInboxFolder((new Folder())->setName('Postfach'));
+        $connector = $this->createConnector($account);
+
+        $storage = $this->createMock(Pop3Storage::class);
+        $storage->method('countMessages')->willReturn(1);
+        $storage->method('getUniqueId')->with(1)->willReturn('uid-1');
+        $storage->expects(self::never())->method('removeMessage');
+        $storage->expects(self::once())->method('close');
+
+        $factory = $this->createStub(Pop3StorageFactory::class);
+        $factory->method('create')->willReturn($storage);
+
+        $emailRepository = $this->createMock(EmailRepository::class);
+        $emailRepository->method('findOneBy')->willReturn(new \stdClass());
+        $emailRepository->method('count')->with(['connector' => $connector])->willReturn(5);
+
+        $configEntity = new \AvalynxOffice\Entity\ConnectorConfig();
+        $configEntity->setConnector($connector);
+        $configEntity->setPluginKey('pop3');
+        $configRepository = $this->createStub(ConnectorConfigRepository::class);
+        $configRepository->method('findOneBy')->willReturn($configEntity);
+
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->expects(self::once())->method('flush');
+
+        $fetcher = new Pop3Fetcher(
+            $entityManager,
+            $emailRepository,
+            $this->createStub(FolderManager::class),
+            $this->createStub(AttachmentStorage::class),
+            $factory,
+            $this->createStub(MailRoutingService::class),
+            $configRepository,
+        );
+
+        self::assertSame(['imported' => 0, 'skipped' => 1, 'errors' => 0], $fetcher->fetch($connector, self::config(), self::request()));
+
+        // delete-after run: everything not deleted is already local (5) plus the one skipped on the server.
+        self::assertSame(6, $configEntity->getConfig()['server_total']);
+    }
+
+    public function testFetchSwallowsServerTotalUpdateFailures(): void
+    {
+        $connector = $this->createConnector();
+
+        $storage = $this->createMock(Pop3Storage::class);
+        $storage->method('countMessages')->willReturn(1);
+        $storage->method('getUniqueId')->with(1)->willReturn('uid-1');
+        $storage->expects(self::once())->method('close');
+
+        $factory = $this->createStub(Pop3StorageFactory::class);
+        $factory->method('create')->willReturn($storage);
+
+        $emailRepository = $this->createStub(EmailRepository::class);
+        $emailRepository->method('findOneBy')->willReturn(new \stdClass());
+
+        $configRepository = $this->createStub(ConnectorConfigRepository::class);
+        $configRepository->method('findOneBy')->willThrowException(new \RuntimeException('db kaputt'));
+
+        $messages = [];
+        $output = $this->createStub(\Symfony\Component\Console\Output\OutputInterface::class);
+        $output->method('writeln')->willReturnCallback(static function (iterable|string $message) use (&$messages): void {
+            foreach ((array) $message as $line) {
+                $messages[] = $line;
+            }
+        });
+
+        $fetcher = new Pop3Fetcher(
+            $this->createStub(EntityManagerInterface::class),
+            $emailRepository,
+            $this->createStub(FolderManager::class),
+            $this->createStub(AttachmentStorage::class),
+            $factory,
+            $this->createStub(MailRoutingService::class),
+            $configRepository,
+        );
+        $fetcher->setOutput($output);
+
+        self::assertSame(['imported' => 0, 'skipped' => 1, 'errors' => 0], $fetcher->fetch($connector, self::config(), self::request()));
+        self::assertStringContainsString('Could not update the fetch status', implode("\n", array_map(static fn ($message): string => (string) $message, $messages)));
     }
 
     private function createConnector(?Account $defaultAccount = null): Connector
     {
         $connector = (new Connector())
             ->setName('Support')
-            ->setDomain('example.com')
-            ->setPop3Host('mail.example.com')
-            ->setPop3Port(110)
-            ->setPop3Username('user')
-            ->setPop3Password('pass');
+            ->setDomain('example.com');
         $connector->setDefaultAccount($defaultAccount);
 
         return $connector;

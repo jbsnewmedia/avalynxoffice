@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace AvalynxOffice\Service\Mail;
+namespace JBSNewMedia\Pop3ConnectorBundle\Service;
 
 final class Pop3FetcherTestFunctionOverrides
 {
@@ -43,7 +43,7 @@ function mb_detect_encoding(string $string, array|string|null $encodings = null,
     return \mb_detect_encoding($string, $encodings, $strict);
 }
 
-namespace AvalynxOffice\Tests\Service\Mail;
+namespace AvalynxOffice\Tests\Plugin\Pop3ConnectorBundle\Service;
 
 use AvalynxOffice\Entity\Address;
 use AvalynxOffice\Entity\Email;
@@ -51,13 +51,15 @@ use AvalynxOffice\Entity\Enum\EmailAddressType;
 use AvalynxOffice\Entity\Folder;
 use AvalynxOffice\Entity\Account;
 use AvalynxOffice\Entity\Connector;
+use AvalynxOffice\Repository\ConnectorConfigRepository;
 use AvalynxOffice\Repository\EmailRepository;
 use AvalynxOffice\Service\Mail\AttachmentStorage;
 use AvalynxOffice\Service\Mail\FolderManager;
-use AvalynxOffice\Service\Mail\Pop3Fetcher;
-use AvalynxOffice\Service\Mail\Pop3FetcherTestFunctionOverrides;
+use AvalynxOffice\Plugin\Contract\ConnectorFetchRequest;
+use JBSNewMedia\Pop3ConnectorBundle\Service\Pop3Fetcher;
+use JBSNewMedia\Pop3ConnectorBundle\Service\Pop3FetcherTestFunctionOverrides;
 use AvalynxOffice\Service\Mail\MailRoutingService;
-use AvalynxOffice\Service\Mail\Pop3StorageFactory;
+use JBSNewMedia\Pop3ConnectorBundle\Service\Pop3StorageFactory;
 use Doctrine\ORM\EntityManagerInterface;
 use Laminas\Mail\Header\HeaderInterface;
 use Laminas\Mail\Headers;
@@ -82,6 +84,7 @@ final class Pop3FetcherHelperTest extends TestCase
             $this->createStub(AttachmentStorage::class),
             $this->createStub(Pop3StorageFactory::class),
             $this->createStub(MailRoutingService::class),
+            $this->createStub(ConnectorConfigRepository::class),
         );
     }
 
@@ -95,7 +98,7 @@ final class Pop3FetcherHelperTest extends TestCase
             ->with('<error>   POP3 configuration incomplete.</error>');
 
         self::assertSame($this->fetcher, $this->fetcher->setOutput($output));
-        self::assertSame(['imported' => 0, 'skipped' => 0, 'errors' => 0], $this->fetcher->fetchForConnector(new Connector()));
+        self::assertSame(['imported' => 0, 'skipped' => 0, 'errors' => 0], $this->fetcher->fetch(new Connector(), [], self::request()));
     }
 
     public function testSafeHeaderReturnsNullOnFailureAndDecodeHeaderCanUseMbDecodeFallback(): void
@@ -194,6 +197,7 @@ final class Pop3FetcherHelperTest extends TestCase
             $attachmentStorage,
             $this->createStub(Pop3StorageFactory::class),
             $this->createStub(MailRoutingService::class),
+            $this->createStub(ConnectorConfigRepository::class),
         );
         $email = new Email();
         $part = $this->createPartStub('payload', 'text/plain; charset=UTF-8', '', 'attachment; filename="file.txt"');
@@ -209,10 +213,7 @@ final class Pop3FetcherHelperTest extends TestCase
     {
         $connector = (new Connector())
             ->setName('Support')
-            ->setDomain('example.com')
-            ->setPop3Username('support')
-            ->setPop3Host('mail.example.com')
-            ->setPop3Password('secret');
+            ->setDomain('example.com');
         $email = (new Email())
             ->setReceivedAt(new \DateTimeImmutable('2024-01-02 03:04:05'))
             ->setContentHash('hash123');
@@ -228,21 +229,21 @@ final class Pop3FetcherHelperTest extends TestCase
         try {
             chdir($tempDir);
 
-            $this->callPrivateMethod('dumpOriginalMessage', [$message, $connector, null, 'account:uid-1', 'pending']);
+            $this->callPrivateMethod('dumpOriginalMessage', [$message, 'example.com', null, 'account:uid-1', 'pending']);
             self::assertFileExists($tempDir.'/mail_dumps/example.com/2024/01/02/pending/account_uid-1.eml');
             self::assertInstanceOf(\DateTimeImmutable::class, $this->callPrivateMethod('extractDateFromMessage', [$message]));
 
-            $this->callPrivateMethod('dumpOriginalMessage', [$message, $connector, $email, 'account:uid-1', 'success']);
+            $this->callPrivateMethod('dumpOriginalMessage', [$message, 'example.com', $email, 'account:uid-1', 'success']);
 
             self::assertFileDoesNotExist($tempDir.'/mail_dumps/example.com/2024/01/02/pending/account_uid-1.eml');
             self::assertFileExists($tempDir.'/mail_dumps/example.com/2024/01/02/success/hash123.eml');
-            self::assertSame('example.com', $this->callPrivateMethod('getConnectorDumpKey', [$connector]));
+            self::assertSame('example.com', $this->callPrivateMethod('getConnectorDumpKey', [$connector, 'support']));
 
             $emailWithoutHash = (new Email())
                 ->setId(Uuid::v7())
                 ->setReceivedAt(new \DateTimeImmutable('2024-01-02 03:04:05'));
-            $this->callPrivateMethod('dumpOriginalMessage', [$message, $connector, null, 'account:uid-2', 'pending']);
-            $this->callPrivateMethod('dumpOriginalMessage', [$message, $connector, $emailWithoutHash, 'account:uid-2', 'success']);
+            $this->callPrivateMethod('dumpOriginalMessage', [$message, 'example.com', null, 'account:uid-2', 'pending']);
+            $this->callPrivateMethod('dumpOriginalMessage', [$message, 'example.com', $emailWithoutHash, 'account:uid-2', 'success']);
             self::assertFileExists($tempDir.'/mail_dumps/example.com/2024/01/02/success/'.$emailWithoutHash->getId().'.eml');
             self::assertFileDoesNotExist($tempDir.'/mail_dumps/example.com/2024/01/02/pending/account_uid-2.eml');
 
@@ -271,12 +272,10 @@ final class Pop3FetcherHelperTest extends TestCase
         $connector = $this->createStub(Connector::class);
         $connector->method('getDomain')->willReturn('example.com');
 
-        $this->callPrivateMethod('dumpOriginalMessage', [$message, $connector, null, 'import:key']);
+        $this->callPrivateMethod('dumpOriginalMessage', [$message, 'example.com', null, 'import:key']);
 
-        $brokenConnector = $this->createStub(Connector::class);
-        $brokenConnector->method('getDomain')->willThrowException(new \RuntimeException('connector broken'));
-
-        $this->callPrivateMethod('removePendingDump', [$brokenConnector, 'import:key']);
+        // A broken key (null byte) must not escape as an exception.
+        $this->callPrivateMethod('removePendingDump', ["broken\0key", 'import:key']);
     }
 
     public function testConvertMessageToEntityBuildsHtmlEmailAndFallbackInboxFolder(): void
@@ -309,6 +308,7 @@ final class Pop3FetcherHelperTest extends TestCase
             $this->createStub(AttachmentStorage::class),
             $this->createStub(Pop3StorageFactory::class),
             $this->createStub(MailRoutingService::class),
+            $this->createStub(ConnectorConfigRepository::class),
         );
         $message = $this->createRichMessageStub(
             [
@@ -364,6 +364,7 @@ final class Pop3FetcherHelperTest extends TestCase
             $this->createStub(AttachmentStorage::class),
             $this->createStub(Pop3StorageFactory::class),
             $this->createStub(MailRoutingService::class),
+            $this->createStub(ConnectorConfigRepository::class),
         );
         $message = $this->createRichMessageStub(
             [
@@ -419,6 +420,7 @@ final class Pop3FetcherHelperTest extends TestCase
             $attachmentStorage,
             $this->createStub(Pop3StorageFactory::class),
             $this->createStub(MailRoutingService::class),
+            $this->createStub(ConnectorConfigRepository::class),
         );
         $rawMessage = implode("\r\n", [
             'Content-Type: multipart/mixed; boundary="pop3-boundary"',
@@ -481,6 +483,7 @@ final class Pop3FetcherHelperTest extends TestCase
             $this->createStub(AttachmentStorage::class),
             $this->createStub(Pop3StorageFactory::class),
             $this->createStub(MailRoutingService::class),
+            $this->createStub(ConnectorConfigRepository::class),
         );
         $email = new Email();
 
@@ -491,6 +494,32 @@ final class Pop3FetcherHelperTest extends TestCase
         self::assertCount(1, $email->getEmailAddresses());
     }
 
+    /**
+     * @param array<string, mixed> $overrides
+     *
+     * @return array<string, mixed>
+     */
+    private static function config(array $overrides = []): array
+    {
+        return array_merge([
+            'pop3Host' => 'mail.example.com',
+            'pop3Port' => 110,
+            'pop3Username' => 'user',
+            'pop3Password' => 'pass',
+            'pop3Security' => 'ssl',
+            'pop3DeleteAfterFetch' => true,
+        ], $overrides);
+    }
+
+    private static function request(?int $limit = null, ?bool $deleteAfter = null, bool $oldestFirst = false): ConnectorFetchRequest
+    {
+        $request = new ConnectorFetchRequest();
+        $request->limit = $limit;
+        $request->deleteAfter = $deleteAfter;
+        $request->oldestFirst = $oldestFirst;
+
+        return $request;
+    }
     private function callPrivateMethod(string $methodName, array $args): mixed
     {
         return $this->callPrivateMethodOn($this->fetcher, $methodName, $args);

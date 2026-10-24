@@ -1,0 +1,27 @@
+{{ form_start(form, {'attr': {'id': 'pop3-connector-form', 'data-avalynxform': '1', 'novalidate': 'novalidate'}}) }}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header"><i class="fa-solid fa-inbox me-2" aria-hidden="true"></i>{{ pluginName }}</div>
+        <div class="card-body">
+            {{ form_widget(form.server_total) }}
+            <div class="row g-3">
+                <div class="col-12"><h6 class="mb-0">{{ 'connector.pop3'|trans }}</h6></div>
+                <div class="col-md-4">{{ form_row(form.pop3Host, {'attr': {'class': 'form-control'}}) }}</div>
+                <div class="col-md-2">{{ form_row(form.pop3Port, {'attr': {'class': 'form-control'}}) }}</div>
+                <div class="col-md-3">{{ form_row(form.pop3Username, {'attr': {'class': 'form-control'}}) }}</div>
+                <div class="col-md-3">{{ form_row(form.pop3Password, {'attr': {'class': 'form-control'}}) }}</div>
+                <div class="col-md-4">{{ form_row(form.pop3Security, {'attr': {'class': 'form-select'}}) }}</div>
+                <div class="col-md-8 d-flex align-items-end">{{ form_row(form.pop3DeleteAfterFetch, {'attr': {'class': 'form-check-input'}}) }}</div>
+                <div class="col-12"><hr class="my-1"></div>
+                <div class="col-12"><h6 class="mb-0">{{ 'connector.smtp'|trans }}</h6></div>
+                <div class="col-md-4">{{ form_row(form.smtpHost, {'attr': {'class': 'form-control'}}) }}</div>
+                <div class="col-md-2">{{ form_row(form.smtpPort, {'attr': {'class': 'form-control'}}) }}</div>
+                <div class="col-md-3">{{ form_row(form.smtpUsername, {'attr': {'class': 'form-control'}}) }}</div>
+                <div class="col-md-3">{{ form_row(form.smtpPassword, {'attr': {'class': 'form-control'}}) }}</div>
+                <div class="col-md-4">{{ form_row(form.smtpSecurity, {'attr': {'class': 'form-select'}}) }}</div>
+            </div>
+        </div>
+        <div class="card-footer text-end">
+            {{ form_widget(form.save) }}
+        </div>
+    </div>
+{{ form_end(form) }}

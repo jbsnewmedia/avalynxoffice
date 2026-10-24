@@ -19,6 +19,7 @@ use AvalynxOffice\Entity\FolderAccount;
 use AvalynxOffice\Entity\Account;
 use AvalynxOffice\Entity\AccountAddress;
 use AvalynxOffice\Entity\Connector;
+use AvalynxOffice\Entity\ConnectorConfig;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Entity\UserAccount;
 use PHPUnit\Framework\TestCase;
@@ -145,18 +146,11 @@ final class EntityGapFillTest extends TestCase
         $connector = (new Connector())
             ->setName('Primary')
             ->setDomain('example.com')
-            ->setPop3Host('pop.example.com')
-            ->setPop3Port(995)
-            ->setPop3Username('pop-user')
-            ->setPop3Password('pop-pass')
-            ->setPop3Security('ssl')
-            ->setPop3DeleteAfterFetch(false)
-            ->setSmtpHost('smtp.example.com')
-            ->setSmtpPort(465)
-            ->setSmtpUsername('smtp-user')
-            ->setSmtpPassword('smtp-pass')
-            ->setSmtpSecurity('tls')
             ->setDefaultAccount($account);
+        $connectorConfig = new ConnectorConfig();
+        $connectorConfig->setConnector($connector);
+        $connectorConfig->setPluginKey('pop3');
+        $connectorConfig->setConfig(['pop3Host' => 'pop.example.com']);
 
         self::assertSame($account, $folderAccount->getAccount());
         self::assertSame($folder, $folderAccount->getFolder());
@@ -172,17 +166,10 @@ final class EntityGapFillTest extends TestCase
         self::assertSame($account, $connector->getDefaultAccount());
         self::assertSame('Primary', $connector->getName());
         self::assertSame('example.com', $connector->getDomain());
-        self::assertSame('pop.example.com', $connector->getPop3Host());
-        self::assertSame(995, $connector->getPop3Port());
-        self::assertSame('pop-user', $connector->getPop3Username());
-        self::assertSame('pop-pass', $connector->getPop3Password());
-        self::assertSame('ssl', $connector->getPop3Security());
-        self::assertFalse($connector->getPop3DeleteAfterFetch());
-        self::assertSame('smtp.example.com', $connector->getSmtpHost());
-        self::assertSame(465, $connector->getSmtpPort());
-        self::assertSame('smtp-user', $connector->getSmtpUsername());
-        self::assertSame('smtp-pass', $connector->getSmtpPassword());
-        self::assertSame('tls', $connector->getSmtpSecurity());
+        self::assertSame($connector, $connectorConfig->getConnector());
+        self::assertSame('pop3', $connectorConfig->getPluginKey());
+        self::assertSame(['pop3Host' => 'pop.example.com'], $connectorConfig->getConfig());
+        self::assertNotNull($connectorConfig->getId());
     }
 
     public function testUserIdentifierRolesAndAccountRemovalBranches(): void

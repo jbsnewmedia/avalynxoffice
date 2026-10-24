@@ -7,7 +7,7 @@ declare(strict_types=1);
  * Licensed under the AvalynxOffice Public License (APL) version 1.0.
  */
 
-namespace AvalynxOffice\Service\Mail;
+namespace JBSNewMedia\Pop3ConnectorBundle\Service;
 
 use Laminas\Mail\Storage\Pop3 as Pop3Storage;
 

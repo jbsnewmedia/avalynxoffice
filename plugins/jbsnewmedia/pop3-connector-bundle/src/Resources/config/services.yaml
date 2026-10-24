@@ -1,0 +1,13 @@
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    JBSNewMedia\Pop3ConnectorBundle\:
+        resource: '../../'
+        exclude:
+            - '../../DependencyInjection/'
+            - '../../Pop3ConnectorBundle.php'
+
+    JBSNewMedia\Pop3ConnectorBundle\Plugin\Pop3ConnectorPlugin:
+        tags: ['avalynxoffice.connector_plugin']

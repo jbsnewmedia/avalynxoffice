@@ -12,14 +12,15 @@
                         <th>{{ 'connector.name'|trans }}</th>
                         <th>{{ 'connector.domain'|trans }}</th>
                         <th>{{ 'connector.default_account'|trans }}</th>
-                        <th>{{ 'connector.aliases'|trans }}</th>
-                        <th>{{ 'connector.pop3'|trans }}</th>
-                        <th>{{ 'connector.smtp_optional'|trans }}</th>
+                        <th>{{ 'connector.input'|trans }}</th>
+                        <th>{{ 'connector.output'|trans }}</th>
+                        <th>{{ 'common.status'|trans }}</th>
                         <th>{{ 'connector.actions'|trans }}</th>
                     </tr>
                 </thead>
                 <tbody>
                 {% for connector in items %}
+                    {% set status = pluginRegistry.getStatus(connector) %}
                     <tr>
                         <td><div class="fw-medium">{{ connector.name }}</div></td>
                         <td>{{ connector.domain }}</td>
@@ -32,35 +33,28 @@
                             {% endif %}
                         </td>
                         <td>
-                            {% if connector.aliases|length > 0 %}
-                                {% for alias in connector.aliases|slice(0, 4) %}
-                                    <div class="small">{{ alias.localPart }}@{{ connector.domain }}</div>
-                                {% endfor %}
-                                {% if connector.aliases|length > 4 %}
-                                    <div class="small text-body-secondary">+{{ connector.aliases|length - 4 }}</div>
-                                {% endif %}
+                            {% if pluginRegistry.isInputConfigured(connector) %}
+                                <span class="badge text-bg-success">{{ 'connector.configured_yes'|trans }}</span>
                             {% else %}
-                                <span class="text-body-secondary small">—</span>
+                                <span class="badge text-bg-secondary">{{ 'connector.configured_no'|trans }}</span>
                             {% endif %}
                         </td>
                         <td>
-                            <div>{{ connector.pop3Host ?: '—' }}</div>
-                            <div class="small text-body-secondary">{{ connector.pop3Username ?: '—' }}</div>
+                            {% if pluginRegistry.isOutputConfigured(connector) %}
+                                <span class="badge text-bg-success">{{ 'connector.configured_yes'|trans }}</span>
+                            {% else %}
+                                <span class="badge text-bg-secondary">{{ 'connector.configured_no'|trans }}</span>
+                            {% endif %}
                         </td>
-                        <td>
-                            <div>{{ connector.smtpHost ?: '—' }}</div>
-                            <div class="small text-body-secondary">{{ connector.smtpUsername ?: '—' }}</div>
+                        <td class="small">
+                            <div>{{ 'connector.status_mails'|trans }}: {{ status.mails ?? '—' }}</div>
+                            <div>{{ 'connector.status_contacts'|trans }}: {{ status.contacts ?? '—' }}</div>
+                            <div>{{ 'connector.status_calendar'|trans }}: {{ status.calendar ?? '—' }}</div>
                         </td>
                         <td class="text-nowrap">
-                            <a href="{{ path('connector_edit', {id: connector.id}) }}" class="btn btn-sm btn-primary" title="{{ 'connector.edit'|trans }}" aria-label="{{ 'connector.edit'|trans }}">
-                                <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
+                            <a href="{{ path('connector_settings', {id: connector.id}) }}" class="btn btn-sm btn-primary" title="{{ 'connector.settings'|trans }}" aria-label="{{ 'connector.settings'|trans }}">
+                                <i class="fa-solid fa-gear" aria-hidden="true"></i>
                             </a>
-                            <form method="post" action="{{ path('connector_delete', {id: connector.id}) }}" class="d-inline">
-                                <input type="hidden" name="_token" value="{{ csrf_token('delete_connector_' ~ connector.id) }}">
-                                <button type="button" class="btn btn-sm btn-outline-danger confirm-action" data-confirm="{{ 'connector.confirm_delete'|trans }}" title="{{ 'email.delete'|trans }}" aria-label="{{ 'email.delete'|trans }}">
-                                    <i class="fa-solid fa-trash" aria-hidden="true"></i>
-                                </button>
-                            </form>
                         </td>
                     </tr>
                 {% else %}
@@ -72,4 +66,4 @@
             </table>
         </div>
     </div>
-    </div>
+</div>

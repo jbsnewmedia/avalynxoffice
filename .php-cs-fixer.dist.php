@@ -6,6 +6,7 @@ $finder = (new PhpCsFixer\Finder())
         'plugins/jbsnewmedia/bootstrap-bundle/src',
         'plugins/jbsnewmedia/mail-action-bundle/src',
         'plugins/jbsnewmedia/mail-view-bundle/src',
+        'plugins/jbsnewmedia/pop3-connector-bundle/src',
     ])
 ;
 

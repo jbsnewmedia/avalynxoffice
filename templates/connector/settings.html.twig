@@ -1,0 +1,47 @@
+{% extends 'base.html.twig' %}
+{% block title %}{{ 'connector.settings_title'|trans }} - {{ 'app.title'|trans }}{% endblock %}
+{% block flashes %}{% endblock %}
+{% block stylesheets %}
+    {% include '_assets.html.twig' with { mode: 'user' } %}
+    {{ parent() }}
+{% endblock %}
+{% block body %}
+<div class="d-flex flex-column min-vh-100">
+    {% include '_navbar.html.twig' with { showMailToggles: false, userMenuActive: true } %}
+    <main class="flex-grow-1 py-4">
+        <div class="container">
+            {% include 'admin/_nav.html.twig' with { active: 'connectors' } %}
+            {% include 'connector/_flashes.html.twig' %}
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">{{ 'connector.settings_title'|trans }}: {{ connector.name }}</h1>
+                <a href="{{ path('connector_index') }}" class="btn btn-outline-secondary">
+                    <i class="fa-solid fa-arrow-left me-2" aria-hidden="true"></i>{{ 'common.back'|trans }}
+                </a>
+            </div>
+            <div class="card shadow-sm mb-4">
+                <div class="card-header"><i class="fa-solid fa-sliders me-2" aria-hidden="true"></i>{{ 'connector.base_data'|trans }}</div>
+                <div class="card-body">
+                    {% include 'connector/_form.html.twig' with { form: baseForm } %}
+                </div>
+            </div>
+            {% for pluginForm in pluginForms %}
+                {% include pluginForm.plugin.settingsTemplate with {form: pluginForm.form, pluginName: pluginForm.plugin.name|trans} %}
+            {% endfor %}
+            <div class="card border-danger-subtle">
+                <div class="card-body">
+                    <h2 class="h6 text-danger">{{ 'connector.danger_zone'|trans }}</h2>
+                    <form method="post" action="{{ path('connector_delete', {id: connector.id}) }}" class="d-inline">
+                        <input type="hidden" name="_token" value="{{ csrf_token('delete_connector_' ~ connector.id) }}">
+                        <button type="button" class="btn btn-sm btn-outline-danger confirm-action" data-confirm="{{ 'connector.confirm_delete'|trans }}" title="{{ 'email.delete'|trans }}" aria-label="{{ 'email.delete'|trans }}">
+                            <i class="fa-solid fa-trash me-2" aria-hidden="true"></i>{{ 'email.delete'|trans }}
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}
+{% block javascripts %}
+    {{ parent() }}
+{% endblock %}

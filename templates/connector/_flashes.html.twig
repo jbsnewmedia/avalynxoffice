@@ -1,0 +1,11 @@
+{% set flashMessages = app.flashes %}
+{% if flashMessages|length > 0 %}
+    {% for label, messages in flashMessages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ label }} alert-dismissible fade show mb-3" role="alert">
+                <i class="fa-solid {% if 'success' == label %}fa-circle-check{% elseif 'danger' == label %}fa-circle-exclamation{% elseif 'warning' == label %}fa-triangle-exclamation{% else %}fa-circle-info{% endif %} me-2" aria-hidden="true"></i>{{ message|trans }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="{{ 'common.close'|trans }}"></button>
+            </div>
+        {% endfor %}
+    {% endfor %}
+{% endif %}

@@ -2,13 +2,14 @@
 
 declare(strict_types=1);
 
-namespace AvalynxOffice\Tests\Service\Mail;
+namespace AvalynxOffice\Tests\Plugin\Pop3ConnectorBundle\Service;
 
 use AvalynxOffice\Entity\Enum\FolderFunction;
 use AvalynxOffice\Entity\Folder;
 use AvalynxOffice\Entity\Account;
 use AvalynxOffice\Service\Mail\FolderManager;
-use AvalynxOffice\Service\Mail\Pop3Fetcher;
+use AvalynxOffice\Plugin\Contract\ConnectorFetchRequest;
+use JBSNewMedia\Pop3ConnectorBundle\Service\Pop3Fetcher;
 use AvalynxOffice\Tests\Support\RefreshDatabaseTrait;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\Group;

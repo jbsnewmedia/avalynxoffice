@@ -38,6 +38,22 @@
                     ]
                 }
             }
+        },
+        {
+            "package": "jbsnewmedia/pop3-connector-bundle",
+            "path": "plugins/jbsnewmedia/pop3-connector-bundle",
+            "bundle": "JBSNewMedia\\Pop3ConnectorBundle\\Pop3ConnectorBundle",
+            "active": true,
+            "environments": [
+                "all"
+            ],
+            "autoload": {
+                "psr-4": {
+                    "JBSNewMedia\\Pop3ConnectorBundle\\": [
+                        "plugins/jbsnewmedia/pop3-connector-bundle/src"
+                    ]
+                }
+            }
         }
     ]
 }

@@ -1,5 +1,6 @@
 {% extends 'base.html.twig' %}
 {% block title %}{{ 'connector.title'|trans }} - {{ 'app.title'|trans }}{% endblock %}
+{% block flashes %}{% endblock %}
 {% block stylesheets %}
     {% include '_assets.html.twig' with { mode: 'user' } %}
     {{ parent() }}
@@ -11,6 +12,7 @@
         <div class="container">
             {% include 'admin/_nav.html.twig' with { active: 'connectors' } %}
             <h1 class="h3 mb-4">{{ 'connector.title'|trans }}</h1>
+            {% include 'connector/_flashes.html.twig' %}
             {% include 'connector/_list.html.twig' %}
         </div>
     </main>

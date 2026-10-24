@@ -18,6 +18,10 @@ services:
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
+    AvalynxOffice\Service\ConnectorPluginRegistry:
+        arguments:
+            $plugins: !tagged_iterator avalynxoffice.connector_plugin
+
     AvalynxOffice\Service\PluginManifestService:
         bind:
             $projectDir: '%kernel.project_dir%'

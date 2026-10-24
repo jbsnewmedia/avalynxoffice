@@ -16,6 +16,7 @@ use AvalynxOffice\Entity\Attachment;
 use AvalynxOffice\Entity\Body;
 use AvalynxOffice\Entity\CalendarEvent;
 use AvalynxOffice\Entity\Connector;
+use AvalynxOffice\Entity\ConnectorConfig;
 use AvalynxOffice\Entity\Email;
 use AvalynxOffice\Entity\EmailAddressLink;
 use AvalynxOffice\Entity\EmailAttachmentLink;
@@ -344,19 +345,26 @@ class AppFixtures extends Fixture
         $connector = new Connector();
         $connector->setName($name);
         $connector->setDomain($domain);
-        $connector->setPop3Host(sprintf('pop3.%s.example', $hostPrefix));
-        $connector->setPop3Port(995);
-        $connector->setPop3Username($domain);
-        $connector->setPop3Password('secret');
-        $connector->setPop3Security('ssl');
-        $connector->setPop3DeleteAfterFetch(false);
-        $connector->setSmtpHost(sprintf('smtp.%s.example', $hostPrefix));
-        $connector->setSmtpPort(465);
-        $connector->setSmtpUsername($domain);
-        $connector->setSmtpPassword('secret');
-        $connector->setSmtpSecurity('ssl');
         $connector->setDefaultAccount($defaultAccount);
         $manager->persist($connector);
+
+        $config = new ConnectorConfig();
+        $config->setConnector($connector);
+        $config->setPluginKey('pop3');
+        $config->setConfig([
+            'pop3Host' => sprintf('pop3.%s.example', $hostPrefix),
+            'pop3Port' => 995,
+            'pop3Username' => $domain,
+            'pop3Password' => 'secret',
+            'pop3Security' => 'ssl',
+            'pop3DeleteAfterFetch' => false,
+            'smtpHost' => sprintf('smtp.%s.example', $hostPrefix),
+            'smtpPort' => 465,
+            'smtpUsername' => $domain,
+            'smtpPassword' => 'secret',
+            'smtpSecurity' => 'ssl',
+        ]);
+        $manager->persist($config);
         $manager->flush();
 
         return $connector;

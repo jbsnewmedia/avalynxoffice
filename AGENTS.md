@@ -1,5 +1,12 @@
 # Project Instructions
 
+## Deployment status
+
+- There are **no production instances yet**. Big schema/data rebuilds are
+  therefore cheap: prefer writing a **complete fresh migration** for each
+  change instead of stacking data-preserving incremental migrations.
+  This policy changes only with the first production system.
+
 ## Runtime and tooling
 
 - Run Composer, Node, and all project tools inside Docker.
@@ -69,6 +76,17 @@ Notes:
 - Templates must ship an (empty) `.invalid-feedback` element next to the
     field (wrap field + feedback in a `.form-group` container), otherwise
     AvalynxForm has nowhere to render the inline message.
+
+## Flash messages
+
+- Flash alerts (`addFlash(...)`) must be rendered **inside the module
+    content area** (below the admin nav, above the module content) —
+    never at the top of the page above the navbar. `base.html.twig`
+    renders the `flashes` block above everything; every module page must
+    therefore silence it with `{% block flashes %}{% endblock %}` and
+    render the alerts itself inside the module (see
+    `templates/connector/_flashes.html.twig` and
+    `templates/legal/_admin_content.html.twig` for the pattern).
 
 ## Test data flow
 

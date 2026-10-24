@@ -104,11 +104,20 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
         $this->connector->setDefaultAccount($this->account);
         $this->connector->setName('Primary');
         $this->connector->setDomain('example.com');
-        $this->connector->setPop3Host('pop3.example.com');
-        $this->connector->setPop3Username('info');
-        $this->connector->setPop3Password('secret');
-        $this->connector->setSmtpHost('smtp.example.com');
         $this->em->persist($this->connector);
+
+        $config = new \AvalynxOffice\Entity\ConnectorConfig();
+        $config->setConnector($this->connector);
+        $config->setPluginKey('pop3');
+        $config->setConfig([
+            'pop3Host' => 'pop3.example.com',
+            'pop3Port' => 995,
+            'pop3Username' => 'info',
+            'pop3Password' => 'secret',
+            'pop3Security' => 'ssl',
+            'pop3DeleteAfterFetch' => true,
+        ]);
+        $this->em->persist($config);
 
         $this->inbox = (new Folder())->setName('Posteingang');
         $this->inbox->setFunctions([\AvalynxOffice\Entity\Enum\FolderFunction::INBOX->value]);
@@ -420,28 +429,30 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
         $storage->method('getMessage')->with(1)->willReturn(new \Laminas\Mail\Storage\Message(['raw' => $rawMessage]));
         $storage->expects(self::once())->method('removeMessage')->with(1);
 
-        $factory = $this->createStub(\AvalynxOffice\Service\Mail\Pop3StorageFactory::class);
+        $factory = $this->createStub(\JBSNewMedia\Pop3ConnectorBundle\Service\Pop3StorageFactory::class);
         $factory->method('create')->willReturn($storage);
 
-        $connector = $this->connector;
-        $connector->setPop3DeleteAfterFetch(true);
+        $config = $this->pop3Config();
+        $request = new \AvalynxOffice\Plugin\Contract\ConnectorFetchRequest();
+        $request->deleteAfter = true;
 
-        $fetcher = new \AvalynxOffice\Service\Mail\Pop3Fetcher(
+        $fetcher = new \JBSNewMedia\Pop3ConnectorBundle\Service\Pop3Fetcher(
             $this->em,
             static::getContainer()->get(\AvalynxOffice\Repository\EmailRepository::class),
             static::getContainer()->get(FolderManager::class),
-            static::getContainer()->get(AttachmentStorage::class),
+            static::getContainer()->get(\AvalynxOffice\Service\Mail\AttachmentStorage::class),
             $factory,
             static::getContainer()->get(\AvalynxOffice\Service\Mail\MailRoutingService::class),
+            static::getContainer()->get(\AvalynxOffice\Repository\ConnectorConfigRepository::class),
         );
 
-        $result = $fetcher->fetchForConnector($connector);
+        $result = $fetcher->fetch($this->connector, $config, $request);
 
         self::assertSame(['imported' => 1, 'skipped' => 0, 'errors' => 0], $result);
 
         // The message is fully persisted locally and assigned to the inbox.
         $imported = $this->em->getRepository(Email::class)->findOneBy([
-            'importKey' => $connector->getId().':uid-import-1',
+            'importKey' => $this->connector->getId().':uid-import-1',
         ]);
         self::assertNotNull($imported);
         self::assertSame('Imported while read-only', $imported->getSubject());
@@ -465,9 +476,24 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
         $storage2->expects(self::never())->method('removeMessage');
         $factory->method('create')->willReturn($storage2);
 
-        $result2 = $fetcher->fetchForConnector($connector);
+        $result2 = $fetcher->fetch($this->connector, $config, $request);
         self::assertSame(['imported' => 0, 'skipped' => 1, 'errors' => 0], $result2);
-        self::assertCount(1, $this->em->getRepository(Email::class)->findBy(['importKey' => $connector->getId().':uid-import-1']));
+        self::assertCount(1, $this->em->getRepository(Email::class)->findBy(['importKey' => $this->connector->getId().':uid-import-1']));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function pop3Config(): array
+    {
+        return [
+            'pop3Host' => 'pop3.example.com',
+            'pop3Port' => 995,
+            'pop3Username' => 'info',
+            'pop3Password' => 'secret',
+            'pop3Security' => 'ssl',
+            'pop3DeleteAfterFetch' => true,
+        ];
     }
 
     public function testNonXmlRequestsReceiveHtmlForbiddenPage(): void

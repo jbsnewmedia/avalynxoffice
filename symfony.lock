@@ -56,6 +56,9 @@
     "jbsnewmedia/mail-action-bundle": {
         "version": "0.1.0"
     },
+    "jbsnewmedia/pop3-connector-bundle": {
+        "version": "0.1.0"
+    },
     "php-cs-fixer/shim": {
         "version": "3.87",
         "recipe": {

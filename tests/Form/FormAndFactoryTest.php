@@ -82,17 +82,6 @@ final class FormAndFactoryTest extends TestCase
             'name',
             'domain',
             'defaultAccount',
-            'pop3Host',
-            'pop3Port',
-            'pop3Username',
-            'pop3Password',
-            'pop3Security',
-            'pop3DeleteAfterFetch',
-            'smtpHost',
-            'smtpPort',
-            'smtpUsername',
-            'smtpPassword',
-            'smtpSecurity',
             'save',
         ], array_column($addedFields, 0));
 

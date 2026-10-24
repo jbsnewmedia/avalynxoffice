@@ -31,6 +31,7 @@
         "jbsnewmedia/bootstrap-bundle": "^1.1",
         "jbsnewmedia/css-purger": "^1.0.4",
         "jbsnewmedia/mail-action-bundle": ">=0.1@dev",
+        "jbsnewmedia/pop3-connector-bundle": ">=0.1@dev",
         "laminas/laminas-mail": "^2.5.2",
         "lipis/flag-icons": "^7.5",
         "php-cs-fixer/shim": "^3.95.27",

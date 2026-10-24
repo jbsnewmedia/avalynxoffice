@@ -63,7 +63,10 @@ final class AdminControllerTest extends WebTestCase
         $this->client->request('GET', '/admin/connectors/new');
         self::assertResponseRedirects('/login');
 
-        $this->client->request('GET', sprintf('/admin/connectors/%s/edit', $connector->getId()));
+        $this->client->request('GET', sprintf('/admin/connectors/%s/settings', $connector->getId()));
+        self::assertResponseRedirects('/login');
+
+        $this->client->request('POST', sprintf('/admin/connectors/%s/settings/pop3', $connector->getId()));
         self::assertResponseRedirects('/login');
 
         $this->client->request('POST', sprintf('/admin/connectors/%s', $connector->getId()));
@@ -95,8 +98,11 @@ final class AdminControllerTest extends WebTestCase
         $this->client->request('GET', '/admin/connectors/new');
         self::assertResponseIsSuccessful();
 
-        $this->client->request('GET', sprintf('/admin/connectors/%s/edit', $connector->getId()));
+        $this->client->request('GET', sprintf('/admin/connectors/%s/settings', $connector->getId()));
         self::assertResponseIsSuccessful();
+
+        $this->client->request('GET', sprintf('/admin/connectors/%s/edit', $connector->getId()));
+        self::assertResponseRedirects(sprintf('/admin/connectors/%s/settings', $connector->getId()));
     }
 
     public function testAccountControllerSupportsCreateEditAndDeleteFlows(): void
@@ -320,16 +326,16 @@ final class AdminControllerTest extends WebTestCase
         $this->client->request('GET', '/admin/connectors/new', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
 
-        $this->client->request('GET', sprintf('/admin/connectors/%s/edit', $connector->getId()), server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $this->client->request('GET', sprintf('/admin/connectors/%s/settings', $connector->getId()), server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
 
-        // Edit with missing domain keeps the form open with field errors.
-        $editCrawler = $this->client->request('GET', sprintf('/admin/connectors/%s/edit', $connector->getId()), server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
-        $editForm = $editCrawler->filter('form')->form();
-        $editValues = $editForm->getPhpValues();
-        $editValues['connector']['domain'] = '';
+        // Base form with missing domain keeps the form open with field errors.
+        $settingsCrawler = $this->client->request('GET', sprintf('/admin/connectors/%s/settings', $connector->getId()), server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $baseForm = $settingsCrawler->filter('form#connector-form')->form();
+        $baseValues = $baseForm->getPhpValues();
+        $baseValues['connector']['domain'] = '';
 
-        $this->client->request('POST', sprintf('/admin/connectors/%s/edit', $connector->getId()), $editValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $this->client->request('POST', sprintf('/admin/connectors/%s/edit', $connector->getId()), $baseValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseStatusCodeSame(422);
         $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
         self::assertFalse($data['success']);
@@ -347,6 +353,22 @@ final class AdminControllerTest extends WebTestCase
         $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
         self::assertFalse($data['success']);
         self::assertArrayHasKey('connector[domain]', $data['invalid']);
+
+        // An unknown connector plugin is answered with a 404.
+        $this->client->request('POST', sprintf('/admin/connectors/%s/settings/unknown-plugin', $connector->getId()), [], server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        self::assertResponseStatusCodeSame(404);
+
+        // An invalid plugin form keeps the dialog open with field errors.
+        $settingsCrawler = $this->client->request('GET', sprintf('/admin/connectors/%s/settings', $connector->getId()), server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $pluginForm = $settingsCrawler->filter('form#pop3-connector-form')->form();
+        $pluginValues = $pluginForm->getPhpValues();
+        $pluginValues['pop3_connector_settings']['pop3Port'] = 'not-a-number';
+
+        $this->client->request('POST', sprintf('/admin/connectors/%s/settings/pop3', $connector->getId()), $pluginValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        self::assertResponseStatusCodeSame(422);
+        $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertFalse($data['success']);
+        self::assertArrayHasKey('pop3_connector_settings[pop3Port]', $data['invalid']);
 
         $this->client->request('POST', sprintf('/admin/connectors/%s', $connector->getId()), ['_token' => 'invalid'], [], ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseRedirects('/admin/connectors');
@@ -367,16 +389,6 @@ final class AdminControllerTest extends WebTestCase
         $createValues['connector']['defaultAccount'] = (string) $account->getId();
         $createValues['connector']['name'] = 'Created Connector';
         $createValues['connector']['domain'] = 'created-connector.example.com';
-        $createValues['connector']['pop3Host'] = 'pop.example.com';
-        $createValues['connector']['pop3Port'] = '995';
-        $createValues['connector']['pop3Username'] = 'pop-user';
-        $createValues['connector']['pop3Password'] = 'pop-secret';
-        $createValues['connector']['pop3Security'] = 'ssl';
-        $createValues['connector']['smtpHost'] = 'smtp.example.com';
-        $createValues['connector']['smtpPort'] = '587';
-        $createValues['connector']['smtpUsername'] = 'smtp-user';
-        $createValues['connector']['smtpPassword'] = 'smtp-secret';
-        $createValues['connector']['smtpSecurity'] = 'tls';
 
         $this->client->request('POST', '/admin/connectors/new', $createValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
@@ -386,50 +398,79 @@ final class AdminControllerTest extends WebTestCase
 
         $createdConnector = $this->entityManager->getRepository(Connector::class)->findOneBy(['domain' => 'created-connector.example.com']);
         self::assertInstanceOf(Connector::class, $createdConnector);
-        self::assertSame('pop-secret', $createdConnector->getPop3Password());
-        self::assertSame('smtp-secret', $createdConnector->getSmtpPassword());
+        self::assertSame($account->getId()?->toRfc4122(), $createdConnector->getDefaultAccount()?->getId()?->toRfc4122());
 
-        $editCrawler = $this->client->request('GET', sprintf('/admin/connectors/%s/edit', $createdConnector->getId()), server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        // Configure the POP3 plugin in the settings dialog (gear).
+        $settingsCrawler = $this->client->request('GET', sprintf('/admin/connectors/%s/settings', $createdConnector->getId()), server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
 
-        $editForm = $editCrawler->filter('form')->form();
-        $editValues = $editForm->getPhpValues();
-        $editValues['connector']['defaultAccount'] = (string) $account->getId();
-        $editValues['connector']['name'] = 'Updated Connector';
-        $editValues['connector']['domain'] = 'updated-connector.example.com';
-        $editValues['connector']['pop3Host'] = 'pop-updated.example.com';
-        $editValues['connector']['pop3Port'] = '110';
-        $editValues['connector']['pop3Username'] = 'updated-pop-user';
-        $editValues['connector']['pop3Password'] = 'updated-pop-secret';
-        $editValues['connector']['pop3Security'] = 'tls';
-        $editValues['connector']['smtpHost'] = 'smtp-updated.example.com';
-        $editValues['connector']['smtpPort'] = '25';
-        $editValues['connector']['smtpUsername'] = 'updated-smtp-user';
-        $editValues['connector']['smtpPassword'] = 'updated-smtp-secret';
-        $editValues['connector']['smtpSecurity'] = 'ssl';
+        $pluginForm = $settingsCrawler->filter('form#pop3-connector-form')->form();
+        $pluginValues = $pluginForm->getPhpValues();
+        $pluginValues['pop3_connector_settings']['pop3Host'] = 'pop.example.com';
+        $pluginValues['pop3_connector_settings']['pop3Port'] = '995';
+        $pluginValues['pop3_connector_settings']['pop3Username'] = 'pop-user';
+        $pluginValues['pop3_connector_settings']['pop3Password'] = 'pop-secret';
+        $pluginValues['pop3_connector_settings']['pop3Security'] = 'ssl';
+        $pluginValues['pop3_connector_settings']['pop3DeleteAfterFetch'] = '1';
+        $pluginValues['pop3_connector_settings']['smtpHost'] = 'smtp.example.com';
+        $pluginValues['pop3_connector_settings']['smtpPort'] = '587';
+        $pluginValues['pop3_connector_settings']['smtpUsername'] = 'smtp-user';
+        $pluginValues['pop3_connector_settings']['smtpPassword'] = 'smtp-secret';
+        $pluginValues['pop3_connector_settings']['smtpSecurity'] = 'tls';
 
-        $this->client->request('POST', sprintf('/admin/connectors/%s/edit', $createdConnector->getId()), $editValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $this->client->request('POST', sprintf('/admin/connectors/%s/settings/pop3', $createdConnector->getId()), $pluginValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
         $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
         self::assertTrue($data['success']);
         self::assertArrayHasKey('redirect', $data);
 
-        $this->entityManager->clear();
-        $updatedConnector = $this->entityManager->find(Connector::class, (string) $createdConnector->getId());
-        self::assertInstanceOf(Connector::class, $updatedConnector);
-        self::assertSame('Updated Connector', $updatedConnector->getName());
-        self::assertSame('updated-connector.example.com', $updatedConnector->getDomain());
-        self::assertSame('updated-pop-secret', $updatedConnector->getPop3Password());
-        self::assertSame('updated-smtp-secret', $updatedConnector->getSmtpPassword());
+        $configRepository = $this->entityManager->getRepository(\AvalynxOffice\Entity\ConnectorConfig::class);
+        $savedConfig = $configRepository->findOneBy(['connector' => $createdConnector, 'pluginKey' => 'pop3']);
+        self::assertInstanceOf(\AvalynxOffice\Entity\ConnectorConfig::class, $savedConfig);
+        $config = $savedConfig->getConfig();
+        self::assertSame('pop.example.com', $config['pop3Host']);
+        self::assertSame('pop-secret', $config['pop3Password']);
+        self::assertSame('smtp-secret', $config['smtpPassword']);
+        self::assertTrue($config['pop3DeleteAfterFetch']);
 
-        $tokenCrawler = $this->client->request('GET', '/admin/connectors', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
-        $token = $tokenCrawler->filter(sprintf('form[action="/admin/connectors/%s"] input[name="_token"]', $updatedConnector->getId()))->attr('value');
+        // The repository helper returns the stored config as plain array.
+        self::assertSame($config, $configRepository->getConfig($createdConnector, 'pop3'));
+        self::assertSame([], $configRepository->getConfig($createdConnector, 'unknown'));
+
+        // Re-saving with empty password fields keeps the stored passwords.
+        $settingsCrawler = $this->client->request('GET', sprintf('/admin/connectors/%s/settings', $createdConnector->getId()), server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $pluginForm = $settingsCrawler->filter('form#pop3-connector-form')->form();
+        $pluginValues = $pluginForm->getPhpValues();
+        $pluginValues['pop3_connector_settings']['pop3Host'] = 'pop-updated.example.com';
+        $pluginValues['pop3_connector_settings']['pop3Password'] = '';
+        $pluginValues['pop3_connector_settings']['smtpPassword'] = '';
+
+        $this->client->request('POST', sprintf('/admin/connectors/%s/settings/pop3', $createdConnector->getId()), $pluginValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        self::assertResponseIsSuccessful();
+        $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertTrue($data['success']);
+
+        $this->entityManager->clear();
+        $savedConfig = $configRepository->findOneBy(['connector' => $createdConnector, 'pluginKey' => 'pop3']);
+        self::assertInstanceOf(\AvalynxOffice\Entity\ConnectorConfig::class, $savedConfig);
+        $config = $savedConfig->getConfig();
+        self::assertSame('pop-updated.example.com', $config['pop3Host']);
+        self::assertSame('pop-secret', $config['pop3Password']);
+        self::assertSame('smtp-secret', $config['smtpPassword']);
+
+        // The list shows input/output state and links to the settings dialog.
+        $listCrawler = $this->client->request('GET', '/admin/connectors');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists(sprintf('a[href="/admin/connectors/%s/settings"] .fa-gear', (string) $createdConnector->getId()));
+
+        $tokenCrawler = $this->client->request('GET', sprintf('/admin/connectors/%s/settings', $createdConnector->getId()));
+        $token = $tokenCrawler->filter(sprintf('form[action="/admin/connectors/%s"] input[name="_token"]', $createdConnector->getId()))->attr('value');
         self::assertNotNull($token);
-        $this->client->request('POST', sprintf('/admin/connectors/%s', $updatedConnector->getId()), ['_token' => $token], [], ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $this->client->request('POST', sprintf('/admin/connectors/%s', $createdConnector->getId()), ['_token' => $token], [], ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseRedirects('/admin/connectors');
 
         $this->entityManager->clear();
-        self::assertNull($this->entityManager->find(Connector::class, (string) $updatedConnector->getId()));
+        self::assertNull($this->entityManager->find(Connector::class, (string) $createdConnector->getId()));
     }
 
     private function loginAdmin(): void
@@ -457,7 +498,10 @@ final class AdminControllerTest extends WebTestCase
         $this->client->request('GET', '/admin/connectors/new');
         self::assertResponseStatusCodeSame(403);
 
-        $this->client->request('GET', sprintf('/admin/connectors/%s/edit', $connector->getId()));
+        $this->client->request('GET', sprintf('/admin/connectors/%s/settings', $connector->getId()));
+        self::assertResponseStatusCodeSame(403);
+
+        $this->client->request('POST', sprintf('/admin/connectors/%s/settings/pop3', $connector->getId()));
         self::assertResponseStatusCodeSame(403);
 
         $this->client->request('POST', sprintf('/admin/connectors/%s', $connector->getId()));
