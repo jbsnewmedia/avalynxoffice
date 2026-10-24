@@ -12,6 +12,7 @@
         <i class="fa-solid {{ profileNavCurrent.icon }} me-2" aria-hidden="true"></i>{{ profileNavCurrent.label|trans }}
     </button>
     <ul class="dropdown-menu" aria-labelledby="profileNavDropdown">
+        <li><hr class="dropdown-divider" aria-hidden="true"></li>
         {% for key, item in profileNavItems %}
             <li>
                 {% if key == active %}

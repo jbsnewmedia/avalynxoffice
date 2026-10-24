@@ -134,7 +134,7 @@ final class LicenseControllerTest extends WebTestCase
     public function testUsersPageRequiresAdminRole(): void
     {
         $this->client->loginUser($this->user);
-        $this->client->request('GET', '/admin/license/users');
+        $this->client->request('GET', '/admin/users');
 
         self::assertResponseStatusCodeSame(403);
     }
@@ -142,7 +142,7 @@ final class LicenseControllerTest extends WebTestCase
     public function testUsersPageShowsAccountsWithRolesAndLastAuth(): void
     {
         $this->client->loginUser($this->admin);
-        $this->client->request('GET', '/admin/license/users');
+        $this->client->request('GET', '/admin/users');
 
         self::assertResponseIsSuccessful();
         $content = (string) $this->client->getResponse()->getContent();
@@ -304,7 +304,7 @@ final class LicenseControllerTest extends WebTestCase
         $this->em->flush();
 
         $this->client->loginUser($this->admin);
-        $this->client->request('GET', '/admin/license/users');
+        $this->client->request('GET', '/admin/users');
 
         self::assertResponseIsSuccessful();
         $content = (string) $this->client->getResponse()->getContent();
@@ -317,10 +317,10 @@ final class LicenseControllerTest extends WebTestCase
 
         $this->client->request('GET', '/admin/license');
         $deactivateToken = $this->setCsrfToken('toggle_user_active_'.$this->user->getId());
-        $this->client->request('POST', '/admin/license/users/'.$this->user->getId().'/active', [
+        $this->client->request('POST', '/admin/users/'.$this->user->getId().'/active', [
             '_token' => $deactivateToken,
         ]);
-        self::assertResponseRedirects('/admin/license/users');
+        self::assertResponseRedirects('/admin/users');
 
         /** @var User $reloaded */
         $this->em->clear();
@@ -328,10 +328,10 @@ final class LicenseControllerTest extends WebTestCase
         self::assertFalse($reloaded->isActive());
 
         $activateToken = $this->setCsrfToken('toggle_user_active_'.$this->user->getId());
-        $this->client->request('POST', '/admin/license/users/'.$this->user->getId().'/active', [
+        $this->client->request('POST', '/admin/users/'.$this->user->getId().'/active', [
             '_token' => $activateToken,
         ]);
-        self::assertResponseRedirects('/admin/license/users');
+        self::assertResponseRedirects('/admin/users');
 
         /** @var User $reactivated */
         $this->em->clear();
@@ -342,7 +342,7 @@ final class LicenseControllerTest extends WebTestCase
     public function testToggleUserRequiresCsrfToken(): void
     {
         $this->client->loginUser($this->admin);
-        $this->client->request('POST', '/admin/license/users/'.$this->user->getId().'/active');
+        $this->client->request('POST', '/admin/users/'.$this->user->getId().'/active');
 
         self::assertResponseStatusCodeSame(403);
     }
@@ -352,7 +352,7 @@ final class LicenseControllerTest extends WebTestCase
         $this->client->loginUser($this->user);
         $this->client->request('GET', '/mails');
         $token = $this->setCsrfToken('toggle_user_active_'.$this->user->getId());
-        $this->client->request('POST', '/admin/license/users/'.$this->user->getId().'/active', [
+        $this->client->request('POST', '/admin/users/'.$this->user->getId().'/active', [
             '_token' => $token,
         ]);
 
@@ -363,7 +363,7 @@ final class LicenseControllerTest extends WebTestCase
     {
         $this->client->loginUser($this->admin);
         $token = $this->setCsrfToken('toggle_user_active_00000000-0000-7000-8000-000000000000');
-        $this->client->request('POST', '/admin/license/users/00000000-0000-7000-8000-000000000000/active', [
+        $this->client->request('POST', '/admin/users/00000000-0000-7000-8000-000000000000/active', [
             '_token' => $token,
         ]);
 
@@ -415,7 +415,7 @@ final class LicenseControllerTest extends WebTestCase
     {
         $this->client->loginUser($this->admin);
         $token = $this->setCsrfToken('toggle_user_active_'.$this->admin->getId()->toRfc4122());
-        $this->client->request('POST', '/admin/license/users/'.$this->admin->getId()->toRfc4122().'/active', [
+        $this->client->request('POST', '/admin/users/'.$this->admin->getId()->toRfc4122().'/active', [
             '_token' => $token,
         ]);
 
@@ -430,7 +430,7 @@ final class LicenseControllerTest extends WebTestCase
     {
         $this->client->loginUser($this->admin);
         $token = $this->setCsrfToken('toggle_user_admin_'.$this->admin->getId()->toRfc4122());
-        $this->client->request('POST', '/admin/license/users/'.$this->admin->getId()->toRfc4122().'/toggle-admin', [
+        $this->client->request('POST', '/admin/users/'.$this->admin->getId()->toRfc4122().'/toggle-admin', [
             '_token' => $token,
         ]);
 
@@ -445,7 +445,7 @@ final class LicenseControllerTest extends WebTestCase
     {
         $this->client->loginUser($this->admin);
         $token = $this->setCsrfToken('toggle_user_admin_00000000-0000-7000-8000-000000000000');
-        $this->client->request('POST', '/admin/license/users/00000000-0000-7000-8000-000000000000/toggle-admin', [
+        $this->client->request('POST', '/admin/users/00000000-0000-7000-8000-000000000000/toggle-admin', [
             '_token' => $token,
         ]);
 
@@ -456,11 +456,11 @@ final class LicenseControllerTest extends WebTestCase
     {
         $this->client->loginUser($this->admin);
         $token = $this->setCsrfToken('toggle_user_admin_'.$this->user->getId()->toRfc4122());
-        $this->client->request('POST', '/admin/license/users/'.$this->user->getId()->toRfc4122().'/toggle-admin', [
+        $this->client->request('POST', '/admin/users/'.$this->user->getId()->toRfc4122().'/toggle-admin', [
             '_token' => $token,
         ]);
 
-        self::assertResponseRedirects('/admin/license/users');
+        self::assertResponseRedirects('/admin/users');
         $this->em->clear();
         $refreshed = $this->em->find(User::class, $this->user->getId());
         self::assertNotNull($refreshed);
@@ -480,11 +480,11 @@ final class LicenseControllerTest extends WebTestCase
 
         $this->client->loginUser($this->admin);
         $token = $this->setCsrfToken('toggle_user_admin_'.$secondAdmin->getId()->toRfc4122());
-        $this->client->request('POST', '/admin/license/users/'.$secondAdmin->getId()->toRfc4122().'/toggle-admin', [
+        $this->client->request('POST', '/admin/users/'.$secondAdmin->getId()->toRfc4122().'/toggle-admin', [
             '_token' => $token,
         ]);
 
-        self::assertResponseRedirects('/admin/license/users');
+        self::assertResponseRedirects('/admin/users');
         $this->em->clear();
         $refreshed = $this->em->find(User::class, $secondAdmin->getId());
         self::assertNotNull($refreshed);
@@ -495,7 +495,7 @@ final class LicenseControllerTest extends WebTestCase
     {
         $this->client->loginUser($this->admin);
         $token = $this->setCsrfToken('toggle_user_admin_'.$this->admin->getId()->toRfc4122());
-        $this->client->request('POST', '/admin/license/users/'.$this->admin->getId()->toRfc4122().'/toggle-admin', [
+        $this->client->request('POST', '/admin/users/'.$this->admin->getId()->toRfc4122().'/toggle-admin', [
             '_token' => $token,
         ]);
 
@@ -513,7 +513,7 @@ final class LicenseControllerTest extends WebTestCase
         $this->enterReadOnly();
         $this->client->loginUser($this->admin);
         $token = $this->setCsrfToken('toggle_user_admin_'.$this->user->getId()->toRfc4122());
-        $this->client->request('POST', '/admin/license/users/'.$this->user->getId()->toRfc4122().'/toggle-admin', [
+        $this->client->request('POST', '/admin/users/'.$this->user->getId()->toRfc4122().'/toggle-admin', [
             '_token' => $token,
         ]);
 
@@ -528,7 +528,7 @@ final class LicenseControllerTest extends WebTestCase
     {
         $this->client->loginUser($this->user);
         $token = $this->setCsrfToken('toggle_user_admin_'.$this->user->getId()->toRfc4122());
-        $this->client->request('POST', '/admin/license/users/'.$this->user->getId()->toRfc4122().'/toggle-admin', [
+        $this->client->request('POST', '/admin/users/'.$this->user->getId()->toRfc4122().'/toggle-admin', [
             '_token' => $token,
         ]);
 
@@ -538,7 +538,7 @@ final class LicenseControllerTest extends WebTestCase
     public function testToggleAdminRoleRequiresCsrfToken(): void
     {
         $this->client->loginUser($this->admin);
-        $this->client->request('POST', '/admin/license/users/'.$this->user->getId()->toRfc4122().'/toggle-admin');
+        $this->client->request('POST', '/admin/users/'.$this->user->getId()->toRfc4122().'/toggle-admin');
 
         self::assertResponseStatusCodeSame(403);
     }
@@ -547,7 +547,7 @@ final class LicenseControllerTest extends WebTestCase
     {
         $this->client->loginUser($this->admin);
         $token = $this->setCsrfToken('toggle_user_active_'.$this->admin->getId()->toRfc4122());
-        $this->client->request('POST', '/admin/license/users/'.$this->admin->getId()->toRfc4122().'/active', [
+        $this->client->request('POST', '/admin/users/'.$this->admin->getId()->toRfc4122().'/active', [
             '_token' => $token,
         ]);
 

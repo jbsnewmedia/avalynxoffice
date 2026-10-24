@@ -46,7 +46,7 @@
             {% endif %}
         {% endblock %}
         {% block body %}{% endblock %}
-        {% block page_footer %}{% if app.user %}
+        {% block page_footer %}{% if not app.user %}
             <footer class="py-3 border-top bg-body-tertiary">
                 <div class="container-fluid d-flex flex-wrap justify-content-between align-items-center gap-2 px-4">
                     <span class="text-body-secondary small">© {{ "now"|date("Y") }} JBS New Media GmbH · {{ 'app.title'|trans }}</span>

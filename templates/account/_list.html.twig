@@ -1,16 +1,9 @@
-<div class="p-4">
-    <div class="d-flex align-items-center mb-4">
-        <a href="{{ path('app_settings') }}" class="btn btn-outline-secondary me-2" aria-label="{{ 'common.back'|trans }}" title="{{ 'common.back'|trans }}">
-            <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
-        </a>
-        <h4 class="m-0">{{ 'account.title'|trans }}</h4>
-        <div class="ms-auto d-flex gap-2">
-            <a href="{{ path('account_new') }}" class="btn btn-primary">
-                <i class="fa-solid fa-plus me-2" aria-hidden="true"></i>{{ 'account.new'|trans }}
-            </a>
-        </div>
-    </div>
-    <div class="card shadow-sm">
+<div class="d-flex justify-content-end mb-3">
+    <a href="{{ path('account_new') }}" class="btn btn-primary" aria-label="{{ 'account.new'|trans }}">
+        <i class="fa-solid fa-plus me-2" aria-hidden="true"></i>{{ 'account.new'|trans }}
+    </a>
+</div>
+<div class="card shadow-sm">
         <div class="card-body">
             <div class="table-responsive">
             <table class="table align-middle mb-0">
@@ -90,7 +83,6 @@
                 {% endfor %}
                 </tbody>
             </table>
-        </div>
         </div>
     </div>
 </div>

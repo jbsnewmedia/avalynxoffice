@@ -42,31 +42,31 @@ final class AdminControllerTest extends WebTestCase
         $account = $this->createAccount('Redirect Account', 'redirect-account@example.com');
         $connector = $this->createConnector($account, 'Redirect Connector', 'redirect-connector@example.com');
 
-        $this->client->request('GET', '/settings/accounts');
+        $this->client->request('GET', '/admin/accounts');
         self::assertResponseRedirects('/login');
 
-        $this->client->request('GET', '/settings/accounts/view');
+        $this->client->request('GET', '/admin/accounts/view');
         self::assertResponseRedirects('/login');
 
-        $this->client->request('GET', '/settings/accounts/new');
+        $this->client->request('GET', '/admin/accounts/new');
         self::assertResponseRedirects('/login');
 
-        $this->client->request('GET', sprintf('/settings/accounts/%s/edit', $account->getId()));
+        $this->client->request('GET', sprintf('/admin/accounts/%s/edit', $account->getId()));
         self::assertResponseRedirects('/login');
 
-        $this->client->request('POST', sprintf('/settings/accounts/%s', $account->getId()));
+        $this->client->request('POST', sprintf('/admin/accounts/%s', $account->getId()));
         self::assertResponseRedirects('/login');
 
-        $this->client->request('GET', '/settings/connectors');
+        $this->client->request('GET', '/admin/connectors');
         self::assertResponseRedirects('/login');
 
-        $this->client->request('GET', '/settings/connectors/new');
+        $this->client->request('GET', '/admin/connectors/new');
         self::assertResponseRedirects('/login');
 
-        $this->client->request('GET', sprintf('/settings/connectors/%s/edit', $connector->getId()));
+        $this->client->request('GET', sprintf('/admin/connectors/%s/edit', $connector->getId()));
         self::assertResponseRedirects('/login');
 
-        $this->client->request('POST', sprintf('/settings/connectors/%s', $connector->getId()));
+        $this->client->request('POST', sprintf('/admin/connectors/%s', $connector->getId()));
         self::assertResponseRedirects('/login');
     }
 
@@ -77,25 +77,25 @@ final class AdminControllerTest extends WebTestCase
         $account = $this->createAccount('Page Account', 'page-account@example.com');
         $connector = $this->createConnector($account, 'Page Connector', 'page-connector@example.com');
 
-        $this->client->request('GET', '/settings/accounts');
+        $this->client->request('GET', '/admin/accounts');
         self::assertResponseIsSuccessful();
 
-        $this->client->request('GET', '/settings/accounts/view');
+        $this->client->request('GET', '/admin/accounts/view');
         self::assertResponseIsSuccessful();
 
-        $this->client->request('GET', '/settings/accounts/new');
+        $this->client->request('GET', '/admin/accounts/new');
         self::assertResponseIsSuccessful();
 
-        $this->client->request('GET', sprintf('/settings/accounts/%s/edit', $account->getId()));
+        $this->client->request('GET', sprintf('/admin/accounts/%s/edit', $account->getId()));
         self::assertResponseIsSuccessful();
 
-        $this->client->request('GET', '/settings/connectors');
+        $this->client->request('GET', '/admin/connectors');
         self::assertResponseIsSuccessful();
 
-        $this->client->request('GET', '/settings/connectors/new');
+        $this->client->request('GET', '/admin/connectors/new');
         self::assertResponseIsSuccessful();
 
-        $this->client->request('GET', sprintf('/settings/connectors/%s/edit', $connector->getId()));
+        $this->client->request('GET', sprintf('/admin/connectors/%s/edit', $connector->getId()));
         self::assertResponseIsSuccessful();
     }
 
@@ -103,19 +103,19 @@ final class AdminControllerTest extends WebTestCase
     {
         $this->loginAdmin();
 
-        $this->client->request('GET', '/settings/accounts/new', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $this->client->request('GET', '/admin/accounts/new', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
 
-        $this->client->request('GET', '/settings/accounts/view', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $this->client->request('GET', '/admin/accounts/view', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
 
         $account = $this->createAccountWithBlockedFolder('Support', 'support-edit@example.com');
-        $this->client->request('GET', sprintf('/settings/accounts/%s/edit', $account->getId()), server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $this->client->request('GET', sprintf('/admin/accounts/%s/edit', $account->getId()), server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
 
         $invalidToken = 'invalid';
-        $this->client->request('POST', sprintf('/settings/accounts/%s', $account->getId()), ['_token' => $invalidToken], [], ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
-        self::assertResponseRedirects('/settings/accounts');
+        $this->client->request('POST', sprintf('/admin/accounts/%s', $account->getId()), ['_token' => $invalidToken], [], ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        self::assertResponseRedirects('/admin/accounts');
         self::assertNotNull($this->entityManager->find(Account::class, (string) $account->getId()));
     }
 
@@ -123,7 +123,7 @@ final class AdminControllerTest extends WebTestCase
     {
         $this->loginAdmin();
 
-        $createCrawler = $this->client->request('GET', '/settings/accounts/new', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $createCrawler = $this->client->request('GET', '/admin/accounts/new', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
 
         $createForm = $createCrawler->filter('form')->form();
@@ -136,7 +136,7 @@ final class AdminControllerTest extends WebTestCase
         ], JSON_THROW_ON_ERROR);
         $createValues['account']['folders'] = $this->requiredFoldersPayload();
 
-        $this->client->request('POST', '/settings/accounts/new', $createValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $this->client->request('POST', '/admin/accounts/new', $createValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
         $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
         self::assertTrue($data['success']);
@@ -149,7 +149,7 @@ final class AdminControllerTest extends WebTestCase
         self::assertCount(4, $createdAccount->getFolders());
         self::assertCount(1, $createdAccount->getAliases());
 
-        $editCrawler = $this->client->request('GET', sprintf('/settings/accounts/%s/edit', $createdAccount->getId()), server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $editCrawler = $this->client->request('GET', sprintf('/admin/accounts/%s/edit', $createdAccount->getId()), server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
 
         $editForm = $editCrawler->filter('form')->form();
@@ -159,7 +159,7 @@ final class AdminControllerTest extends WebTestCase
         $editValues['account']['aliases'] = '[]';
         $editValues['account']['folders'] = $this->requiredFoldersPayload();
 
-        $this->client->request('POST', sprintf('/settings/accounts/%s/edit', $createdAccount->getId()), $editValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $this->client->request('POST', sprintf('/admin/accounts/%s/edit', $createdAccount->getId()), $editValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
         $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
         self::assertTrue($data['success']);
@@ -171,11 +171,11 @@ final class AdminControllerTest extends WebTestCase
         self::assertSame('Updated Account', $updatedAccount->getName());
         self::assertSame('updated@example.com', $updatedAccount->getEmail());
 
-        $tokenCrawler = $this->client->request('GET', '/settings/accounts', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
-        $token = $tokenCrawler->filter(sprintf('form[action="/settings/accounts/%s"] input[name="_token"]', $updatedAccount->getId()))->attr('value');
+        $tokenCrawler = $this->client->request('GET', '/admin/accounts', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $token = $tokenCrawler->filter(sprintf('form[action="/admin/accounts/%s"] input[name="_token"]', $updatedAccount->getId()))->attr('value');
         self::assertNotNull($token);
-        $this->client->request('POST', sprintf('/settings/accounts/%s', $updatedAccount->getId()), ['_token' => $token], [], ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
-        self::assertResponseRedirects('/settings/accounts');
+        $this->client->request('POST', sprintf('/admin/accounts/%s', $updatedAccount->getId()), ['_token' => $token], [], ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        self::assertResponseRedirects('/admin/accounts');
 
         $this->entityManager->clear();
         self::assertNull($this->entityManager->find(Account::class, (string) $updatedAccount->getId()));
@@ -185,7 +185,7 @@ final class AdminControllerTest extends WebTestCase
     {
         $this->loginAdmin();
 
-        $createCrawler = $this->client->request('GET', '/settings/accounts/new', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $createCrawler = $this->client->request('GET', '/admin/accounts/new', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
 
         $createForm = $createCrawler->filter('form')->form();
@@ -208,7 +208,7 @@ final class AdminControllerTest extends WebTestCase
             ],
         ], JSON_THROW_ON_ERROR);
 
-        $this->client->request('POST', '/settings/accounts/new', $createValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $this->client->request('POST', '/admin/accounts/new', $createValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseStatusCodeSame(422);
         $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
         self::assertFalse($data['success']);
@@ -224,7 +224,7 @@ final class AdminControllerTest extends WebTestCase
         $this->entityManager->persist($conflictAlias);
         $this->entityManager->flush();
 
-        $createCrawler = $this->client->request('GET', '/settings/accounts/new', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $createCrawler = $this->client->request('GET', '/admin/accounts/new', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         $createForm = $createCrawler->filter('form')->form();
         $createValues = $createForm->getPhpValues();
         $createValues['account']['name'] = 'Conflict Account';
@@ -234,14 +234,14 @@ final class AdminControllerTest extends WebTestCase
         ], JSON_THROW_ON_ERROR);
         $createValues['account']['folders'] = $this->requiredFoldersPayload();
 
-        $this->client->request('POST', '/settings/accounts/new', $createValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $this->client->request('POST', '/admin/accounts/new', $createValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseStatusCodeSame(422);
         $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
         self::assertFalse($data['success']);
         self::assertArrayHasKey('account[aliases]', $data['invalid']);
 
         $account = $this->createAccountWithBlockedFolder('Blocked Account', 'blocked@example.com');
-        $editCrawler = $this->client->request('GET', sprintf('/settings/accounts/%s/edit', $account->getId()), server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $editCrawler = $this->client->request('GET', sprintf('/admin/accounts/%s/edit', $account->getId()), server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
 
         $editForm = $editCrawler->filter('form')->form();
@@ -251,7 +251,7 @@ final class AdminControllerTest extends WebTestCase
         $editValues['account']['aliases'] = '[]';
         $editValues['account']['folders'] = $this->requiredFoldersPayload();
 
-        $this->client->request('POST', sprintf('/settings/accounts/%s/edit', $account->getId()), $editValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $this->client->request('POST', sprintf('/admin/accounts/%s/edit', $account->getId()), $editValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseStatusCodeSame(422);
         $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
         self::assertFalse($data['success']);
@@ -263,7 +263,7 @@ final class AdminControllerTest extends WebTestCase
         $this->loginAdmin();
 
         $account = $this->createAccount('Editable Account', 'editable@example.com');
-        $editCrawler = $this->client->request('GET', sprintf('/settings/accounts/%s/edit', $account->getId()), server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $editCrawler = $this->client->request('GET', sprintf('/admin/accounts/%s/edit', $account->getId()), server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
 
         $editForm = $editCrawler->filter('form')->form();
@@ -292,7 +292,7 @@ final class AdminControllerTest extends WebTestCase
             ],
         ], JSON_THROW_ON_ERROR);
 
-        $this->client->request('POST', sprintf('/settings/accounts/%s/edit', $account->getId()), $editValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $this->client->request('POST', sprintf('/admin/accounts/%s/edit', $account->getId()), $editValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseStatusCodeSame(422);
         $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
         self::assertFalse($data['success']);
@@ -303,7 +303,7 @@ final class AdminControllerTest extends WebTestCase
             ['connectorId' => 'unknown-connector-id', 'localPart' => 'broken'],
         ], JSON_THROW_ON_ERROR);
 
-        $this->client->request('POST', sprintf('/settings/accounts/%s/edit', $account->getId()), $editValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $this->client->request('POST', sprintf('/admin/accounts/%s/edit', $account->getId()), $editValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseStatusCodeSame(422);
         $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
         self::assertFalse($data['success']);
@@ -317,39 +317,39 @@ final class AdminControllerTest extends WebTestCase
         $account = $this->createAccount('Connectors', 'connectors@example.com');
         $connector = $this->createConnector($account, 'Old Connector', 'old-connector@example.com');
 
-        $this->client->request('GET', '/settings/connectors/new', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $this->client->request('GET', '/admin/connectors/new', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
 
-        $this->client->request('GET', sprintf('/settings/connectors/%s/edit', $connector->getId()), server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $this->client->request('GET', sprintf('/admin/connectors/%s/edit', $connector->getId()), server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
 
         // Edit with missing domain keeps the form open with field errors.
-        $editCrawler = $this->client->request('GET', sprintf('/settings/connectors/%s/edit', $connector->getId()), server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $editCrawler = $this->client->request('GET', sprintf('/admin/connectors/%s/edit', $connector->getId()), server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         $editForm = $editCrawler->filter('form')->form();
         $editValues = $editForm->getPhpValues();
         $editValues['connector']['domain'] = '';
 
-        $this->client->request('POST', sprintf('/settings/connectors/%s/edit', $connector->getId()), $editValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $this->client->request('POST', sprintf('/admin/connectors/%s/edit', $connector->getId()), $editValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseStatusCodeSame(422);
         $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
         self::assertFalse($data['success']);
         self::assertArrayHasKey('connector[domain]', $data['invalid']);
 
         // Create with missing domain keeps the form open with field errors.
-        $createCrawler = $this->client->request('GET', '/settings/connectors/new', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $createCrawler = $this->client->request('GET', '/admin/connectors/new', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         $createForm = $createCrawler->filter('form')->form();
         $createValues = $createForm->getPhpValues();
         $createValues['connector']['domain'] = '';
         $createValues['connector']['name'] = 'Broken Connector';
 
-        $this->client->request('POST', '/settings/connectors/new', $createValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $this->client->request('POST', '/admin/connectors/new', $createValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseStatusCodeSame(422);
         $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
         self::assertFalse($data['success']);
         self::assertArrayHasKey('connector[domain]', $data['invalid']);
 
-        $this->client->request('POST', sprintf('/settings/connectors/%s', $connector->getId()), ['_token' => 'invalid'], [], ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
-        self::assertResponseRedirects('/settings/connectors');
+        $this->client->request('POST', sprintf('/admin/connectors/%s', $connector->getId()), ['_token' => 'invalid'], [], ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        self::assertResponseRedirects('/admin/connectors');
         self::assertNotNull($this->entityManager->find(Connector::class, (string) $connector->getId()));
     }
 
@@ -359,7 +359,7 @@ final class AdminControllerTest extends WebTestCase
 
         $account = $this->createAccount('Primary Account', 'primary@example.com');
 
-        $createCrawler = $this->client->request('GET', '/settings/connectors/new', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $createCrawler = $this->client->request('GET', '/admin/connectors/new', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
 
         $createForm = $createCrawler->filter('form')->form();
@@ -378,7 +378,7 @@ final class AdminControllerTest extends WebTestCase
         $createValues['connector']['smtpPassword'] = 'smtp-secret';
         $createValues['connector']['smtpSecurity'] = 'tls';
 
-        $this->client->request('POST', '/settings/connectors/new', $createValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $this->client->request('POST', '/admin/connectors/new', $createValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
         $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
         self::assertTrue($data['success']);
@@ -389,7 +389,7 @@ final class AdminControllerTest extends WebTestCase
         self::assertSame('pop-secret', $createdConnector->getPop3Password());
         self::assertSame('smtp-secret', $createdConnector->getSmtpPassword());
 
-        $editCrawler = $this->client->request('GET', sprintf('/settings/connectors/%s/edit', $createdConnector->getId()), server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $editCrawler = $this->client->request('GET', sprintf('/admin/connectors/%s/edit', $createdConnector->getId()), server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
 
         $editForm = $editCrawler->filter('form')->form();
@@ -408,7 +408,7 @@ final class AdminControllerTest extends WebTestCase
         $editValues['connector']['smtpPassword'] = 'updated-smtp-secret';
         $editValues['connector']['smtpSecurity'] = 'ssl';
 
-        $this->client->request('POST', sprintf('/settings/connectors/%s/edit', $createdConnector->getId()), $editValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $this->client->request('POST', sprintf('/admin/connectors/%s/edit', $createdConnector->getId()), $editValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
         $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
         self::assertTrue($data['success']);
@@ -422,11 +422,11 @@ final class AdminControllerTest extends WebTestCase
         self::assertSame('updated-pop-secret', $updatedConnector->getPop3Password());
         self::assertSame('updated-smtp-secret', $updatedConnector->getSmtpPassword());
 
-        $tokenCrawler = $this->client->request('GET', '/settings/connectors', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
-        $token = $tokenCrawler->filter(sprintf('form[action="/settings/connectors/%s"] input[name="_token"]', $updatedConnector->getId()))->attr('value');
+        $tokenCrawler = $this->client->request('GET', '/admin/connectors', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $token = $tokenCrawler->filter(sprintf('form[action="/admin/connectors/%s"] input[name="_token"]', $updatedConnector->getId()))->attr('value');
         self::assertNotNull($token);
-        $this->client->request('POST', sprintf('/settings/connectors/%s', $updatedConnector->getId()), ['_token' => $token], [], ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
-        self::assertResponseRedirects('/settings/connectors');
+        $this->client->request('POST', sprintf('/admin/connectors/%s', $updatedConnector->getId()), ['_token' => $token], [], ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        self::assertResponseRedirects('/admin/connectors');
 
         $this->entityManager->clear();
         self::assertNull($this->entityManager->find(Connector::class, (string) $updatedConnector->getId()));
@@ -451,16 +451,16 @@ final class AdminControllerTest extends WebTestCase
 
         $this->client->loginUser($user);
 
-        $this->client->request('GET', '/settings/connectors');
+        $this->client->request('GET', '/admin/connectors');
         self::assertResponseStatusCodeSame(403);
 
-        $this->client->request('GET', '/settings/connectors/new');
+        $this->client->request('GET', '/admin/connectors/new');
         self::assertResponseStatusCodeSame(403);
 
-        $this->client->request('GET', sprintf('/settings/connectors/%s/edit', $connector->getId()));
+        $this->client->request('GET', sprintf('/admin/connectors/%s/edit', $connector->getId()));
         self::assertResponseStatusCodeSame(403);
 
-        $this->client->request('POST', sprintf('/settings/connectors/%s', $connector->getId()));
+        $this->client->request('POST', sprintf('/admin/connectors/%s', $connector->getId()));
         self::assertResponseStatusCodeSame(403);
     }
 

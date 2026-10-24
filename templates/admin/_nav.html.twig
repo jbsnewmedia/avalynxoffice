@@ -3,12 +3,12 @@
 #}
 {% set adminNavItems = {
     'dashboard': {route: 'app_admin', icon: 'fa-gauge-high', label: 'admin.nav.dashboard'},
+    'users': {route: 'license_admin_users', icon: 'fa-users', label: 'admin.nav.users'},
     'accounts': {route: 'account_index', icon: 'fa-envelope', label: 'admin.nav.accounts'},
     'connectors': {route: 'connector_index', icon: 'fa-plug', label: 'admin.nav.connectors'},
     'password_resets': {route: 'app_admin_password_resets', icon: 'fa-key', label: 'admin.nav.password_resets'},
-    'license': {route: 'license_admin', icon: 'fa-scale-balanced', label: 'admin.nav.license'},
-    'users': {route: 'license_admin_users', icon: 'fa-users', label: 'admin.nav.users'},
     'legal': {route: 'app_settings_legal', icon: 'fa-file-contract', label: 'admin.nav.legal'},
+    'license': {route: 'license_admin', icon: 'fa-scale-balanced', label: 'admin.nav.license'},
 } %}
 {% set adminNavCurrent = adminNavItems[active]|default(adminNavItems.dashboard) %}
 <div class="dropdown mb-4">
@@ -16,6 +16,7 @@
         <i class="fa-solid {{ adminNavCurrent.icon }} me-2" aria-hidden="true"></i>{{ adminNavCurrent.label|trans }}
     </button>
     <ul class="dropdown-menu" aria-labelledby="adminNavDropdown">
+        <li><hr class="dropdown-divider" aria-hidden="true"></li>
         {% for key, item in adminNavItems %}
             <li>
                 {% if key == active %}

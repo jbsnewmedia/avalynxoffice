@@ -48,7 +48,7 @@ final class LegalControllerTest extends WebTestCase
     public function testAdminEditorRendersFullPageForAdmin(): void
     {
         $this->client->loginUser($this->admin);
-        $this->client->request('GET', '/settings/legal');
+        $this->client->request('GET', '/admin/legal');
 
         self::assertResponseIsSuccessful();
         $content = (string) $this->client->getResponse()->getContent();
@@ -59,7 +59,7 @@ final class LegalControllerTest extends WebTestCase
     public function testAdminEditorRequiresAdminRole(): void
     {
         $this->client->loginUser($this->user);
-        $this->client->request('GET', '/settings/legal', [], [], ['HTTP_X-Requested-With' => 'XMLHttpRequest']);
+        $this->client->request('GET', '/admin/legal', [], [], ['HTTP_X-Requested-With' => 'XMLHttpRequest']);
 
         self::assertResponseStatusCodeSame(403);
     }
@@ -67,7 +67,7 @@ final class LegalControllerTest extends WebTestCase
     public function testAdminEditorRendersEditorForAdmin(): void
     {
         $this->client->loginUser($this->admin);
-        $this->client->request('GET', '/settings/legal', [], [], ['HTTP_X-Requested-With' => 'XMLHttpRequest']);
+        $this->client->request('GET', '/admin/legal', [], [], ['HTTP_X-Requested-With' => 'XMLHttpRequest']);
 
         self::assertResponseIsSuccessful();
         $content = (string) $this->client->getResponse()->getContent();
@@ -83,7 +83,7 @@ final class LegalControllerTest extends WebTestCase
         $this->legalService()->setContent(LegalContentService::PAGE_IMPRINT, '<p>Mein Impressum</p>');
 
         $this->client->loginUser($this->admin);
-        $this->client->request('GET', '/settings/legal', [], [], ['HTTP_X-Requested-With' => 'XMLHttpRequest']);
+        $this->client->request('GET', '/admin/legal', [], [], ['HTTP_X-Requested-With' => 'XMLHttpRequest']);
 
         self::assertResponseIsSuccessful();
         $content = (string) $this->client->getResponse()->getContent();
@@ -94,7 +94,7 @@ final class LegalControllerTest extends WebTestCase
     {
         $this->client->loginUser($this->user);
         $token = $this->setCsrfToken('save_legal');
-        $this->client->request('POST', '/settings/legal/save', [
+        $this->client->request('POST', '/admin/legal/save', [
             '_token' => $token,
             'page' => LegalContentService::PAGE_IMPRINT,
             'content' => '<p>Injected</p>',
@@ -107,7 +107,7 @@ final class LegalControllerTest extends WebTestCase
     public function testSaveRequiresCsrfToken(): void
     {
         $this->client->loginUser($this->admin);
-        $this->client->request('POST', '/settings/legal/save', [
+        $this->client->request('POST', '/admin/legal/save', [
             'page' => LegalContentService::PAGE_IMPRINT,
             'content' => '<p>No token</p>',
         ]);
@@ -120,7 +120,7 @@ final class LegalControllerTest extends WebTestCase
     {
         $this->client->loginUser($this->admin);
         $token = $this->setCsrfToken('save_legal');
-        $this->client->request('POST', '/settings/legal/save', [
+        $this->client->request('POST', '/admin/legal/save', [
             '_token' => $token,
             'page' => 'impressum-invalid',
             'content' => '<p>Unknown</p>',
@@ -133,7 +133,7 @@ final class LegalControllerTest extends WebTestCase
     {
         $this->client->loginUser($this->admin);
         $token = $this->setCsrfToken('save_legal');
-        $this->client->request('POST', '/settings/legal/save', [
+        $this->client->request('POST', '/admin/legal/save', [
             '_token' => $token,
             'page' => LegalContentService::PAGE_TERMS,
             'content' => '<h2>AGB</h2><p>Paragraph 1</p>',

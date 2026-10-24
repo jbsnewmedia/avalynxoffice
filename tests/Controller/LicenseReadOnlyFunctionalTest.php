@@ -306,7 +306,7 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
         $this->client->loginUser($this->admin);
         $token = $this->setCsrfToken('delete_account_'.$this->account->getId());
 
-        $this->client->request('POST', '/settings/accounts/'.$this->account->getId(), ['_token' => $token], [], [
+        $this->client->request('POST', '/admin/accounts/'.$this->account->getId(), ['_token' => $token], [], [
             'HTTP_X-Requested-With' => 'XMLHttpRequest',
         ]);
 
@@ -320,7 +320,7 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
         $this->client->loginUser($this->admin);
         $token = $this->setCsrfToken('delete_connector_'.$this->connector->getId());
 
-        $this->client->request('POST', '/settings/connectors/'.$this->connector->getId(), ['_token' => $token], [], [
+        $this->client->request('POST', '/admin/connectors/'.$this->connector->getId(), ['_token' => $token], [], [
             'HTTP_X-Requested-With' => 'XMLHttpRequest',
         ]);
 
@@ -350,13 +350,13 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
         $extra = $this->em->getRepository(User::class)->findOneBy(['email' => 'extra-1@example.com']);
         self::assertNotNull($extra);
         $token = $this->setCsrfToken('toggle_user_active_'.$extra->getId());
-        $this->client->request('POST', '/admin/license/users/'.$extra->getId().'/active', ['_token' => $token]);
-        self::assertResponseRedirects('/admin/license/users');
+        $this->client->request('POST', '/admin/users/'.$extra->getId().'/active', ['_token' => $token]);
+        self::assertResponseRedirects('/admin/users');
 
         // Reactivating the account is blocked while the installation is
         // read-only.
         $reactivateToken = $this->setCsrfToken('toggle_user_active_'.$extra->getId());
-        $this->client->request('POST', '/admin/license/users/'.$extra->getId().'/active', ['_token' => $reactivateToken]);
+        $this->client->request('POST', '/admin/users/'.$extra->getId().'/active', ['_token' => $reactivateToken]);
         self::assertResponseStatusCodeSame(403);
 
         $this->em->clear();
@@ -372,8 +372,8 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
             $user = $this->em->getRepository(User::class)->findOneBy(['email' => $emailAddress]);
             self::assertNotNull($user);
             $token = $this->setCsrfToken('toggle_user_active_'.$user->getId());
-            $this->client->request('POST', '/admin/license/users/'.$user->getId().'/active', ['_token' => $token]);
-            self::assertResponseRedirects('/admin/license/users');
+            $this->client->request('POST', '/admin/users/'.$user->getId().'/active', ['_token' => $token]);
+            self::assertResponseRedirects('/admin/users');
         }
 
         $manager->reset();
@@ -383,15 +383,15 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
         // Reactivation is allowed again after the installation is compliant.
         $reactivate = $this->em->getRepository(User::class)->findOneBy(['email' => 'extra-1@example.com']);
         $token = $this->setCsrfToken('toggle_user_active_'.$reactivate->getId());
-        $this->client->request('POST', '/admin/license/users/'.$reactivate->getId().'/active', ['_token' => $token]);
-        self::assertResponseRedirects('/admin/license/users');
+        $this->client->request('POST', '/admin/users/'.$reactivate->getId().'/active', ['_token' => $token]);
+        self::assertResponseRedirects('/admin/users');
     }
 
     public function testFolderCreationForNewAccountKeepsWorkingBecauseItIsTechnical(): void
     {
         // Account admin index (read-only view) must stay reachable.
         $this->client->loginUser($this->admin);
-        $this->client->request('GET', '/settings/accounts', [], [], [
+        $this->client->request('GET', '/admin/accounts', [], [], [
             'HTTP_X-Requested-With' => 'XMLHttpRequest',
         ]);
 

@@ -30,7 +30,7 @@ class LegalController extends AbstractController
     ) {
     }
 
-    #[Route('/settings/legal', name: 'app_settings_legal')]
+    #[Route('/admin/legal', name: 'app_settings_legal')]
     #[IsGranted('ROLE_ADMIN')]
     public function admin(): Response
     {
@@ -44,7 +44,7 @@ class LegalController extends AbstractController
         ]);
     }
 
-    #[Route('/settings/legal/save', name: 'app_settings_legal_save', methods: ['POST'])]
+    #[Route('/admin/legal/save', name: 'app_settings_legal_save', methods: ['POST'])]
     #[IsGranted('ROLE_ADMIN')]
     public function save(Request $request, TranslatorInterface $translator): JsonResponse
     {

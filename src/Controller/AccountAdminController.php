@@ -28,7 +28,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
-#[Route('/settings/accounts')]
+#[Route('/admin/accounts')]
 #[IsGranted('ROLE_ADMIN')]
 class AccountAdminController extends AbstractController
 {

@@ -60,7 +60,7 @@ final class LicenseController extends AbstractController
         ]);
     }
 
-    #[Route(path: '/admin/license/users', name: 'license_admin_users', methods: ['GET'])]
+    #[Route(path: '/admin/users', name: 'license_admin_users', methods: ['GET'])]
     #[IsGranted('ROLE_ADMIN')]
     public function users(UserService $userService): Response
     {
@@ -150,7 +150,7 @@ final class LicenseController extends AbstractController
         return $this->redirectToRoute('license_admin', [], Response::HTTP_SEE_OTHER);
     }
 
-    #[Route(path: '/admin/license/users/{id}/active', name: 'license_admin_toggle_user', methods: ['POST'])]
+    #[Route(path: '/admin/users/{id}/active', name: 'license_admin_toggle_user', methods: ['POST'])]
     #[IsGranted('ROLE_ADMIN')]
     public function toggleUser(string $id, Request $request): Response
     {
@@ -182,7 +182,7 @@ final class LicenseController extends AbstractController
         return $this->redirectToRoute('license_admin_users', [], Response::HTTP_SEE_OTHER);
     }
 
-    #[Route(path: '/admin/license/users/{id}/toggle-admin', name: 'license_admin_toggle_role', methods: ['POST'])]
+    #[Route(path: '/admin/users/{id}/toggle-admin', name: 'license_admin_toggle_role', methods: ['POST'])]
     #[IsGranted('ROLE_ADMIN')]
     public function toggleAdminRole(string $id, Request $request, UserService $userService): Response
     {

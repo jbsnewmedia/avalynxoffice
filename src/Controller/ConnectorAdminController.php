@@ -25,7 +25,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
-#[Route('/settings/connectors')]
+#[Route('/admin/connectors')]
 #[IsGranted('ROLE_ADMIN')]
 class ConnectorAdminController extends AbstractController
 {
