@@ -73,6 +73,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->id = Uuid::v7();
         $this->accountLinks = new ArrayCollection();
         $this->recoveryAddresses = new ArrayCollection();
+        $this->loginSessions = new ArrayCollection();
     }
 
     public function getId(): ?UuidV7
@@ -224,9 +225,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     /**
-     * @return Collection<int, RecoveryAddress>
-     */
-    /**
+     * Concurrent login sessions of this user (one row per device/browser
+     * session).
+     *
      * @return Collection<int, UserLoginSession>
      */
     public function getLoginSessions(): Collection
@@ -234,6 +235,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this->loginSessions;
     }
 
+    /**
+     * @return Collection<int, RecoveryAddress>
+     */
     public function getRecoveryAddresses(): Collection
     {
         return $this->recoveryAddresses;

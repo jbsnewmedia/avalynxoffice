@@ -31,7 +31,8 @@ class UserLoginSessionRepository extends ServiceEntityRepository
      */
     public function findActiveByUser(User $user): array
     {
-        return $this->createQueryBuilder('s')
+        /** @var list<UserLoginSession> $result */
+        $result = $this->createQueryBuilder('s')
             ->where('s.user = :user')
             ->andWhere('s.revokedAt IS NULL')
             ->setParameter('user', $user)
@@ -39,6 +40,8 @@ class UserLoginSessionRepository extends ServiceEntityRepository
             ->addOrderBy('s.createdAt', 'DESC')
             ->getQuery()
             ->getResult();
+
+        return $result;
     }
 
     /**
@@ -67,7 +70,7 @@ class UserLoginSessionRepository extends ServiceEntityRepository
      */
     public function revokeOthers(User $user, string $keepToken): int
     {
-        return (int) $this->createQueryBuilder('s')
+        $result = $this->createQueryBuilder('s')
             ->update()
             ->set('s.revokedAt', ':now')
             ->where('s.user = :user')
@@ -78,5 +81,8 @@ class UserLoginSessionRepository extends ServiceEntityRepository
             ->setParameter('now', new \DateTimeImmutable())
             ->getQuery()
             ->execute();
+        \assert(is_int($result));
+
+        return $result;
     }
 }

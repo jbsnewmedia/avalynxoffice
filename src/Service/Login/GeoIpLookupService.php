@@ -22,7 +22,7 @@ class GeoIpLookupService
     private const string ENDPOINT = 'http://ip-api.com/json/';
     private const int TIMEOUT_SECONDS = 2;
 
-    private readonly ?HttpClientInterface $httpClient;
+    private readonly HttpClientInterface $httpClient;
 
     public function __construct(?HttpClientInterface $httpClient = null)
     {
@@ -52,7 +52,7 @@ class GeoIpLookupService
     }
 
     /**
-     * @return array{status?: string, city?: string, country?: string}|null
+     * @return array{status: string, city: string|null, country: string|null}|null
      */
     protected function fetchGeo(string $ip): ?array
     {
@@ -61,15 +61,19 @@ class GeoIpLookupService
                 'query' => ['fields' => 'status,city,country'],
                 'timeout' => self::TIMEOUT_SECONDS,
             ]);
-            $data = $response->toArray();
+            $data = $response->toArray(false);
         } catch (\Throwable) {
             return null;
         }
 
-        if (($data['status'] ?? '') !== 'success') {
+        $status = $data['status'] ?? null;
+        if (!is_string($status) || 'success' !== $status) {
             return null;
         }
 
-        return $data;
+        $city = is_string($data['city'] ?? null) ? $data['city'] : null;
+        $country = is_string($data['country'] ?? null) ? $data['country'] : null;
+
+        return ['status' => $status, 'city' => $city, 'country' => $country];
     }
 }
