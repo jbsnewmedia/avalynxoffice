@@ -664,7 +664,7 @@ password.reset.link_invalid: "The recovery link is invalid or has expired. Pleas
 # Administrator (Admin area)
 admin.title: "Administrator"
 admin.nav.switch: "Switch admin section"
-admin.nav.dashboard: "Dashboard"
+admin.nav.dashboard: "Overview"
 admin.nav.password_resets: "User forgot password"
 admin.nav.license: "License & Usage"
 admin.nav.users: "Users"

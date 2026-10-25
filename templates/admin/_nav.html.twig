@@ -16,7 +16,6 @@
         <i class="fa-solid {{ adminNavCurrent.icon }} me-2" aria-hidden="true"></i>{{ adminNavCurrent.label|trans }}
     </button>
     <ul class="dropdown-menu" aria-labelledby="adminNavDropdown">
-        <li><hr class="dropdown-divider" aria-hidden="true"></li>
         {% for key, item in adminNavItems %}
             <li>
                 {% if key == active %}
@@ -29,6 +28,9 @@
                     </a>
                 {% endif %}
             </li>
+            {% if key == 'dashboard' %}
+                <li><hr class="dropdown-divider" aria-hidden="true"></li>
+            {% endif %}
         {% endfor %}
     </ul>
 </div>

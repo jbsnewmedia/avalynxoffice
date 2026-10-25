@@ -649,7 +649,7 @@ password.reset.link_invalid: "Der Wiederherstellungslink ist ungültig oder abge
 # Administrator (Admin-Bereich)
 admin.title: "Administrator"
 admin.nav.switch: "Adminbereich wechseln"
-admin.nav.dashboard: "Dashboard"
+admin.nav.dashboard: "Übersicht"
 admin.nav.password_resets: "Benutzer-Passwort vergessen"
 admin.nav.license: "Lizenz & Nutzung"
 admin.nav.users: "Benutzer"
