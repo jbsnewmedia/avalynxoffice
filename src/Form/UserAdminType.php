@@ -37,6 +37,7 @@ class UserAdminType extends AbstractType
                 'label' => 'admin.users.form.email',
                 'mapped' => false,
                 'empty_data' => '',
+                'label_attr' => ['class' => 'form-label'],
                 'attr' => ['class' => 'form-control', 'autocomplete' => 'off'],
                 'constraints' => [
                     new NotBlank(message: 'admin.users.email_required'),
@@ -49,6 +50,7 @@ class UserAdminType extends AbstractType
                 'required' => false,
                 'always_empty' => false,
                 'empty_data' => '',
+                'label_attr' => ['class' => 'form-label'],
                 'attr' => ['class' => 'form-control', 'autocomplete' => 'new-password'],
                 'constraints' => $options['is_edit'] ? [] : [new NotBlank(message: 'admin.users.password_required')],
             ])
@@ -56,17 +58,19 @@ class UserAdminType extends AbstractType
                 'label' => 'admin.users.form.active',
                 'mapped' => false,
                 'required' => false,
+                'label_attr' => ['class' => 'form-check-label'],
                 'attr' => ['class' => 'form-check-input'],
             ])
             ->add('admin', CheckboxType::class, [
                 'label' => 'admin.users.form.admin',
                 'mapped' => false,
                 'required' => false,
+                'label_attr' => ['class' => 'form-check-label'],
                 'attr' => ['class' => 'form-check-input'],
             ])
             ->add('save', SubmitType::class, [
                 'label' => 'common.save',
-                'attr' => ['class' => 'btn-primary'],
+                'attr' => ['class' => 'btn btn-primary'],
             ]);
     }
 
