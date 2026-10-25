@@ -443,7 +443,7 @@ final class UserAdminController extends AbstractController
 
         $editUrl = $this->generateUrl('admin_users_edit', ['id' => $userId]);
         $html = '<a href="'.htmlspecialchars($editUrl, ENT_QUOTES, 'UTF-8').'"'
-            .' class="btn btn-sm btn-outline-primary action-btn-modal me-1"'
+            .' class="btn btn-sm btn-primary action-btn-modal me-1"'
             .' data-title="'.$editLabel.'" data-modal-size="modal-lg"'
             .' title="'.$editLabel.'" aria-label="'.$editLabel.'">'
             .'<i class="fa-solid fa-pen" aria-hidden="true"></i></a>';
@@ -457,7 +457,7 @@ final class UserAdminController extends AbstractController
         $html .= '<form method="post" action="'.htmlspecialchars($deleteUrl, ENT_QUOTES, 'UTF-8').'" class="d-inline">'
             .'<input type="hidden" name="_token" value="'
             .htmlspecialchars($this->csrfTokenManager->getToken('admin_users_delete_'.$userId)->getValue(), ENT_QUOTES, 'UTF-8').'">'
-            .'<button type="submit" class="btn btn-sm btn-outline-danger confirm-action"'
+            .'<button type="submit" class="btn btn-sm btn-danger confirm-action"'
             .' data-confirm="'.$confirm.'" title="'.$deleteLabel.'" aria-label="'.$deleteLabel.'"'
             .' '.($deleteDisabled ? 'disabled' : '').'>'
             .'<i class="fa-solid fa-trash" aria-hidden="true"></i></button></form>';
