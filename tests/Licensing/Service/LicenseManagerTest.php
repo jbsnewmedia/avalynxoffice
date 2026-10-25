@@ -580,7 +580,12 @@ final class LicenseManagerTest extends KernelTestCase
     public function testRecordAuthenticationIgnoresUnsavedUser(): void
     {
         $repository = $this->em->getRepository(User::class);
-        $repository->recordAuthentication(new User(), new \DateTimeImmutable('now'));
+        $unsaved = new User();
+        // The constructor assigns a UUID, so the id must be cleared here to
+        // simulate an unsaved user without a persistence id.
+        $property = new \ReflectionProperty(User::class, 'id');
+        $property->setValue($unsaved, null);
+        $repository->recordAuthentication($unsaved, new \DateTimeImmutable('now'));
 
         self::assertSame(0, $repository->countActiveSeats(new \DateTimeImmutable('now')));
     }

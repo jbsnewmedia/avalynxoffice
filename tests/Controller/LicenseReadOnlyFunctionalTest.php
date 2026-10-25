@@ -358,18 +358,23 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
 
         $extra = $this->em->getRepository(User::class)->findOneBy(['email' => 'extra-1@example.com']);
         self::assertNotNull($extra);
-        $token = $this->setCsrfToken('toggle_user_active_'.$extra->getId());
-        $this->client->request('POST', '/admin/users/'.$extra->getId().'/active', ['_token' => $token]);
-        self::assertResponseRedirects('/admin/users');
+        $this->updateUser($extra, []);
+        self::assertResponseIsSuccessful();
+        self::assertTrue($this->json()['success']);
+
+        $this->em->clear();
+        $deactivated = $this->em->find(User::class, $extra->getId());
+        self::assertInstanceOf(User::class, $deactivated);
+        self::assertFalse($deactivated->isActive());
 
         // Reactivating the account is blocked while the installation is
         // read-only.
-        $reactivateToken = $this->setCsrfToken('toggle_user_active_'.$extra->getId());
-        $this->client->request('POST', '/admin/users/'.$extra->getId().'/active', ['_token' => $reactivateToken]);
+        $this->updateUser($extra, ['active' => '1']);
         self::assertResponseStatusCodeSame(403);
 
         $this->em->clear();
         $stillInactive = $this->em->find(User::class, $extra->getId());
+        self::assertInstanceOf(User::class, $stillInactive);
         self::assertFalse($stillInactive->isActive());
 
         // Still 4 active accounts: read-only persists.
@@ -380,9 +385,8 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
         foreach (['extra-2@example.com', 'extra-3@example.com'] as $emailAddress) {
             $user = $this->em->getRepository(User::class)->findOneBy(['email' => $emailAddress]);
             self::assertNotNull($user);
-            $token = $this->setCsrfToken('toggle_user_active_'.$user->getId());
-            $this->client->request('POST', '/admin/users/'.$user->getId().'/active', ['_token' => $token]);
-            self::assertResponseRedirects('/admin/users');
+            $this->updateUser($user, []);
+            self::assertResponseIsSuccessful();
         }
 
         $manager->reset();
@@ -391,9 +395,85 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
 
         // Reactivation is allowed again after the installation is compliant.
         $reactivate = $this->em->getRepository(User::class)->findOneBy(['email' => 'extra-1@example.com']);
-        $token = $this->setCsrfToken('toggle_user_active_'.$reactivate->getId());
-        $this->client->request('POST', '/admin/users/'.$reactivate->getId().'/active', ['_token' => $token]);
-        self::assertResponseRedirects('/admin/users');
+        self::assertNotNull($reactivate);
+        $this->updateUser($reactivate, ['active' => '1']);
+        self::assertResponseIsSuccessful();
+    }
+
+    public function testUserEditBlocksChangesOtherThanDeactivationWhileReadOnly(): void
+    {
+        $this->client->loginUser($this->admin);
+
+        $extra = $this->em->getRepository(User::class)->findOneBy(['email' => 'extra-1@example.com']);
+        self::assertNotNull($extra);
+
+        // A reactivation or any other modification is rejected.
+        $this->updateUser($extra, ['active' => '1']);
+        self::assertResponseStatusCodeSame(403);
+        self::assertFalse($this->json()['success']);
+
+        $this->updateUser($extra, ['password' => 'changed-secret']);
+        self::assertResponseStatusCodeSame(403);
+
+        $this->updateUser($extra, ['email' => 'renamed@example.com']);
+        self::assertResponseStatusCodeSame(403);
+
+        $this->em->clear();
+        $unchanged = $this->em->find(User::class, $extra->getId());
+        self::assertInstanceOf(User::class, $unchanged);
+        self::assertTrue($unchanged->isActive());
+        self::assertSame('extra-1@example.com', $unchanged->getEmail());
+        self::assertSame('x', $unchanged->getPassword());
+    }
+
+    public function testUserCreationIsBlockedWhileReadOnly(): void
+    {
+        $this->client->loginUser($this->admin);
+
+        $this->client->request('POST', '/admin/users/new', [
+            'user_admin' => [
+                'email' => 'blocked@example.com',
+                'password' => 'secret',
+                '_token' => $this->setCsrfToken('admin_user'),
+            ],
+        ], [], ['HTTP_X-Requested-With' => 'XMLHttpRequest']);
+
+        self::assertResponseStatusCodeSame(403);
+        $payload = $this->json();
+        self::assertFalse($payload['success']);
+        self::assertNull($this->em->getRepository(User::class)->findOneBy(['email' => 'blocked@example.com']));
+    }
+
+    public function testUserDeletionIsBlockedWhileReadOnly(): void
+    {
+        $this->client->loginUser($this->admin);
+
+        $extra = $this->em->getRepository(User::class)->findOneBy(['email' => 'extra-1@example.com']);
+        self::assertNotNull($extra);
+        $this->client->request('POST', '/admin/users/'.$extra->getId()->toRfc4122().'/delete', [
+            '_token' => $this->setCsrfToken('admin_users_delete_'.$extra->getId()->toRfc4122()),
+        ]);
+
+        self::assertResponseStatusCodeSame(403);
+        $this->em->clear();
+        self::assertNotNull($this->em->find(User::class, $extra->getId()));
+    }
+
+    public function testUserTableDisablesDeleteWhileReadOnly(): void
+    {
+        $this->client->loginUser($this->admin);
+        $this->client->request('POST', '/admin/users/data');
+
+        self::assertResponseIsSuccessful();
+        $payload = $this->json();
+
+        self::assertCount(5, $payload['data']);
+        foreach ($payload['data'] as $row) {
+            // Edit stays available: deactivation is the documented way to
+            // end the read-only state. Delete is disabled everywhere.
+            self::assertStringContainsString('action-btn-modal', $row['data']['options']);
+            self::assertStringContainsString('disabled', $row['data']['options']);
+        }
     }
 
     public function testFolderCreationForNewAccountKeepsWorkingBecauseItIsTechnical(): void
@@ -519,5 +599,30 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
         $session->save();
 
         return $value;
+    }
+
+    /**
+     * Submits the admin user edit form for the given user. The email field
+     * defaults to the current address so that partial submissions (e.g. only
+     * changing the active flag) stay valid.
+     *
+     * @param array<string, string> $fields
+     */
+    private function updateUser(User $target, array $fields): void
+    {
+        $this->client->request('POST', '/admin/users/'.$target->getId()->toRfc4122().'/edit', [
+            'user_admin' => [...['email' => $target->getEmail()], ...$fields, '_token' => $this->setCsrfToken('admin_user')],
+        ], [], ['HTTP_X-Requested-With' => 'XMLHttpRequest']);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function json(): array
+    {
+        $decoded = json_decode((string) $this->client->getResponse()->getContent(), true);
+        \assert(is_array($decoded));
+
+        return $decoded;
     }
 }

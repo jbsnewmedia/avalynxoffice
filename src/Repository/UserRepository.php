@@ -104,4 +104,60 @@ class UserRepository extends ServiceEntityRepository
             ],
         );
     }
+
+    /**
+     * One page of the admin user table. The search filters on the email
+     * address; the order-by map must contain pre-validated field names
+     * (e.g. "u.email" => "asc") and is applied as multi-column sort.
+     *
+     * @param array<string, string> $orderBy
+     *
+     * @return list<User>
+     */
+    public function findUsersForAdminList(string $search, array $orderBy, int $offset, int $limit): array
+    {
+        $queryBuilder = $this->adminListQueryBuilder($search);
+
+        foreach ($orderBy as $field => $direction) {
+            $queryBuilder->addOrderBy($field, $direction);
+        }
+
+        $result = $queryBuilder
+            ->setFirstResult(max(0, $offset))
+            ->setMaxResults(max(1, $limit))
+            ->getQuery()
+            ->getResult();
+        \assert(is_array($result));
+
+        return array_values(array_filter(
+            $result,
+            static fn (mixed $user): bool => $user instanceof User,
+        ));
+    }
+
+    /**
+     * Number of users matching the admin table search ('' = all users).
+     */
+    public function countUsersForAdminList(string $search): int
+    {
+        $count = $this->adminListQueryBuilder($search)
+            ->select('COUNT(u.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        return (int) $count;
+    }
+
+    private function adminListQueryBuilder(string $search): \Doctrine\ORM\QueryBuilder
+    {
+        $queryBuilder = $this->createQueryBuilder('u');
+
+        if ('' !== $search) {
+            $queryBuilder
+                ->where('LOWER(u.email) LIKE :search')
+                ->setParameter('search', '%'.mb_strtolower($search).'%');
+        }
+
+        return $queryBuilder;
+    }
 }

@@ -59,7 +59,7 @@ final class AdminAreaControllerTest extends WebTestCase
 
         $content = (string) $this->client->getResponse()->getContent();
         self::assertStringContainsString('Administrator', $content);
-        self::assertStringContainsString('Dashboard', $content);
+        self::assertStringContainsString('Overview', $content);
         self::assertStringContainsString('User forgot password', $content);
         self::assertStringContainsString('License &amp; Usage', $content);
         self::assertStringContainsString('Users', $content);

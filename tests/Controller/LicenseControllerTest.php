@@ -139,21 +139,6 @@ final class LicenseControllerTest extends WebTestCase
         self::assertResponseStatusCodeSame(403);
     }
 
-    public function testUsersPageShowsAccountsWithRolesAndLastAuth(): void
-    {
-        $this->client->loginUser($this->admin);
-        $this->client->request('GET', '/admin/users');
-
-        self::assertResponseIsSuccessful();
-        $content = (string) $this->client->getResponse()->getContent();
-        self::assertStringContainsString('id="adminNavDropdown"', $content);
-        self::assertStringContainsString('admin@example.com', $content);
-        self::assertStringContainsString('user@example.com', $content);
-        self::assertStringContainsString('Last authentication', $content);
-        // Roles are rendered as localized labels, not raw identifiers.
-        self::assertStringContainsString('Administrator', $content);
-    }
-
     public function testAddKeysStoresKeysAndRaisesSeats(): void
     {
         $keyA = self::$issuer->issue(['additional_seats' => 2, 'license_id' => 'LIC-A']);
@@ -298,77 +283,10 @@ final class LicenseControllerTest extends WebTestCase
         self::assertNull($reloaded->getLastAuthAt());
     }
 
-    public function testDeactivatedUserCountsNoSeats(): void
-    {
-        $this->user->setActive(false);
-        $this->em->flush();
 
-        $this->client->loginUser($this->admin);
-        $this->client->request('GET', '/admin/users');
 
-        self::assertResponseIsSuccessful();
-        $content = (string) $this->client->getResponse()->getContent();
-        self::assertStringContainsString('Deactivated', $content);
-    }
 
-    public function testToggleUserDeactivationAndReactivation(): void
-    {
-        $this->client->loginUser($this->admin);
 
-        $this->client->request('GET', '/admin/license');
-        $deactivateToken = $this->setCsrfToken('toggle_user_active_'.$this->user->getId());
-        $this->client->request('POST', '/admin/users/'.$this->user->getId().'/active', [
-            '_token' => $deactivateToken,
-        ]);
-        self::assertResponseRedirects('/admin/users');
-
-        /** @var User $reloaded */
-        $this->em->clear();
-        $reloaded = $this->em->find(User::class, $this->user->getId());
-        self::assertFalse($reloaded->isActive());
-
-        $activateToken = $this->setCsrfToken('toggle_user_active_'.$this->user->getId());
-        $this->client->request('POST', '/admin/users/'.$this->user->getId().'/active', [
-            '_token' => $activateToken,
-        ]);
-        self::assertResponseRedirects('/admin/users');
-
-        /** @var User $reactivated */
-        $this->em->clear();
-        $reactivated = $this->em->find(User::class, $this->user->getId());
-        self::assertTrue($reactivated->isActive());
-    }
-
-    public function testToggleUserRequiresCsrfToken(): void
-    {
-        $this->client->loginUser($this->admin);
-        $this->client->request('POST', '/admin/users/'.$this->user->getId().'/active');
-
-        self::assertResponseStatusCodeSame(403);
-    }
-
-    public function testToggleUserRequiresAdmin(): void
-    {
-        $this->client->loginUser($this->user);
-        $this->client->request('GET', '/mails');
-        $token = $this->setCsrfToken('toggle_user_active_'.$this->user->getId());
-        $this->client->request('POST', '/admin/users/'.$this->user->getId().'/active', [
-            '_token' => $token,
-        ]);
-
-        self::assertResponseStatusCodeSame(403);
-    }
-
-    public function testToggleUnknownUserReturnsNotFound(): void
-    {
-        $this->client->loginUser($this->admin);
-        $token = $this->setCsrfToken('toggle_user_active_00000000-0000-7000-8000-000000000000');
-        $this->client->request('POST', '/admin/users/00000000-0000-7000-8000-000000000000/active', [
-            '_token' => $token,
-        ]);
-
-        self::assertResponseStatusCodeSame(404);
-    }
 
     public function testDeleteUnknownKeyReturnsNotFound(): void
     {
@@ -411,171 +329,14 @@ final class LicenseControllerTest extends WebTestCase
         return $value;
     }
 
-    public function testLastActiveAdminCannotBeDeactivated(): void
-    {
-        $this->client->loginUser($this->admin);
-        $token = $this->setCsrfToken('toggle_user_active_'.$this->admin->getId()->toRfc4122());
-        $this->client->request('POST', '/admin/users/'.$this->admin->getId()->toRfc4122().'/active', [
-            '_token' => $token,
-        ]);
 
-        self::assertResponseStatusCodeSame(403);
-        $this->em->clear();
-        $refreshed = $this->em->find(User::class, $this->admin->getId());
-        self::assertInstanceOf(User::class, $refreshed);
-        self::assertTrue($refreshed->isActive());
-    }
 
-    public function testLastAdminCannotLoseAdminRole(): void
-    {
-        $this->client->loginUser($this->admin);
-        $token = $this->setCsrfToken('toggle_user_admin_'.$this->admin->getId()->toRfc4122());
-        $this->client->request('POST', '/admin/users/'.$this->admin->getId()->toRfc4122().'/toggle-admin', [
-            '_token' => $token,
-        ]);
 
-        self::assertResponseStatusCodeSame(403);
-        $this->em->clear();
-        $refreshed = $this->em->find(User::class, $this->admin->getId());
-        self::assertInstanceOf(User::class, $refreshed);
-        self::assertContains('ROLE_ADMIN', $refreshed->getRoles());
-    }
 
-    public function testToggleAdminRoleUnknownUserReturnsNotFound(): void
-    {
-        $this->client->loginUser($this->admin);
-        $token = $this->setCsrfToken('toggle_user_admin_00000000-0000-7000-8000-000000000000');
-        $this->client->request('POST', '/admin/users/00000000-0000-7000-8000-000000000000/toggle-admin', [
-            '_token' => $token,
-        ]);
 
-        self::assertResponseStatusCodeSame(404);
-    }
 
-    public function testToggleAdminRoleGrantsAdminRoleToRegularUser(): void
-    {
-        $this->client->loginUser($this->admin);
-        $token = $this->setCsrfToken('toggle_user_admin_'.$this->user->getId()->toRfc4122());
-        $this->client->request('POST', '/admin/users/'.$this->user->getId()->toRfc4122().'/toggle-admin', [
-            '_token' => $token,
-        ]);
 
-        self::assertResponseRedirects('/admin/users');
-        $this->em->clear();
-        $refreshed = $this->em->find(User::class, $this->user->getId());
-        self::assertNotNull($refreshed);
-        self::assertContains('ROLE_ADMIN', $refreshed->getRoles());
-    }
 
-    public function testToggleAdminRoleRevokesAdminRoleWhenOtherAdminsRemain(): void
-    {
-        $hasher = static::getContainer()->get(UserPasswordHasherInterface::class);
-        $secondAdmin = new User();
-        $secondAdmin->setEmail('admin2@example.com');
-        $secondAdmin->setRoles(['ROLE_ADMIN']);
-        $secondAdmin->setPassword($hasher->hashPassword($secondAdmin, 'admin2'));
-        $secondAdmin->setLastAuthAt(new \DateTimeImmutable('-1 hour'));
-        $this->em->persist($secondAdmin);
-        $this->em->flush();
 
-        $this->client->loginUser($this->admin);
-        $token = $this->setCsrfToken('toggle_user_admin_'.$secondAdmin->getId()->toRfc4122());
-        $this->client->request('POST', '/admin/users/'.$secondAdmin->getId()->toRfc4122().'/toggle-admin', [
-            '_token' => $token,
-        ]);
 
-        self::assertResponseRedirects('/admin/users');
-        $this->em->clear();
-        $refreshed = $this->em->find(User::class, $secondAdmin->getId());
-        self::assertNotNull($refreshed);
-        self::assertNotContains('ROLE_ADMIN', $refreshed->getRoles());
-    }
-
-    public function testToggleAdminRoleRejectsRevokingTheLastActiveAdmin(): void
-    {
-        $this->client->loginUser($this->admin);
-        $token = $this->setCsrfToken('toggle_user_admin_'.$this->admin->getId()->toRfc4122());
-        $this->client->request('POST', '/admin/users/'.$this->admin->getId()->toRfc4122().'/toggle-admin', [
-            '_token' => $token,
-        ]);
-
-        self::assertResponseStatusCodeSame(403);
-        $this->em->clear();
-        $refreshed = $this->em->find(User::class, $this->admin->getId());
-        self::assertNotNull($refreshed);
-        self::assertContains('ROLE_ADMIN', $refreshed->getRoles());
-    }
-
-    public function testToggleAdminRoleBlocksRoleChangesWhileReadOnly(): void
-    {
-        // Must happen before the first request: the entitlement is cached
-        // inside the license manager once computed.
-        $this->enterReadOnly();
-        $this->client->loginUser($this->admin);
-        $token = $this->setCsrfToken('toggle_user_admin_'.$this->user->getId()->toRfc4122());
-        $this->client->request('POST', '/admin/users/'.$this->user->getId()->toRfc4122().'/toggle-admin', [
-            '_token' => $token,
-        ]);
-
-        self::assertResponseStatusCodeSame(403);
-        $this->em->clear();
-        $refreshed = $this->em->find(User::class, $this->user->getId());
-        self::assertNotNull($refreshed);
-        self::assertNotContains('ROLE_ADMIN', $refreshed->getRoles());
-    }
-
-    public function testToggleAdminRoleRequiresAdminRole(): void
-    {
-        $this->client->loginUser($this->user);
-        $token = $this->setCsrfToken('toggle_user_admin_'.$this->user->getId()->toRfc4122());
-        $this->client->request('POST', '/admin/users/'.$this->user->getId()->toRfc4122().'/toggle-admin', [
-            '_token' => $token,
-        ]);
-
-        self::assertResponseStatusCodeSame(403);
-    }
-
-    public function testToggleAdminRoleRequiresCsrfToken(): void
-    {
-        $this->client->loginUser($this->admin);
-        $this->client->request('POST', '/admin/users/'.$this->user->getId()->toRfc4122().'/toggle-admin');
-
-        self::assertResponseStatusCodeSame(403);
-    }
-
-    public function testDeactivateRejectsDeactivatingTheLastActiveAdmin(): void
-    {
-        $this->client->loginUser($this->admin);
-        $token = $this->setCsrfToken('toggle_user_active_'.$this->admin->getId()->toRfc4122());
-        $this->client->request('POST', '/admin/users/'.$this->admin->getId()->toRfc4122().'/active', [
-            '_token' => $token,
-        ]);
-
-        self::assertResponseStatusCodeSame(403);
-        $this->em->clear();
-        $refreshed = $this->em->find(User::class, $this->admin->getId());
-        self::assertNotNull($refreshed);
-        self::assertTrue($refreshed->isActive());
-    }
-
-    private function enterReadOnly(): void
-    {
-        // Community mode allows 3 seats; four active accounts exceed it and
-        // put the installation into violation, the expired grace period
-        // turns it read-only.
-        $hasher = static::getContainer()->get(UserPasswordHasherInterface::class);
-        for ($i = 1; 2 >= $i; ++$i) {
-            $extra = new User();
-            $extra->setEmail(sprintf('extra-readonly-%d@example.com', $i));
-            $extra->setPassword($hasher->hashPassword($extra, 'secret'));
-            $extra->setLastAuthAt(new \DateTimeImmutable('-1 hour'));
-            $this->em->persist($extra);
-        }
-        $this->em->flush();
-
-        $state = static::getContainer()->get(\AvalynxOffice\Licensing\Service\LicenseGracePeriodManager::class)->getState(null);
-        $state->setViolationStartedAt(new \DateTimeImmutable('-100 days', new \DateTimeZone('UTC')));
-        $state->setGracePeriodEndsAt(new \DateTimeImmutable('-70 days', new \DateTimeZone('UTC')));
-        $this->em->flush();
-    }
 }

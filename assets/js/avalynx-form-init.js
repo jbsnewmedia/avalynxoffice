@@ -11,6 +11,28 @@
 
     const SELECTOR = 'form[data-avalynxform]';
 
+    /*
+     * AvalynxForm sends its form data with fetch() but no X-Requested-With
+     * header, so XHR-guarded endpoints (requireXmlHttpRequest) reject every
+     * AvalynxForm submission with 403. Wrap fetch once and add the header
+     * to FormData requests that do not carry it yet.
+     */
+    const originalFetch = window.fetch.bind(window);
+    window.fetch = function (input, init) {
+        const options = init || {};
+
+        if (options.body instanceof FormData) {
+            const headers = new Headers(options.headers || {});
+            if (!headers.has('X-Requested-With')) {
+                headers.set('X-Requested-With', 'XMLHttpRequest');
+            }
+
+            return originalFetch(input, { ...options, headers });
+        }
+
+        return originalFetch(input, options);
+    };
+
     const initializeForm = (form) => {
         if (form.dataset.avalynxformInit === 'true') {
             return;

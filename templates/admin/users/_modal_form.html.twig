@@ -1,0 +1,41 @@
+<div class="p-4">
+    <h4 class="m-0 mb-4">{{ title }}</h4>
+    {{ form_start(form, {'attr': {'id': 'admin-user-form', 'data-avalynxform': '1', 'novalidate': 'novalidate'}}) }}
+        <div class="row g-3">
+            <div class="col-12">
+                <div class="form-group mb-3">
+                    {{ form_label(form.email) }}
+                    {{ form_widget(form.email, {'attr': {'class': 'form-control'}}) }}
+                    <div class="invalid-feedback" aria-live="polite"></div>
+                </div>
+            </div>
+            <div class="col-12">
+                <div class="form-group mb-3">
+                    {{ form_label(form.password) }}
+                    {{ form_widget(form.password, {'attr': {'class': 'form-control'}}) }}
+                    {% if is_edit %}
+                        <div class="form-text">{{ 'admin.users.form.password_help'|trans }}</div>
+                    {% endif %}
+                    <div class="invalid-feedback" aria-live="polite"></div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group mb-3 form-check">
+                    {{ form_widget(form.active, {'attr': {'class': 'form-check-input'}}) }}
+                    {{ form_label(form.active) }}
+                    <div class="invalid-feedback" aria-live="polite"></div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group mb-3 form-check">
+                    {{ form_widget(form.admin, {'attr': {'class': 'form-check-input'}}) }}
+                    {{ form_label(form.admin) }}
+                    <div class="invalid-feedback" aria-live="polite"></div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-form-buttons d-none">
+            {{ form_widget(form.save) }}
+        </div>
+    {{ form_end(form) }}
+</div>
