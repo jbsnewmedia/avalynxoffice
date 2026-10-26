@@ -286,17 +286,24 @@ class Pop3Fetcher
             $this->log(sprintf('%d messages found.', $count));
             $indices = [];
             $limit = $request->limit;
-            if (null !== $limit && !$request->oldestFirst) {
+            // With "fetch from" set, always scan from the newest message
+            // backwards: the messages below the date boundary would never
+            // be imported, so walking up from the oldest would be endless.
+            $oldestFirst = null !== $fetchFrom ? false : $request->oldestFirst;
+            if (null !== $fetchFrom) {
+                $this->log(sprintf('"Fetch from" is set (%s): processing messages from newest to oldest.', $fetchFrom->format('d.m.Y')));
+            }
+            if (null !== $limit && !$oldestFirst) {
                 for ($i = $count; $i > max(0, $count - $limit); --$i) {
                     $indices[] = $i;
                 }
                 $this->log(sprintf('Processing the newest %d messages ...', count($indices)));
-            } elseif (null !== $limit && $request->oldestFirst) {
+            } elseif (null !== $limit && $oldestFirst) {
                 for ($i = 1; $i <= min($count, $limit); ++$i) {
                     $indices[] = $i;
                 }
                 $this->log(sprintf('Processing the oldest %d messages ...', count($indices)));
-            } elseif ($request->oldestFirst) {
+            } elseif ($oldestFirst) {
                 for ($i = 1; $i <= $count; ++$i) {
                     $indices[] = $i;
                 }
