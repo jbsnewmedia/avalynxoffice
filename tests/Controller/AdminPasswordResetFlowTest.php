@@ -585,4 +585,74 @@ final class AdminPasswordResetFlowTest extends WebTestCase
         $this->entityManager->flush();
         $this->entityManager->clear();
     }
+
+    public function testReleaseWithInvalidTokenAnswersFailure(): void
+    {
+        $this->loginAdmin();
+
+        $this->client->request('POST', '/admin/password-resets/00000000-0000-7000-8000-000000000000/release', [
+            'number' => '123456',
+            '_token' => 'not-a-valid-token',
+        ], [], ['HTTP_X-Requested-With' => 'XMLHttpRequest']);
+
+        self::assertResponseStatusCodeSame(403);
+        $payload = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertFalse($payload['success']);
+        self::assertSame('Invalid token.', $payload['message']);
+    }
+
+    public function testReleaseWithUnknownRequestAnswersFailure(): void
+    {
+        $this->loginAdmin();
+
+        $unknownId = '00000000-0000-7000-8000-000000000000';
+        $this->client->request('GET', '/admin/password-resets');
+        $session = $this->client->getRequest()->getSession();
+        $value = 'test-csrf-token-'.bin2hex(random_bytes(8));
+        $session->set('_csrf/admin_password_reset_release_'.$unknownId, $value);
+        $session->save();
+
+        $this->client->request('POST', '/admin/password-resets/'.$unknownId.'/release', [
+            'number' => '123456',
+            '_token' => $value,
+        ], [], ['HTTP_X-Requested-With' => 'XMLHttpRequest']);
+
+        self::assertResponseStatusCodeSame(403);
+        $payload = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertFalse($payload['success']);
+        self::assertSame('The request was not found or has already expired.', $payload['message']);
+    }
+
+    public function testClientIpFallsBackToUnknown(): void
+    {
+        $controller = static::getContainer()->get(\AvalynxOffice\Controller\AdminPasswordResetController::class);
+        \assert($controller instanceof \AvalynxOffice\Controller\AdminPasswordResetController);
+
+        $method = new \ReflectionMethod($controller, 'clientIp');
+        self::assertSame('127.0.0.1', $method->invoke($controller, new \Symfony\Component\HttpFoundation\Request(server: ['REMOTE_ADDR' => '127.0.0.1'])));
+        self::assertSame('unknown', $method->invoke($controller, new \Symfony\Component\HttpFoundation\Request()));
+    }
+
+    public function testAdminIdRejectsUserWithoutIdentifier(): void
+    {
+        $hasher = static::getContainer()->get(UserPasswordHasherInterface::class);
+        \assert($hasher instanceof UserPasswordHasherInterface);
+
+        $idLess = new User();
+        $idLess->setEmail('idless@example.com');
+        $idLess->setPassword($hasher->hashPassword($idLess, 'secret'));
+
+        $property = new \ReflectionProperty(User::class, 'id');
+        $property->setValue($idLess, null);
+
+        $this->client->loginUser($idLess);
+
+        $controller = static::getContainer()->get(\AvalynxOffice\Controller\AdminPasswordResetController::class);
+        \assert($controller instanceof \AvalynxOffice\Controller\AdminPasswordResetController);
+        $method = new \ReflectionMethod($controller, 'adminId');
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Administrator account has no identifier.');
+        $method->invoke($controller);
+    }
 }

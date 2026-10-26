@@ -1,0 +1,172 @@
+{% extends 'base.html.twig' %}
+{% block title %}{{ 'admin.system.title'|trans }} - {{ 'app.title'|trans }}{% endblock %}
+{% block stylesheets %}
+    {% include '_assets.html.twig' with { mode: 'user' } %}
+    {{ parent() }}
+{% endblock %}
+{% block flashes %}{% endblock %}
+{% block body %}
+<div class="d-flex flex-column min-vh-100">
+    {% include '_navbar.html.twig' with { showMailToggles: false, userMenuActive: true } %}
+    <main class="flex-grow-1 py-4">
+        <div class="container">
+            {% include 'admin/_nav.html.twig' with { active: 'system' } %}
+            <h1 class="h3 mb-4">{{ 'admin.system.title'|trans }}</h1>
+
+            {% include 'connector/_flashes.html.twig' %}
+
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-body-tertiary d-flex align-items-center gap-2">
+                    <i class="fa-solid fa-heart-pulse" aria-hidden="true"></i><strong>{{ 'admin.status.title'|trans }}</strong>
+                </div>
+                <div class="card-body">
+                    {% if lastSyncRun is null %}
+                        <p class="text-body-secondary mb-0">{{ 'admin.status.never'|trans }}</p>
+                    {% else %}
+                        <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+                            {% if lastSyncRun.status == 'running' %}
+                                <span class="badge text-bg-info"><i class="fa-solid fa-spinner fa-spin me-1" aria-hidden="true"></i>{{ 'admin.status.running'|trans }}</span>
+                            {% elseif lastSyncRun.status == 'error' %}
+                                <span class="badge text-bg-danger"><i class="fa-solid fa-triangle-exclamation me-1" aria-hidden="true"></i>{{ 'admin.status.error'|trans }}</span>
+                            {% else %}
+                                <span class="badge text-bg-success"><i class="fa-solid fa-circle-check me-1" aria-hidden="true"></i>{{ 'admin.status.success'|trans }}</span>
+                            {% endif %}
+                            <span class="text-body-secondary small">{{ 'admin.status.trigger'|trans }}: {{ ('admin.status.trigger_' ~ lastSyncRun.trigger)|trans }}</span>
+                        </div>
+                        <dl class="row mb-0">
+                            <dt class="col-sm-4">{{ 'admin.status.started'|trans }}</dt>
+                            <dd class="col-sm-8">{{ lastSyncRun.startedAt|date('Y-m-d H:i:s') }}</dd>
+                            {% if lastSyncRun.finishedAt %}
+                                <dt class="col-sm-4">{{ 'admin.status.finished'|trans }}</dt>
+                                <dd class="col-sm-8">
+                                    {{ lastSyncRun.finishedAt|date('Y-m-d H:i:s') }}
+                                    <span class="text-body-secondary small">({{ (lastSyncRun.finishedAt.getTimestamp() - lastSyncRun.startedAt.getTimestamp()) }}s)</span>
+                                </dd>
+                            {% endif %}
+                            <dt class="col-sm-4">{{ 'admin.status.mails'|trans }}</dt>
+                            <dd class="col-sm-8">
+                                {{ 'admin.status.mails_counts'|trans({
+                                    '%imported%': lastSyncRun.mailsImported,
+                                    '%skipped%': lastSyncRun.mailsSkipped,
+                                    '%errors%': lastSyncRun.mailsErrors,
+                                }) }}
+                            </dd>
+                            <dt class="col-sm-4">{{ 'admin.status.contacts'|trans }}</dt>
+                            <dd class="col-sm-8">{{ lastSyncRun.contactsCount }}</dd>
+                            <dt class="col-sm-4">{{ 'admin.status.calendar'|trans }}</dt>
+                            <dd class="col-sm-8">{{ lastSyncRun.calendarCount }}</dd>
+                        </dl>
+                        {% if lastSyncRun.message %}
+                            <div class="alert alert-danger mb-0 mt-3" role="alert">
+                                <i class="fa-solid fa-triangle-exclamation me-2" aria-hidden="true"></i>{{ lastSyncRun.message }}
+                            </div>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if recentRuns|length > 0 %}
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-body-tertiary"><strong>{{ 'admin.status.recent'|trans }}</strong></div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>{{ 'admin.status.started'|trans }}</th>
+                                        <th>{{ 'common.status'|trans }}</th>
+                                        <th>{{ 'admin.status.trigger'|trans }}</th>
+                                        <th>{{ 'admin.status.mails'|trans }}</th>
+                                        <th class="text-end">{{ 'admin.status.contacts'|trans }}</th>
+                                        <th class="text-end">{{ 'admin.status.calendar'|trans }}</th>
+                                        <th>{{ 'admin.status.message'|trans }}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                {% for run in recentRuns %}
+                                    <tr class="{{ run.status == 'error' ? 'table-danger' : '' }}">
+                                        <td>{{ run.startedAt|date('Y-m-d H:i:s') }}</td>
+                                        <td>
+                                            {% if run.status == 'error' %}
+                                                <span class="badge text-bg-danger">{{ 'admin.status.error'|trans }}</span>
+                                            {% elseif run.status == 'running' %}
+                                                <span class="badge text-bg-info">{{ 'admin.status.running'|trans }}</span>
+                                            {% else %}
+                                                <span class="badge text-bg-success">{{ 'admin.status.success'|trans }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ ('admin.status.trigger_' ~ run.trigger)|trans }}</td>
+                                        <td>{{ run.mailsImported }} / {{ run.mailsSkipped }} / {{ run.mailsErrors }}</td>
+                                        <td class="text-end">{{ run.contactsCount }}</td>
+                                        <td class="text-end">{{ run.calendarCount }}</td>
+                                        <td class="small text-body-secondary">{{ run.message }}</td>
+                                    </tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-body-tertiary d-flex align-items-center gap-2">
+                    <i class="fa-solid fa-sliders" aria-hidden="true"></i><strong>{{ 'admin.system.settings'|trans }}</strong>
+                </div>
+                <div class="card-body">
+                    <div class="p-2">
+                        {{ form_start(form, {'attr': {'id': 'sync-settings-form', 'data-avalynxform': '1', 'novalidate': 'novalidate'}}) }}
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        {{ form_label(form.intervalSeconds) }}
+                                        {{ form_widget(form.intervalSeconds, {'attr': {'class': 'form-control'}}) }}
+                                        {{ form_help(form.intervalSeconds) }}
+                                        <div class="invalid-feedback" aria-live="polite"></div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        {{ form_label(form.busyIntervalSeconds) }}
+                                        {{ form_widget(form.busyIntervalSeconds, {'attr': {'class': 'form-control'}}) }}
+                                        {{ form_help(form.busyIntervalSeconds) }}
+                                        <div class="invalid-feedback" aria-live="polite"></div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        {{ form_label(form.mailsLimit) }}
+                                        {{ form_widget(form.mailsLimit, {'attr': {'class': 'form-control'}}) }}
+                                        {{ form_help(form.mailsLimit) }}
+                                        <div class="invalid-feedback" aria-live="polite"></div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        {{ form_label(form.contactsLimit) }}
+                                        {{ form_widget(form.contactsLimit, {'attr': {'class': 'form-control'}}) }}
+                                        {{ form_help(form.contactsLimit) }}
+                                        <div class="invalid-feedback" aria-live="polite"></div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        {{ form_label(form.calendarLimit) }}
+                                        {{ form_widget(form.calendarLimit, {'attr': {'class': 'form-control'}}) }}
+                                        {{ form_help(form.calendarLimit) }}
+                                        <div class="invalid-feedback" aria-live="polite"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-end mt-3">
+                                {{ form_widget(form.save) }}
+                            </div>
+                        {{ form_end(form) }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}
+{% block page_footer %}{% endblock %}

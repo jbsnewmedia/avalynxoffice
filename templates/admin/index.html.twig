@@ -13,56 +13,6 @@
 
             <h1 class="h3 mb-2">{{ 'admin.dashboard.title'|trans }}</h1>
             <p class="text-body-secondary mb-0">{{ 'admin.dashboard.description'|trans }}</p>
-
-            <div class="card shadow-sm mt-4">
-                <div class="card-header bg-body-tertiary d-flex align-items-center gap-2">
-                    <i class="fa-solid fa-heart-pulse" aria-hidden="true"></i><strong>{{ 'admin.status.title'|trans }}</strong>
-                </div>
-                <div class="card-body">
-                    {% if lastSyncRun is null %}
-                        <p class="text-body-secondary mb-0">{{ 'admin.status.never'|trans }}</p>
-                    {% else %}
-                        <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
-                            {% if lastSyncRun.status == 'running' %}
-                                <span class="badge text-bg-info"><i class="fa-solid fa-spinner fa-spin me-1" aria-hidden="true"></i>{{ 'admin.status.running'|trans }}</span>
-                            {% elseif lastSyncRun.status == 'error' %}
-                                <span class="badge text-bg-danger"><i class="fa-solid fa-triangle-exclamation me-1" aria-hidden="true"></i>{{ 'admin.status.error'|trans }}</span>
-                            {% else %}
-                                <span class="badge text-bg-success"><i class="fa-solid fa-circle-check me-1" aria-hidden="true"></i>{{ 'admin.status.success'|trans }}</span>
-                            {% endif %}
-                            <span class="text-body-secondary small">{{ 'admin.status.trigger'|trans }}: {{ ('admin.status.trigger_' ~ lastSyncRun.trigger)|trans }}</span>
-                        </div>
-                        <dl class="row mb-0">
-                            <dt class="col-sm-4">{{ 'admin.status.started'|trans }}</dt>
-                            <dd class="col-sm-8">{{ lastSyncRun.startedAt|date('Y-m-d H:i:s') }}</dd>
-                            {% if lastSyncRun.finishedAt %}
-                                <dt class="col-sm-4">{{ 'admin.status.finished'|trans }}</dt>
-                                <dd class="col-sm-8">
-                                    {{ lastSyncRun.finishedAt|date('Y-m-d H:i:s') }}
-                                    <span class="text-body-secondary small">({{ (lastSyncRun.finishedAt.getTimestamp() - lastSyncRun.startedAt.getTimestamp()) }}s)</span>
-                                </dd>
-                            {% endif %}
-                            <dt class="col-sm-4">{{ 'admin.status.mails'|trans }}</dt>
-                            <dd class="col-sm-8">
-                                {{ 'admin.status.mails_counts'|trans({
-                                    '%imported%': lastSyncRun.mailsImported,
-                                    '%skipped%': lastSyncRun.mailsSkipped,
-                                    '%errors%': lastSyncRun.mailsErrors,
-                                }) }}
-                            </dd>
-                            <dt class="col-sm-4">{{ 'admin.status.contacts'|trans }}</dt>
-                            <dd class="col-sm-8">{{ lastSyncRun.contactsCount }}</dd>
-                            <dt class="col-sm-4">{{ 'admin.status.calendar'|trans }}</dt>
-                            <dd class="col-sm-8">{{ lastSyncRun.calendarCount }}</dd>
-                        </dl>
-                        {% if lastSyncRun.message %}
-                            <div class="alert alert-danger mb-0 mt-3" role="alert">
-                                <i class="fa-solid fa-triangle-exclamation me-2" aria-hidden="true"></i>{{ lastSyncRun.message }}
-                            </div>
-                        {% endif %}
-                    {% endif %}
-                </div>
-            </div>
         </div>
     </main>
 </div>

@@ -12,6 +12,7 @@ use AvalynxOffice\Repository\ConnectorConfigRepository;
 use AvalynxOffice\Repository\SyncRunRepository;
 use AvalynxOffice\Service\ConnectorPluginRegistry;
 use AvalynxOffice\Service\Sync\SyncService;
+use AvalynxOffice\Service\Sync\SyncSettingsService;
 use AvalynxOffice\Tests\Support\FakeConnectorPlugin;
 use AvalynxOffice\Tests\Support\RefreshDatabaseTrait;
 use Doctrine\ORM\EntityManagerInterface;
@@ -40,6 +41,14 @@ final class SyncCommandTest extends KernelTestCase
         $this->refreshDatabase($this->em);
     }
 
+    private function syncSettings(): SyncSettingsService
+    {
+        $settings = self::getContainer()->get(SyncSettingsService::class);
+        \assert($settings instanceof SyncSettingsService);
+
+        return $settings;
+    }
+
     private function createCommand(): SyncRunCommand|SyncDaemonCommand
     {
         $fake = new FakeConnectorPlugin(inputConfigured: true);
@@ -56,7 +65,7 @@ final class SyncCommandTest extends KernelTestCase
         $this->em->persist($connector);
         $this->em->flush();
 
-        return new SyncRunCommand(new SyncService($registry, $this->em->getRepository(Connector::class), $this->syncRunRepository));
+        return new SyncRunCommand(new SyncService($registry, $this->em->getRepository(Connector::class), $this->syncRunRepository), $this->syncSettings());
     }
 
     private function createDaemonCommand(): SyncDaemonCommand
@@ -73,7 +82,7 @@ final class SyncCommandTest extends KernelTestCase
         $this->em->persist($connector);
         $this->em->flush();
 
-        return new SyncDaemonCommand(new SyncService($registry, $this->em->getRepository(Connector::class), $this->syncRunRepository));
+        return new SyncDaemonCommand(new SyncService($registry, $this->em->getRepository(Connector::class), $this->syncRunRepository), $this->syncSettings());
     }
 
     public function testRunCommandOutputsCountsAndSucceeds(): void
@@ -98,12 +107,13 @@ final class SyncCommandTest extends KernelTestCase
 
     public function testDaemonRunsConfiguredNumberOfPasses(): void
     {
+        $this->syncSettings()->save(['intervalSeconds' => 0, 'busyIntervalSeconds' => 0]);
         $tester = new CommandTester($this->createDaemonCommand());
-        $tester->execute(['--interval' => '1', '--mails' => '7', '--max-runs' => '2']);
+        $tester->execute(['--max-runs' => '2']);
 
         self::assertSame(0, $tester->getStatusCode());
         $display = $tester->getDisplay();
-        self::assertStringContainsString('Sync-Dienst gestartet (Intervall: 1s, Mails pro Lauf: 7).', $display);
+        self::assertStringContainsString('Sync-Dienst gestartet (Intervall: 0s, Backfill-Intervall: 0s, Mails: 100, Kontakte: 100, Termine: 100 pro Lauf).', $display);
         self::assertStringContainsString('Durchlauf #1: success', $display);
         self::assertStringContainsString('Durchlauf #2: success', $display);
         self::assertStringContainsString('Sync-Dienst beendet.', $display);
@@ -115,6 +125,81 @@ final class SyncCommandTest extends KernelTestCase
             self::assertSame(SyncRun::TRIGGER_DAEMON, $run->getTrigger());
             self::assertSame(2, $run->getMailsImported());
         }
+    }
+
+    public function testDaemonContinuesImmediatelyWhileEntriesFlow(): void
+    {
+        $fake = new FakeConnectorPlugin(inputConfigured: true);
+        $fake->fetchResult = ['imported' => 2, 'skipped' => 0, 'errors' => 0];
+        $configRepository = self::getContainer()->get(ConnectorConfigRepository::class);
+        \assert($configRepository instanceof ConnectorConfigRepository);
+        $registry = new ConnectorPluginRegistry([$fake], $configRepository);
+
+        $connector = (new Connector())
+            ->setName('Backfill Connector')
+            ->setDomain('backfill.example.com');
+        $this->em->persist($connector);
+        $this->em->flush();
+
+        $command = new SyncDaemonCommand(new SyncService($registry, $this->em->getRepository(Connector::class), $this->syncRunRepository), $this->syncSettings());
+        $tester = new CommandTester($command);
+        // While entries are imported, the long idle pause (60s) must NOT be
+        // taken: both passes run immediately (busy pause = 0s).
+        $this->syncSettings()->save(['intervalSeconds' => 60, 'busyIntervalSeconds' => 0]);
+        $tester->execute(['--max-runs' => '2']);
+
+        self::assertSame(0, $tester->getStatusCode());
+        $display = $tester->getDisplay();
+        self::assertStringContainsString('Durchlauf #1: success', $display);
+        self::assertStringContainsString('Durchlauf #2: success', $display);
+        self::assertStringContainsString('Pause: 0s', $display);
+    }
+
+    public function testDaemonUsesIdleIntervalWhenNothingIsImported(): void
+    {
+        $fake = new FakeConnectorPlugin(inputConfigured: true);
+        $configRepository = self::getContainer()->get(ConnectorConfigRepository::class);
+        \assert($configRepository instanceof ConnectorConfigRepository);
+        $registry = new ConnectorPluginRegistry([$fake], $configRepository);
+
+        $command = new SyncDaemonCommand(new SyncService($registry, $this->em->getRepository(Connector::class), $this->syncRunRepository), $this->syncSettings());
+        $tester = new CommandTester($command);
+        // Nothing imported: the long idle pause is taken between passes.
+        $this->syncSettings()->save(['intervalSeconds' => 1, 'busyIntervalSeconds' => 0]);
+        $tester->execute(['--max-runs' => '2']);
+
+        self::assertSame(0, $tester->getStatusCode());
+        $display = $tester->getDisplay();
+        self::assertStringContainsString('Durchlauf #1: success', $display);
+        self::assertStringContainsString('Durchlauf #2: success', $display);
+        self::assertStringContainsString('Pause: 1s', $display);
+    }
+
+    public function testDaemonUsesConfiguredSettingsFromAdmin(): void
+    {
+        // The admin system status page stores the settings: the daemon
+        // re-reads them on every pass without a restart.
+        $settingsService = self::getContainer()->get(\AvalynxOffice\Service\Sync\SyncSettingsService::class);
+        \assert($settingsService instanceof \AvalynxOffice\Service\Sync\SyncSettingsService);
+        $settingsService->save([
+            'intervalSeconds' => 0,
+            'busyIntervalSeconds' => 0,
+            'mailsLimit' => 5,
+            'contactsLimit' => 6,
+            'calendarLimit' => 7,
+        ]);
+
+        $tester = new CommandTester($this->createDaemonCommand());
+        $tester->execute(['--max-runs' => '1']);
+
+        self::assertSame(0, $tester->getStatusCode());
+        $display = $tester->getDisplay();
+        self::assertStringContainsString('(Intervall: 0s, Backfill-Intervall: 0s, Mails: 5, Kontakte: 6, Termine: 7 pro Lauf).', $display);
+        self::assertStringContainsString('Mails: 2 importiert', $display);
+
+        $runs = $this->syncRunRepository->findAll();
+        self::assertCount(1, $runs);
+        self::assertSame(2, $runs[0]->getMailsImported());
     }
 
     public function testRunCommandReportsFailureOnErrorStatus(): void
@@ -136,7 +221,7 @@ final class SyncCommandTest extends KernelTestCase
         $this->em->persist($connector);
         $this->em->flush();
 
-        $command = new SyncRunCommand(new SyncService($registry, $this->em->getRepository(Connector::class), $this->syncRunRepository));
+        $command = new SyncRunCommand(new SyncService($registry, $this->em->getRepository(Connector::class), $this->syncRunRepository), $this->syncSettings());
         $tester = new CommandTester($command);
         $tester->execute([]);
 

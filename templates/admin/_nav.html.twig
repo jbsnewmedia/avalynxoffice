@@ -9,6 +9,7 @@
     'password_resets': {route: 'app_admin_password_resets', icon: 'fa-key', label: 'admin.nav.password_resets'},
     'legal': {route: 'app_settings_legal', icon: 'fa-file-contract', label: 'admin.nav.legal'},
     'license': {route: 'license_admin', icon: 'fa-scale-balanced', label: 'admin.nav.license'},
+    'system': {route: 'app_admin_system', icon: 'fa-server', label: 'admin.nav.system'},
 } %}
 {% set adminNavCurrent = adminNavItems[active]|default(adminNavItems.dashboard) %}
 <div class="dropdown mb-4">

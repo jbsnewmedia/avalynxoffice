@@ -11,6 +11,7 @@ namespace AvalynxOffice\Command;
 
 use AvalynxOffice\Entity\SyncRun;
 use AvalynxOffice\Service\Sync\SyncService;
+use AvalynxOffice\Service\Sync\SyncSettingsService;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -19,7 +20,8 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * Runs a single sync pass (mails, contacts, calendar) and records it for
- * the system status in the admin area.
+ * the system status in the admin area. Without options the configured
+ * sync service settings are used.
  */
 #[AsCommand(
     name: 'app:sync:run',
@@ -29,6 +31,7 @@ class SyncRunCommand extends Command
 {
     public function __construct(
         private readonly SyncService $syncService,
+        private readonly SyncSettingsService $syncSettings,
     ) {
         parent::__construct();
     }
@@ -37,9 +40,9 @@ class SyncRunCommand extends Command
     protected function configure(): void
     {
         $this
-            ->addOption('mails', null, InputOption::VALUE_REQUIRED, 'Maximum number of mails per connector.', '100')
-            ->addOption('contacts', null, InputOption::VALUE_REQUIRED, 'Maximum number of contacts per connector.', '100')
-            ->addOption('calendar', null, InputOption::VALUE_REQUIRED, 'Maximum number of calendar entries per connector.', '100')
+            ->addOption('mails', null, InputOption::VALUE_OPTIONAL, 'Maximum number of mails per connector (default: configured value).', null)
+            ->addOption('contacts', null, InputOption::VALUE_OPTIONAL, 'Maximum number of contacts per connector (default: configured value).', null)
+            ->addOption('calendar', null, InputOption::VALUE_OPTIONAL, 'Maximum number of calendar entries per connector (default: configured value).', null)
             ->addOption('newest-first', null, InputOption::VALUE_NONE, 'Process the newest messages first (default: oldest first).')
         ;
     }
@@ -47,12 +50,11 @@ class SyncRunCommand extends Command
     #[\Override]
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $mailsOption = $input->getOption('mails');
-        $mails = is_numeric($mailsOption) ? (int) $mailsOption : 100;
-        $contactsOption = $input->getOption('contacts');
-        $contacts = is_numeric($contactsOption) ? (int) $contactsOption : 100;
-        $calendarOption = $input->getOption('calendar');
-        $calendar = is_numeric($calendarOption) ? (int) $calendarOption : 100;
+        $settings = $this->syncSettings->all();
+
+        $mails = $this->optionOrNull($input, 'mails') ?? $settings['mailsLimit'];
+        $contacts = $this->optionOrNull($input, 'contacts') ?? $settings['contactsLimit'];
+        $calendar = $this->optionOrNull($input, 'calendar') ?? $settings['calendarLimit'];
 
         $output->writeln('<info>Sync startet …</info>');
         $run = $this->syncService->run(
@@ -77,5 +79,15 @@ class SyncRunCommand extends Command
         $output->writeln('<info>Sync abgeschlossen.</info>');
 
         return Command::SUCCESS;
+    }
+
+    private function optionOrNull(InputInterface $input, string $name): ?int
+    {
+        $value = $input->getOption($name);
+        if (!is_numeric($value)) {
+            return null;
+        }
+
+        return (int) $value;
     }
 }

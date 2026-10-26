@@ -11,6 +11,7 @@ namespace AvalynxOffice\Command;
 
 use AvalynxOffice\Entity\SyncRun;
 use AvalynxOffice\Service\Sync\SyncService;
+use AvalynxOffice\Service\Sync\SyncSettingsService;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -20,7 +21,9 @@ use Symfony\Component\Console\Output\OutputInterface;
 /**
  * Long-running sync service: syncs a batch of mails, contacts and calendar
  * entries, then pauses for the configured interval. Intended to run as a
- * dedicated container process next to the web server.
+ * dedicated container process next to the web server. The batch sizes and
+ * pauses are configured in the admin system status page and re-read on
+ * every pass, so changes apply without a restart.
  */
 #[AsCommand(
     name: 'app:sync:daemon',
@@ -30,6 +33,7 @@ class SyncDaemonCommand extends Command
 {
     public function __construct(
         private readonly SyncService $syncService,
+        private readonly SyncSettingsService $syncSettings,
     ) {
         parent::__construct();
     }
@@ -38,10 +42,6 @@ class SyncDaemonCommand extends Command
     protected function configure(): void
     {
         $this
-            ->addOption('interval', null, InputOption::VALUE_REQUIRED, 'Pause between passes in seconds.', '300')
-            ->addOption('mails', null, InputOption::VALUE_REQUIRED, 'Maximum number of mails per connector and pass.', '100')
-            ->addOption('contacts', null, InputOption::VALUE_REQUIRED, 'Maximum number of contacts per connector and pass.', '100')
-            ->addOption('calendar', null, InputOption::VALUE_REQUIRED, 'Maximum number of calendar entries per connector and pass.', '100')
             ->addOption('max-runs', null, InputOption::VALUE_REQUIRED, 'Stop after this number of passes (0 = run forever).', '0')
         ;
     }
@@ -49,36 +49,51 @@ class SyncDaemonCommand extends Command
     #[\Override]
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $intervalOption = $input->getOption('interval');
-        $interval = max(0, is_numeric($intervalOption) ? (int) $intervalOption : 300);
-        $mailsOption = $input->getOption('mails');
-        $mails = is_numeric($mailsOption) ? (int) $mailsOption : 100;
-        $contactsOption = $input->getOption('contacts');
-        $contacts = is_numeric($contactsOption) ? (int) $contactsOption : 100;
-        $calendarOption = $input->getOption('calendar');
-        $calendar = is_numeric($calendarOption) ? (int) $calendarOption : 100;
         $maxRunsOption = $input->getOption('max-runs');
         $maxRuns = max(0, is_numeric($maxRunsOption) ? (int) $maxRunsOption : 0);
 
-        $output->writeln(sprintf('<info>Sync-Dienst gestartet (Intervall: %ds, Mails pro Lauf: %d).</info>', $interval, $mails));
+        $settings = $this->syncSettings->all();
+        $output->writeln(sprintf(
+            '<info>Sync-Dienst gestartet (Intervall: %ds, Backfill-Intervall: %ds, Mails: %d, Kontakte: %d, Termine: %d pro Lauf).</info>',
+            $settings['intervalSeconds'],
+            $settings['busyIntervalSeconds'],
+            $settings['mailsLimit'],
+            $settings['contactsLimit'],
+            $settings['calendarLimit'],
+        ));
 
         $runs = 0;
         while (0 === $maxRuns || $runs < $maxRuns) {
+            // Re-read the settings on every pass: admin changes apply
+            // without restarting the service.
+            $settings = $this->syncSettings->all();
+
             $run = $this->syncService->run(
-                ['mails' => $mails, 'contacts' => $contacts, 'calendar' => $calendar, 'oldestFirst' => true],
+                [
+                    'mails' => $settings['mailsLimit'],
+                    'contacts' => $settings['contactsLimit'],
+                    'calendar' => $settings['calendarLimit'],
+                    'oldestFirst' => true,
+                ],
                 SyncRun::TRIGGER_DAEMON,
             );
             ++$runs;
 
+            $imported = $run->getMailsImported() + $run->getContactsCount() + $run->getCalendarCount();
+
             $output->writeln('['.new \DateTimeImmutable()->format('Y-m-d H:i:s').'] Durchlauf #'.$runs.': '.$run->getStatus()
-                .' — Mails: '.$run->getMailsImported().' importiert, '.$run->getMailsSkipped().' übersprungen, '.$run->getMailsErrors().' Fehler.');
+                .' — Mails: '.$run->getMailsImported().' importiert, '.$run->getMailsSkipped().' übersprungen, '.$run->getMailsErrors().' Fehler.'
+                .' — Pause: '.($imported > 0 ? $settings['busyIntervalSeconds'] : $settings['intervalSeconds']).'s.');
 
             if (0 !== $maxRuns && $runs >= $maxRuns) {
                 break;
             }
 
-            if ($interval > 0) {
-                sleep($interval);
+            // Entries are flowing: keep the backfill running with the short
+            // busy pause. The system is drained: wait for the idle interval.
+            $pause = $imported > 0 ? $settings['busyIntervalSeconds'] : $settings['intervalSeconds'];
+            if ($pause > 0) {
+                sleep($pause);
             }
         }
 
