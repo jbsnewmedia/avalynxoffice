@@ -35,23 +35,29 @@ class ConnectorType extends AbstractType
             ->add('name', TextType::class, [
                 'label' => 'connector.name',
                 'required' => true,
+                'label_attr' => ['class' => 'form-label'],
+                'attr' => ['class' => 'form-control'],
                 'constraints' => [new NotBlank()],
             ])
             ->add('domain', TextType::class, [
                 'label' => 'connector.domain',
                 'required' => true,
+                'label_attr' => ['class' => 'form-label'],
+                'attr' => ['class' => 'form-control'],
                 'help' => 'connector.domain_help',
                 'empty_data' => '',
                 'constraints' => [new NotBlank()],
             ])
             ->add('defaultAccount', EntityType::class, [
                 'label' => 'connector.default_account',
+                'label_attr' => ['class' => 'form-label'],
                 'class' => Account::class,
                 'choice_label' => static fn (Account $account): string => sprintf('%s (%s)', $account->getName(), $account->getEmail()),
                 'query_builder' => static fn (AccountRepository $repository) => $repository->createQueryBuilder('a')->orderBy('a.name', 'ASC'),
                 'placeholder' => 'connector.no_default_account',
                 'required' => false,
                 'help' => 'connector.default_account_help',
+                'attr' => ['class' => 'form-select'],
             ])
             ->add('save', SubmitType::class, [
                 'label' => 'common.save',

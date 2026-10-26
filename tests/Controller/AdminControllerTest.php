@@ -97,14 +97,18 @@ final class AdminControllerTest extends WebTestCase
         $this->client->request('GET', '/admin/connectors');
         self::assertResponseIsSuccessful();
 
+        // The create form is a modal fragment: it is only served to
+        // XMLHttpRequests.
         $this->client->request('GET', '/admin/connectors/new');
-        self::assertResponseIsSuccessful();
+        self::assertResponseStatusCodeSame(403);
 
         $this->client->request('GET', sprintf('/admin/connectors/%s/settings', $connector->getId()));
         self::assertResponseIsSuccessful();
 
+        // The base connector form is only editable on the settings page and
+        // accepts POST requests only.
         $this->client->request('GET', sprintf('/admin/connectors/%s/edit', $connector->getId()));
-        self::assertResponseRedirects(sprintf('/admin/connectors/%s/settings', $connector->getId()));
+        self::assertResponseStatusCodeSame(405);
     }
 
     public function testAccountControllerSupportsCreateEditAndDeleteFlows(): void
@@ -459,10 +463,44 @@ final class AdminControllerTest extends WebTestCase
         self::assertSame('pop-secret', $config['pop3Password']);
         self::assertSame('smtp-secret', $config['smtpPassword']);
 
-        // The list shows input/output state and links to the settings dialog.
-        $listCrawler = $this->client->request('GET', '/admin/connectors');
+        // A duplicate domain keeps the modal open with a field error.
+        $dupCrawler = $this->client->request('GET', '/admin/connectors/new', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $dupForm = $dupCrawler->filter('form')->form();
+        $dupValues = $dupForm->getPhpValues();
+        $dupValues['connector']['name'] = 'Duplicate Connector';
+        $dupValues['connector']['domain'] = 'created-connector.example.com';
+
+        $this->client->request('POST', '/admin/connectors/new', $dupValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        self::assertResponseStatusCodeSame(422);
+        $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertFalse($data['success']);
+        self::assertArrayHasKey('connector[domain]', $data['invalid']);
+        self::assertCount(1, $this->entityManager->getRepository(Connector::class)->findBy(['domain' => 'created-connector.example.com']));
+
+        // The settings page updates the base data of the connector.
+        $settingsCrawler = $this->client->request('GET', sprintf('/admin/connectors/%s/settings', $createdConnector->getId()), server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $baseForm = $settingsCrawler->filter('form#connector-form')->form();
+        $baseValues = $baseForm->getPhpValues();
+        $baseValues['connector']['name'] = 'Renamed Connector';
+
+        $this->client->request('POST', sprintf('/admin/connectors/%s/edit', $createdConnector->getId()), $baseValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
-        self::assertSelectorExists(sprintf('a[href="/admin/connectors/%s/settings"] .fa-gear', (string) $createdConnector->getId()));
+        $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertTrue($data['success']);
+        self::assertArrayHasKey('redirect', $data);
+
+        $this->entityManager->clear();
+        $renamed = $this->entityManager->find(Connector::class, (string) $createdConnector->getId());
+        self::assertInstanceOf(Connector::class, $renamed);
+        self::assertSame('Renamed Connector', $renamed->getName());
+
+        // The datatable row links to the settings dialog.
+        $payload = $this->fetchConnectorData(['search' => 'created-connector.example.com']);
+        self::assertSame(1, $payload['count']['filtered']);
+        $row = $payload['data'][0]['data'];
+        self::assertSame('Renamed Connector', $row['name']);
+        self::assertStringContainsString($this->generateConnectorSettingsUrl((string) $createdConnector->getId()), $row['options']);
+        self::assertStringContainsString('fa-gear', $row['options']);
 
         $tokenCrawler = $this->client->request('GET', sprintf('/admin/connectors/%s/settings', $createdConnector->getId()));
         $token = $tokenCrawler->filter(sprintf('form[action="/admin/connectors/%s"] input[name="_token"]', $createdConnector->getId()))->attr('value');
@@ -628,6 +666,109 @@ final class AdminControllerTest extends WebTestCase
         $router = static::getContainer()->get('router');
 
         return $router->generate('account_edit', ['id' => $id]);
+    }
+
+    /**
+     * Fetches the admin connector datatable payload.
+     *
+     * @param array<string, string> $params
+     *
+     * @return array<string, mixed>
+     */
+    private function fetchConnectorData(array $params = []): array
+    {
+        $this->client->request('POST', '/admin/connectors/data', $params);
+
+        self::assertResponseIsSuccessful();
+
+        $decoded = json_decode((string) $this->client->getResponse()->getContent(), true);
+        \assert(is_array($decoded));
+
+        return $decoded;
+    }
+
+    private function generateConnectorSettingsUrl(string $id): string
+    {
+        /** @var \Symfony\Component\Routing\RouterInterface $router */
+        $router = static::getContainer()->get('router');
+
+        return $router->generate('connector_settings', ['id' => $id]);
+    }
+
+    public function testConnectorDataEndpointReturnsRowsWithStatusAndOptions(): void
+    {
+        $this->loginAdmin();
+
+        $account = $this->createAccount('Connector Account', 'connector-account@example.com');
+        $connector = $this->createConnector($account, 'Zeta Connector', 'zeta@zeta-connector.example.com');
+
+        $payload = $this->fetchConnectorData();
+
+        self::assertSame(1, $payload['count']['total']);
+        self::assertSame(1, $payload['count']['all']);
+        self::assertSame(['name' => 'asc'], $payload['sorting']);
+        self::assertCount(1, $payload['data']);
+
+        $row = $payload['data'][0]['data'];
+        self::assertSame('Zeta Connector', $row['name']);
+        self::assertSame('zeta-connector.example.com', $row['domain']);
+        self::assertStringContainsString('Connector Account', $row['defaultAccount']);
+        self::assertStringContainsString('connector-account@example.com', $row['defaultAccount']);
+        // Nothing configured yet: input and output stay unconfigured.
+        self::assertStringContainsString('text-bg-secondary', $row['input']);
+        self::assertStringContainsString('text-bg-secondary', $row['output']);
+        self::assertStringContainsString('Mails', $row['status']);
+        self::assertStringContainsString($this->generateConnectorSettingsUrl((string) $connector->getId()), $row['options']);
+        self::assertStringContainsString('fa-gear', $row['options']);
+        self::assertStringContainsString('btn-danger', $row['options']);
+        self::assertStringContainsString('confirm-action', $row['options']);
+        self::assertStringNotContainsString('disabled', $row['options']);
+    }
+
+    public function testConnectorDataEndpointSearchesAndValidatesSorting(): void
+    {
+        $this->loginAdmin();
+        $account = $this->createAccount('Search Account', 'search-account@example.com');
+        $connector = $this->createConnector($account, 'Alpha Connector', 'alpha-connector.example.com');
+
+        // A connector without a default account renders the fallback note.
+        $connector->setDefaultAccount(null);
+        $this->entityManager->flush();
+
+        $filtered = $this->fetchConnectorData(['search' => 'alpha']);
+        self::assertSame(1, $filtered['count']['filtered']);
+        self::assertSame('Alpha Connector', $filtered['data'][0]['data']['name']);
+        self::assertStringContainsString('No default account', $filtered['data'][0]['data']['defaultAccount']);
+
+        $noMatch = $this->fetchConnectorData(['search' => 'nothing-matches']);
+        self::assertSame(0, $noMatch['count']['filtered']);
+        self::assertSame([], $noMatch['data']);
+
+        $invalidJson = $this->fetchConnectorData(['sorting' => '{not-json']);
+        self::assertSame(['name' => 'asc'], $invalidJson['sorting']);
+
+        $unknownColumn = $this->fetchConnectorData(['sorting' => json_encode(['hacker' => 'desc'])]);
+        self::assertSame(['name' => 'asc'], $unknownColumn['sorting']);
+
+        $byDomain = $this->fetchConnectorData(['sorting' => json_encode(['domain' => 'desc'])]);
+        self::assertSame(['domain' => 'desc'], $byDomain['sorting']);
+
+        $invalidPerPage = $this->fetchConnectorData(['perpage' => '13']);
+        self::assertSame(10, $invalidPerPage['count']['perpage']);
+    }
+
+    public function testConnectorDataEndpointRequiresAdminRole(): void
+    {
+        $user = (new User())
+            ->setEmail('user@example.com')
+            ->setPassword('secret');
+        $this->entityManager->persist($user);
+        $this->entityManager->flush();
+
+        $this->client->loginUser($user);
+        $this->client->request('POST', '/admin/connectors/data');
+
+        self::assertResponseStatusCodeSame(403);
     }
 
     public function testConnectorRoutesRequireAdminRole(): void

@@ -20,65 +20,165 @@ use AvalynxOffice\Service\ConnectorService;
 use AvalynxOffice\Util\AvalynxFormResponse;
 use AvalynxOffice\Util\FormInvalidMapper;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\Form\FormError;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Core\Exception\AccessDeniedException;
+use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
+/**
+ * Connector administration: the list is an AvalynxDataTable, new connectors
+ * are created in a modal. The technical configuration (base data and
+ * plugins) lives on the settings page of each connector.
+ */
 #[Route('/admin/connectors')]
 #[IsGranted('ROLE_ADMIN')]
 class ConnectorAdminController extends AbstractController
 {
+    /**
+     * Columns the admin table may be sorted by, mapped to their query
+     * builder field names. Everything else from the client is ignored.
+     *
+     * @var array<string, string>
+     */
+    private const array SORTABLE_COLUMNS = [
+        'name' => 'c.name',
+        'domain' => 'c.domain',
+    ];
+
+    private const array PER_PAGE_CHOICES = [10, 25, 50, 100];
+
     public function __construct(
         private readonly TranslatorInterface $translator,
         private readonly LicenseEnforcementInterface $licenseEnforcement,
+        private readonly CsrfTokenManagerInterface $csrfTokenManager,
+        private readonly ConnectorRepository $connectorRepository,
     ) {
     }
 
     #[Route('', name: 'connector_index', methods: ['GET'])]
-    public function index(ConnectorRepository $repo, ConnectorPluginRegistry $pluginRegistry): Response
+    public function index(): Response
     {
         return $this->render('connector/index.html.twig', [
-            'items' => $repo->findBy([], ['name' => 'ASC']),
-            'pluginRegistry' => $pluginRegistry,
+            'readOnly' => $this->licenseEnforcement->isReadOnly(),
         ]);
     }
 
-    #[Route('/new', name: 'connector_new', methods: ['GET', 'POST'])]
-    public function new(Request $request, ConnectorService $connectorService): Response
+    #[Route('/data', name: 'connector_data', methods: ['POST'])]
+    public function data(Request $request, ConnectorPluginRegistry $pluginRegistry): JsonResponse
     {
+        $search = trim((string) $request->request->get('search', ''));
+        $page = max(1, (int) $request->request->get('page', 1));
+        $perPage = (int) $request->request->get('perpage', self::PER_PAGE_CHOICES[0]);
+        if (!in_array($perPage, self::PER_PAGE_CHOICES, true)) {
+            $perPage = self::PER_PAGE_CHOICES[0];
+        }
+        $sorting = $this->parseSorting((string) $request->request->get('sorting', ''));
+
+        $total = $this->connectorRepository->countConnectorsForAdminList('');
+        $filtered = $this->connectorRepository->countConnectorsForAdminList($search);
+        $offset = ($page - 1) * $perPage;
+        $connectors = $this->connectorRepository->findConnectorsForAdminList($search, $this->toOrderBy($sorting), $offset, $perPage);
+
+        $rows = [];
+        foreach ($connectors as $connector) {
+            $rows[] = [
+                'data' => [
+                    'id' => $connector->getId()?->toRfc4122(),
+                    'name' => htmlspecialchars($connector->getName(), ENT_QUOTES, 'UTF-8'),
+                    'domain' => htmlspecialchars($connector->getDomain(), ENT_QUOTES, 'UTF-8'),
+                    'defaultAccount' => $this->renderDefaultAccount($connector),
+                    'input' => $this->renderConfiguredBadge($pluginRegistry->isInputConfigured($connector)),
+                    'output' => $this->renderConfiguredBadge($pluginRegistry->isOutputConfigured($connector)),
+                    'status' => $this->renderStatus($pluginRegistry->getStatus($connector)),
+                    'options' => $this->renderOptions($connector),
+                ],
+                'class' => '',
+            ];
+        }
+
+        return new JsonResponse([
+            'head' => ['columns' => [
+                ['name' => $this->translator->trans('connector.name'), 'sortable' => true, 'id' => 'name'],
+                ['name' => $this->translator->trans('connector.domain'), 'sortable' => true, 'id' => 'domain'],
+                ['name' => $this->translator->trans('connector.default_account'), 'raw' => true, 'id' => 'defaultAccount'],
+                ['name' => $this->translator->trans('connector.input'), 'raw' => true, 'id' => 'input'],
+                ['name' => $this->translator->trans('connector.output'), 'raw' => true, 'id' => 'output'],
+                ['name' => $this->translator->trans('common.status'), 'raw' => true, 'id' => 'status'],
+                ['name' => $this->translator->trans('connector.actions'), 'raw' => true, 'id' => 'options', 'class' => 'avalynx-datatable-options', 'fixed' => 'end'],
+            ]],
+            'data' => $rows,
+            'count' => [
+                // "all" is read by avalynx-datatable 1.x, "total" is kept for
+                // the documented JSON structure.
+                'total' => $total,
+                'all' => $total,
+                'filtered' => $filtered,
+                'start' => 0 === $filtered ? 0 : $offset + 1,
+                'end' => min($offset + $perPage, $filtered),
+                'perpage' => $perPage,
+                'page' => $page,
+            ],
+            'sorting' => $sorting,
+            'search' => ['value' => $search],
+        ]);
+    }
+
+    #[Route('/new', name: 'connector_new', methods: ['GET'])]
+    public function newModal(Request $request): Response
+    {
+        $this->requireXmlHttpRequest($request);
+
         $connector = new Connector();
         $form = $this->createForm(ConnectorType::class, $connector, [
-            'action' => $this->generateUrl('connector_new'),
+            'action' => $this->generateUrl('connector_create'),
+        ]);
+
+        return $this->render('connector/_modal_form.html.twig', [
+            'form' => $form,
+        ]);
+    }
+
+    #[Route('/new', name: 'connector_create', methods: ['POST'])]
+    public function create(Request $request, ConnectorService $connectorService): JsonResponse
+    {
+        $this->requireXmlHttpRequest($request);
+
+        $connector = new Connector();
+        $form = $this->createForm(ConnectorType::class, $connector, [
+            'action' => $this->generateUrl('connector_create'),
         ]);
         $form->handleRequest($request);
 
-        if ($form->isSubmitted() && $form->isValid()) {
-            $this->licenseEnforcement->assertCanPerform(LicenseOperation::SETTINGS_WRITE);
-            $connectorService->save($connector, true);
-            $this->addFlash('success', $this->translator->trans('connector.created'));
-
-            return AvalynxFormResponse::success($this->generateUrl('connector_settings', ['id' => $connector->getId()]));
-        }
-
-        if ($request->isMethod('POST')) {
+        if (!$form->isSubmitted() || !$form->isValid()) {
             return AvalynxFormResponse::invalid(FormInvalidMapper::map($form));
         }
 
-        return $this->render('connector/form.html.twig', [
-            'form' => $form->createView(),
-            'title' => $this->translator->trans('connector.new'),
-        ]);
+        // The domain is unique (database constraint): check it here so the
+        // modal stays open with a field error instead of a 500 response.
+        $existing = $this->connectorRepository->findOneBy(['domain' => $connector->getDomain()]);
+        if (null !== $existing) {
+            $form->get('domain')->addError(new FormError($this->translator->trans('connector.domain_taken')));
+
+            return AvalynxFormResponse::invalid(FormInvalidMapper::map($form));
+        }
+
+        $this->licenseEnforcement->assertCanPerform(LicenseOperation::SETTINGS_WRITE);
+        $connectorService->save($connector, true);
+        $this->addFlash('success', $this->translator->trans('connector.created'));
+
+        return AvalynxFormResponse::success($this->generateUrl('connector_settings', ['id' => $connector->getId()]));
     }
 
-    #[Route('/{id}/edit', name: 'connector_edit', methods: ['GET', 'POST'])]
-    public function edit(Connector $connector, Request $request, ConnectorService $connectorService): Response
+    #[Route('/{id}/edit', name: 'connector_edit', methods: ['POST'], requirements: ['id' => '[0-9a-fA-F\-]{36}'])]
+    public function edit(Connector $connector, Request $request, ConnectorService $connectorService): JsonResponse
     {
-        if (!$request->isMethod('POST')) {
-            return $this->redirectToRoute('connector_settings', ['id' => $connector->getId()]);
-        }
+        $this->requireXmlHttpRequest($request);
 
         $formerDefaultAccount = $connector->getDefaultAccount();
         $form = $this->createForm(ConnectorType::class, $connector, [
@@ -86,18 +186,18 @@ class ConnectorAdminController extends AbstractController
         ]);
         $form->handleRequest($request);
 
-        if ($form->isSubmitted() && $form->isValid()) {
-            $this->licenseEnforcement->assertCanPerform(LicenseOperation::SETTINGS_WRITE);
-            $connectorService->save($connector, formerDefaultAccount: $formerDefaultAccount);
-            $this->addFlash('success', $this->translator->trans('connector.saved'));
-
-            return AvalynxFormResponse::success($this->generateUrl('connector_settings', ['id' => $connector->getId()]));
+        if (!$form->isSubmitted() || !$form->isValid()) {
+            return AvalynxFormResponse::invalid(FormInvalidMapper::map($form));
         }
 
-        return AvalynxFormResponse::invalid(FormInvalidMapper::map($form));
+        $this->licenseEnforcement->assertCanPerform(LicenseOperation::SETTINGS_WRITE);
+        $connectorService->save($connector, formerDefaultAccount: $formerDefaultAccount);
+        $this->addFlash('success', $this->translator->trans('connector.saved'));
+
+        return AvalynxFormResponse::success($this->generateUrl('connector_settings', ['id' => $connector->getId()]));
     }
 
-    #[Route('/{id}/settings', name: 'connector_settings', methods: ['GET'])]
+    #[Route('/{id}/settings', name: 'connector_settings', methods: ['GET'], requirements: ['id' => '[0-9a-fA-F\-]{36}'])]
     public function settings(Connector $connector, ConnectorPluginRegistry $pluginRegistry): Response
     {
         $baseForm = $this->createForm(ConnectorType::class, $connector, [
@@ -121,7 +221,7 @@ class ConnectorAdminController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}/settings/{plugin}', name: 'connector_plugin_settings', methods: ['POST'])]
+    #[Route('/{id}/settings/{plugin}', name: 'connector_plugin_settings', methods: ['POST'], requirements: ['id' => '[0-9a-fA-F\-]{36}'])]
     public function pluginSettings(Connector $connector, string $plugin, Request $request, ConnectorPluginRegistry $pluginRegistry, ConnectorConfigService $configService): Response
     {
         $pluginInstance = $pluginRegistry->get($plugin);
@@ -146,12 +246,12 @@ class ConnectorAdminController extends AbstractController
         return AvalynxFormResponse::invalid(FormInvalidMapper::map($form));
     }
 
-    #[Route('/{id}', name: 'connector_delete', methods: ['POST'])]
+    #[Route('/{id}', name: 'connector_delete', methods: ['POST'], requirements: ['id' => '[0-9a-fA-F\-]{36}'])]
     public function delete(Connector $connector, Request $request, ConnectorService $connectorService): Response
     {
         $tokenRaw = $request->request->get('_token');
         $token = is_scalar($tokenRaw) ? (string) $tokenRaw : null;
-        if (null !== $token && $this->isCsrfTokenValid('delete_connector_'.$connector->getId(), $token)) {
+        if (null !== $token && $this->isCsrfTokenValid('delete_connector_'.$connector->getId()?->toRfc4122(), $token)) {
             $this->licenseEnforcement->assertCanPerform(LicenseOperation::SETTINGS_WRITE);
             $connectorService->delete($connector);
             $this->addFlash('success', $this->translator->trans('connector.deleted'));
@@ -160,5 +260,123 @@ class ConnectorAdminController extends AbstractController
         }
 
         return $this->redirectToRoute('connector_index', [], Response::HTTP_SEE_OTHER);
+    }
+
+    /**
+     * Validates the client sorting JSON and returns it keyed by column id
+     * (the datatable echoes this back into its own state, so the keys must
+     * match the column ids).
+     *
+     * @return array<string, string> column id => direction
+     */
+    private function parseSorting(string $raw): array
+    {
+        $decoded = json_decode($raw, true);
+        if (!is_array($decoded)) {
+            return ['name' => 'asc'];
+        }
+
+        $sorting = [];
+        foreach ($decoded as $column => $direction) {
+            if (!is_string($column) || !isset(self::SORTABLE_COLUMNS[$column])) {
+                continue;
+            }
+
+            $sorting[$column] = is_string($direction) && 'desc' === strtolower($direction) ? 'desc' : 'asc';
+        }
+
+        return [] === $sorting ? ['name' => 'asc'] : $sorting;
+    }
+
+    /**
+     * Translates the validated column sorting into the order-by map for the
+     * query builder.
+     *
+     * @param array<string, string> $sorting column id => direction
+     *
+     * @return array<string, string> query field => direction
+     */
+    private function toOrderBy(array $sorting): array
+    {
+        $orderBy = [];
+        foreach ($sorting as $column => $direction) {
+            $orderBy[self::SORTABLE_COLUMNS[$column]] = $direction;
+        }
+
+        return $orderBy;
+    }
+
+    private function renderDefaultAccount(Connector $connector): string
+    {
+        $defaultAccount = $connector->getDefaultAccount();
+        if (null === $defaultAccount) {
+            return '<span class="text-body-secondary small">'.htmlspecialchars($this->translator->trans('connector.no_default_account'), ENT_QUOTES, 'UTF-8').'</span>';
+        }
+
+        return '<div>'.htmlspecialchars($defaultAccount->getName(), ENT_QUOTES, 'UTF-8').'</div>'
+            .'<div class="small text-body-secondary">'.htmlspecialchars($defaultAccount->getEmail(), ENT_QUOTES, 'UTF-8').'</div>';
+    }
+
+    private function renderConfiguredBadge(bool $configured): string
+    {
+        if ($configured) {
+            return '<span class="badge text-bg-success">'.htmlspecialchars($this->translator->trans('connector.configured_yes'), ENT_QUOTES, 'UTF-8').'</span>';
+        }
+
+        return '<span class="badge text-bg-secondary">'.htmlspecialchars($this->translator->trans('connector.configured_no'), ENT_QUOTES, 'UTF-8').'</span>';
+    }
+
+    /**
+     * @param array{mails: ?string, contacts: ?string, calendar: ?string} $status
+     */
+    private function renderStatus(array $status): string
+    {
+        $entries = [
+            'connector.status_mails' => $status['mails'] ?? null,
+            'connector.status_contacts' => $status['contacts'] ?? null,
+            'connector.status_calendar' => $status['calendar'] ?? null,
+        ];
+
+        $lines = [];
+        foreach ($entries as $key => $value) {
+            $lines[] = '<div>'.htmlspecialchars($this->translator->trans($key), ENT_QUOTES, 'UTF-8').': '
+                .htmlspecialchars(null !== $value ? (string) $value : '—', ENT_QUOTES, 'UTF-8').'</div>';
+        }
+
+        return '<div class="small">'.implode('', $lines).'</div>';
+    }
+
+    private function renderOptions(Connector $connector): string
+    {
+        $connectorId = $connector->getId()?->toRfc4122();
+        $readOnly = $this->licenseEnforcement->isReadOnly();
+        $settingsLabel = htmlspecialchars($this->translator->trans('connector.settings'), ENT_QUOTES, 'UTF-8');
+        $deleteLabel = htmlspecialchars($this->translator->trans('email.delete'), ENT_QUOTES, 'UTF-8');
+
+        $settingsUrl = $this->generateUrl('connector_settings', ['id' => $connectorId]);
+        $html = '<a href="'.htmlspecialchars($settingsUrl, ENT_QUOTES, 'UTF-8').'"'
+            .' class="btn btn-sm btn-primary me-1"'
+            .' title="'.$settingsLabel.'" aria-label="'.$settingsLabel.'">'
+            .'<i class="fa-solid fa-gear" aria-hidden="true"></i></a>';
+
+        $deleteUrl = $this->generateUrl('connector_delete', ['id' => $connectorId]);
+        $confirm = htmlspecialchars($this->translator->trans('connector.confirm_delete'), ENT_QUOTES, 'UTF-8');
+
+        $html .= '<form method="post" action="'.htmlspecialchars($deleteUrl, ENT_QUOTES, 'UTF-8').'" class="d-inline">'
+            .'<input type="hidden" name="_token" value="'
+            .htmlspecialchars($this->csrfTokenManager->getToken('delete_connector_'.$connectorId)->getValue(), ENT_QUOTES, 'UTF-8').'">'
+            .'<button type="submit" class="btn btn-sm btn-danger confirm-action"'
+            .' data-confirm="'.$confirm.'" title="'.$deleteLabel.'" aria-label="'.$deleteLabel.'"'
+            .' '.($readOnly ? 'disabled' : '').'>'
+            .'<i class="fa-solid fa-trash" aria-hidden="true"></i></button></form>';
+
+        return $html;
+    }
+
+    private function requireXmlHttpRequest(Request $request): void
+    {
+        if (!$request->isXmlHttpRequest()) {
+            throw new AccessDeniedException();
+        }
     }
 }

@@ -10,9 +10,28 @@
     ] %}
     {{ form_start(form, {'attr': {'id': 'account-form', 'data-avalynxform': '1', 'novalidate': 'novalidate'}}) }}
         <div class="row g-3">
-            <div class="col-md-6">{{ form_row(form.name, {'label_attr': {'class': 'form-label'}, 'attr': {'class': 'form-control'}}) }}</div>
-            <div class="col-md-6">{{ form_row(form.email, {'label_attr': {'class': 'form-label'}, 'attr': {'class': 'form-control'}}) }}</div>
-            <div class="col-md-6">{{ form_row(form.users, {'label_attr': {'class': 'form-label'}}) }}</div>
+            <div class="col-md-6">
+                <div class="form-group mb-3">
+                    {{ form_label(form.name) }}
+                    {{ form_widget(form.name, {'attr': {'class': 'form-control'}}) }}
+                    <div class="invalid-feedback" aria-live="polite"></div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group mb-3">
+                    {{ form_label(form.email) }}
+                    {{ form_widget(form.email, {'attr': {'class': 'form-control'}}) }}
+                    <div class="invalid-feedback" aria-live="polite"></div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group mb-3">
+                    {{ form_label(form.users) }}
+                    {{ form_widget(form.users, {'attr': {'class': 'form-select'}}) }}
+                    {{ form_help(form.users) }}
+                    <div class="invalid-feedback" aria-live="polite"></div>
+                </div>
+            </div>
             <div class="col-md-6">
                 <div class="account-list-editor account-list-editor-aliases{% if aliasesInvalid %} account-list-editor-invalid{% endif %}"
                      data-account-list-editor

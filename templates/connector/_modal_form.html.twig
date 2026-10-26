@@ -1,0 +1,32 @@
+<div class="p-4">
+    {{ form_start(form, {'attr': {'id': 'connector-form', 'data-avalynxform': '1', 'novalidate': 'novalidate'}}) }}
+        <div class="row g-3">
+            <div class="col-md-6">
+                <div class="form-group mb-3">
+                    {{ form_label(form.name) }}
+                    {{ form_widget(form.name, {'attr': {'class': 'form-control'}}) }}
+                    <div class="invalid-feedback" aria-live="polite"></div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group mb-3">
+                    {{ form_label(form.domain) }}
+                    {{ form_widget(form.domain, {'attr': {'class': 'form-control'}}) }}
+                    {{ form_help(form.domain) }}
+                    <div class="invalid-feedback" aria-live="polite"></div>
+                </div>
+            </div>
+            <div class="col-md-12">
+                <div class="form-group mb-3">
+                    {{ form_label(form.defaultAccount) }}
+                    {{ form_widget(form.defaultAccount, {'attr': {'class': 'form-select'}}) }}
+                    {{ form_help(form.defaultAccount) }}
+                    <div class="invalid-feedback" aria-live="polite"></div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-form-buttons d-none">
+            {{ form_widget(form.save) }}
+        </div>
+    {{ form_end(form) }}
+</div>
