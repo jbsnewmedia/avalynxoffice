@@ -46,6 +46,20 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      */
     #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $lastAuthAt = null;
+
+    /**
+     * IANA time zone the dates and times are displayed in for this user
+     * (e.g. "Europe/Berlin"). Null means the system default (UTC).
+     */
+    #[ORM\Column(name: 'timezone', type: 'string', length: 64, nullable: true)]
+    private ?string $timezone = null;
+
+    /**
+     * Display variant for dates and times (short/medium/long). Null means
+     * the default variant.
+     */
+    #[ORM\Column(name: 'time_format', type: 'string', length: 16, nullable: true)]
+    private ?string $timeFormat = null;
     /**
      * @var Collection<int, UserAccount>
      */
@@ -163,6 +177,30 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getLastAuthAt(): ?\DateTimeImmutable
     {
         return $this->lastAuthAt;
+    }
+
+    public function getTimezone(): ?string
+    {
+        return $this->timezone;
+    }
+
+    public function setTimezone(?string $timezone): self
+    {
+        $this->timezone = $timezone;
+
+        return $this;
+    }
+
+    public function getTimeFormat(): ?string
+    {
+        return $this->timeFormat;
+    }
+
+    public function setTimeFormat(?string $timeFormat): self
+    {
+        $this->timeFormat = $timeFormat;
+
+        return $this;
     }
 
     public function setLastAuthAt(?\DateTimeImmutable $lastAuthAt): self

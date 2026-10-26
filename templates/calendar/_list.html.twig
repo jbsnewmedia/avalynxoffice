@@ -27,7 +27,7 @@
                class="email-item border-bottom d-block text-decoration-none {{ activeEvent and activeEvent.id == event.id ? 'email-active' : '' }} {{ isPast ? 'text-body-secondary' : '' }}"
                data-event="{{ event.id }}"
                {% if activeEvent and activeEvent.id == event.id %}aria-current="true"{% endif %}
-               aria-label="{{ 'calendar.item_aria'|trans({'%title%': event.title, '%date%': event.startAt|date('d.m.Y')}) }}">
+               aria-label="{{ 'calendar.item_aria'|trans({'%title%': event.title, '%date%': event.startAt|user_datetime('date')}) }}">
                 {% if (activeAccount is not defined or not activeAccount) and event.account %}
                     <div class="account-tag bg-body-tertiary text-body-secondary small px-3 py-1 border-bottom" style="font-size: 0.75rem;">
                         <i class="fa-solid fa-inbox me-1 small"></i> {{ event.account.name }}
@@ -44,7 +44,7 @@
                             {% if event.isAllDay %}
                                 <i class="fa-solid fa-day-calendar me-1" aria-hidden="true"></i>{{ 'calendar.all_day'|trans }}
                             {% else %}
-                                <i class="fa-regular fa-clock me-1" aria-hidden="true"></i>{{ event.startAt|date('H:i') }}{% if event.endAt %}–{{ event.endAt|date('H:i') }}{% endif %}
+                                <i class="fa-regular fa-clock me-1" aria-hidden="true"></i>{{ event.startAt|user_datetime('time') }}{% if event.endAt %}–{{ event.endAt|user_datetime('time') }}{% endif %}
                             {% endif %}
                             {% if event.location is not empty %}
                                 <span class="mx-1" aria-hidden="true">&middot;</span><i class="fa-solid fa-location-dot me-1" aria-hidden="true"></i>{{ event.location }}

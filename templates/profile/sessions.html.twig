@@ -58,8 +58,8 @@
                                         {% endif %}
                                     </td>
                                     <td class="font-monospace small">{{ session.ipAddress|default('profile.sessions.unknown'|trans) }}</td>
-                                    <td>{{ session.createdAt|date('d.m.Y H:i') }}</td>
-                                    <td>{{ session.lastSeenAt|default(session.createdAt)|date('d.m.Y H:i') }}</td>
+                                    <td>{{ session.createdAt|user_datetime('short') }}</td>
+                                    <td>{{ session.lastSeenAt|default(session.createdAt)|user_datetime('short') }}</td>
                                     <td class="text-center">
                                         {% if session.rememberMe %}
                                             <i class="fa-solid fa-check text-success" aria-hidden="true" title="{{ 'profile.sessions.remember_me'|trans }}"></i>

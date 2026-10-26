@@ -9,10 +9,12 @@ declare(strict_types=1);
 
 namespace AvalynxOffice\Controller;
 
+use AvalynxOffice\Entity\User;
 use AvalynxOffice\Licensing\Service\LicenseEnforcementInterface;
 use AvalynxOffice\Licensing\Service\LicenseOperation;
 use AvalynxOffice\Service\ThemeService;
 use AvalynxOffice\Util\AvalynxFormResponse;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -26,6 +28,7 @@ class SettingsController extends AbstractController
 {
     public function __construct(
         private readonly LicenseEnforcementInterface $licenseEnforcement,
+        private readonly EntityManagerInterface $entityManager,
     ) {
     }
 
@@ -47,6 +50,55 @@ class SettingsController extends AbstractController
         return $this->settingsPage($request, 'settings/design.html.twig', [
             'primary_color' => $themeService->getPrimaryColor(),
         ]);
+    }
+
+    #[Route('/settings/time', name: 'app_settings_time', methods: ['GET'])]
+    public function time(Request $request): Response
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+
+        return $this->settingsPage($request, 'settings/time.html.twig', [
+            'user_timezone' => $user->getTimezone(),
+            'user_time_format' => $user->getTimeFormat(),
+            'timezones' => \DateTimeZone::listIdentifiers(),
+        ]);
+    }
+
+    #[Route('/settings/time', name: 'app_settings_time_save', methods: ['POST'])]
+    public function saveTime(Request $request, TranslatorInterface $translator): JsonResponse
+    {
+        $tokenRaw = $request->request->get('_token');
+        $token = is_scalar($tokenRaw) ? (string) $tokenRaw : null;
+        if (null === $token || !$this->isCsrfTokenValid('save_time', $token)) {
+            return AvalynxFormResponse::failure($translator->trans('common.invalid_token'));
+        }
+
+        $timezoneRaw = $request->request->get('timezone');
+        $timezone = is_scalar($timezoneRaw) ? (string) $timezoneRaw : '';
+        if ('' !== $timezone && !in_array($timezone, \DateTimeZone::listIdentifiers(), true)) {
+            return AvalynxFormResponse::invalid([
+                'timezone' => $translator->trans('settings.time.invalid_timezone'),
+            ]);
+        }
+
+        $formatRaw = $request->request->get('time_format');
+        $format = is_scalar($formatRaw) ? (string) $formatRaw : '';
+        if ('' !== $format && !in_array($format, ['short', 'medium', 'long'], true)) {
+            return AvalynxFormResponse::invalid([
+                'time_format' => $translator->trans('settings.time.invalid_format'),
+            ]);
+        }
+
+        /** @var User $user */
+        $user = $this->getUser();
+        $user->setTimezone('' !== $timezone ? $timezone : null);
+        $user->setTimeFormat('' !== $format ? $format : null);
+        $this->entityManager->flush();
+
+        $this->addFlash('success', $translator->trans('settings.time.saved'));
+
+        return AvalynxFormResponse::success($this->generateUrl('app_settings_time'));
     }
 
     #[Route('/settings/appearance', name: 'app_settings_appearance', methods: ['POST'])]

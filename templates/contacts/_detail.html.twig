@@ -56,8 +56,8 @@
     </div>
     <footer class="card-footer bg-body-tertiary">
         <div class="d-flex flex-wrap gap-3 small text-body-secondary">
-            <span title="{{ 'contact.created'|trans }}"><i class="fa-solid fa-plus me-1" aria-hidden="true"></i>{{ 'contact.created'|trans }}: {{ contact.createdAt ? contact.createdAt|date('d.m.Y, H:i') : '–' }}</span>
-            <span title="{{ 'contact.updated'|trans }}"><i class="fa-solid fa-pen me-1" aria-hidden="true"></i>{{ 'contact.updated'|trans }}: {{ contact.updatedAt ? contact.updatedAt|date('d.m.Y, H:i') : '–' }}</span>
+            <span title="{{ 'contact.created'|trans }}"><i class="fa-solid fa-plus me-1" aria-hidden="true"></i>{{ 'contact.created'|trans }}: {{ contact.createdAt ? contact.createdAt|user_datetime('short') : '–' }}</span>
+            <span title="{{ 'contact.updated'|trans }}"><i class="fa-solid fa-pen me-1" aria-hidden="true"></i>{{ 'contact.updated'|trans }}: {{ contact.updatedAt ? contact.updatedAt|user_datetime('short') : '–' }}</span>
         </div>
     </footer>
 </article>

@@ -72,7 +72,7 @@
                     <i class="fa-solid fa-inbox" aria-hidden="true"></i> {{ 'email.received'|trans }}
                 {% endif %}
                 <br>
-                <strong>{{ 'email.date_label'|trans({'%date%': effDate ? (effDate|date('d.m.Y H:i') ~ ' ' ~ ('common.oclock'|trans)) : ('common.unknown'|trans)}) }}</strong>
+                <strong>{{ 'email.date_label'|trans({'%date%': effDate ? (effDate|user_datetime('short') ~ ' ' ~ ('common.oclock'|trans)) : ('common.unknown'|trans)}) }}</strong>
             </div>
         </div>
         <hr>

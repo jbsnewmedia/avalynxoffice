@@ -219,4 +219,102 @@ final class SettingsControllerTest extends WebTestCase
             // The kernel might already be shut down; nothing to restore.
         }
     }
+
+    public function testTimePageShowsCurrentUserTimezoneAndFormat(): void
+    {
+        $this->admin->setTimezone('Europe/Berlin');
+        $this->admin->setTimeFormat('medium');
+        $this->em->flush();
+
+        $this->client->loginUser($this->admin);
+        $this->client->request('GET', '/settings/time');
+
+        self::assertResponseIsSuccessful();
+        $content = (string) $this->client->getResponse()->getContent();
+        self::assertStringContainsString('id="timezoneSelect"', $content);
+        self::assertStringContainsString('<option value="Europe/Berlin" selected>', $content);
+        self::assertStringContainsString('<option value="medium" selected>', $content);
+        self::assertStringContainsString('id="settings-time-form"', $content);
+    }
+
+    public function testTimeSaveStoresTimezoneAndFormat(): void
+    {
+        $this->client->loginUser($this->admin);
+        $crawler = $this->client->request('GET', '/settings/time');
+        $token = (string) $crawler->filter('#settings-time-form input[name="_token"]')->attr('value');
+
+        $this->client->request('POST', '/settings/time', [
+            '_token' => $token,
+            'timezone' => 'Europe/Berlin',
+            'time_format' => 'medium',
+        ]);
+
+        self::assertResponseIsSuccessful();
+        $payload = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertTrue($payload['success']);
+        self::assertSame('/settings/time', $payload['redirect']);
+
+        $this->em->clear();
+        $user = $this->em->find(User::class, $this->admin->getId());
+        self::assertInstanceOf(User::class, $user);
+        self::assertSame('Europe/Berlin', $user->getTimezone());
+        self::assertSame('medium', $user->getTimeFormat());
+    }
+
+    public function testTimeSaveRequiresCsrfToken(): void
+    {
+        $this->client->loginUser($this->admin);
+        $this->client->request('GET', '/settings/time');
+        $this->client->request('POST', '/settings/time', [
+            'timezone' => 'Europe/Berlin',
+        ]);
+
+        self::assertResponseStatusCodeSame(403);
+        $payload = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertFalse($payload['success']);
+        self::assertSame('Invalid token.', $payload['message']);
+    }
+
+    public function testTimeSaveRejectsInvalidTimezone(): void
+    {
+        $this->client->loginUser($this->admin);
+        $crawler = $this->client->request('GET', '/settings/time');
+        $token = (string) $crawler->filter('#settings-time-form input[name="_token"]')->attr('value');
+
+        $this->client->request('POST', '/settings/time', [
+            '_token' => $token,
+            'timezone' => 'Mars/Olympus_Mons',
+            'time_format' => 'short',
+        ]);
+
+        self::assertResponseStatusCodeSame(422);
+        $payload = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertFalse($payload['success']);
+        self::assertArrayHasKey('timezone', $payload['invalid']);
+    }
+
+    public function testTimeSaveRejectsInvalidFormat(): void
+    {
+        $this->client->loginUser($this->admin);
+        $crawler = $this->client->request('GET', '/settings/time');
+        $token = (string) $crawler->filter('#settings-time-form input[name="_token"]')->attr('value');
+
+        $this->client->request('POST', '/settings/time', [
+            '_token' => $token,
+            'timezone' => 'Europe/Berlin',
+            'time_format' => 'fancy',
+        ]);
+
+        self::assertResponseStatusCodeSame(422);
+        $payload = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertFalse($payload['success']);
+        self::assertArrayHasKey('time_format', $payload['invalid']);
+    }
+
+    public function testTimePageRedirectsToLoginForGuests(): void
+    {
+        $this->client->request('GET', '/settings/time');
+
+        self::assertResponseRedirects('/login');
+    }
 }

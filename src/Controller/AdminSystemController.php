@@ -9,8 +9,11 @@ declare(strict_types=1);
 
 namespace AvalynxOffice\Controller;
 
+use AvalynxOffice\Entity\Connector;
 use AvalynxOffice\Form\SyncSettingsType;
+use AvalynxOffice\Repository\ConnectorRepository;
 use AvalynxOffice\Repository\SyncRunRepository;
+use AvalynxOffice\Service\ConnectorPluginRegistry;
 use AvalynxOffice\Service\Sync\SyncSettingsService;
 use AvalynxOffice\Util\AvalynxFormResponse;
 use AvalynxOffice\Util\FormInvalidMapper;
@@ -41,7 +44,7 @@ final class AdminSystemController extends AbstractController
     }
 
     #[Route('', name: 'app_admin_system', methods: ['GET'])]
-    public function index(): Response
+    public function index(ConnectorRepository $connectorRepository, ConnectorPluginRegistry $pluginRegistry): Response
     {
         $form = $this->createForm(SyncSettingsType::class, null, [
             'action' => $this->generateUrl('app_admin_system_save'),
@@ -52,6 +55,7 @@ final class AdminSystemController extends AbstractController
             'form' => $form,
             'lastSyncRun' => $this->syncRunRepository->findLatest(),
             'recentRuns' => $this->syncRunRepository->findBy([], ['startedAt' => 'DESC'], 5),
+            'connectors' => $this->connectorOverview($connectorRepository, $pluginRegistry),
         ]);
     }
 
@@ -108,5 +112,31 @@ final class AdminSystemController extends AbstractController
         // The form validates NotBlank + numeric, so this is always an int
         // for a valid submission.
         return is_numeric($value) ? (int) $value : 0;
+    }
+
+    /**
+     * Every connector docks into the sync process automatically: the
+     * overview shows which plugin drives each connector and how far the
+     * data is already synced.
+     *
+     * @return list<array{name: string, domain: string, settingsUrl: string, plugin: string|null, inputConfigured: bool, status: array{mails: ?string, contacts: ?string, calendar: ?string}}>
+     */
+    private function connectorOverview(ConnectorRepository $connectorRepository, ConnectorPluginRegistry $pluginRegistry): array
+    {
+        $connectors = [];
+        foreach ($connectorRepository->findBy([], ['name' => 'ASC']) as $connector) {
+            $pluginKey = $connector->getPluginKey();
+            $plugin = null !== $pluginKey ? $pluginRegistry->get($pluginKey) : null;
+            $connectors[] = [
+                'name' => $connector->getName(),
+                'domain' => $connector->getDomain(),
+                'settingsUrl' => $this->generateUrl('connector_settings', ['id' => $connector->getId()]),
+                'plugin' => null !== $plugin ? $this->translator->trans($plugin->getName()) : $pluginKey,
+                'inputConfigured' => $pluginRegistry->isInputConfigured($connector),
+                'status' => $pluginRegistry->getStatus($connector),
+            ];
+        }
+
+        return $connectors;
     }
 }

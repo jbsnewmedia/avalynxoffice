@@ -49,14 +49,14 @@
                         <i class="fa-solid {{ mail.isRead ? 'fa-envelope' : 'fa-envelope-open' }}" aria-hidden="true"></i>
                     </button>
                 {% endif %}
-                <small class="text-body-secondary" aria-label="{{ 'email.date_label'|trans({'%date%': effDate ? (effDate|date('d.m. H:i') ~ ' ' ~ ('common.oclock'|trans)) : ('common.unknown'|trans)}) }}">{{ effDate ? (effDate|date('d.m. H:i') ~ ' ' ~ ('common.oclock'|trans)) : '' }}</small>
+                <small class="text-body-secondary" aria-label="{{ 'email.date_label'|trans({'%date%': effDate ? (effDate|user_datetime('short') ~ ' ' ~ ('common.oclock'|trans)) : ('common.unknown'|trans)}) }}">{{ effDate ? (effDate|user_datetime('short') ~ ' ' ~ ('common.oclock'|trans)) : '' }}</small>
             </div>
         </div>
         <div class="email-subject mb-1 {{ mail.isRead ? '' : 'fw-semibold' }}">{{ mail.subject }}</div>
         <div class="text-body-secondary small text-truncate mb-1">{{ mail.previewBody }}</div>
         <div class="d-flex d-xxl-none align-items-center justify-content-between">
-            <small class="text-body-secondary" aria-label="{{ 'email.date_label'|trans({'%date%': effDate ? (effDate|date('d.m. H:i') ~ ' ' ~ ('common.oclock'|trans)) : ('common.unknown'|trans)}) }}">
-                {{ effDate ? (effDate|date('d.m. H:i') ~ ' ' ~ ('common.oclock'|trans)) : '' }}
+            <small class="text-body-secondary" aria-label="{{ 'email.date_label'|trans({'%date%': effDate ? (effDate|user_datetime('short') ~ ' ' ~ ('common.oclock'|trans)) : ('common.unknown'|trans)}) }}">
+                {{ effDate ? (effDate|user_datetime('short') ~ ' ' ~ ('common.oclock'|trans)) : '' }}
             </small>
             <div class="d-flex align-items-center gap-2">
                 <span class="important-indicator {{ mail.isImportant ? '' : 'd-none' }}" title="{{ 'email.important'|trans }}" aria-label="{{ 'email.important'|trans }}">

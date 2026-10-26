@@ -53,14 +53,14 @@
                             {% elseif email.isDraft %}
                                 <i class="fa-solid fa-file-pen text-body-secondary" title="{{ 'email.draft'|trans }}" aria-label="{{ 'email.draft'|trans }}" aria-hidden="false"></i>
                             {% elseif email.scheduledAt and email.scheduledAt > date() %}
-                                <i class="fa-solid fa-calendar-check text-info" title="{{ 'email.scheduled'|trans({'%date%': email.scheduledAt|date('d.m.Y H:i')}) }}" aria-label="{{ 'email.scheduled'|trans({'%date%': email.scheduledAt|date('d.m.Y H:i')}) }}" aria-hidden="false"></i>
+                                <i class="fa-solid fa-calendar-check text-info" title="{{ 'email.scheduled'|trans({'%date%': email.scheduledAt|user_datetime('short')}) }}" aria-label="{{ 'email.scheduled'|trans({'%date%': email.scheduledAt|user_datetime('short')}) }}" aria-hidden="false"></i>
                             {% else %}
                                 <i class="fa-solid fa-clock text-warning" title="{{ 'email.not_sent'|trans }}" aria-label="{{ 'email.not_sent'|trans }}" aria-hidden="false"></i>
                             {% endif %}
                         {% else %}
                             <i class="fa-solid fa-inbox text-success" title="{{ 'email.received'|trans }}" aria-label="{{ 'email.received'|trans }}" aria-hidden="false"></i>
                         {% endif %}
-                        <small class="d-inline-block" aria-label="{{ 'email.date_label'|trans({'%date%': effDate ? (effDate|date('d.m.Y, H:i') ~ ' ' ~ ('common.oclock'|trans)) : ('common.unknown'|trans)}) }}">{{ effDate ? (effDate|date('d.m.Y, H:i') ~ ' ' ~ ('common.oclock'|trans)) : '' }}</small>
+                        <small class="d-inline-block" aria-label="{{ 'email.date_label'|trans({'%date%': effDate ? (effDate|user_datetime('short') ~ ' ' ~ ('common.oclock'|trans)) : ('common.unknown'|trans)}) }}">{{ effDate ? (effDate|user_datetime('short') ~ ' ' ~ ('common.oclock'|trans)) : '' }}</small>
                     </div>
                 </div>
             </div>

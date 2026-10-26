@@ -11,7 +11,7 @@
         <a href="{{ path('calendar_new_modal', {date: day.date|date('Y-m-d')}) }}"
            class="action-btn-modal btn btn-sm btn-outline-primary {{ license_manager.isReadOnly ? 'disabled' }}" {{ license_manager.isReadOnly ? 'aria-disabled="true"' }}
            data-title="{{ 'calendar.new'|trans }}"
-           aria-label="{{ 'calendar.new_on'|trans({'%date%': day.date|date('d.m.Y')}) }}">
+           aria-label="{{ 'calendar.new_on'|trans({'%date%': day.date|user_datetime('date')}) }}">
             <i class="fa-solid fa-plus me-1" aria-hidden="true"></i>{{ 'calendar.new'|trans }}
         </a>
     </div>
@@ -23,12 +23,12 @@
                 <a href="{{ path('calendar_event_detail', {monthKey: day.date|date('Y-m'), eventId: event.id}) }}"
                    class="action-btn-modal list-group-item list-group-item-action d-flex align-items-center gap-3 {{ event.isAllDay ? 'calendar-day-item-allday' : '' }}"
                    data-title="{{ event.title }}"
-                   aria-label="{{ 'calendar.item_aria'|trans({'%title%': event.title, '%date%': event.startAt|date('d.m.Y')}) }}">
+                   aria-label="{{ 'calendar.item_aria'|trans({'%title%': event.title, '%date%': event.startAt|user_datetime('date')}) }}">
                     <span class="calendar-day-time text-body-secondary flex-shrink-0 {{ event.isAllDay ? 'fw-semibold' : '' }}">
                         {% if event.isAllDay %}
                             {{ 'calendar.all_day'|trans }}
                         {% else %}
-                            {{ event.startAt|date('H:i') }}{% if event.endAt %}&ndash;{{ event.endAt|date('H:i') }}{% endif %}
+                            {{ event.startAt|user_datetime('time') }}{% if event.endAt %}&ndash;{{ event.endAt|user_datetime('time') }}{% endif %}
                         {% endif %}
                     </span>
                     <span class="flex-grow-1 min-w-0">

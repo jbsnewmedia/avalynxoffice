@@ -67,7 +67,7 @@
                                         <tr>
                                             <td>{{ request.user.email }}</td>
                                             <td><span class="badge bg-secondary">{{ request.status }}</span></td>
-                                            <td>{{ request.expiresAt|date('d.m.Y H:i') }}</td>
+                                            <td>{{ request.expiresAt|user_datetime('short') }}</td>
                                             <td class="text-end">
                                                 {% if request.status in ['pending', 'claimed'] %}
                                                     <form method="post" action="{{ path('app_admin_password_resets_release', { id: request.id }) }}" class="d-flex gap-2 justify-content-end align-items-start" novalidate data-avalynxform="1">

@@ -40,16 +40,16 @@
             <dt class="col-sm-3"><i class="fa-regular fa-calendar me-2 text-body-secondary" aria-hidden="true"></i>{{ 'calendar.when'|trans }}</dt>
             <dd class="col-sm-9 text-break">
                 {% if activeEvent.isAllDay %}
-                    {{ activeEvent.startAt|date('d.m.Y') }}{% if activeEvent.endAt %} – {{ activeEvent.endAt|date('d.m.Y') }}{% endif %} ({{ 'calendar.all_day'|trans }})
+                    {{ activeEvent.startAt|user_datetime('date') }}{% if activeEvent.endAt %} – {{ activeEvent.endAt|user_datetime('date') }}{% endif %} ({{ 'calendar.all_day'|trans }})
                 {% else %}
-                    {{ activeEvent.startAt|date('d.m.Y, H:i') }}{% if activeEvent.endAt %} – {{ activeEvent.endAt|date('H:i') }}{% endif %} {{ 'common.oclock'|trans }}
+                    {{ activeEvent.startAt|user_datetime('short') }}{% if activeEvent.endAt %} – {{ activeEvent.endAt|user_datetime('time') }}{% endif %} {{ 'common.oclock'|trans }}
                 {% endif %}
             </dd>
             <dt class="col-sm-3"><i class="fa-solid fa-location-dot me-2 text-body-secondary" aria-hidden="true"></i>{{ 'calendar.location'|trans }}</dt>
             <dd class="col-sm-9 text-break">{% if activeEvent.location is not empty %}{{ activeEvent.location }}{% else %}<span class="text-body-secondary">–</span>{% endif %}</dd>
             {% if activeEvent.recurrenceType is not null %}
                 <dt class="col-sm-3"><i class="fa-solid fa-repeat me-2 text-body-secondary" aria-hidden="true"></i>{{ 'calendar.recurrence'|trans }}</dt>
-                <dd class="col-sm-9 text-break">{{ ('calendar.recurrence.' ~ activeEvent.recurrenceType)|trans }}{% if activeEvent.recurrenceInterval is not null and activeEvent.recurrenceInterval > 1 %}, {{ 'calendar.recurrence_every'|trans({'%count%': activeEvent.recurrenceInterval}) }}{% endif %}{% if activeEvent.recurrenceUntil is not empty %}, {{ 'calendar.recurrence_until'|trans({'%date%': activeEvent.recurrenceUntil|date('d.m.Y')}) }}{% endif %}</dd>
+                <dd class="col-sm-9 text-break">{{ ('calendar.recurrence.' ~ activeEvent.recurrenceType)|trans }}{% if activeEvent.recurrenceInterval is not null and activeEvent.recurrenceInterval > 1 %}, {{ 'calendar.recurrence_every'|trans({'%count%': activeEvent.recurrenceInterval}) }}{% endif %}{% if activeEvent.recurrenceUntil is not empty %}, {{ 'calendar.recurrence_until'|trans({'%date%': activeEvent.recurrenceUntil|user_datetime('date')}) }}{% endif %}</dd>
             {% endif %}
             {% if activeEvent.account is not null %}
                 <dt class="col-sm-3"><i class="fa-solid fa-inbox me-2 text-body-secondary" aria-hidden="true"></i>{{ 'calendar.account'|trans }}</dt>
@@ -73,8 +73,8 @@
     </div>
     <footer class="card-footer bg-body-tertiary">
         <div class="d-flex flex-wrap gap-3 small text-body-secondary">
-            <span title="{{ 'calendar.created'|trans }}"><i class="fa-solid fa-plus me-1" aria-hidden="true"></i>{{ 'calendar.created'|trans }}: {{ activeEvent.createdAt ? activeEvent.createdAt|date('d.m.Y, H:i') : '–' }}</span>
-            <span title="{{ 'calendar.updated'|trans }}"><i class="fa-solid fa-pen me-1" aria-hidden="true"></i>{{ 'calendar.updated'|trans }}: {{ activeEvent.updatedAt ? activeEvent.updatedAt|date('d.m.Y, H:i') : '–' }}</span>
+            <span title="{{ 'calendar.created'|trans }}"><i class="fa-solid fa-plus me-1" aria-hidden="true"></i>{{ 'calendar.created'|trans }}: {{ activeEvent.createdAt ? activeEvent.createdAt|user_datetime('short') : '–' }}</span>
+            <span title="{{ 'calendar.updated'|trans }}"><i class="fa-solid fa-pen me-1" aria-hidden="true"></i>{{ 'calendar.updated'|trans }}: {{ activeEvent.updatedAt ? activeEvent.updatedAt|user_datetime('short') : '–' }}</span>
         </div>
     </footer>
 </article>

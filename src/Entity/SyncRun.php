@@ -104,6 +104,13 @@ class SyncRun
         return $this->startedAt;
     }
 
+    public function setStartedAt(\DateTimeImmutable $startedAt): self
+    {
+        $this->startedAt = $startedAt;
+
+        return $this;
+    }
+
     public function getFinishedAt(): ?\DateTimeImmutable
     {
         return $this->finishedAt;

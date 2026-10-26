@@ -116,6 +116,32 @@ final class AdminSystemControllerTest extends WebTestCase
         self::assertStringContainsString('Manual', $content);
     }
 
+    public function testSystemPageRendersTimesInUserTimezone(): void
+    {
+        $this->admin->setTimezone('Europe/Berlin');
+        $this->em->flush();
+
+        $run = new SyncRun();
+        $run->setStatus(SyncRun::STATUS_SUCCESS);
+        $run->setTrigger(SyncRun::TRIGGER_DAEMON);
+        $run->setStartedAt(new \DateTimeImmutable('2026-10-26 10:00:00', new \DateTimeZone('UTC')));
+        $run->setFinishedAt(new \DateTimeImmutable('2026-10-26 10:00:05', new \DateTimeZone('UTC')));
+        $run->setMailsImported(10);
+        $this->em->persist($run);
+        $this->em->flush();
+
+        $this->client->loginUser($this->admin);
+        $this->client->request('GET', '/admin/system');
+
+        self::assertResponseIsSuccessful();
+
+        // 10:00 UTC renders as 11:00 in Europe/Berlin (CET, UTC+1 after
+        // the DST switch on 2026-10-25).
+        $content = (string) $this->client->getResponse()->getContent();
+        self::assertStringContainsString('2026-10-26 11:00:00', $content);
+        self::assertStringNotContainsString('2026-10-26 10:00:00', $content);
+    }
+
     public function testSaveStoresSettingsAndAppliesOnNextPass(): void
     {
         $this->client->loginUser($this->admin);

@@ -6,9 +6,9 @@
    class="action-btn-modal calendar-event-chip {{ event.isAllDay ? 'calendar-event-chip-allday' : '' }}"
    data-title="{{ event.title }}"
    title="{{ event.title }}"
-   aria-label="{{ 'calendar.item_aria'|trans({'%title%': event.title, '%date%': event.startAt|date('d.m.Y')}) }}">
+   aria-label="{{ 'calendar.item_aria'|trans({'%title%': event.title, '%date%': event.startAt|user_datetime('date')}) }}">
     {% if not event.isAllDay %}
-        <span class="calendar-event-time">{{ event.startAt|date('H:i') }}</span>
+        <span class="calendar-event-time">{{ event.startAt|user_datetime('time') }}</span>
     {% endif %}
     <span class="calendar-event-title">{{ event.title }}</span>
     {% if event.recurrenceType is not null %}

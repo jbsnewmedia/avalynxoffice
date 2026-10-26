@@ -68,6 +68,12 @@ services:
             $segmentDepth: '%env(int:ATTACHMENT_STORAGE_SEGMENT_DEPTH)%'
             $maxBytes: '%env(int:ATTACHMENT_STORAGE_MAX_BYTES)%'
 
+    AvalynxOffice\Twig\UserDateTimeExtension: ~
+
+    AvalynxOffice\EventSubscriber\UserTimezoneSubscriber:
+        arguments:
+            $twig: '@twig'
+
     AvalynxOffice\Twig\AppExtension:
         arguments:
             $pluginLocator: !service_locator

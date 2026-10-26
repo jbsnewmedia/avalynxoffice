@@ -65,7 +65,7 @@
                             {% for stored in storedKeys %}
                                 <tr>
                                     <td class="font-monospace small">{{ stored.licenseKey[:24] }}…</td>
-                                    <td>{{ stored.addedAt|date('Y-m-d H:i') }}</td>
+                                    <td>{{ stored.addedAt|user_datetime('iso') }}</td>
                                     <td class="text-end">
                                         <form method="post" action="{{ path('license_admin_delete_key', {id: stored.id}) }}" class="d-inline">
                                             <input type="hidden" name="_token" value="{{ csrf_token('delete_license_key_' ~ stored.id) }}">

@@ -23,7 +23,7 @@
             <dd class="col-sm-6">{{ entitlement.getFreeSeats }}</dd>
             {% if entitlement.gracePeriodEndsAt %}
                 <dt class="col-sm-6">{{ 'license.grace_until'|trans }}</dt>
-                <dd class="col-sm-6">{{ entitlement.gracePeriodEndsAt|date('Y-m-d H:i') }} UTC</dd>
+                <dd class="col-sm-6">{{ entitlement.gracePeriodEndsAt|user_datetime('iso') }} UTC</dd>
             {% endif %}
             <dt class="col-sm-6">{{ 'license.organization'|trans }}</dt>
             <dd class="col-sm-6"><code>{{ entitlement.organizationId }}</code></dd>

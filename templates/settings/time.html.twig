@@ -1,0 +1,60 @@
+{% extends 'base.html.twig' %}
+{% block title %}{{ 'settings.time.title'|trans }} - {{ 'app.title'|trans }}{% endblock %}
+{% block stylesheets %}
+    {% include '_assets.html.twig' with { mode: 'user' } %}
+    {{ parent() }}
+{% endblock %}
+{% block body %}
+<div class="d-flex flex-column min-vh-100">
+    {% include '_navbar.html.twig' with { showMailToggles: false } %}
+    <main class="flex-grow-1 py-4">
+        <div class="container">
+            {% include 'settings/_nav.html.twig' with { active: 'time' } %}
+
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="mb-3">
+                        <strong><i class="fa-solid fa-clock me-2" aria-hidden="true"></i>{{ 'settings.time.title'|trans }}</strong>
+                        <p class="text-body-secondary mb-0">{{ 'settings.time.help'|trans }}</p>
+                    </div>
+                    <form id="settings-time-form" method="post" action="{{ path('app_settings_time_save') }}" data-avalynxform="1" novalidate>
+                        <input type="hidden" name="_token" value="{{ csrf_token('save_time') }}">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="timezoneSelect" class="form-label">{{ 'settings.time.timezone'|trans }}</label>
+                                    <select id="timezoneSelect" name="timezone" class="form-select" aria-label="{{ 'settings.time.timezone'|trans }}">
+                                        <option value="">{{ 'settings.time.timezone_default'|trans }}</option>
+                                        {% for timezone in timezones %}
+                                            <option value="{{ timezone }}" {{ user_timezone == timezone ? 'selected' }}>{{ timezone }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <div class="form-text">{{ 'settings.time.timezone_help'|trans }}</div>
+                                    <div class="invalid-feedback" aria-live="polite"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="timeFormatSelect" class="form-label">{{ 'settings.time.format'|trans }}</label>
+                                    <select id="timeFormatSelect" name="time_format" class="form-select" aria-label="{{ 'settings.time.format'|trans }}">
+                                        <option value="short" {{ user_time_format == 'short' or user_time_format is null ? 'selected' }}>{{ 'settings.time.format_short'|trans }} — {{ 'now'|user_datetime('short') }}</option>
+                                        <option value="medium" {{ user_time_format == 'medium' ? 'selected' }}>{{ 'settings.time.format_medium'|trans }} — {{ 'now'|user_datetime('medium') }}</option>
+                                        <option value="long" {{ user_time_format == 'long' ? 'selected' }}>{{ 'settings.time.format_long'|trans }} — {{ 'now'|user_datetime('medium') }} {{ 'common.oclock'|trans }}</option>
+                                    </select>
+                                    <div class="form-text">{{ 'settings.time.format_help'|trans }}</div>
+                                    <div class="invalid-feedback" aria-live="polite"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-end mt-3">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fa-solid fa-floppy-disk me-1" aria-hidden="true"></i>{{ 'settings.time.save'|trans }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}
