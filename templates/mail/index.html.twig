@@ -19,7 +19,7 @@
     {% include '_assets.html.twig' with { mode: 'user' } %}
     {{ parent() }}
 {% endblock %}
-{% block title %}{{ 'app.title'|trans }}{% endblock %}
+{% block title %}{{ 'nav.mails'|trans }} - {{ 'app.title'|trans }}{% endblock %}
 {% block body %}
 {% include '_navbar.html.twig' with { showMailToggles: true, activeModule: 'mail' } %}
 <div class="offcanvas offcanvas-start" tabindex="-1" id="accountOffcanvas" aria-labelledby="accountOffcanvasLabel" role="dialog" aria-modal="true">
