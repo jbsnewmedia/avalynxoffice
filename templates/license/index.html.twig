@@ -75,6 +75,10 @@
                                         </form>
                                     </td>
                                 </tr>
+                            {% else %}
+                                <tr>
+                                    <td colspan="3" class="text-body-secondary text-center py-4">{{ 'license.keys.none'|trans }}</td>
+                                </tr>
                             {% endfor %}
                             </tbody>
                         </table>
