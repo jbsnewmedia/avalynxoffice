@@ -25,7 +25,6 @@ use Symfony\Component\Uid\UuidV7;
  */
 #[ORM\Entity(repositoryClass: ConnectorRepository::class)]
 #[ORM\Table(name: 'connector')]
-#[ORM\UniqueConstraint(name: 'uniq_connector_domain', columns: ['domain'])]
 #[ORM\HasLifecycleCallbacks]
 class Connector
 {

@@ -463,19 +463,21 @@ final class AdminControllerTest extends WebTestCase
         self::assertSame('pop-secret', $config['pop3Password']);
         self::assertSame('smtp-secret', $config['smtpPassword']);
 
-        // A duplicate domain keeps the modal open with a field error.
+        // Several connectors may serve the same domain (e.g. one per mailbox
+        // access): uniqueness lives on the alias level (connector + local
+        // part), not on the connector domain.
         $dupCrawler = $this->client->request('GET', '/admin/connectors/new', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         $dupForm = $dupCrawler->filter('form')->form();
         $dupValues = $dupForm->getPhpValues();
-        $dupValues['connector']['name'] = 'Duplicate Connector';
+        $dupValues['connector']['name'] = 'Second Connector Same Domain';
         $dupValues['connector']['domain'] = 'created-connector.example.com';
 
         $this->client->request('POST', '/admin/connectors/new', $dupValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
-        self::assertResponseStatusCodeSame(422);
+        self::assertResponseIsSuccessful();
         $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
-        self::assertFalse($data['success']);
-        self::assertArrayHasKey('connector[domain]', $data['invalid']);
-        self::assertCount(1, $this->entityManager->getRepository(Connector::class)->findBy(['domain' => 'created-connector.example.com']));
+        self::assertTrue($data['success']);
+        self::assertArrayHasKey('redirect', $data);
+        self::assertCount(2, $this->entityManager->getRepository(Connector::class)->findBy(['domain' => 'created-connector.example.com']));
 
         // The settings page updates the base data of the connector.
         $settingsCrawler = $this->client->request('GET', sprintf('/admin/connectors/%s/settings', $createdConnector->getId()), server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
@@ -494,13 +496,21 @@ final class AdminControllerTest extends WebTestCase
         self::assertInstanceOf(Connector::class, $renamed);
         self::assertSame('Renamed Connector', $renamed->getName());
 
-        // The datatable row links to the settings dialog.
+        // The datatable rows link to the settings dialog. Both connectors on
+        // the shared domain show up.
         $payload = $this->fetchConnectorData(['search' => 'created-connector.example.com']);
-        self::assertSame(1, $payload['count']['filtered']);
-        $row = $payload['data'][0]['data'];
-        self::assertSame('Renamed Connector', $row['name']);
-        self::assertStringContainsString($this->generateConnectorSettingsUrl((string) $createdConnector->getId()), $row['options']);
-        self::assertStringContainsString('fa-gear', $row['options']);
+        self::assertSame(2, $payload['count']['filtered']);
+        $row = null;
+        foreach ($payload['data'] as $dataRow) {
+            if ($dataRow['data']['name'] === 'Renamed Connector') {
+                $row = $dataRow;
+
+                break;
+            }
+        }
+        self::assertNotNull($row);
+        self::assertStringContainsString($this->generateConnectorSettingsUrl((string) $createdConnector->getId()), $row['data']['options']);
+        self::assertStringContainsString('fa-gear', $row['data']['options']);
 
         $tokenCrawler = $this->client->request('GET', sprintf('/admin/connectors/%s/settings', $createdConnector->getId()));
         $token = $tokenCrawler->filter(sprintf('form[action="/admin/connectors/%s"] input[name="_token"]', $createdConnector->getId()))->attr('value');

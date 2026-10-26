@@ -20,7 +20,6 @@ use AvalynxOffice\Service\ConnectorService;
 use AvalynxOffice\Util\AvalynxFormResponse;
 use AvalynxOffice\Util\FormInvalidMapper;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -156,15 +155,6 @@ class ConnectorAdminController extends AbstractController
         $form->handleRequest($request);
 
         if (!$form->isSubmitted() || !$form->isValid()) {
-            return AvalynxFormResponse::invalid(FormInvalidMapper::map($form));
-        }
-
-        // The domain is unique (database constraint): check it here so the
-        // modal stays open with a field error instead of a 500 response.
-        $existing = $this->connectorRepository->findOneBy(['domain' => $connector->getDomain()]);
-        if (null !== $existing) {
-            $form->get('domain')->addError(new FormError($this->translator->trans('connector.domain_taken')));
-
             return AvalynxFormResponse::invalid(FormInvalidMapper::map($form));
         }
 
