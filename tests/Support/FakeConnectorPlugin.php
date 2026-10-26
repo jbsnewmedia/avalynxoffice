@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace AvalynxOffice\Tests\Support;
 
 use AvalynxOffice\Entity\Connector;
+use AvalynxOffice\Plugin\Contract\ConnectorCalendarFetcherInterface;
+use AvalynxOffice\Plugin\Contract\ConnectorContactFetcherInterface;
 use AvalynxOffice\Plugin\Contract\ConnectorFetchRequest;
 use AvalynxOffice\Plugin\Contract\ConnectorFetcherInterface;
 use AvalynxOffice\Plugin\Contract\ConnectorMailerInterface;
@@ -14,7 +16,7 @@ use Symfony\Component\Mailer\MailerInterface;
 /**
  * Test double for a connector plugin with configurable capabilities.
  */
-class FakeConnectorPlugin implements ConnectorPluginInterface, ConnectorFetcherInterface, ConnectorMailerInterface
+class FakeConnectorPlugin implements ConnectorPluginInterface, ConnectorFetcherInterface, ConnectorContactFetcherInterface, ConnectorCalendarFetcherInterface, ConnectorMailerInterface
 {
     /**
      * @var list<array{0: Connector, 1: array<string, mixed>, 2: ConnectorFetchRequest}>
@@ -24,6 +26,22 @@ class FakeConnectorPlugin implements ConnectorPluginInterface, ConnectorFetcherI
      * @var array{imported: int, skipped: int, errors: int}
      */
     public array $fetchResult = ['imported' => 0, 'skipped' => 0, 'errors' => 0];
+    /**
+     * @var list<array{0: Connector, 1: array<string, mixed>, 2: ConnectorFetchRequest}>
+     */
+    public array $contactFetchCalls = [];
+    /**
+     * @var array{imported: int, skipped: int, errors: int}
+     */
+    public array $contactFetchResult = ['imported' => 0, 'skipped' => 0, 'errors' => 0];
+    /**
+     * @var list<array{0: Connector, 1: array<string, mixed>, 2: ConnectorFetchRequest}>
+     */
+    public array $calendarFetchCalls = [];
+    /**
+     * @var array{imported: int, skipped: int, errors: int}
+     */
+    public array $calendarFetchResult = ['imported' => 0, 'skipped' => 0, 'errors' => 0];
     /**
      * @var list<Connector>
      */
@@ -99,6 +117,22 @@ class FakeConnectorPlugin implements ConnectorPluginInterface, ConnectorFetcherI
         $this->fetchCalls[] = [$connector, $config, $request];
 
         return $this->fetchResult;
+    }
+
+    #[\Override]
+    public function fetchContacts(Connector $connector, array $config, ConnectorFetchRequest $request): array
+    {
+        $this->contactFetchCalls[] = [$connector, $config, $request];
+
+        return $this->contactFetchResult;
+    }
+
+    #[\Override]
+    public function fetchCalendar(Connector $connector, array $config, ConnectorFetchRequest $request): array
+    {
+        $this->calendarFetchCalls[] = [$connector, $config, $request];
+
+        return $this->calendarFetchResult;
     }
 
     #[\Override]

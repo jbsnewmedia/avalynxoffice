@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace AvalynxOffice\Tests\Controller;
 
+use AvalynxOffice\Entity\SyncRun;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Tests\Support\RefreshDatabaseTrait;
 use Doctrine\ORM\EntityManagerInterface;
@@ -42,6 +43,64 @@ final class AdminAreaControllerTest extends WebTestCase
         self::assertResponseRedirects('/login');
     }
 
+    public function testDashboardShowsSystemStatusPlaceholderWhenServiceNeverRan(): void
+    {
+        $this->client->loginUser($this->admin);
+        $this->client->request('GET', '/admin');
+
+        self::assertResponseIsSuccessful();
+
+        $content = (string) $this->client->getResponse()->getContent();
+        self::assertStringContainsString('System status', $content);
+        self::assertStringContainsString('No pass yet', $content);
+    }
+
+    public function testDashboardShowsLatestSyncRun(): void
+    {
+        $run = new SyncRun();
+        $run->setStatus(SyncRun::STATUS_SUCCESS);
+        $run->setTrigger(SyncRun::TRIGGER_DAEMON);
+        $run->setFinishedAt(new \DateTimeImmutable('+10 seconds'));
+        $run->setMailsImported(12);
+        $run->setMailsSkipped(3);
+        $run->setMailsErrors(1);
+        $run->setContactsCount(0);
+        $run->setCalendarCount(0);
+        $this->em->persist($run);
+        $this->em->flush();
+
+        $this->client->loginUser($this->admin);
+        $this->client->request('GET', '/admin');
+
+        self::assertResponseIsSuccessful();
+
+        $content = (string) $this->client->getResponse()->getContent();
+        self::assertStringContainsString('Successful', $content);
+        self::assertStringContainsString('Sync service', $content);
+        self::assertStringContainsString('12 imported, 3 skipped, 1 errors', $content);
+    }
+
+    public function testDashboardShowsErroredSyncRun(): void
+    {
+        $run = new SyncRun();
+        $run->setStatus(SyncRun::STATUS_ERROR);
+        $run->setTrigger(SyncRun::TRIGGER_MANUAL);
+        $run->setFinishedAt(new \DateTimeImmutable('+5 seconds'));
+        $run->setMessage('POP3 host unreachable.');
+        $this->em->persist($run);
+        $this->em->flush();
+
+        $this->client->loginUser($this->admin);
+        $this->client->request('GET', '/admin');
+
+        self::assertResponseIsSuccessful();
+
+        $content = (string) $this->client->getResponse()->getContent();
+        self::assertStringContainsString('Error', $content);
+        self::assertStringContainsString('POP3 host unreachable.', $content);
+        self::assertStringContainsString('Manual', $content);
+    }
+
     public function testDashboardRequiresAdminRole(): void
     {
         $this->client->loginUser($this->user);
@@ -73,7 +132,6 @@ final class AdminAreaControllerTest extends WebTestCase
         self::assertStringContainsString($this->generateUrl('license_admin_users'), $content);
         self::assertStringContainsString($this->generateUrl('connector_index'), $content);
         self::assertStringContainsString($this->generateUrl('app_settings_legal'), $content);
-        self::assertStringNotContainsString('card shadow-sm', $content);
     }
 
     public function testAdminSectionPagesShareTheAdminNav(): void

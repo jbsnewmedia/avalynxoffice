@@ -10,6 +10,8 @@ declare(strict_types=1);
 namespace AvalynxOffice\Service;
 
 use AvalynxOffice\Entity\Connector;
+use AvalynxOffice\Plugin\Contract\ConnectorCalendarFetcherInterface;
+use AvalynxOffice\Plugin\Contract\ConnectorContactFetcherInterface;
 use AvalynxOffice\Plugin\Contract\ConnectorFetcherInterface;
 use AvalynxOffice\Plugin\Contract\ConnectorMailerInterface;
 use AvalynxOffice\Plugin\Contract\ConnectorPluginInterface;
@@ -138,6 +140,48 @@ class ConnectorPluginRegistry
         $fetchers = [];
         foreach ($this->plugins as $plugin) {
             if (!$plugin instanceof ConnectorFetcherInterface || !$plugin->supportsInput()) {
+                continue;
+            }
+            $config = $this->getConfig($connector, $plugin);
+            if (!$plugin->isInputConfigured($config)) {
+                continue;
+            }
+            $fetchers[] = ['plugin' => $plugin, 'config' => $config];
+        }
+
+        return $fetchers;
+    }
+
+    /**
+     * @return list<array{plugin: ConnectorContactFetcherInterface&ConnectorPluginInterface, config: array<string, mixed>}> all
+     *                                                                                                                      plugins that can fetch contacts and are configured for the connector
+     */
+    public function getContactFetchers(Connector $connector): array
+    {
+        $fetchers = [];
+        foreach ($this->plugins as $plugin) {
+            if (!$plugin instanceof ConnectorContactFetcherInterface || !$plugin->supportsInput()) {
+                continue;
+            }
+            $config = $this->getConfig($connector, $plugin);
+            if (!$plugin->isInputConfigured($config)) {
+                continue;
+            }
+            $fetchers[] = ['plugin' => $plugin, 'config' => $config];
+        }
+
+        return $fetchers;
+    }
+
+    /**
+     * @return list<array{plugin: ConnectorCalendarFetcherInterface&ConnectorPluginInterface, config: array<string, mixed>}> all
+     *                                                                                                                       plugins that can fetch calendar entries and are configured for the connector
+     */
+    public function getCalendarFetchers(Connector $connector): array
+    {
+        $fetchers = [];
+        foreach ($this->plugins as $plugin) {
+            if (!$plugin instanceof ConnectorCalendarFetcherInterface || !$plugin->supportsInput()) {
                 continue;
             }
             $config = $this->getConfig($connector, $plugin);

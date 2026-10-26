@@ -17,7 +17,6 @@ trait RefreshDatabaseTrait
         if ($connection->getDatabasePlatform() instanceof PostgreSQLPlatform) {
             $connection->executeStatement('DROP SCHEMA public CASCADE');
             $connection->executeStatement('CREATE SCHEMA public');
-            $connection->close();
             $connection->executeStatement('SET search_path TO public');
 
             $tool = new SchemaTool($entityManager);

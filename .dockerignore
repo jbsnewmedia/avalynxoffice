@@ -11,3 +11,4 @@ mail_dumps
 docker/postgres
 *.md
 !README.md
+!plugins/jbsnewmedia/exchange-connector-bundle/lib/vendor

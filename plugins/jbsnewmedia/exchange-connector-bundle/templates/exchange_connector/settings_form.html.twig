@@ -1,0 +1,20 @@
+{{ form_start(form, {'attr': {'id': 'exchange-connector-form', 'data-avalynxform': '1', 'novalidate': 'novalidate'}}) }}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header"><i class="fa-solid fa-building-columns me-2" aria-hidden="true"></i>{{ pluginName }}</div>
+        <div class="card-body">
+            {{ form_widget(form.mails_total) }}
+            {{ form_widget(form.contacts_total) }}
+            {{ form_widget(form.calendar_total) }}
+            <div class="row g-3">
+                <div class="col-md-5">{{ form_row(form.ewsHost, {'attr': {'class': 'form-control'}}) }}</div>
+                <div class="col-md-4">{{ form_row(form.ewsUsername, {'attr': {'class': 'form-control'}}) }}</div>
+                <div class="col-md-3">{{ form_row(form.ewsPassword, {'attr': {'class': 'form-control'}}) }}</div>
+                <div class="col-md-4">{{ form_row(form.ewsVersion, {'attr': {'class': 'form-select'}}) }}</div>
+                <div class="col-md-8 d-flex align-items-end">{{ form_row(form.ewsDeleteAfterFetch, {'attr': {'class': 'form-check-input'}}) }}</div>
+            </div>
+        </div>
+        <div class="card-footer text-end">
+            {{ form_widget(form.save) }}
+        </div>
+    </div>
+{{ form_end(form) }}

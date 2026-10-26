@@ -53,6 +53,9 @@
     "jbsnewmedia/bootstrap-bundle": {
         "version": "dev-main"
     },
+    "jbsnewmedia/exchange-connector-bundle": {
+        "version": "0.1.0"
+    },
     "jbsnewmedia/mail-action-bundle": {
         "version": "0.1.0"
     },

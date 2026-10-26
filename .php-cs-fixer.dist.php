@@ -4,6 +4,7 @@ $finder = (new PhpCsFixer\Finder())
     ->in([
         'src',
         'plugins/jbsnewmedia/bootstrap-bundle/src',
+        'plugins/jbsnewmedia/exchange-connector-bundle/src',
         'plugins/jbsnewmedia/mail-action-bundle/src',
         'plugins/jbsnewmedia/mail-view-bundle/src',
         'plugins/jbsnewmedia/pop3-connector-bundle/src',

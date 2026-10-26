@@ -1,0 +1,25 @@
+{
+    "name": "jbsnewmedia/exchange-connector-bundle",
+    "version": "0.1.0",
+    "description": "Exchange (EWS) connector plugin: syncs mails, contacts and calendar entries from an Exchange 2013 mailbox",
+    "type": "symfony-bundle",
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.4",
+        "symfony/framework-bundle": "^7.4 || ^8.0",
+        "symfony/twig-bundle": "^7.4 || ^8.0",
+        "symfony/form": "^7.4 || ^8.0",
+        "symfony/validator": "^7.4 || ^8.0",
+        "twig/twig": "^3.22"
+    },
+    "autoload": {
+        "psr-4": {
+            "JBSNewMedia\\ExchangeConnectorBundle\\": "src/"
+        }
+    },
+    "extra": {
+        "symfony": {
+            "bundle": "JBSNewMedia\\ExchangeConnectorBundle\\ExchangeConnectorBundle"
+        }
+    }
+}

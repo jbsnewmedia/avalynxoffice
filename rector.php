@@ -11,6 +11,7 @@ use Rector\TypeDeclaration\Rector\StmtsAwareInterface\DeclareStrictTypesRector;
 return static function (RectorConfig $rectorConfig): void {
     $rectorConfig->paths([
         __DIR__.'/src',
+        __DIR__ . '/plugins/jbsnewmedia/exchange-connector-bundle/src',
         __DIR__ . '/plugins/jbsnewmedia/mail-action-bundle/src',
         __DIR__ . '/plugins/jbsnewmedia/mail-view-bundle/src',
         __DIR__ . '/plugins/jbsnewmedia/pop3-connector-bundle/src',

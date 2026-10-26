@@ -30,6 +30,7 @@
         "jbsnewmedia/asset-composer-bundle": "^1.2",
         "jbsnewmedia/bootstrap-bundle": "^1.1",
         "jbsnewmedia/css-purger": "^1.0.4",
+        "jbsnewmedia/exchange-connector-bundle": ">=0.1@dev",
         "jbsnewmedia/mail-action-bundle": ">=0.1@dev",
         "jbsnewmedia/pop3-connector-bundle": ">=0.1@dev",
         "laminas/laminas-mail": "^2.5.2",

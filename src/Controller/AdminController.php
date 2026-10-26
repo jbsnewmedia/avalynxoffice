@@ -9,6 +9,7 @@ declare(strict_types=1);
 
 namespace AvalynxOffice\Controller;
 
+use AvalynxOffice\Repository\SyncRunRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -16,14 +17,17 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
  * Administration area "Administrator": neutral dashboard entry point that
- * groups the admin sub areas (password resets, license & usage).
+ * groups the admin sub areas (password resets, license & usage) and shows
+ * the system status of the sync service.
  */
 final class AdminController extends AbstractController
 {
     #[Route('/admin', name: 'app_admin', methods: ['GET'])]
     #[IsGranted('ROLE_ADMIN')]
-    public function index(): Response
+    public function index(SyncRunRepository $syncRunRepository): Response
     {
-        return $this->render('admin/index.html.twig');
+        return $this->render('admin/index.html.twig', [
+            'lastSyncRun' => $syncRunRepository->findLatest(),
+        ]);
     }
 }

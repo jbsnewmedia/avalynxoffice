@@ -1,0 +1,723 @@
+<?php
+
+namespace garethp\ews\API\Type;
+
+use function garethp\ews\Utilities\ensureIsArray;
+use function garethp\ews\Utilities\ensureIsMailbox;
+
+/**
+ * Class representing MessageType
+ *
+ *
+ * XSD Type: MessageType
+ */
+class MessageType extends ItemType
+{
+
+    /**
+     * @var \garethp\ews\API\Type\SingleRecipientType
+     */
+    protected $sender = null;
+
+    /**
+     * @var \garethp\ews\API\Type\EmailAddressType[]
+     */
+    protected $toRecipients = null;
+
+    /**
+     * @var \garethp\ews\API\Type\EmailAddressType[]
+     */
+    protected $ccRecipients = null;
+
+    /**
+     * @var \garethp\ews\API\Type\EmailAddressType[]
+     */
+    protected $bccRecipients = null;
+
+    /**
+     * @var boolean
+     */
+    protected $isReadReceiptRequested = null;
+
+    /**
+     * @var boolean
+     */
+    protected $isDeliveryReceiptRequested = null;
+
+    /**
+     * @var string
+     */
+    protected $conversationIndex = null;
+
+    /**
+     * @var string
+     */
+    protected $conversationTopic = null;
+
+    /**
+     * @var \garethp\ews\API\Type\SingleRecipientType
+     */
+    protected $from = null;
+
+    /**
+     * @var string
+     */
+    protected $internetMessageId = null;
+
+    /**
+     * @var boolean
+     */
+    protected $isRead = null;
+
+    /**
+     * @var boolean
+     */
+    protected $isResponseRequested = null;
+
+    /**
+     * @var string
+     */
+    protected $references = null;
+
+    /**
+     * @var \garethp\ews\API\Type\EmailAddressType[]
+     */
+    protected $replyTo = null;
+
+    /**
+     * @var \garethp\ews\API\Type\SingleRecipientType
+     */
+    protected $receivedBy = null;
+
+    /**
+     * @var \garethp\ews\API\Type\SingleRecipientType
+     */
+    protected $receivedRepresenting = null;
+
+    /**
+     * @var \garethp\ews\API\Type\ApprovalRequestDataType
+     */
+    protected $approvalRequestData = null;
+
+    /**
+     * @var \garethp\ews\API\Type\VotingInformationType
+     */
+    protected $votingInformation = null;
+
+    /**
+     * @var \garethp\ews\API\Type\ReminderMessageDataType
+     */
+    protected $reminderMessageData = null;
+
+    /**
+     * @var \garethp\ews\API\Type\MessageSafetyType
+     */
+    protected $messageSafety = null;
+
+    /**
+     * @var string
+     */
+    protected $senderSMTPAddress = null;
+
+    /**
+     * @var string[]
+     */
+    protected $mailboxGuids = null;
+
+    /**
+     * @var string
+     */
+    protected $publishedCalendarItemIcs = null;
+
+    /**
+     * @var string
+     */
+    protected $publishedCalendarItemName = null;
+
+    /**
+     * @return bool
+     */
+    public function isAReply()
+    {
+        return ($this->exists('inReplyTo') && $this->getInReplyTo() !== null);
+    }
+
+    /**
+     * @param BodyType|string $body
+     * @return MessageType
+     */
+    public function setBody($body)
+    {
+        if (is_string($body)) {
+            $body = new BodyType($body);
+        }
+
+        $this->body = $body;
+        return $this;
+    }
+
+    /**
+     * @param Mailbox|string $from
+     * @return MessageType
+     */
+    public function setFrom($from)
+    {
+        $this->from = new SingleRecipientType(ensureIsMailbox($from));
+        return $this;
+    }
+
+    public function addToRecipients($recipient)
+    {
+        $this->toRecipients[] = ensureIsMailbox($recipient);
+        return $this;
+    }
+
+    public function addCcRecipients($recipient)
+    {
+        $this->ccRecipients[] = ensureIsMailbox($recipient);
+        return $this;
+    }
+
+    public function addBccRecipients($recipient)
+    {
+        $this->bccRecipients[] = ensureIsMailbox($recipient);
+        return $this;
+    }
+
+    public function addReplyTo($recipient)
+    {
+        $this->replyTo[] = ensureIsMailbox($recipient);
+        return $this;
+    }
+
+    public function setToRecipients($recipients)
+    {
+        $this->toRecipients = [ ];
+        $recipients = ensureIsArray($recipients);
+
+        foreach ($recipients as $recipient) {
+            $this->addToRecipients($recipient);
+        }
+
+        return $this;
+    }
+
+    public function setCcRecipients($recipients)
+    {
+        $this->ccRecipients = [ ];
+        $recipients = ensureIsArray($recipients);
+
+        foreach ($recipients as $recipient) {
+            $this->addCcRecipients($recipient);
+        }
+
+        return $this;
+    }
+
+    public function setBccRecipients($recipients)
+    {
+        $this->bccRecipients = [ ];
+        $recipients = ensureIsArray($recipients);
+
+        foreach ($recipients as $recipient) {
+            $this->addBccRecipients($recipient);
+        }
+
+        return $this;
+    }
+
+    public function setReplyTo($recipients)
+    {
+        $this->replyTo = [];
+        $recipients = ensureIsArray($recipients);
+
+        foreach ($recipients as $recipient) {
+            $this->addReplyTo($recipient);
+        }
+
+        return $this;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @return SingleRecipientType
+     */
+    public function getSender()
+    {
+        return $this->sender;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @param $value SingleRecipientType
+     * @return MessageType
+     */
+    public function setSender(SingleRecipientType $value)
+    {
+        $this->sender = $value;
+        return $this;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @return EmailAddressType[]
+     */
+    public function getToRecipients()
+    {
+        return $this->toRecipients;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @return EmailAddressType[]
+     */
+    public function getCcRecipients()
+    {
+        return $this->ccRecipients;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @return EmailAddressType[]
+     */
+    public function getBccRecipients()
+    {
+        return $this->bccRecipients;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @return bool
+     */
+    public function isReadReceiptRequested()
+    {
+        return ((bool) $this->isReadReceiptRequested);
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @return boolean
+     */
+    public function getIsReadReceiptRequested()
+    {
+        return $this->isReadReceiptRequested;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @param $value bool
+     * @return MessageType
+     */
+    public function setIsReadReceiptRequested($value)
+    {
+        $this->isReadReceiptRequested = $value;
+        return $this;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @return bool
+     */
+    public function isDeliveryReceiptRequested()
+    {
+        return ((bool) $this->isDeliveryReceiptRequested);
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @return boolean
+     */
+    public function getIsDeliveryReceiptRequested()
+    {
+        return $this->isDeliveryReceiptRequested;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @param $value bool
+     * @return MessageType
+     */
+    public function setIsDeliveryReceiptRequested($value)
+    {
+        $this->isDeliveryReceiptRequested = $value;
+        return $this;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @return string
+     */
+    public function getConversationIndex()
+    {
+        return $this->conversationIndex;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @param $value string
+     * @return MessageType
+     */
+    public function setConversationIndex($value)
+    {
+        $this->conversationIndex = $value;
+        return $this;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @return string
+     */
+    public function getConversationTopic()
+    {
+        return $this->conversationTopic;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @param $value string
+     * @return MessageType
+     */
+    public function setConversationTopic($value)
+    {
+        $this->conversationTopic = $value;
+        return $this;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @return SingleRecipientType
+     */
+    public function getFrom()
+    {
+        return $this->from;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @return string
+     */
+    public function getInternetMessageId()
+    {
+        return $this->internetMessageId;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @param $value string
+     * @return MessageType
+     */
+    public function setInternetMessageId($value)
+    {
+        $this->internetMessageId = $value;
+        return $this;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @return bool
+     */
+    public function isRead()
+    {
+        return ((bool) $this->isRead);
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @return boolean
+     */
+    public function getIsRead()
+    {
+        return $this->isRead;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @param $value bool
+     * @return MessageType
+     */
+    public function setIsRead($value)
+    {
+        $this->isRead = $value;
+        return $this;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @return bool
+     */
+    public function isResponseRequested()
+    {
+        return ((bool) $this->isResponseRequested);
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @return boolean
+     */
+    public function getIsResponseRequested()
+    {
+        return $this->isResponseRequested;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @param $value bool
+     * @return MessageType
+     */
+    public function setIsResponseRequested($value)
+    {
+        $this->isResponseRequested = $value;
+        return $this;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @return string
+     */
+    public function getReferences()
+    {
+        return $this->references;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @param $value string
+     * @return MessageType
+     */
+    public function setReferences($value)
+    {
+        $this->references = $value;
+        return $this;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @return EmailAddressType[]
+     */
+    public function getReplyTo()
+    {
+        return $this->replyTo;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @return SingleRecipientType
+     */
+    public function getReceivedBy()
+    {
+        return $this->receivedBy;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @param $value SingleRecipientType
+     * @return MessageType
+     */
+    public function setReceivedBy(SingleRecipientType $value)
+    {
+        $this->receivedBy = $value;
+        return $this;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @return SingleRecipientType
+     */
+    public function getReceivedRepresenting()
+    {
+        return $this->receivedRepresenting;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @param $value SingleRecipientType
+     * @return MessageType
+     */
+    public function setReceivedRepresenting(SingleRecipientType $value)
+    {
+        $this->receivedRepresenting = $value;
+        return $this;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @return ApprovalRequestDataType
+     */
+    public function getApprovalRequestData()
+    {
+        return $this->approvalRequestData;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @param $value ApprovalRequestDataType
+     * @return MessageType
+     */
+    public function setApprovalRequestData(ApprovalRequestDataType $value)
+    {
+        $this->approvalRequestData = $value;
+        return $this;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @return VotingInformationType
+     */
+    public function getVotingInformation()
+    {
+        return $this->votingInformation;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @param $value VotingInformationType
+     * @return MessageType
+     */
+    public function setVotingInformation(VotingInformationType $value)
+    {
+        $this->votingInformation = $value;
+        return $this;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @return ReminderMessageDataType
+     */
+    public function getReminderMessageData()
+    {
+        return $this->reminderMessageData;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @param $value ReminderMessageDataType
+     * @return MessageType
+     */
+    public function setReminderMessageData(ReminderMessageDataType $value)
+    {
+        $this->reminderMessageData = $value;
+        return $this;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @return MessageSafetyType
+     */
+    public function getMessageSafety()
+    {
+        return $this->messageSafety;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @param $value MessageSafetyType
+     * @return MessageType
+     */
+    public function setMessageSafety(MessageSafetyType $value)
+    {
+        $this->messageSafety = $value;
+        return $this;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @return string
+     */
+    public function getSenderSMTPAddress()
+    {
+        return $this->senderSMTPAddress;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @param $value string
+     * @return MessageType
+     */
+    public function setSenderSMTPAddress($value)
+    {
+        $this->senderSMTPAddress = $value;
+        return $this;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @param $value string
+     * @return MessageType
+     */
+    public function addMailboxGuids($value)
+    {
+        if ($this->mailboxGuids === null) {
+                        $this->mailboxGuids = array();
+        }
+
+        if (!is_array($this->mailboxGuids)) {
+            $this->mailboxGuids = array($this->mailboxGuids);
+        }
+
+        $this->mailboxGuids[] = $value;
+        return $this;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @return string[]
+     */
+    public function getMailboxGuids()
+    {
+        return $this->mailboxGuids;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @param $value string[]|string
+     * @return MessageType
+     */
+    public function setMailboxGuids(array|string $value)
+    {
+        if (!is_array($value)) {
+            $value = [$value];
+        }
+        $this->mailboxGuids = $value;
+        return $this;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @return string
+     */
+    public function getPublishedCalendarItemIcs()
+    {
+        return $this->publishedCalendarItemIcs;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @param $value string
+     * @return MessageType
+     */
+    public function setPublishedCalendarItemIcs($value)
+    {
+        $this->publishedCalendarItemIcs = $value;
+        return $this;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @return string
+     */
+    public function getPublishedCalendarItemName()
+    {
+        return $this->publishedCalendarItemName;
+    }
+
+    /**
+     * @autogenerated This method is safe to replace
+     * @param $value string
+     * @return MessageType
+     */
+    public function setPublishedCalendarItemName($value)
+    {
+        $this->publishedCalendarItemName = $value;
+        return $this;
+    }
+}

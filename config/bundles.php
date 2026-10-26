@@ -15,4 +15,5 @@ return [
     Zenstruck\Foundry\ZenstruckFoundryBundle::class => ['all' => true],
     JBSNewMedia\AssetComposerBundle\AssetComposerBundle::class => ['all' => true],
     JBSNewMedia\BootstrapBundle\BootstrapBundle::class => ['all' => true],
+    JBSNewMedia\ExchangeConnectorBundle\ExchangeConnectorBundle::class => ['all' => true],
 ];

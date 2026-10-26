@@ -1,6 +1,22 @@
 {
     "plugins": [
         {
+            "package": "jbsnewmedia/exchange-connector-bundle",
+            "path": "plugins/jbsnewmedia/exchange-connector-bundle",
+            "bundle": "JBSNewMedia\\ExchangeConnectorBundle\\ExchangeConnectorBundle",
+            "active": true,
+            "environments": [
+                "all"
+            ],
+            "autoload": {
+                "psr-4": {
+                    "JBSNewMedia\\ExchangeConnectorBundle\\": [
+                        "plugins/jbsnewmedia/exchange-connector-bundle/src"
+                    ]
+                }
+            }
+        },
+        {
             "package": "jbsnewmedia/mail-action-bundle",
             "path": "plugins/jbsnewmedia/mail-action-bundle",
             "bundle": "JBSNewMedia\\MailActionBundle\\MailActionBundle",

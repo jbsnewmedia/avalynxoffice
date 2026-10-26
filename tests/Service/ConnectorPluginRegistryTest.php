@@ -105,6 +105,23 @@ final class ConnectorPluginRegistryTest extends TestCase
         self::assertSame([], $fetchers[0]['config']);
     }
 
+    public function testGetContactAndCalendarFetchersReturnOnlyConfiguredInputPlugins(): void
+    {
+        $connector = new Connector();
+        $unconfigured = new FakeConnectorPlugin('pop3', inputConfigured: false);
+        $configured = new FakeConnectorPlugin('other', inputConfigured: true);
+        $configured->inputConfigured = true;
+
+        $registry = $this->registry($unconfigured, $configured);
+
+        foreach (['getContactFetchers', 'getCalendarFetchers'] as $method) {
+            $fetchers = $registry->{$method}($connector);
+            self::assertCount(1, $fetchers);
+            self::assertSame('other', $fetchers[0]['plugin']->getKey());
+            self::assertSame([], $fetchers[0]['config']);
+        }
+    }
+
     public function testGetConfigReadsStoredConfigFromRepository(): void
     {
         $repository = $this->createMock(ConnectorConfigRepository::class);

@@ -1,0 +1,12 @@
+{
+    "name": "jbsnewmedia/exchange-connector-vendor",
+    "description": "Bundled third-party dependencies (garethp/php-ews) of the Exchange connector plugin. Installed into the plugin so the root application vendor stays clean.",
+    "type": "project",
+    "license": "proprietary",
+    "require": {
+        "garethp/php-ews": "^0.11.3"
+    },
+    "config": {
+        "optimize-autoloader": true
+    }
+}

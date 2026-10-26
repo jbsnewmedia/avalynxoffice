@@ -3,12 +3,15 @@ parameters:
     paths:
         - src
         - plugins/jbsnewmedia/bootstrap-bundle/src
+        - plugins/jbsnewmedia/exchange-connector-bundle/src
         - plugins/jbsnewmedia/mail-action-bundle/src
         - plugins/jbsnewmedia/mail-view-bundle/src
         - plugins/jbsnewmedia/pop3-connector-bundle/src
     bootstrapFiles:
         - vendor-bin/phpstan/vendor/autoload.php
         - vendor/autoload.php
+        - plugins/jbsnewmedia/exchange-connector-bundle/lib/vendor/autoload.php
+        - plugins/jbsnewmedia/exchange-connector-bundle/lib/vendor/autoload.php
     level: max
     treatPhpDocTypesAsCertain: false
     doctrine:
