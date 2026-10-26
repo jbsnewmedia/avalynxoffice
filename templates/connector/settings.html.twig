@@ -25,7 +25,9 @@
                 </div>
             </div>
             {% for pluginForm in pluginForms %}
-                {% include pluginForm.plugin.settingsTemplate with {form: pluginForm.form, pluginName: pluginForm.plugin.name|trans} %}
+                <div id="plugin-{{ pluginForm.plugin.key }}" class="anchor-offset">
+                    {% include pluginForm.plugin.settingsTemplate with {form: pluginForm.form, pluginName: pluginForm.plugin.name|trans} %}
+                </div>
             {% endfor %}
             <div class="card border-danger-subtle">
                 <div class="card-body">

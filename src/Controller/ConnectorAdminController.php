@@ -57,6 +57,7 @@ class ConnectorAdminController extends AbstractController
         private readonly LicenseEnforcementInterface $licenseEnforcement,
         private readonly CsrfTokenManagerInterface $csrfTokenManager,
         private readonly ConnectorRepository $connectorRepository,
+        private readonly ConnectorPluginRegistry $pluginRegistry,
     ) {
     }
 
@@ -69,7 +70,7 @@ class ConnectorAdminController extends AbstractController
     }
 
     #[Route('/data', name: 'connector_data', methods: ['POST'])]
-    public function data(Request $request, ConnectorPluginRegistry $pluginRegistry): JsonResponse
+    public function data(Request $request): JsonResponse
     {
         $search = trim((string) $request->request->get('search', ''));
         $page = max(1, (int) $request->request->get('page', 1));
@@ -90,11 +91,11 @@ class ConnectorAdminController extends AbstractController
                 'data' => [
                     'id' => $connector->getId()?->toRfc4122(),
                     'name' => htmlspecialchars($connector->getName(), ENT_QUOTES, 'UTF-8'),
-                    'domain' => htmlspecialchars($connector->getDomain(), ENT_QUOTES, 'UTF-8'),
+                    'domain' => htmlspecialchars($connector->getDomain(), ENT_QUOTES, 'UTF-8').$this->renderPluginLine($connector),
                     'defaultAccount' => $this->renderDefaultAccount($connector),
-                    'input' => $this->renderConfiguredBadge($pluginRegistry->isInputConfigured($connector)),
-                    'output' => $this->renderConfiguredBadge($pluginRegistry->isOutputConfigured($connector)),
-                    'status' => $this->renderStatus($pluginRegistry->getStatus($connector)),
+                    'input' => $this->renderConfiguredBadge($this->pluginRegistry->isInputConfigured($connector)),
+                    'output' => $this->renderConfiguredBadge($this->pluginRegistry->isOutputConfigured($connector)),
+                    'status' => $this->renderStatus($this->pluginRegistry->getStatus($connector)),
                     'options' => $this->renderOptions($connector),
                 ],
                 'class' => '',
@@ -129,13 +130,14 @@ class ConnectorAdminController extends AbstractController
     }
 
     #[Route('/new', name: 'connector_new', methods: ['GET'])]
-    public function newModal(Request $request): Response
+    public function newModal(Request $request, ConnectorPluginRegistry $pluginRegistry): Response
     {
         $this->requireXmlHttpRequest($request);
 
         $connector = new Connector();
         $form = $this->createForm(ConnectorType::class, $connector, [
             'action' => $this->generateUrl('connector_create'),
+            'pluginChoices' => $this->pluginChoices(),
         ]);
 
         return $this->render('connector/_modal_form.html.twig', [
@@ -144,13 +146,14 @@ class ConnectorAdminController extends AbstractController
     }
 
     #[Route('/new', name: 'connector_create', methods: ['POST'])]
-    public function create(Request $request, ConnectorService $connectorService): JsonResponse
+    public function create(Request $request, ConnectorService $connectorService, ConnectorPluginRegistry $pluginRegistry): JsonResponse
     {
         $this->requireXmlHttpRequest($request);
 
         $connector = new Connector();
         $form = $this->createForm(ConnectorType::class, $connector, [
             'action' => $this->generateUrl('connector_create'),
+            'pluginChoices' => $this->pluginChoices(),
         ]);
         $form->handleRequest($request);
 
@@ -162,17 +165,25 @@ class ConnectorAdminController extends AbstractController
         $connectorService->save($connector, true);
         $this->addFlash('success', $this->translator->trans('connector.created'));
 
-        return AvalynxFormResponse::success($this->generateUrl('connector_settings', ['id' => $connector->getId()]));
+        // The connector was created with a chosen plugin: jump straight to
+        // the settings card of that plugin.
+        $settingsUrl = $this->generateUrl('connector_settings', ['id' => $connector->getId()]);
+        if (null !== $connector->getPluginKey() && null !== $pluginRegistry->get($connector->getPluginKey())) {
+            $settingsUrl .= '#plugin-'.$connector->getPluginKey();
+        }
+
+        return AvalynxFormResponse::success($settingsUrl);
     }
 
     #[Route('/{id}/edit', name: 'connector_edit', methods: ['POST'], requirements: ['id' => '[0-9a-fA-F\-]{36}'])]
-    public function edit(Connector $connector, Request $request, ConnectorService $connectorService): JsonResponse
+    public function edit(Connector $connector, Request $request, ConnectorService $connectorService, ConnectorPluginRegistry $pluginRegistry): JsonResponse
     {
         $this->requireXmlHttpRequest($request);
 
         $formerDefaultAccount = $connector->getDefaultAccount();
         $form = $this->createForm(ConnectorType::class, $connector, [
             'action' => $this->generateUrl('connector_edit', ['id' => $connector->getId()]),
+            'pluginChoices' => $this->pluginChoices($connector),
         ]);
         $form->handleRequest($request);
 
@@ -192,10 +203,11 @@ class ConnectorAdminController extends AbstractController
     {
         $baseForm = $this->createForm(ConnectorType::class, $connector, [
             'action' => $this->generateUrl('connector_edit', ['id' => $connector->getId()]),
+            'pluginChoices' => $this->pluginChoices($connector),
         ]);
 
         $pluginForms = [];
-        foreach ($pluginRegistry->all() as $plugin) {
+        foreach ($pluginRegistry->pluginsFor($connector) as $plugin) {
             $pluginForms[] = [
                 'plugin' => $plugin,
                 'form' => $this->createForm($plugin->getSettingsFormType(), $pluginRegistry->getConfig($connector, $plugin), [
@@ -361,6 +373,43 @@ class ConnectorAdminController extends AbstractController
             .'<i class="fa-solid fa-trash" aria-hidden="true"></i></button></form>';
 
         return $html;
+    }
+
+    /**
+     * Translated plugin choices for the connector form (value = plugin key).
+     * When the connector already uses a plugin that is not installed
+     * anymore, the stored key is appended so the form keeps rendering.
+     *
+     * @return array<string, string> label => plugin key
+     */
+    private function pluginChoices(?Connector $connector = null): array
+    {
+        $choices = [];
+        foreach ($this->pluginRegistry->all() as $plugin) {
+            $choices[$this->translator->trans($plugin->getName())] = $plugin->getKey();
+        }
+        $current = $connector?->getPluginKey();
+        if (null !== $current && '' !== $current && !in_array($current, $choices, true)) {
+            $choices[$current] = $current;
+        }
+
+        return $choices;
+    }
+
+    /**
+     * Shows the plugin driving the connector below the domain in the admin
+     * table.
+     */
+    private function renderPluginLine(Connector $connector): string
+    {
+        $pluginKey = $connector->getPluginKey();
+        if (null === $pluginKey || '' === $pluginKey) {
+            return '';
+        }
+        $plugin = $this->pluginRegistry->get($pluginKey);
+        $label = null !== $plugin ? $this->translator->trans($plugin->getName()) : $pluginKey;
+
+        return '<div class="small text-body-secondary">'.htmlspecialchars($label, ENT_QUOTES, 'UTF-8').'</div>';
     }
 
     private function requireXmlHttpRequest(Request $request): void

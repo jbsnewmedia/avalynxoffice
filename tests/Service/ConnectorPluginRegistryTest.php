@@ -135,6 +135,60 @@ final class ConnectorPluginRegistryTest extends TestCase
         self::assertSame(['pop3Host' => 'mail.example.com'], $registry->getConfig(new Connector(), $registry->get('pop3')));
     }
 
+    public function testPluginsForReturnsOnlyTheChosenPlugin(): void
+    {
+        $connector = (new Connector())
+            ->setName('Exchange Connector')
+            ->setDomain('example.com')
+            ->setPluginKey('exchange');
+        $pop3 = new FakeConnectorPlugin('pop3', input: true, output: true, inputConfigured: true, outputConfigured: true);
+        $exchange = new FakeConnectorPlugin('exchange', input: true, output: false);
+
+        $registry = $this->registry($pop3, $exchange);
+
+        self::assertSame(['exchange'], array_map(static fn ($plugin): string => $plugin->getKey(), $registry->pluginsFor($connector)));
+        self::assertFalse($registry->isInputConfigured($connector));
+        self::assertFalse($registry->isOutputConfigured($connector));
+        self::assertSame([], $registry->getFetchers($connector));
+        self::assertSame([], $registry->getContactFetchers($connector));
+        self::assertSame([], $registry->getCalendarFetchers($connector));
+        self::assertNull($registry->createMailer($connector));
+        self::assertSame(['mails' => null, 'contacts' => null, 'calendar' => null], $registry->getStatus($connector));
+    }
+
+    public function testPluginsForLegacyConnectorWithoutChoiceUsesEveryPlugin(): void
+    {
+        $connector = (new Connector())
+            ->setName('Legacy Connector')
+            ->setDomain('example.com');
+        $pop3 = new FakeConnectorPlugin('pop3', input: true, output: true, inputConfigured: true, outputConfigured: true);
+        $exchange = new FakeConnectorPlugin('exchange', input: true, output: false, inputConfigured: true);
+
+        $registry = $this->registry($pop3, $exchange);
+
+        // The registry sorts its plugins by key ("exchange" before "pop3").
+        self::assertSame(['exchange', 'pop3'], array_map(static fn ($plugin): string => $plugin->getKey(), $registry->pluginsFor($connector)));
+        self::assertTrue($registry->isInputConfigured($connector));
+        self::assertTrue($registry->isOutputConfigured($connector));
+        self::assertCount(2, $registry->getFetchers($connector));
+        self::assertCount(2, $registry->getContactFetchers($connector));
+    }
+
+    public function testPluginsForUnknownPluginKeyUsesNoPlugin(): void
+    {
+        $connector = (new Connector())
+            ->setName('Orphaned Connector')
+            ->setDomain('example.com')
+            ->setPluginKey('removed-plugin');
+        $pop3 = new FakeConnectorPlugin('pop3', inputConfigured: true);
+
+        $registry = $this->registry($pop3);
+
+        self::assertSame([], $registry->pluginsFor($connector));
+        self::assertFalse($registry->isInputConfigured($connector));
+        self::assertSame([], $registry->getFetchers($connector));
+    }
+
     private function registry(FakeConnectorPlugin ...$plugins): ConnectorPluginRegistry
     {
         return new ConnectorPluginRegistry($plugins, $this->createStub(ConnectorConfigRepository::class));

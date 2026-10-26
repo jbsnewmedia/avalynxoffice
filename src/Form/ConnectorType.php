@@ -14,6 +14,7 @@ use AvalynxOffice\Entity\Connector;
 use AvalynxOffice\Repository\AccountRepository;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
+use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\SubmitType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
@@ -21,8 +22,9 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Validator\Constraints\NotBlank;
 
 /**
- * Base form of a connector (name, domain, default account). The technical
- * settings are provided by connector plugins on the settings page.
+ * Base form of a connector (name, domain, default account and the chosen
+ * connector plugin). The technical settings of the chosen plugin are
+ * provided by the plugin on the settings page.
  *
  * @extends AbstractType<Connector>
  */
@@ -48,6 +50,17 @@ class ConnectorType extends AbstractType
                 'empty_data' => '',
                 'constraints' => [new NotBlank()],
             ])
+            ->add('plugin', ChoiceType::class, [
+                'label' => 'connector.plugin',
+                'label_attr' => ['class' => 'form-label'],
+                'mapped' => true,
+                'property_path' => 'pluginKey',
+                'choices' => $options['pluginChoices'] ?? [],
+                'placeholder' => 'connector.plugin.placeholder',
+                'help' => 'connector.plugin.help',
+                'required' => false,
+                'attr' => ['class' => 'form-select'],
+            ])
             ->add('defaultAccount', EntityType::class, [
                 'label' => 'connector.default_account',
                 'label_attr' => ['class' => 'form-label'],
@@ -71,6 +84,9 @@ class ConnectorType extends AbstractType
     {
         $resolver->setDefaults([
             'data_class' => Connector::class,
+            'pluginChoices' => [],
         ]);
+
+        $resolver->setAllowedTypes('pluginChoices', 'array');
     }
 }

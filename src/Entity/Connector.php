@@ -37,6 +37,13 @@ class Connector
     #[ORM\Column(type: 'string', length: 190)]
     private string $domain;
     /**
+     * Key of the connector plugin that drives this connector (e.g. "pop3"
+     * or "exchange"). Null for legacy connectors: they keep using every
+     * configured plugin.
+     */
+    #[ORM\Column(type: 'string', length: 32, nullable: true)]
+    private ?string $pluginKey = null;
+    /**
      * Account that receives every message of this connector that matches
      * none of the exact aliases (catch-all replacement).
      */
@@ -81,6 +88,18 @@ class Connector
     public function setDomain(string $domain): self
     {
         $this->domain = strtolower(trim($domain));
+
+        return $this;
+    }
+
+    public function getPluginKey(): ?string
+    {
+        return $this->pluginKey;
+    }
+
+    public function setPluginKey(?string $pluginKey): self
+    {
+        $this->pluginKey = null !== $pluginKey ? trim($pluginKey) : null;
 
         return $this;
     }

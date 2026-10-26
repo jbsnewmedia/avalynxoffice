@@ -53,6 +53,26 @@ class ConnectorPluginRegistry
         return $this->plugins;
     }
 
+    /**
+     * The plugins that drive the given connector: the plugin chosen on the
+     * connector (plugin_key), or every plugin for legacy connectors without
+     * a choice.
+     *
+     * @return list<ConnectorPluginInterface>
+     */
+    public function pluginsFor(Connector $connector): array
+    {
+        $pluginKey = $connector->getPluginKey();
+        if (null === $pluginKey || '' === $pluginKey) {
+            return $this->plugins;
+        }
+
+        return array_values(array_filter(
+            $this->plugins,
+            static fn (ConnectorPluginInterface $plugin): bool => $plugin->getKey() === $pluginKey,
+        ));
+    }
+
     public function get(string $key): ?ConnectorPluginInterface
     {
         foreach ($this->plugins as $plugin) {
@@ -79,7 +99,7 @@ class ConnectorPluginRegistry
      */
     public function isInputConfigured(Connector $connector): bool
     {
-        return array_any($this->plugins, fn ($plugin) => $plugin->supportsInput() && $plugin->isInputConfigured($this->getConfig($connector, $plugin)));
+        return array_any($this->pluginsFor($connector), fn ($plugin) => $plugin->supportsInput() && $plugin->isInputConfigured($this->getConfig($connector, $plugin)));
     }
 
     /**
@@ -88,7 +108,7 @@ class ConnectorPluginRegistry
      */
     public function isOutputConfigured(Connector $connector): bool
     {
-        return array_any($this->plugins, fn ($plugin) => $plugin->supportsOutput() && $plugin->isOutputConfigured($this->getConfig($connector, $plugin)));
+        return array_any($this->pluginsFor($connector), fn ($plugin) => $plugin->supportsOutput() && $plugin->isOutputConfigured($this->getConfig($connector, $plugin)));
     }
 
     /**
@@ -100,7 +120,7 @@ class ConnectorPluginRegistry
     public function getStatus(Connector $connector): array
     {
         $status = ['mails' => null, 'contacts' => null, 'calendar' => null];
-        foreach ($this->plugins as $plugin) {
+        foreach ($this->pluginsFor($connector) as $plugin) {
             $pluginStatus = $plugin->getStatus($connector, $this->getConfig($connector, $plugin));
             foreach ($status as $module => $value) {
                 if (null === $value && null !== $pluginStatus[$module]) {
@@ -118,7 +138,7 @@ class ConnectorPluginRegistry
      */
     public function createMailer(Connector $connector): ?MailerInterface
     {
-        foreach ($this->plugins as $plugin) {
+        foreach ($this->pluginsFor($connector) as $plugin) {
             if (!$plugin instanceof ConnectorMailerInterface || !$plugin->supportsOutput()) {
                 continue;
             }
@@ -138,7 +158,7 @@ class ConnectorPluginRegistry
     public function getFetchers(Connector $connector): array
     {
         $fetchers = [];
-        foreach ($this->plugins as $plugin) {
+        foreach ($this->pluginsFor($connector) as $plugin) {
             if (!$plugin instanceof ConnectorFetcherInterface || !$plugin->supportsInput()) {
                 continue;
             }
@@ -159,7 +179,7 @@ class ConnectorPluginRegistry
     public function getContactFetchers(Connector $connector): array
     {
         $fetchers = [];
-        foreach ($this->plugins as $plugin) {
+        foreach ($this->pluginsFor($connector) as $plugin) {
             if (!$plugin instanceof ConnectorContactFetcherInterface || !$plugin->supportsInput()) {
                 continue;
             }
@@ -180,7 +200,7 @@ class ConnectorPluginRegistry
     public function getCalendarFetchers(Connector $connector): array
     {
         $fetchers = [];
-        foreach ($this->plugins as $plugin) {
+        foreach ($this->pluginsFor($connector) as $plugin) {
             if (!$plugin instanceof ConnectorCalendarFetcherInterface || !$plugin->supportsInput()) {
                 continue;
             }

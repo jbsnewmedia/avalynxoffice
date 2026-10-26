@@ -81,6 +81,7 @@ final class FormAndFactoryTest extends TestCase
         self::assertSame([
             'name',
             'domain',
+            'plugin',
             'defaultAccount',
             'save',
         ], array_column($addedFields, 0));
@@ -88,7 +89,9 @@ final class FormAndFactoryTest extends TestCase
         $resolver = new OptionsResolver();
         (new ConnectorType())->configureOptions($resolver);
 
-        self::assertSame(Connector::class, $resolver->resolve()['data_class']);
+        $resolved = $resolver->resolve();
+        self::assertSame(Connector::class, $resolved['data_class']);
+        self::assertSame([], $resolved['pluginChoices']);
     }
 
     #[DataProvider('factoryProvider')]
