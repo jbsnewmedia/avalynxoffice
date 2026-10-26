@@ -24,6 +24,51 @@
         .replace(/%filtered%/g, String(values.filtered))
         .replace(/%total%/g, String(values.total));
 
+    /*
+     * Shows a single "no entries" row (colspan over all columns) while the
+     * table body has no data rows, and removes it again once data arrives.
+     * The library leaves the tbody completely empty for empty result sets.
+     */
+    const syncEmptyRow = (element, dataset) => {
+        const table = element.querySelector('table');
+        if (!table) {
+            return;
+        }
+
+        const headerColumns = table.querySelectorAll('thead th');
+        if (headerColumns.length === 0) {
+            // The table has not been populated yet (initial fetch pending).
+            return;
+        }
+
+        const tbody = table.querySelector('tbody');
+        if (!tbody) {
+            return;
+        }
+
+        const emptyRow = tbody.querySelector('tr[data-avalynx-datatable-empty]');
+        const dataRows = tbody.querySelectorAll('tr:not([data-avalynx-datatable-empty])');
+
+        if (dataRows.length > 0) {
+            if (emptyRow) {
+                emptyRow.remove();
+            }
+
+            return;
+        }
+
+        if (!emptyRow) {
+            const row = document.createElement('tr');
+            row.dataset.avalynxDatatableEmpty = 'true';
+            const cell = document.createElement('td');
+            cell.colSpan = headerColumns.length;
+            cell.className = 'text-center text-body-secondary py-4';
+            cell.textContent = dataset.labelEmpty || 'Keine Einträge';
+            row.appendChild(cell);
+            tbody.appendChild(row);
+        }
+    };
+
     const initialize = (element) => {
         if (element.dataset.avalynxdatatableInit === 'true') {
             return;
@@ -62,6 +107,14 @@
                 total: total
             })
         });
+
+        // Keep the empty-state row in sync with every (re)render of the
+        // table body. Own insertions are ignored via the data attribute.
+        const tableObserver = new MutationObserver(function () {
+            syncEmptyRow(element, dataset);
+        });
+        tableObserver.observe(element, { childList: true, subtree: true });
+        syncEmptyRow(element, dataset);
     };
 
     const initializeRoot = (root) => {
