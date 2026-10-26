@@ -72,6 +72,7 @@ final class ConnectorPluginSelectionTest extends WebTestCase
                 'name' => 'Exchange Connector',
                 'domain' => 'example.com',
                 'plugin' => 'exchange',
+                'fetchFrom' => '2026-10-17',
                 '_token' => $token,
             ],
         ], [], ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
@@ -83,6 +84,8 @@ final class ConnectorPluginSelectionTest extends WebTestCase
         $connector = $this->em->getRepository(Connector::class)->findOneBy(['domain' => 'example.com']);
         self::assertNotNull($connector);
         self::assertSame('exchange', $connector->getPluginKey());
+        self::assertNotNull($connector->getFetchFrom());
+        self::assertSame('2026-10-17', $connector->getFetchFrom()->format('Y-m-d'));
         self::assertIsString($payload['redirect']);
         self::assertStringContainsString('/admin/connectors/'.$connector->getId()?->toRfc4122().'/settings#plugin-exchange', $payload['redirect']);
     }
@@ -92,7 +95,8 @@ final class ConnectorPluginSelectionTest extends WebTestCase
         $connector = (new Connector())
             ->setName('Exchange Connector')
             ->setDomain('example.com')
-            ->setPluginKey('exchange');
+            ->setPluginKey('exchange')
+            ->setFetchFrom(new \DateTimeImmutable('2026-10-17'));
         $this->em->persist($connector);
         $this->em->flush();
 
@@ -105,6 +109,8 @@ final class ConnectorPluginSelectionTest extends WebTestCase
         self::assertStringNotContainsString('id="plugin-pop3"', $content);
         self::assertStringContainsString('ewsHost', $content);
         self::assertStringNotContainsString('pop3Host', $content);
+        self::assertStringContainsString('name="connector[fetchFrom]"', $content);
+        self::assertStringContainsString('value="2026-10-17"', $content);
     }
 
     public function testSettingsPageOfLegacyConnectorShowsEveryPlugin(): void

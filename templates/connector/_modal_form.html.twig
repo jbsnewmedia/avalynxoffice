@@ -26,6 +26,14 @@
             </div>
             <div class="col-md-6">
                 <div class="form-group mb-3">
+                    {{ form_label(form.fetchFrom) }}
+                    {{ form_widget(form.fetchFrom, {'attr': {'class': 'form-control'}}) }}
+                    {{ form_help(form.fetchFrom) }}
+                    <div class="invalid-feedback" aria-live="polite"></div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group mb-3">
                     {{ form_label(form.defaultAccount) }}
                     {{ form_widget(form.defaultAccount, {'attr': {'class': 'form-select'}}) }}
                     {{ form_help(form.defaultAccount) }}

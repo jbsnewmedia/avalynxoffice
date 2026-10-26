@@ -44,6 +44,12 @@ class Connector
     #[ORM\Column(type: 'string', length: 32, nullable: true)]
     private ?string $pluginKey = null;
     /**
+     * Only fetch data from this date onwards (mails by received date,
+     * calendar entries by start date). Null = no limit.
+     */
+    #[ORM\Column(type: 'date_immutable', nullable: true)]
+    private ?\DateTimeImmutable $fetchFrom = null;
+    /**
      * Account that receives every message of this connector that matches
      * none of the exact aliases (catch-all replacement).
      */
@@ -100,6 +106,18 @@ class Connector
     public function setPluginKey(?string $pluginKey): self
     {
         $this->pluginKey = null !== $pluginKey ? trim($pluginKey) : null;
+
+        return $this;
+    }
+
+    public function getFetchFrom(): ?\DateTimeImmutable
+    {
+        return $this->fetchFrom;
+    }
+
+    public function setFetchFrom(?\DateTimeImmutable $fetchFrom): self
+    {
+        $this->fetchFrom = $fetchFrom;
 
         return $this;
     }

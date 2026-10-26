@@ -258,6 +258,7 @@ class Pop3Fetcher
         $port = self::intValue($config, 'pop3Port');
         $security = strtolower(self::stringValue($config, 'pop3Security'));
         $delete = $request->deleteAfter ?? self::boolValue($config, 'pop3DeleteAfterFetch', true);
+        $fetchFrom = $connector->getFetchFrom();
         $this->log(sprintf('Verbinde mit %s:%d (Sicherheit: %s) ...', $host, $port ?: 110, '' !== $security ? $security : 'keine'));
         $storageConfig = [
             'host' => $host,
@@ -349,6 +350,15 @@ class Pop3Fetcher
                         continue;
                     }
                     $subject = $this->safeHeader($msg, 'subject');
+                    if (null !== $fetchFrom) {
+                        $receivedAt = $this->extractDateFromMessage($msg);
+                        if (null !== $receivedAt && $receivedAt < $fetchFrom) {
+                            $this->log(sprintf('Message "%s" is older than the fetch-from date (%s). Skipping.', (string) $subject, $fetchFrom->format('d.m.Y')), 'comment');
+                            ++$skipped;
+
+                            continue;
+                        }
+                    }
                     $this->log(sprintf('Processing message: "%s" (hash: %s)', $subject, substr($contentHash, 0, 8)));
                     $recipients = $this->collectRecipientAddresses($msg);
                     $target = $this->mailRoutingService->resolveTarget($connector, $recipients);

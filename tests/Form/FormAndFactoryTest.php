@@ -82,6 +82,7 @@ final class FormAndFactoryTest extends TestCase
             'name',
             'domain',
             'plugin',
+            'fetchFrom',
             'defaultAccount',
             'save',
         ], array_column($addedFields, 0));

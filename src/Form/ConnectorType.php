@@ -15,6 +15,7 @@ use AvalynxOffice\Repository\AccountRepository;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
+use Symfony\Component\Form\Extension\Core\Type\DateType;
 use Symfony\Component\Form\Extension\Core\Type\SubmitType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
@@ -60,6 +61,14 @@ class ConnectorType extends AbstractType
                 'help' => 'connector.plugin.help',
                 'required' => false,
                 'attr' => ['class' => 'form-select'],
+            ])
+            ->add('fetchFrom', DateType::class, [
+                'label' => 'connector.fetch_from',
+                'label_attr' => ['class' => 'form-label'],
+                'widget' => 'single_text',
+                'required' => false,
+                'help' => 'connector.fetch_from_help',
+                'attr' => ['class' => 'form-control'],
             ])
             ->add('defaultAccount', EntityType::class, [
                 'label' => 'connector.default_account',

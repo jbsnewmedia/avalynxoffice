@@ -109,7 +109,7 @@ final class EwsCalendarFetcher extends AbstractEwsFetcher
             $this->log('Connecting to the Exchange calendar (EWS) ...');
             $client = $this->clientFactory->create($config);
             $this->log('Connection established successfully.');
-            $listing = $client->listItemRefs('calendar', 'calendar:Start', true, $request->limit);
+            $listing = $client->listItemRefs('calendar', 'calendar:Start', true, $request->limit, $connector->getFetchFrom());
             $itemRefs = $listing['items'];
             $this->log(sprintf('%d appointments found.', count($itemRefs)));
             foreach ($itemRefs as $ref) {

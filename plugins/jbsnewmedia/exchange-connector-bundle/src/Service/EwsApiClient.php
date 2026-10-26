@@ -19,6 +19,7 @@ use garethp\ews\API\Type\ItemType;
 use garethp\ews\API\Type\MessageType;
 use garethp\ews\API\Type\MimeContentType;
 use garethp\ews\ContactsAPI;
+use garethp\ews\RestrictionFormatter;
 
 /**
  * Typed wrapper around the (loosely typed) EWS library. All interaction
@@ -43,11 +44,12 @@ final readonly class EwsApiClient
 
     /**
      * Lists the item ids of a distinguished folder via FindItem (server
-     * side sort, offset paging), honoring the limit.
+     * side sort, offset paging), honoring the limit and the "fetch from"
+     * date (server side restriction).
      *
      * @return array{total: int, items: list<EwsItemRef>}
      */
-    public function listItemRefs(string $folder, string $sortFieldUri, bool $oldestFirst, ?int $limit): array
+    public function listItemRefs(string $folder, string $sortFieldUri, bool $oldestFirst, ?int $limit, ?\DateTimeInterface $fetchFrom = null): array
     {
         $refs = [];
         $total = 0;
@@ -56,7 +58,7 @@ final readonly class EwsApiClient
         $client = $this->api->getClient();
         while (true) {
             $maxEntries = null !== $remaining ? min(50, $remaining) : 50;
-            $request = Type::buildFromArray([
+            $request = [
                 'Traversal' => 'Shallow',
                 'ItemShape' => ['BaseShape' => 'IdOnly'],
                 'IndexedPageItemView' => [
@@ -69,8 +71,12 @@ final readonly class EwsApiClient
                     'FieldURI' => ['FieldURI' => $sortFieldUri],
                 ]],
                 'ParentFolderIds' => $this->folderId($folder)->toArray(true),
-            ]);
-            $result = $client->FindItem($request);
+            ];
+            $restriction = self::fetchFromRestriction($folder, $fetchFrom);
+            if ([] !== $restriction) {
+                $request['Restriction'] = $restriction;
+            }
+            $result = $client->FindItem(Type::buildFromArray($request));
             if (!$result instanceof FindItemParentType) {
                 throw new \RuntimeException('Unexpected FindItem response.');
             }
@@ -183,6 +189,32 @@ final readonly class EwsApiClient
     public function deleteItem(EwsItemRef $ref): void
     {
         $this->api->deleteItems([$ref->toArray()], ['DeleteType' => 'MoveToDeletedItems', 'SendNotification' => false]);
+    }
+
+    /**
+     * Server side "fetch from" restriction for the FindItem request: mails
+     * are filtered by the received date, calendar entries by their start
+     * date. Empty array = no restriction.
+     *
+     * @return array<string, mixed>
+     */
+    private static function fetchFromRestriction(string $folder, ?\DateTimeInterface $fetchFrom): array
+    {
+        if (null === $fetchFrom) {
+            return [];
+        }
+        $value = $fetchFrom->format('Y-m-d\T00:00:00\Z');
+        $formatted = 'inbox' === $folder
+            ? RestrictionFormatter::format('item', [
+                'IsGreaterThanOrEqualTo' => ['DateTimeReceived' => $value],
+            ])
+            : RestrictionFormatter::format('calendar', [
+                'IsGreaterThanOrEqualTo' => ['Start' => $value],
+            ]);
+        \assert(is_array($formatted));
+
+        /* @var array<string, mixed> $formatted */
+        return $formatted;
     }
 
     /**
