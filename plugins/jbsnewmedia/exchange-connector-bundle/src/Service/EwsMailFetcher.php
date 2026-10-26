@@ -57,7 +57,12 @@ final class EwsMailFetcher extends AbstractEwsFetcher
             $this->log('Connecting to the Exchange server (EWS) ...');
             $client = $this->clientFactory->create($config);
             $this->log('Connection established successfully.');
-            $listing = $client->listItemRefs('inbox', 'item:DateTimeReceived', $request->oldestFirst, $request->limit, $connector->getFetchFrom());
+            $fetchFrom = $connector->getFetchFrom();
+            $oldestFirst = null !== $fetchFrom ? true : $request->oldestFirst;
+            if (null !== $fetchFrom) {
+                $this->log(sprintf('"Fetch from" is set (%s): fetching from the oldest entry at or after the date.', $fetchFrom->format('d.m.Y')));
+            }
+            $listing = $client->listItemRefs('inbox', 'item:DateTimeReceived', $oldestFirst, $request->limit, $fetchFrom);
             $itemRefs = $listing['items'];
             $this->log(sprintf('%d messages found.', count($itemRefs)));
             foreach ($itemRefs as $ref) {

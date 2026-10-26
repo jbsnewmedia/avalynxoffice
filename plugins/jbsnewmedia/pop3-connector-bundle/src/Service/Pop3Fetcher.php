@@ -286,24 +286,27 @@ class Pop3Fetcher
             $this->log(sprintf('%d messages found.', $count));
             $indices = [];
             $limit = $request->limit;
-            // With "fetch from" set, always scan from the newest message
-            // backwards: the messages below the date boundary would never
-            // be imported, so walking up from the oldest would be endless.
-            $oldestFirst = null !== $fetchFrom ? false : $request->oldestFirst;
+            // With "fetch from" set, locate the first message at or after
+            // the date (the day itself is included) and walk upwards from
+            // there, oldest entries first.
             if (null !== $fetchFrom) {
-                $this->log(sprintf('"Fetch from" is set (%s): processing messages from newest to oldest.', $fetchFrom->format('d.m.Y')));
-            }
-            if (null !== $limit && !$oldestFirst) {
+                $start = $this->findFetchFromBoundary($storage, $count, $fetchFrom);
+                $this->log(sprintf('"Fetch from" is set (%s): processing from message %d upwards, oldest first.', $fetchFrom->format('d.m.Y'), $start));
+                $end = null !== $limit ? min($count, $start + $limit - 1) : $count;
+                for ($i = $start; $i <= $end; ++$i) {
+                    $indices[] = $i;
+                }
+            } elseif (null !== $limit && !$request->oldestFirst) {
                 for ($i = $count; $i > max(0, $count - $limit); --$i) {
                     $indices[] = $i;
                 }
                 $this->log(sprintf('Processing the newest %d messages ...', count($indices)));
-            } elseif (null !== $limit && $oldestFirst) {
+            } elseif (null !== $limit && $request->oldestFirst) {
                 for ($i = 1; $i <= min($count, $limit); ++$i) {
                     $indices[] = $i;
                 }
                 $this->log(sprintf('Processing the oldest %d messages ...', count($indices)));
-            } elseif ($oldestFirst) {
+            } elseif ($request->oldestFirst) {
                 for ($i = 1; $i <= $count; ++$i) {
                     $indices[] = $i;
                 }
@@ -448,6 +451,50 @@ class Pop3Fetcher
         } catch (\Throwable $e) {
             $this->log('Could not update the fetch status: '.$e->getMessage(), 'error');
         }
+    }
+
+    /**
+     * POP3 has no server side search: locate the first message whose date
+     * is at or after the fetch-from date via a binary search over the
+     * (roughly chronologically ordered) message numbers, using cheap
+     * header-only requests. The result may be slightly off for stragglers
+     * with unusual dates; the per-message date check stays as a safety net.
+     */
+    private function findFetchFromBoundary(\Laminas\Mail\Storage\Pop3 $storage, int $count, \DateTimeImmutable $fetchFrom): int
+    {
+        $lo = 1;
+        $hi = $count;
+        while ($lo < $hi) {
+            $mid = intdiv($lo + $hi, 2);
+            $date = $this->headerDate($storage, $mid);
+            if (null !== $date && $date < $fetchFrom) {
+                $lo = $mid + 1;
+            } else {
+                $hi = $mid;
+            }
+        }
+
+        return max(1, $lo);
+    }
+
+    /**
+     * Parses the Date header of one message via a header-only request
+     * (POP3 TOP) without downloading the body.
+     */
+    private function headerDate(\Laminas\Mail\Storage\Pop3 $storage, int $num): ?\DateTimeImmutable
+    {
+        try {
+            $rawHeader = $storage->getRawHeader($num);
+            if (is_string($rawHeader) && preg_match('/^Date:\s*(.+)$/mi', $rawHeader, $m)) {
+                try {
+                    return new \DateTimeImmutable(trim((string) $m[1]));
+                } catch (\Throwable) {
+                }
+            }
+        } catch (\Throwable) {
+        }
+
+        return null;
     }
 
     private function ensureInboxForAccount(Account $account): void

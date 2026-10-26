@@ -19,7 +19,6 @@ use garethp\ews\API\Type\ItemType;
 use garethp\ews\API\Type\MessageType;
 use garethp\ews\API\Type\MimeContentType;
 use garethp\ews\ContactsAPI;
-use garethp\ews\RestrictionFormatter;
 
 /**
  * Typed wrapper around the (loosely typed) EWS library. All interaction
@@ -203,18 +202,19 @@ final readonly class EwsApiClient
         if (null === $fetchFrom) {
             return [];
         }
-        $value = $fetchFrom->format('Y-m-d\T00:00:00\Z');
-        $formatted = 'inbox' === $folder
-            ? RestrictionFormatter::format('item', [
-                'IsGreaterThanOrEqualTo' => ['DateTimeReceived' => $value],
-            ])
-            : RestrictionFormatter::format('calendar', [
-                'IsGreaterThanOrEqualTo' => ['Start' => $value],
-            ]);
-        \assert(is_array($formatted));
 
-        /* @var array<string, mixed> $formatted */
-        return $formatted;
+        // Same shape the library's RestrictionFormatter produces for a
+        // two operand expression: >= <field uri> <constant>.
+        return [
+            'IsGreaterThanOrEqualTo' => [[
+                'FieldURI' => [
+                    'FieldURI' => 'inbox' === $folder ? 'item:DateTimeReceived' : 'calendar:Start',
+                ],
+                'FieldURIOrConstant' => [
+                    'Constant' => ['Value' => $fetchFrom->format('Y-m-d\T00:00:00\Z')],
+                ],
+            ]],
+        ];
     }
 
     /**
