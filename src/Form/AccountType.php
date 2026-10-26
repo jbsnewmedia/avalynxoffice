@@ -34,15 +34,20 @@ class AccountType extends AbstractType
             ->add('name', TextType::class, [
                 'label' => 'account.name',
                 'required' => true,
+                'label_attr' => ['class' => 'form-label'],
+                'attr' => ['class' => 'form-control'],
                 'constraints' => [new NotBlank()],
             ])
             ->add('email', EmailType::class, [
                 'label' => 'account.email',
                 'required' => true,
+                'label_attr' => ['class' => 'form-label'],
+                'attr' => ['class' => 'form-control'],
                 'constraints' => [new NotBlank(), new Email()],
             ])
             ->add('users', EntityType::class, [
                 'label' => 'account.users',
+                'label_attr' => ['class' => 'form-label'],
                 'class' => User::class,
                 'choice_label' => 'email',
                 'multiple' => true,

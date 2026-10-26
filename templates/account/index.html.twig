@@ -1,21 +1,48 @@
 {% extends 'base.html.twig' %}
 {% block title %}{{ 'account.title'|trans }} - {{ 'app.title'|trans }}{% endblock %}
 {% block stylesheets %}
-    {% include '_assets.html.twig' with { mode: 'user' } %}
+    {% do addAssetComposer('avalynx/avalynx-datatable/dist/css/avalynx-datatable.css') %}
+    {% include '_assets.html.twig' with { mode: 'authenticated' } %}
     {{ parent() }}
 {% endblock %}
+{% block flashes %}{% endblock %}
 {% block body %}
 <div class="d-flex flex-column min-vh-100">
     {% include '_navbar.html.twig' with { showMailToggles: false } %}
     <main class="flex-grow-1 py-4">
         <div class="container">
             {% include 'admin/_nav.html.twig' with { active: 'accounts' } %}
-            <h1 class="h3 mb-4">{{ 'account.title'|trans }}</h1>
-            {% include 'account/_list.html.twig' %}
+            <div class="d-flex justify-content-between align-items-center gap-3 mb-4">
+                <h1 class="h3 mb-0">{{ 'account.title'|trans }}</h1>
+                <a href="{{ path('account_new') }}" class="btn btn-primary action-btn-modal {{ readOnly ? 'disabled' }}" {{ readOnly ? 'aria-disabled="true"' }} data-title="{{ 'account.new'|trans }}" data-modal-size="modal-xl">
+                    <i class="fa-solid fa-plus me-2" aria-hidden="true"></i>{{ 'account.new'|trans }}
+                </a>
+            </div>
+
+            {% include 'connector/_flashes.html.twig' %}
+
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div id="admin-accounts-datatable"
+                        data-avalynxdatatable
+                        data-api-url="{{ path('account_data') }}"
+                        data-per-page="10"
+                        data-label-show="{{ 'admin.datatable.show'|trans }}"
+                        data-label-entries="{{ 'admin.datatable.entries'|trans }}"
+                        data-label-search="{{ 'admin.datatable.search'|trans }}"
+                        data-label-previous="{{ 'admin.datatable.previous'|trans }}"
+                        data-label-next="{{ 'admin.datatable.next'|trans }}"
+                        data-label-showing="{{ 'admin.datatable.showing_entries'|trans }}"
+                        data-label-showing-filtered="{{ 'admin.datatable.showing_filtered_entries'|trans }}"
+                        aria-label="{{ 'account.title'|trans }}"
+                        role="region"></div>
+                </div>
+            </div>
         </div>
     </main>
 </div>
 {% endblock %}
 {% block javascripts %}
+    {% do addAssetComposer('avalynx/avalynx-datatable/dist/js/avalynx-datatable.js') %}
     {{ parent() }}
 {% endblock %}

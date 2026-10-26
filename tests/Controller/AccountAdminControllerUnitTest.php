@@ -8,18 +8,26 @@ use AvalynxOffice\Tests\Support\AllowAllLicenseEnforcement;
 use AvalynxOffice\Controller\AccountAdminController;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Form\FormInterface;
+use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 final class AccountAdminControllerUnitTest extends TestCase
 {
+    private function createController(): AccountAdminController
+    {
+        $translator = $this->createStub(TranslatorInterface::class);
+        $csrfTokenManager = $this->createStub(CsrfTokenManagerInterface::class);
+
+        return new AccountAdminController($translator, new AllowAllLicenseEnforcement(), $csrfTokenManager, $this->createStub(\AvalynxOffice\Repository\AccountRepository::class));
+    }
+
     /**
      * @param int|string|null $data
      */
     #[\PHPUnit\Framework\Attributes\DataProvider('textareaValueProvider')]
     public function testGetTextareaValueNormalizesFieldData(int|string|null $data, ?string $expected): void
     {
-        $translator = $this->createStub(TranslatorInterface::class);
-        $controller = new AccountAdminController($translator, new AllowAllLicenseEnforcement());
+        $controller = $this->createController();
 
         $field = $this->createStub(FormInterface::class);
         $field->method('getData')->willReturn($data);
@@ -44,8 +52,7 @@ final class AccountAdminControllerUnitTest extends TestCase
 
     public function testGetUsersValueFiltersNonUserEntriesAndHandlesNonIterableData(): void
     {
-        $translator = $this->createStub(TranslatorInterface::class);
-        $controller = new AccountAdminController($translator, new AllowAllLicenseEnforcement());
+        $controller = $this->createController();
 
         $method = new \ReflectionMethod(AccountAdminController::class, 'getUsersValue');
 

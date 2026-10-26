@@ -1,0 +1,70 @@
+<div class="p-4">
+    {% set aliasesInvalid = form.aliases.vars.errors|length > 0 %}
+    {% set foldersInvalid = form.folders.vars.errors|length > 0 %}
+    {% set folderFunctionOptions = [
+        { value: 'none', label: 'folder.function.none'|trans },
+        { value: 'mailbox', label: 'folder.function.mailbox'|trans },
+        { value: 'inbox', label: 'folder.function.inbox'|trans },
+        { value: 'outbox', label: 'folder.function.outbox'|trans },
+        { value: 'drafts', label: 'folder.function.drafts'|trans },
+    ] %}
+    {{ form_start(form, {'attr': {'id': 'account-form', 'data-avalynxform': '1', 'novalidate': 'novalidate'}}) }}
+        <div class="row g-3">
+            <div class="col-md-6">{{ form_row(form.name, {'label_attr': {'class': 'form-label'}, 'attr': {'class': 'form-control'}}) }}</div>
+            <div class="col-md-6">{{ form_row(form.email, {'label_attr': {'class': 'form-label'}, 'attr': {'class': 'form-control'}}) }}</div>
+            <div class="col-md-6">{{ form_row(form.users, {'label_attr': {'class': 'form-label'}}) }}</div>
+            <div class="col-md-6">
+                <div class="account-list-editor account-list-editor-aliases{% if aliasesInvalid %} account-list-editor-invalid{% endif %}"
+                     data-account-list-editor
+                     data-account-list-type="alias"
+                     data-alias-connector-options="{{ connectorOptions|json_encode|e('html_attr') }}"
+                     data-primary-label="{{ 'account.alias_connector'|trans }}"
+                     data-primary-placeholder="{{ 'account.alias_connector_placeholder'|trans }}"
+                     data-secondary-label="{{ 'account.alias_local_part'|trans }}"
+                     data-secondary-placeholder="{{ 'account.alias_local_part_placeholder'|trans }}">
+                    {{ form_label(form.aliases, null, {'label_attr': {'class': 'form-label'}}) }}
+                    {{ form_widget(form.aliases, {'attr': {'class': 'd-none', 'data-account-list-storage': 'true'}}) }}
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="small text-body-secondary">{{ 'account.alias_fields_help'|trans }}</div>
+                        <button type="button" class="btn btn-primary" data-account-list-add>
+                            <i class="fa-solid fa-plus me-2" aria-hidden="true"></i>{{ 'account.add_alias'|trans }}
+                        </button>
+                    </div>
+                    <div class="account-list-items" data-account-list-items data-remove-label="{{ 'account.remove_alias'|trans }}"></div>
+                    <div class="account-list-empty text-body-secondary small" data-account-list-empty>{{ 'account.aliases_empty'|trans }}</div>
+                    {{ form_help(form.aliases) }}
+                    {{ form_errors(form.aliases) }}
+                    <span class="invalid-feedback d-block" data-account-list-feedback{% if not aliasesInvalid %} style="display: none;"{% endif %}></span>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="account-list-editor account-list-editor-folders{% if foldersInvalid %} account-list-editor-invalid{% endif %}"
+                     data-account-list-editor
+                     data-account-list-type="folder"
+                     data-primary-label="{{ 'account.folder_name'|trans }}"
+                     data-primary-placeholder="{{ 'account.folders_placeholder'|trans }}"
+                     data-secondary-label="{{ 'account.sort_order'|trans }}"
+                     data-secondary-placeholder="{{ 'account.sort_order_placeholder'|trans }}"
+                     data-tertiary-label="{{ 'account.folder_functions'|trans }}"
+                     data-folder-function-options="{{ folderFunctionOptions|json_encode|e('html_attr') }}">
+                    {{ form_label(form.folders, null, {'label_attr': {'class': 'form-label'}}) }}
+                    {{ form_widget(form.folders, {'attr': {'class': 'd-none', 'data-account-list-storage': 'true'}}) }}
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="small text-body-secondary">{{ 'account.folder_fields_help'|trans }}</div>
+                        <button type="button" class="btn btn-primary" data-account-list-add>
+                            <i class="fa-solid fa-plus me-2" aria-hidden="true"></i>{{ 'account.add_folder'|trans }}
+                        </button>
+                    </div>
+                    <div class="account-list-items" data-account-list-items data-remove-label="{{ 'account.remove_folder'|trans }}"></div>
+                    <div class="account-list-empty text-body-secondary small" data-account-list-empty>{{ 'account.folders_empty'|trans }}</div>
+                    {{ form_help(form.folders) }}
+                    {{ form_errors(form.folders) }}
+                    <span class="invalid-feedback d-block" data-account-list-feedback{% if not foldersInvalid %} style="display: none;"{% endif %}></span>
+                </div>
+            </div>
+        </div>
+        <div class="modal-form-buttons d-none">
+            {{ form_widget(form.save) }}
+        </div>
+    {{ form_end(form) }}
+</div>

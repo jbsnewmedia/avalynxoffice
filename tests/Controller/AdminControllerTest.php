@@ -86,11 +86,13 @@ final class AdminControllerTest extends WebTestCase
         $this->client->request('GET', '/admin/accounts/view');
         self::assertResponseIsSuccessful();
 
+        // The create/edit forms are modal fragments: they are only served
+        // to XMLHttpRequests.
         $this->client->request('GET', '/admin/accounts/new');
-        self::assertResponseIsSuccessful();
+        self::assertResponseStatusCodeSame(403);
 
         $this->client->request('GET', sprintf('/admin/accounts/%s/edit', $account->getId()));
-        self::assertResponseIsSuccessful();
+        self::assertResponseStatusCodeSame(403);
 
         $this->client->request('GET', '/admin/connectors');
         self::assertResponseIsSuccessful();
@@ -177,8 +179,7 @@ final class AdminControllerTest extends WebTestCase
         self::assertSame('Updated Account', $updatedAccount->getName());
         self::assertSame('updated@example.com', $updatedAccount->getEmail());
 
-        $tokenCrawler = $this->client->request('GET', '/admin/accounts', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
-        $token = $tokenCrawler->filter(sprintf('form[action="/admin/accounts/%s"] input[name="_token"]', $updatedAccount->getId()))->attr('value');
+        $token = $this->fetchDeleteTokenForAccount('updated@example.com');
         self::assertNotNull($token);
         $this->client->request('POST', sprintf('/admin/accounts/%s', $updatedAccount->getId()), ['_token' => $token], [], ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseRedirects('/admin/accounts');
@@ -476,6 +477,157 @@ final class AdminControllerTest extends WebTestCase
     private function loginAdmin(): void
     {
         $this->client->loginUser($this->adminUser);
+    }
+
+    /**
+     * Fetches the admin account datatable payload.
+     *
+     * @param array<string, string> $params
+     *
+     * @return array<string, mixed>
+     */
+    private function fetchAccountData(array $params = []): array
+    {
+        $this->client->request('POST', '/admin/accounts/data', $params);
+
+        self::assertResponseIsSuccessful();
+
+        $decoded = json_decode((string) $this->client->getResponse()->getContent(), true);
+        \assert(is_array($decoded));
+
+        return $decoded;
+    }
+
+    /**
+     * Extracts the delete CSRF token for the account with the given email
+     * from the datatable row options.
+     */
+    private function fetchDeleteTokenForAccount(string $email): ?string
+    {
+        $payload = $this->fetchAccountData(['search' => $email]);
+
+        foreach ($payload['data'] as $row) {
+            \assert(is_array($row) && is_array($row['data']));
+            if ($row['data']['email'] === $email) {
+                preg_match('/name="_token" value="([^"]+)"/', (string) $row['data']['options'], $matches);
+
+                return $matches[1] ?? null;
+            }
+        }
+
+        return null;
+    }
+
+    public function testAccountDataEndpointReturnsRowsWithRelations(): void
+    {
+        $this->loginAdmin();
+
+        $user = (new User())
+            ->setEmail('member@example.com')
+            ->setPassword('secret');
+        $this->entityManager->persist($user);
+
+        $account = $this->createAccount('Zeta Account', 'zeta@example.com');
+        $connector = $this->createConnector($account, 'Zeta Connector', 'zeta@example.com');
+        $alias = (new AccountAlias())->setAccount($account)->setConnector($connector)->setLocalPart('info');
+        $account->addAlias($alias);
+        $this->entityManager->persist($alias);
+        $account->addUser($user);
+
+        // A folder without any function is rendered with the "none" label.
+        $plainFolder = (new Folder())->setName('Archiv');
+        $this->entityManager->persist($plainFolder);
+        $account->addFolder($plainFolder);
+        $this->entityManager->flush();
+
+        $payload = $this->fetchAccountData();
+
+        self::assertSame(1, $payload['count']['total']);
+        self::assertSame(1, $payload['count']['all']);
+        self::assertSame(['name' => 'asc'], $payload['sorting']);
+        self::assertCount(1, $payload['data']);
+
+        $row = $payload['data'][0]['data'];
+        self::assertSame('Zeta Account', $row['name']);
+        self::assertSame('zeta@example.com', $row['email']);
+        self::assertStringContainsString('member@example.com', $row['users']);
+        self::assertStringContainsString('info@example.com', $row['aliases']);
+        self::assertStringContainsString('Archiv', $row['folders']);
+        self::assertStringContainsString('No function', $row['folders']);
+        self::assertStringContainsString($this->generateAccountEditUrl((string) $account->getId()), $row['options']);
+        self::assertStringContainsString('btn-primary', $row['options']);
+        self::assertStringContainsString('btn-danger', $row['options']);
+    }
+
+    public function testCreateWithInvalidBaseFieldsKeepsFormOpen(): void
+    {
+        $this->loginAdmin();
+
+        $crawler = $this->client->request('GET', '/admin/accounts/new', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        self::assertResponseIsSuccessful();
+
+        $form = $crawler->filter('form')->form();
+        $values = $form->getPhpValues();
+        $values['account']['name'] = '';
+        $values['account']['email'] = 'broken';
+
+        $this->client->request('POST', '/admin/accounts/new', $values, server: ['HTTP_X-Requested-With' => 'XMLHttpRequest']);
+        self::assertResponseStatusCodeSame(422);
+
+        $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertFalse($data['success']);
+        self::assertArrayHasKey('account[name]', $data['invalid']);
+        self::assertArrayHasKey('account[email]', $data['invalid']);
+        self::assertNull($this->entityManager->getRepository(Account::class)->findOneBy(['email' => 'broken']));
+    }
+
+    public function testAccountDataEndpointSearchesFiltersAndValidatesSorting(): void
+    {
+        $this->loginAdmin();
+        $this->createAccount('Alpha Account', 'alpha@example.com');
+
+        $filtered = $this->fetchAccountData(['search' => 'alpha']);
+        self::assertSame(1, $filtered['count']['filtered']);
+        self::assertSame('alpha@example.com', $filtered['data'][0]['data']['email']);
+
+        $noMatch = $this->fetchAccountData(['search' => 'nothing-matches']);
+        self::assertSame(0, $noMatch['count']['filtered']);
+        self::assertSame([], $noMatch['data']);
+        self::assertSame(0, $noMatch['count']['start']);
+
+        $invalidJson = $this->fetchAccountData(['sorting' => '{not-json']);
+        self::assertSame(['name' => 'asc'], $invalidJson['sorting']);
+
+        $unknownColumn = $this->fetchAccountData(['sorting' => json_encode(['hacker' => 'desc'])]);
+        self::assertSame(['name' => 'asc'], $unknownColumn['sorting']);
+
+        $byEmail = $this->fetchAccountData(['sorting' => json_encode(['email' => 'desc'])]);
+        self::assertSame(['email' => 'desc'], $byEmail['sorting']);
+
+        $invalidPerPage = $this->fetchAccountData(['perpage' => '13']);
+        self::assertSame(10, $invalidPerPage['count']['perpage']);
+    }
+
+    public function testAccountDataEndpointRequiresAdminRole(): void
+    {
+        $user = (new User())
+            ->setEmail('user@example.com')
+            ->setPassword('secret');
+        $this->entityManager->persist($user);
+        $this->entityManager->flush();
+
+        $this->client->loginUser($user);
+        $this->client->request('POST', '/admin/accounts/data');
+
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    private function generateAccountEditUrl(string $id): string
+    {
+        /** @var \Symfony\Component\Routing\RouterInterface $router */
+        $router = static::getContainer()->get('router');
+
+        return $router->generate('account_edit', ['id' => $id]);
     }
 
     public function testConnectorRoutesRequireAdminRole(): void
