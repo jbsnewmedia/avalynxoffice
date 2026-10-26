@@ -1,5 +1,6 @@
 {% extends 'base.html.twig' %}
 {% block title %}{{ 'settings.nav.design'|trans }} - {{ 'app.title'|trans }}{% endblock %}
+{% block flashes %}{% endblock %}
 {% block stylesheets %}
     {% include '_assets.html.twig' with { mode: 'user' } %}
     {{ parent() }}
@@ -10,6 +11,7 @@
     <main class="flex-grow-1 py-4">
         <div class="container">
             {% include 'settings/_nav.html.twig' with { active: 'design' } %}
+            {% include 'connector/_flashes.html.twig' %}
 
             <h1 class="h3 mb-4">{{ 'settings.nav.design'|trans }}</h1>
 

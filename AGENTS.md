@@ -77,16 +77,37 @@ Notes:
     field (wrap field + feedback in a `.form-group` container), otherwise
     AvalynxForm has nowhere to render the inline message.
 
+## Feedback placement (HARD RULE — never violate this)
+
+Every piece of user feedback has a fixed place. **NEVER** render feedback
+above the navbar or outside the module content:
+
+1. **Field errors → inline at the field.** Validation errors are answered
+   by the server with `AvalynxFormResponse::invalid(['field' => message])`
+   and rendered by AvalynxForm directly next to the input
+   (`.invalid-feedback`). Never put field errors into a flash alert.
+2. **Success / saved / info / warning / danger messages (flashes) → inside
+   the module content area**, below the module nav and above/inside the
+   module content — never at the top of the page. `base.html.twig` renders
+   the `flashes` block above the navbar; **every page that extends
+   `base.html.twig` MUST therefore silence it with
+   `{% block flashes %}{% endblock %}`** and render the alerts itself
+   inside the content via `{% include 'connector/_flashes.html.twig' %}`
+   (that partial is the shared, module-independent include despite its
+   location). Applies to EVERY page — settings pages, profile pages, mail
+   pages, admin pages — not only admin modules.
+3. Reference implementations: `templates/connector/settings.html.twig`,
+   `templates/admin/system.html.twig`, `templates/legal/admin.html.twig`.
+   Before building a new page, copy the skeleton of one of these.
+
+A code review/checklist item for every new template: does the page have
+`{% block flashes %}{% endblock %}` AND an in-content
+`_flashes.html.twig` include? If not, it is broken.
+
 ## Flash messages
 
-- Flash alerts (`addFlash(...)`) must be rendered **inside the module
-    content area** (below the admin nav, above the module content) —
-    never at the top of the page above the navbar. `base.html.twig`
-    renders the `flashes` block above everything; every module page must
-    therefore silence it with `{% block flashes %}{% endblock %}` and
-    render the alerts itself inside the module (see
-    `templates/connector/_flashes.html.twig` and
-    `templates/legal/_admin_content.html.twig` for the pattern).
+(Merged into "Feedback placement" above — the rules there replace this
+section; kept as pointer so greps still find it.)
 
 ## Test data flow
 
