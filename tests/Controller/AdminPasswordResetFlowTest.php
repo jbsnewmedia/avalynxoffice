@@ -455,9 +455,13 @@ final class AdminPasswordResetFlowTest extends WebTestCase
         self::assertSame(1, preg_match('/<code class="fs-5">([A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4})<\/code>/s', $content, $tokenMatches));
         self::assertSame(1, preg_match('/<code class="fs-5">(\d{4})<\/code>/s', $content, $numberMatches));
 
-        // Reloading the page must not show the code again.
+        // Reloading the page must not show the code again. The check runs
+        // against the visible page text: raw HTML would also match random
+        // asset version hashes that happen to contain the number.
         $this->client->request('GET', '/admin/password-resets');
-        self::assertStringNotContainsString((string) $numberMatches[1], (string) $this->client->getResponse()->getContent());
+        $reloadCrawler = $this->client->getCrawler();
+        self::assertSame(0, $reloadCrawler->filter('code.fs-5')->count());
+        self::assertStringNotContainsString((string) $numberMatches[1], $reloadCrawler->text());
 
         $openRequest = $this->findResetRequest($tokenMatches[1]);
         $id = $openRequest->getId()?->toRfc4122() ?? '';
