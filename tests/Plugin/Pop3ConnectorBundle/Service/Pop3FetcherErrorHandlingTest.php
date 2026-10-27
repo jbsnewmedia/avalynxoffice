@@ -252,14 +252,14 @@ final class Pop3FetcherErrorHandlingTest extends TestCase
         $connector = $this->createConnector($account);
 
         $storage = $this->createStorage();
-        $storage->method('countMessages')->willReturn(1);
-        $storage->method('getUniqueId')->willReturn('uid-1');
+        $storage->method('getUniqueId')->willReturn([1 => 'uid-1']);
         $storage->method('getMessage')->willThrowException(new \RuntimeException('Header kaputt'));
         $storage->method('getRawHeader')->willThrowException(new \RuntimeException('no api'));
         $storage->method('getRawContent')->willThrowException(new \RuntimeException('no api'));
         $this->setProtocol($storage, new FakeProtocol("Subject: Sanitized\nFrom: Sender <sender@example.com>\n\nBody"));
 
         $emailRepository = $this->createStub(EmailRepository::class);
+        $emailRepository->method('importKeysForConnector')->willReturn([]);
         $emailRepository->method('findOneBy')->willReturn(null);
 
         $addressRepository = $this->createStub(\Doctrine\ORM\EntityRepository::class);
@@ -293,14 +293,14 @@ final class Pop3FetcherErrorHandlingTest extends TestCase
         $errorLogPath = $this->tempDir.'/err.log';
 
         $storage = $this->createStorage();
-        $storage->method('countMessages')->willReturn(1);
-        $storage->method('getUniqueId')->willReturn('uid-1');
+        $storage->method('getUniqueId')->willReturn([1 => 'uid-1']);
         $storage->method('getMessage')->willThrowException(new \RuntimeException('Header kaputt'));
         $storage->method('getRawHeader')->willThrowException(new \RuntimeException('no api'));
         $storage->method('getRawContent')->willThrowException(new \RuntimeException('no api'));
         $this->setProtocol($storage, new FakeProtocol("J\xfcrgen: kaputt\n\nBody"));
 
         $emailRepository = $this->createStub(EmailRepository::class);
+        $emailRepository->method('importKeysForConnector')->willReturn([]);
         $emailRepository->method('findOneBy')->willReturn(null);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
@@ -336,8 +336,7 @@ final class Pop3FetcherErrorHandlingTest extends TestCase
         $connector = $this->createConnector($account);
 
         $storage = $this->createStorage();
-        $storage->method('countMessages')->willReturn(1);
-        $storage->method('getUniqueId')->willReturn('uid-1');
+        $storage->method('getUniqueId')->willReturn([1 => 'uid-1']);
         $storage->method('getMessage')->willThrowException(new \RuntimeException('Header kaputt'));
         $storage->method('getRawHeader')->willThrowException(new \RuntimeException('no api'));
         $storage->method('getRawContent')->willThrowException(new \RuntimeException('no api'));

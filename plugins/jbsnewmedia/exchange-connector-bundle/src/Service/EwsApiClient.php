@@ -44,24 +44,34 @@ final readonly class EwsApiClient
     /**
      * Lists the item ids of a distinguished folder via FindItem (server
      * side sort, offset paging), honoring the limit and the "fetch from"
-     * date (server side restriction).
+     * date (server side restriction). Items already imported ($isKnown)
+     * never occupy the window — the scan walks over them cheaply (IdOnly
+     * pages, bounded by $pageBudget) until it finds unknown items.
      *
-     * @return array{total: int, items: list<EwsItemRef>}
+     * @param ?\Closure(EwsItemRef): bool $isKnown
+     *
+     * @return array{total: int, items: list<EwsItemRef>, budgetExhausted: bool}
      */
-    public function listItemRefs(string $folder, string $sortFieldUri, bool $oldestFirst, ?int $limit, ?\DateTimeInterface $fetchFrom = null): array
-    {
+    public function listItemRefs(
+        string $folder,
+        string $sortFieldUri,
+        bool $oldestFirst,
+        ?int $limit,
+        ?\DateTimeInterface $fetchFrom = null,
+        ?\Closure $isKnown = null,
+        int $pageBudget = 20,
+    ): array {
         $refs = [];
         $total = 0;
         $offset = 0;
-        $remaining = $limit;
+        $pages = 0;
         $client = $this->api->getClient();
         while (true) {
-            $maxEntries = null !== $remaining ? min(50, $remaining) : 50;
             $request = [
                 'Traversal' => 'Shallow',
                 'ItemShape' => ['BaseShape' => 'IdOnly'],
                 'IndexedPageItemView' => [
-                    'MaxEntriesReturned' => $maxEntries,
+                    'MaxEntriesReturned' => 50,
                     'Offset' => $offset,
                     'BasePoint' => 'Beginning',
                 ],
@@ -82,21 +92,27 @@ final readonly class EwsApiClient
             $totalInView = $result->getTotalItemsInView();
             $total = max($total, is_numeric($totalInView) ? (int) $totalInView : 0);
             [$pageRefs, $pageCount] = $this->extractItemRefs($result->getItems());
-            $refs = array_merge($refs, $pageRefs);
-            if (null !== $remaining) {
-                $remaining -= $pageCount;
-                if ($remaining <= 0) {
-                    break;
+            ++$pages;
+            foreach ($pageRefs as $ref) {
+                if (null !== $isKnown && $isKnown($ref)) {
+                    continue;
+                }
+                $refs[] = $ref;
+                if (null !== $limit && count($refs) >= $limit) {
+                    return ['total' => $total, 'items' => array_slice($refs, 0, $limit), 'budgetExhausted' => false];
                 }
             }
             if ($result->isIncludesLastItemInRange() || 0 === $pageCount) {
                 break;
             }
+            if ($pages >= $pageBudget) {
+                return ['total' => $total, 'items' => $refs, 'budgetExhausted' => true];
+            }
             $nextOffset = $result->getIndexedPagingOffset();
             $offset = is_numeric($nextOffset) ? (int) $nextOffset : $offset + $pageCount;
         }
 
-        return ['total' => $total, 'items' => $refs];
+        return ['total' => $total, 'items' => $refs, 'budgetExhausted' => false];
     }
 
     /**

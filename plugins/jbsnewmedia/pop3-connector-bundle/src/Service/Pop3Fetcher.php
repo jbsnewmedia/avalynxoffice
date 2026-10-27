@@ -282,48 +282,55 @@ class Pop3Fetcher
         }
         try {
             $this->log('Listing messages on the server ...');
-            $count = $storage->countMessages();
-            $this->log(sprintf('%d messages found.', $count));
-            $indices = [];
-            $limit = $request->limit;
-            // With "fetch from" set, locate the first message at or after
-            // the date (the day itself is included) and walk upwards from
-            // there, oldest entries first.
-            if (null !== $fetchFrom) {
-                $start = $this->findFetchFromBoundary($storage, $count, $fetchFrom);
-                $this->log(sprintf('"Fetch from" is set (%s): processing from message %d upwards, oldest first.', $fetchFrom->format('d.m.Y'), $start));
-                $end = null !== $limit ? min($count, $start + $limit - 1) : $count;
-                for ($i = $start; $i <= $end; ++$i) {
-                    $indices[] = $i;
-                }
-            } elseif (null !== $limit && !$request->oldestFirst) {
-                for ($i = $count; $i > max(0, $count - $limit); --$i) {
-                    $indices[] = $i;
-                }
-                $this->log(sprintf('Processing the newest %d messages ...', count($indices)));
-            } elseif (null !== $limit && $request->oldestFirst) {
-                for ($i = 1; $i <= min($count, $limit); ++$i) {
-                    $indices[] = $i;
-                }
-                $this->log(sprintf('Processing the oldest %d messages ...', count($indices)));
-            } elseif ($request->oldestFirst) {
-                for ($i = 1; $i <= $count; ++$i) {
-                    $indices[] = $i;
-                }
-                $this->log('Processing all messages (oldest first) ...');
-            } else {
-                for ($i = $count; $i >= 1; --$i) {
-                    $indices[] = $i;
-                }
-                $this->log('Processing all messages (newest first) ...');
+            $uidls = $storage->getUniqueId();
+            if (!is_array($uidls)) {
+                throw new \RuntimeException('Could not list the messages on the server.');
             }
+            $count = count($uidls);
+            $this->log(sprintf('%d messages found.', $count));
+
+            // Diff the server messages against everything already imported:
+            // known messages must never occupy the fetch window, otherwise
+            // the sync would re-check the same messages forever.
+            $known = $this->emailRepo->importKeysForConnector($connector);
+            $connectorId = (string) $connector->getId();
+            $candidates = [];
+            foreach ($uidls as $num => $uidl) {
+                if (!is_string($uidl) || '' === $uidl) {
+                    continue;
+                }
+                $importKey = $connectorId.':'.$uidl;
+                if (!isset($known[$importKey])) {
+                    $candidates[(int) $num] = $importKey;
+                }
+            }
+            if ($request->oldestFirst) {
+                ksort($candidates);
+            } else {
+                krsort($candidates);
+            }
+
+            // With "fetch from" set, start at the date boundary (the day
+            // itself counts) — messages below the boundary are never
+            // imported, so they are dropped from the candidates entirely.
+            if (null !== $fetchFrom) {
+                $boundary = $this->findFetchFromBoundary($storage, $count, $fetchFrom);
+                $this->log(sprintf('"Fetch from" is set (%s): skipping messages below message %d.', $fetchFrom->format('d.m.Y'), $boundary));
+                $candidates = array_filter(
+                    $candidates,
+                    static fn (int $num): bool => $num >= $boundary,
+                    ARRAY_FILTER_USE_KEY,
+                );
+            }
+
+            $indices = array_slice(array_keys($candidates), 0, $request->limit);
+            $this->log(sprintf('%d new messages to process.', count($indices)));
+            $deleteNumbers = [];
             foreach ($indices as $num) {
-                $uidl = null;
+                $uidl = is_string($uidls[$num] ?? null) ? $uidls[$num] : (string) $num;
                 $subject = null;
                 $hadEncodingIssues = false;
                 try {
-                    $uidlRaw = $storage->getUniqueId($num);
-                    $uidl = is_string($uidlRaw) ? $uidlRaw : (string) $num;
                     $importKey = (string) $connector->getId().':'.$uidl;
                     $this->log(sprintf('Checking message %d (UIDL: %s) ...', $num, $uidl), 'comment');
                     $exists = $this->emailRepo->findOneBy(['importKey' => $importKey]);
@@ -404,8 +411,9 @@ class Pop3Fetcher
                         throw $e;
                     }
                     if ($delete) {
-                        $this->log('Deleting message from server ...');
-                        $storage->removeMessage($num);
+                        // Deferred: message numbers shift on deletion, so all
+                        // deletions run after the loop, highest number first.
+                        $deleteNumbers[] = $num;
                     }
                     $this->log('Message imported successfully.', 'info');
                     ++$imported;
@@ -418,6 +426,13 @@ class Pop3Fetcher
                     }
                     $this->em->clear();
                     $connector = $this->em->find(Connector::class, $connector->getId()) ?? $connector;
+                }
+            }
+            if ([] !== $deleteNumbers) {
+                $this->log(sprintf('Deleting %d imported messages from the server ...', count($deleteNumbers)));
+                rsort($deleteNumbers);
+                foreach ($deleteNumbers as $num) {
+                    $storage->removeMessage($num);
                 }
             }
             $this->updateServerTotal($connector, $config, $count, $delete, $imported);

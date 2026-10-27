@@ -65,14 +65,14 @@ final class Pop3FetcherFetchTest extends TestCase
     public function testFetchForConnectorSkipsAlreadyImportedMessages(): void
     {
         $storage = $this->createMock(Pop3Storage::class);
-        $storage->method('countMessages')->willReturn(1);
-        $storage->method('getUniqueId')->with(1)->willReturn('uid-1');
+        $storage->method('getUniqueId')->willReturn([1 => 'uid-1']);
         $storage->expects(self::never())->method('getMessage');
 
         $factory = $this->createStub(Pop3StorageFactory::class);
         $factory->method('create')->willReturn($storage);
 
         $emailRepository = $this->createMock(EmailRepository::class);
+        $emailRepository->method('importKeysForConnector')->willReturn([]);
         $connector = $this->createConnector();
         $emailRepository
             ->expects(self::once())
@@ -106,14 +106,14 @@ final class Pop3FetcherFetchTest extends TestCase
         $connector = $this->createConnector($account);
 
         $storage = $this->createMock(Pop3Storage::class);
-        $storage->method('countMessages')->willReturn(1);
-        $storage->expects(self::once())->method('getUniqueId')->with(1)->willReturn('uid-1');
+        $storage->method('getUniqueId')->willReturn([1 => 'uid-1']);
         $storage->expects(self::once())->method('getMessage')->with(1)->willReturn($this->createMessageStub());
 
         $factory = $this->createStub(Pop3StorageFactory::class);
         $factory->method('create')->willReturn($storage);
 
         $emailRepository = $this->createMock(EmailRepository::class);
+        $emailRepository->method('importKeysForConnector')->willReturn([]);
         $emailRepository
             ->expects(self::exactly(2))
             ->method('findOneBy')
@@ -154,8 +154,7 @@ final class Pop3FetcherFetchTest extends TestCase
         $connector = $this->createConnector();
 
         $storage = $this->createMock(Pop3Storage::class);
-        $storage->method('countMessages')->willReturn(1);
-        $storage->method('getUniqueId')->willReturn('uid-1');
+        $storage->method('getUniqueId')->willReturn([1 => 'uid-1']);
         $storage->method('getMessage')->willReturn($this->createMessageStub());
         $storage->expects(self::never())->method('removeMessage');
 
@@ -163,6 +162,7 @@ final class Pop3FetcherFetchTest extends TestCase
         $factory->method('create')->willReturn($storage);
 
         $emailRepository = $this->createStub(EmailRepository::class);
+        $emailRepository->method('importKeysForConnector')->willReturn([]);
         $emailRepository->method('findOneBy')->willReturn(null);
 
         $folderManager = $this->createMock(FolderManager::class);
@@ -189,14 +189,14 @@ final class Pop3FetcherFetchTest extends TestCase
         $connector = $this->createConnector($account);
 
         $storage = $this->createMock(Pop3Storage::class);
-        $storage->method('countMessages')->willReturn(1);
-        $storage->expects(self::once())->method('getUniqueId')->with(1)->willReturn('uid-1');
+        $storage->method('getUniqueId')->willReturn([1 => 'uid-1']);
         $storage->expects(self::once())->method('getMessage')->with(1)->willReturn($this->createMessageStub());
 
         $factory = $this->createStub(Pop3StorageFactory::class);
         $factory->method('create')->willReturn($storage);
 
         $emailRepository = $this->createMock(EmailRepository::class);
+        $emailRepository->method('importKeysForConnector')->willReturn([]);
         $emailRepository
             ->expects(self::exactly(2))
             ->method('findOneBy')
@@ -228,12 +228,7 @@ final class Pop3FetcherFetchTest extends TestCase
         $processed = [];
 
         $storage = $this->createMock(Pop3Storage::class);
-        $storage->method('countMessages')->willReturn(3);
-        $storage->method('getUniqueId')->willReturnCallback(function (int $num) use (&$processed): string {
-            $processed[] = $num;
-
-            return 'uid-'.$num;
-        });
+        $storage->method('getUniqueId')->willReturn([1 => 'uid-1', 2 => 'uid-2', 3 => 'uid-3']);
         $storage->expects(self::never())->method('getMessage');
 
         $factory = $this->createMock(Pop3StorageFactory::class);
@@ -243,8 +238,16 @@ final class Pop3FetcherFetchTest extends TestCase
             ->with(self::callback(static fn (array $config): bool => 'TLS' === $config['ssl']))
             ->willReturn($storage);
 
-        $emailRepository = $this->createStub(EmailRepository::class);
-        $emailRepository->method('findOneBy')->willReturn(new \stdClass());
+        $emailRepository = $this->createMock(EmailRepository::class);
+        $emailRepository->method('importKeysForConnector')->willReturn([]);
+        $emailRepository->method('findOneBy')->willReturnCallback(static function (array $criteria) use (&$processed): mixed {
+            $key = $criteria['importKey'] ?? null;
+            if (is_string($key)) {
+                $processed[] = $key;
+            }
+
+            return new \stdClass();
+        });
 
         $folderManager = $this->createMock(FolderManager::class);
         $folderManager->expects(self::never())->method('ensureSystemFolder');
@@ -259,8 +262,9 @@ final class Pop3FetcherFetchTest extends TestCase
             $this->createStub(ConnectorConfigRepository::class),
         );
 
+        $connectorId = (string) $connector->getId();
         self::assertSame(['imported' => 0, 'skipped' => 2, 'errors' => 0], $fetcher->fetch($connector, self::config(['pop3Security' => 'tls']), self::request(2, false, true)));
-        self::assertSame([1, 2], $processed);
+        self::assertSame([$connectorId.':uid-1', $connectorId.':uid-2'], $processed);
     }
 
     public function testFetchForConnectorProcessesAllOldestFirstWithoutLimit(): void
@@ -269,19 +273,21 @@ final class Pop3FetcherFetchTest extends TestCase
         $processed = [];
 
         $storage = $this->createMock(Pop3Storage::class);
-        $storage->method('countMessages')->willReturn(2);
-        $storage->method('getUniqueId')->willReturnCallback(function (int $num) use (&$processed): string {
-            $processed[] = $num;
-
-            return 'uid-'.$num;
-        });
-        $storage->expects(self::never())->method('getMessage');
+        $storage->method('getUniqueId')->willReturn([1 => 'uid-1', 2 => 'uid-2']);
 
         $factory = $this->createStub(Pop3StorageFactory::class);
         $factory->method('create')->willReturn($storage);
 
-        $emailRepository = $this->createStub(EmailRepository::class);
-        $emailRepository->method('findOneBy')->willReturn(new \stdClass());
+        $emailRepository = $this->createMock(EmailRepository::class);
+        $emailRepository->method('importKeysForConnector')->willReturn([]);
+        $emailRepository->method('findOneBy')->willReturnCallback(static function (array $criteria) use (&$processed): mixed {
+            $key = $criteria['importKey'] ?? null;
+            if (is_string($key)) {
+                $processed[] = $key;
+            }
+
+            return new \stdClass();
+        });
 
         $folderManager = $this->createMock(FolderManager::class);
         $folderManager->expects(self::never())->method('ensureSystemFolder');
@@ -296,8 +302,9 @@ final class Pop3FetcherFetchTest extends TestCase
             $this->createStub(ConnectorConfigRepository::class),
         );
 
+        $connectorId = (string) $connector->getId();
         self::assertSame(['imported' => 0, 'skipped' => 2, 'errors' => 0], $fetcher->fetch($connector, self::config(), self::request(null, false, true)));
-        self::assertSame([1, 2], $processed);
+        self::assertSame([$connectorId.':uid-1', $connectorId.':uid-2'], $processed);
     }
 
     public function testFetchForConnectorContinuesWhenOpenEntityManagerReportsUniqueConstraint(): void
@@ -309,14 +316,14 @@ final class Pop3FetcherFetchTest extends TestCase
         $connector = $this->createConnector($account);
 
         $storage = $this->createStub(Pop3Storage::class);
-        $storage->method('countMessages')->willReturn(1);
-        $storage->method('getUniqueId')->willReturn('uid-1');
+        $storage->method('getUniqueId')->willReturn([1 => 'uid-1']);
         $storage->method('getMessage')->willReturn($this->createMessageStub());
 
         $factory = $this->createStub(Pop3StorageFactory::class);
         $factory->method('create')->willReturn($storage);
 
         $emailRepository = $this->createStub(EmailRepository::class);
+        $emailRepository->method('importKeysForConnector')->willReturn([]);
         $emailRepository->method('findOneBy')->willReturn(null);
 
         $addressRepository = $this->createStub(EntityRepository::class);
@@ -354,14 +361,14 @@ final class Pop3FetcherFetchTest extends TestCase
         $connector = $this->createConnector($account);
 
         $storage = $this->createStub(Pop3Storage::class);
-        $storage->method('countMessages')->willReturn(1);
-        $storage->method('getUniqueId')->willReturn('uid-1');
+        $storage->method('getUniqueId')->willReturn([1 => 'uid-1']);
         $storage->method('getMessage')->willReturn($this->createMessageStub());
 
         $factory = $this->createStub(Pop3StorageFactory::class);
         $factory->method('create')->willReturn($storage);
 
         $emailRepository = $this->createStub(EmailRepository::class);
+        $emailRepository->method('importKeysForConnector')->willReturn([]);
         $emailRepository->method('findOneBy')->willReturn(null);
 
         $addressRepository = $this->createStub(EntityRepository::class);
@@ -400,20 +407,23 @@ final class Pop3FetcherFetchTest extends TestCase
         $processed = [];
 
         $storage = $this->createMock(Pop3Storage::class);
-        $storage->method('countMessages')->willReturn(3);
-        $storage->method('getUniqueId')->willReturnCallback(function (int $num) use (&$processed): string {
-            $processed[] = $num;
-
-            return 'uid-'.$num;
-        });
+        $storage->method('getUniqueId')->willReturn([1 => 'uid-1', 2 => 'uid-2', 3 => 'uid-3']);
         $storage->method('getMessage')->willReturn($this->createMessageStub());
         $storage->expects(self::exactly(2))->method('removeMessage')->with(self::greaterThan(0));
 
         $factory = $this->createStub(Pop3StorageFactory::class);
         $factory->method('create')->willReturn($storage);
 
-        $emailRepository = $this->createStub(EmailRepository::class);
-        $emailRepository->method('findOneBy')->willReturn(null);
+        $emailRepository = $this->createMock(EmailRepository::class);
+        $emailRepository->method('importKeysForConnector')->willReturn([]);
+        $emailRepository->method('findOneBy')->willReturnCallback(static function (array $criteria) use (&$processed): mixed {
+            $key = $criteria['importKey'] ?? null;
+            if (is_string($key)) {
+                $processed[] = $key;
+            }
+
+            return null;
+        });
 
         $addressRepository = $this->createStub(EntityRepository::class);
         $addressRepository->method('findOneBy')->willReturn(null);
@@ -438,8 +448,9 @@ final class Pop3FetcherFetchTest extends TestCase
             $this->createStub(ConnectorConfigRepository::class),
         );
 
+        $connectorId = (string) $connector->getId();
         self::assertSame(['imported' => 2, 'skipped' => 0, 'errors' => 0], $fetcher->fetch($connector, self::config(), self::request(2, true)));
-        self::assertSame([3, 2], $processed);
+        self::assertSame([$connectorId.':uid-3', $connectorId.':uid-2'], $processed);
     }
 
     public function testFetchForConnectorStopsAfterErrorWhenEntityManagerCloses(): void
@@ -448,12 +459,7 @@ final class Pop3FetcherFetchTest extends TestCase
         $processed = [];
 
         $storage = $this->createStub(Pop3Storage::class);
-        $storage->method('countMessages')->willReturn(2);
-        $storage->method('getUniqueId')->willReturnCallback(function (int $num) use (&$processed): string {
-            $processed[] = $num;
-
-            return 'uid-'.$num;
-        });
+        $storage->method('getUniqueId')->willReturn([1 => 'uid-1', 2 => 'uid-2']);
         $storage->method('getMessage')->willThrowException(new \RuntimeException('broken message'));
         $storage->method('getRawHeader')->willThrowException(new \RuntimeException('no api'));
         $storage->method('getRawContent')->willThrowException(new \RuntimeException('no api'));
@@ -464,12 +470,23 @@ final class Pop3FetcherFetchTest extends TestCase
         $entityManager = $this->createStub(EntityManagerInterface::class);
         $entityManager->method('isOpen')->willReturn(false);
 
+        $emailRepository = $this->createMock(EmailRepository::class);
+        $emailRepository->method('importKeysForConnector')->willReturn([]);
+        $emailRepository->method('findOneBy')->willReturnCallback(static function (array $criteria) use (&$processed): mixed {
+            $key = $criteria['importKey'] ?? null;
+            if (is_string($key)) {
+                $processed[] = $key;
+            }
+
+            return null;
+        });
+
         $folderManager = $this->createMock(FolderManager::class);
         $folderManager->expects(self::never())->method('ensureSystemFolder');
 
         $fetcher = new Pop3Fetcher(
             $entityManager,
-            $this->createStub(EmailRepository::class),
+            $emailRepository,
             $folderManager,
             $this->createStub(AttachmentStorage::class),
             $factory,
@@ -477,8 +494,9 @@ final class Pop3FetcherFetchTest extends TestCase
             $this->createStub(ConnectorConfigRepository::class),
         );
 
+        $connectorId = (string) $connector->getId();
         self::assertSame(['imported' => 0, 'skipped' => 0, 'errors' => 1], $fetcher->fetch($connector, self::config(), self::request()));
-        self::assertSame([2], $processed);
+        self::assertSame([$connectorId.':uid-2'], $processed);
     }
 
 
@@ -549,8 +567,7 @@ final class Pop3FetcherFetchTest extends TestCase
         $connector = $this->createConnector($account);
 
         $storage = $this->createMock(Pop3Storage::class);
-        $storage->method('countMessages')->willReturn(1);
-        $storage->method('getUniqueId')->with(1)->willReturn('uid-1');
+        $storage->method('getUniqueId')->willReturn([1 => 'uid-1']);
         $storage->expects(self::never())->method('removeMessage');
         $storage->expects(self::once())->method('close');
 
@@ -558,6 +575,7 @@ final class Pop3FetcherFetchTest extends TestCase
         $factory->method('create')->willReturn($storage);
 
         $emailRepository = $this->createMock(EmailRepository::class);
+        $emailRepository->method('importKeysForConnector')->willReturn([]);
         $emailRepository->method('findOneBy')->willReturn(new \stdClass());
         $emailRepository->method('count')->with(['connector' => $connector])->willReturn(5);
 
@@ -591,14 +609,14 @@ final class Pop3FetcherFetchTest extends TestCase
         $connector = $this->createConnector();
 
         $storage = $this->createMock(Pop3Storage::class);
-        $storage->method('countMessages')->willReturn(1);
-        $storage->method('getUniqueId')->with(1)->willReturn('uid-1');
+        $storage->method('getUniqueId')->willReturn([1 => 'uid-1']);
         $storage->expects(self::once())->method('close');
 
         $factory = $this->createStub(Pop3StorageFactory::class);
         $factory->method('create')->willReturn($storage);
 
         $emailRepository = $this->createStub(EmailRepository::class);
+        $emailRepository->method('importKeysForConnector')->willReturn([]);
         $emailRepository->method('findOneBy')->willReturn(new \stdClass());
 
         $configRepository = $this->createStub(ConnectorConfigRepository::class);

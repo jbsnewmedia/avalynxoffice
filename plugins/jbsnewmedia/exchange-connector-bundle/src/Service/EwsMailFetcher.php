@@ -62,7 +62,15 @@ final class EwsMailFetcher extends AbstractEwsFetcher
             if (null !== $fetchFrom) {
                 $this->log(sprintf('"Fetch from" is set (%s): fetching from the oldest entry at or after the date.', $fetchFrom->format('d.m.Y')));
             }
-            $listing = $client->listItemRefs('inbox', 'item:DateTimeReceived', $oldestFirst, $request->limit, $fetchFrom);
+            // Diff against everything already imported: known messages
+            // never occupy the fetch window.
+            $known = $this->emailRepo->importKeysForConnector($connector);
+            $importKeyPrefix = (string) $connector->getId().':';
+            $isKnown = static fn (EwsItemRef $ref): bool => isset($known[$importKeyPrefix.$ref->id]);
+            $listing = $client->listItemRefs('inbox', 'item:DateTimeReceived', $oldestFirst, $request->limit, $fetchFrom, $isKnown);
+            if ($listing['budgetExhausted']) {
+                $this->log(sprintf('Scan budget reached after %d pages without filling the batch. Consider setting a "fetch from" date for large mailboxes.', 20), 'comment');
+            }
             $itemRefs = $listing['items'];
             $this->log(sprintf('%d messages found.', count($itemRefs)));
             foreach ($itemRefs as $ref) {

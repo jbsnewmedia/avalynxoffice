@@ -504,8 +504,7 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
             ."Imported body";
 
         $storage = $this->createMock(\Laminas\Mail\Storage\Pop3::class);
-        $storage->method('countMessages')->willReturn(1);
-        $storage->method('getUniqueId')->with(1)->willReturn('uid-import-1');
+        $storage->method('getUniqueId')->willReturn([1 => 'uid-import-1']);
         $storage->method('getMessage')->with(1)->willReturn(new \Laminas\Mail\Storage\Message(['raw' => $rawMessage]));
         $storage->expects(self::once())->method('removeMessage')->with(1);
 
@@ -550,14 +549,15 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
 
         // A repeated import does not create duplicates.
         $storage2 = $this->createMock(\Laminas\Mail\Storage\Pop3::class);
-        $storage2->method('countMessages')->willReturn(1);
-        $storage2->method('getUniqueId')->with(1)->willReturn('uid-import-1');
+        $storage2->method('getUniqueId')->willReturn([1 => 'uid-import-1']);
         $storage2->method('getMessage')->with(1)->willReturn(new \Laminas\Mail\Storage\Message(['raw' => $rawMessage]));
         $storage2->expects(self::never())->method('removeMessage');
         $factory->method('create')->willReturn($storage2);
 
+        // The diff drops the already imported message from the candidates:
+        // nothing is re-downloaded, nothing is duplicated.
         $result2 = $fetcher->fetch($this->connector, $config, $request);
-        self::assertSame(['imported' => 0, 'skipped' => 1, 'errors' => 0], $result2);
+        self::assertSame(['imported' => 0, 'skipped' => 0, 'errors' => 0], $result2);
         self::assertCount(1, $this->em->getRepository(Email::class)->findBy(['importKey' => $this->connector->getId().':uid-import-1']));
     }
 
