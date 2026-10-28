@@ -176,7 +176,7 @@
                 {% endif %}
             {% endfor %}
             {% if htmlBody %}
-                {% set srcdocHtml = '<!DOCTYPE html><html><head><meta charset="utf-8"><base target="_blank"><style>body{margin:0;padding:16px;word-wrap:break-word;color:#212529;background:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;}img{max-width:100%;height:auto;}a{color:#0d6efd;}table{max-width:100%;}</style></head><body>' ~ htmlBody ~ '</body></html>' %}
+                {% set srcdocHtml = '<!DOCTYPE html><html><head><meta charset="utf-8"><base target="_blank"><style>body{margin:0;padding:16px;word-wrap:break-word;color:#212529;background:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;}img{max-width:100%;height:auto;}a{color:#0d6efd;}table{max-width:100%;}</style></head><body>' ~ (htmlBody|email_inline_images(email)) ~ '</body></html>' %}
                 <iframe class="email-html-frame"
                         srcdoc="{{ srcdocHtml|e('html_attr') }}"
                         sandbox="allow-popups"
