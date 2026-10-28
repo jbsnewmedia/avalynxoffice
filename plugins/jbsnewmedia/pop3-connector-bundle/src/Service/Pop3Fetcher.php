@@ -841,6 +841,7 @@ class Pop3Fetcher
         $data = $this->getPartContent($part, true);
         $att = new Attachment();
         $att->setName($filename);
+        $att->setContentId($this->detectContentId($part));
         $att->setSize(strlen($data));
         $att->setMimeType($contentType ?: 'application/octet-stream');
         $att->setSha1(sha1($data));
@@ -870,11 +871,37 @@ class Pop3Fetcher
                 } elseif (is_string($v)) {
                     $value = $v;
                 }
-                if ('' !== $value && preg_match('/filename\s*=\s*\"?([^\";]+)\"?/i', $value, $m)) {
+                if ('' !== $value && preg_match('/filename\s*=\s*"?([^";]+)"?/i', $value, $m)) {
                     return basename($this->toUtf8($this->decodeHeaderValue($m[1])));
                 }
             } catch (\Throwable) {
             }
+        }
+
+        return null;
+    }
+
+    /**
+     * Content-ID of an inline image part (referenced by the HTML body via
+     * "cid:<content id>"), without the angle brackets.
+     */
+    private function detectContentId(StorageMessage $part): ?string
+    {
+        try {
+            $v = $part->getHeader('content-id');
+            $value = '';
+            if ($v instanceof \Laminas\Mail\Header\HeaderInterface) {
+                $value = $v->getFieldValue();
+            } elseif (is_string($v)) {
+                $value = $v;
+            }
+            if ('' !== $value && preg_match('/<([^>]+)>/', $value, $m)) {
+                return trim($m[1]);
+            }
+            if ('' !== $value) {
+                return trim($value);
+            }
+        } catch (\Throwable) {
         }
 
         return null;

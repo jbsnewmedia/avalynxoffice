@@ -466,6 +466,7 @@ final class RawMailImporter
         }
         $att = new Attachment();
         $att->setName($filename);
+        $att->setContentId($this->detectContentId($part));
         $att->setSize(strlen($data));
         $att->setMimeType($contentType ?: 'application/octet-stream');
         $att->setSha1(sha1($data));
@@ -480,6 +481,36 @@ final class RawMailImporter
         $link->setAttachment($att);
         $email->addEmailAttachment($link);
         $this->em->persist($link);
+    }
+
+    /**
+     * Content-ID of an inline image part (referenced by the HTML body via
+     * "cid:<content id>"), without the angle brackets.
+     */
+    private function detectContentId(StorageMessage $part): ?string
+    {
+        try {
+            $headers = $part->getHeaders();
+            if (!$headers->has('content-id')) {
+                return null;
+            }
+            $header = $headers->get('content-id');
+            $value = '';
+            if ($header instanceof \Laminas\Mail\Header\HeaderInterface) {
+                $value = $header->getFieldValue();
+            } elseif (is_string($header)) {
+                $value = $header;
+            }
+            if ('' !== $value && preg_match('/<([^>]+)>/', $value, $m)) {
+                return trim($m[1]);
+            }
+            if ('' !== $value) {
+                return trim($value);
+            }
+        } catch (\Throwable) {
+        }
+
+        return null;
     }
 
     private function detectFileName(StorageMessage $part): ?string

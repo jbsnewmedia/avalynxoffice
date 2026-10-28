@@ -27,6 +27,12 @@ class Attachment
     private ?UuidV7 $id = null;
     #[ORM\Column(type: 'string', length: 255)]
     private string $name;
+    /**
+     * Content-ID of an inline image referenced by the HTML body via
+     * "cid:<content id>" (e.g. "sg24_logo"). Null for regular attachments.
+     */
+    #[ORM\Column(type: 'string', length: 255, nullable: true)]
+    private ?string $contentId = null;
     #[ORM\Column(type: 'integer')]
     private int $size;
     #[ORM\Column(name: 'mime_type', type: 'string', length: 190)]
@@ -60,6 +66,18 @@ class Attachment
     public function setName(string $name): self
     {
         $this->name = $name;
+
+        return $this;
+    }
+
+    public function getContentId(): ?string
+    {
+        return $this->contentId;
+    }
+
+    public function setContentId(?string $contentId): self
+    {
+        $this->contentId = null !== $contentId ? trim($contentId) : null;
 
         return $this;
     }
