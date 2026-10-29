@@ -25,6 +25,10 @@
 
 - When installing code quality tools with Composer, use:
     - `COMPOSER_MEMORY_LIMIT=-1 composer install`
+- The root `composer.lock` and all `vendor-bin/*/composer.lock` files are
+  tracked. `composer install` is therefore reproducible in Docker builds
+  and CI. Dependency updates are deliberate: run `composer update`
+  (forwards to all vendor-bins) and commit the changed lock files.
 
 ## Required project commands
 

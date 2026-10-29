@@ -16,18 +16,13 @@
 ###< php-cs-fixer/shim ###
 /docker/postgres/
 /dist/avalynxoffice-prod.tar.gz
-/composer.lock
 /mail_dumps/
 /yes
 /Neuer Ordner/
 /vendor-bin/ecs/vendor/
-/vendor-bin/ecs/composer.lock
 /vendor-bin/phpstan/vendor/
-/vendor-bin/phpstan/composer.lock
 /vendor-bin/phpunit/vendor/
-/vendor-bin/phpunit/composer.lock
 /vendor-bin/rector/vendor/
-/vendor-bin/rector/composer.lock
 /.junie/memory
 /data/
 /.playwright-mcp/
