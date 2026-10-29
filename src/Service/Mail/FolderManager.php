@@ -23,6 +23,7 @@ class FolderManager
     public const FOLDER_MAILBOX = 'Postfach';
     public const FOLDER_INBOX = 'Posteingang';
     public const FOLDER_OUTBOX = 'Postausgang';
+    public const FOLDER_SCHEDULED = 'Geplant';
     public const FOLDER_DRAFTS = 'Entwürfe';
 
     /**
@@ -34,7 +35,8 @@ class FolderManager
             FolderFunction::MAILBOX->value => ['name' => self::FOLDER_MAILBOX, 'sortOrder' => -100],
             FolderFunction::INBOX->value => ['name' => self::FOLDER_INBOX, 'sortOrder' => -90],
             FolderFunction::OUTBOX->value => ['name' => self::FOLDER_OUTBOX, 'sortOrder' => -80],
-            FolderFunction::DRAFTS->value => ['name' => self::FOLDER_DRAFTS, 'sortOrder' => -70],
+            FolderFunction::SCHEDULED->value => ['name' => self::FOLDER_SCHEDULED, 'sortOrder' => -70],
+            FolderFunction::DRAFTS->value => ['name' => self::FOLDER_DRAFTS, 'sortOrder' => -60],
         ];
     }
 
@@ -310,6 +312,10 @@ class FolderManager
     }
 
     /**
+     * The mailbox function is part of every target set: Postfach always
+     * contains ALL mails, the second function marks the special folder
+     * (Posteingang / Postausgang / Geplant / Entwürfe) the mail belongs in.
+     *
      * @return array<string>
      */
     private function resolveTargetFunctions(Email $email): array
@@ -319,9 +325,15 @@ class FolderManager
         }
 
         if ($email->isDraft() || (!$email->isOutgoing() && null === $email->getReceivedAt())) {
-            return [FolderFunction::DRAFTS->value];
+            return [FolderFunction::MAILBOX->value, FolderFunction::DRAFTS->value];
         }
 
-        return [FolderFunction::OUTBOX->value];
+        if (!$email->isSent()) {
+            // Outgoing, ready to send but not processed yet, or scheduled for
+            // a future send.
+            return [FolderFunction::MAILBOX->value, FolderFunction::SCHEDULED->value];
+        }
+
+        return [FolderFunction::MAILBOX->value, FolderFunction::OUTBOX->value];
     }
 }

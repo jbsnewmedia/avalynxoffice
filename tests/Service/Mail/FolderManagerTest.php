@@ -51,7 +51,7 @@ class FolderManagerTest extends TestCase
     {
         $folder = (new Folder())->setFunctions(['mailbox']);
 
-        $this->assertSame(['mailbox', 'inbox', 'outbox', 'drafts'], FolderManager::requiredSystemFunctions());
+        $this->assertSame(['mailbox', 'inbox', 'outbox', 'scheduled', 'drafts'], FolderManager::requiredSystemFunctions());
         $this->assertSame(FolderManager::FOLDER_OUTBOX, FolderManager::defaultFolderName('sent'));
         $this->assertSame(-80, FolderManager::defaultSortOrder('sent'));
         $this->assertTrue(FolderManager::isSystemFunction('drafts'));
@@ -195,7 +195,33 @@ class FolderManagerTest extends TestCase
             $assignedNames[] = $emailFolder->getFolder()?->getName();
         }
 
-        $this->assertSame([FolderManager::FOLDER_OUTBOX], $assignedNames);
+        $this->assertSame([FolderManager::FOLDER_MAILBOX, FolderManager::FOLDER_OUTBOX], $assignedNames);
+    }
+
+    public function testSyncEmailSystemFoldersMovesUnsentOutgoingMailToScheduled(): void
+    {
+        $account = new Account();
+        $email = (new Email())
+            ->setAccount($account)
+            ->setIsOutgoing(true)
+            ->setIsSent(false)
+            ->setIsDraft(false);
+        $outboxFolder = (new Folder())->setName(FolderManager::FOLDER_OUTBOX)->setFunctions(['outbox']);
+        $account->addFolder($outboxFolder, -80);
+        $this->folderManager->assignEmailToFolder($email, $outboxFolder);
+
+        $folderRepo = $this->createMock(FolderRepository::class);
+        $folderRepo->expects($this->atLeastOnce())->method('findByAccountOrderByAssignment')->with($account)->willReturn([$outboxFolder]);
+        $folderManager = new FolderManager($this->createStub(EntityManagerInterface::class), $folderRepo);
+
+        $folderManager->syncEmailSystemFolders($email);
+
+        $assignedNames = [];
+        foreach ($email->getEmailFolders() as $emailFolder) {
+            $assignedNames[] = $emailFolder->getFolder()?->getName();
+        }
+
+        $this->assertSame([FolderManager::FOLDER_MAILBOX, FolderManager::FOLDER_SCHEDULED], $assignedNames);
     }
 
     public function testMoveEmailToFolderAssignsTargetWhenNoSourceProvided(): void
@@ -247,7 +273,7 @@ class FolderManagerTest extends TestCase
             $assignedNames[] = $emailFolder->getFolder()?->getName();
         }
 
-        $this->assertSame(['Custom', FolderManager::FOLDER_OUTBOX], $assignedNames);
+        $this->assertSame(['Custom', FolderManager::FOLDER_MAILBOX, FolderManager::FOLDER_OUTBOX], $assignedNames);
     }
 
     public function testSyncEmailSystemFoldersKeepsExistingDraftSystemFolderForDraftEmail(): void
@@ -266,8 +292,12 @@ class FolderManagerTest extends TestCase
 
         $folderManager->syncEmailSystemFolders($email);
 
-        $this->assertCount(1, $email->getEmailFolders());
-        $this->assertSame($draftsFolder, $email->getEmailFolders()->first()->getFolder());
+        $assignedNames = [];
+        foreach ($email->getEmailFolders() as $emailFolder) {
+            $assignedNames[] = $emailFolder->getFolder()?->getName();
+        }
+
+        $this->assertSame([FolderManager::FOLDER_DRAFTS, FolderManager::FOLDER_MAILBOX], $assignedNames);
     }
 
     public function testEnsureSystemFolderReturnsExistingUnlinkedFolderWithoutCreatingAccountLink(): void
@@ -311,7 +341,7 @@ class FolderManagerTest extends TestCase
 
         $folderManager->ensureDefaultFolders($account);
 
-        $this->assertCount(4, $account->getFolderLinks());
+        $this->assertCount(5, $account->getFolderLinks());
         $this->assertSame(FolderManager::FOLDER_MAILBOX, $account->getInboxFolder()?->getName());
     }
 }

@@ -237,6 +237,7 @@ folder.function.none: "No function"
 folder.function.mailbox: "Account"
 folder.function.inbox: "Inbox"
 folder.function.outbox: "Outbox"
+folder.function.scheduled: "Scheduled"
 folder.function.drafts: "Drafts"
 
 # Email detail & print

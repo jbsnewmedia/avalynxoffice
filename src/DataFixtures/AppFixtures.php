@@ -111,7 +111,7 @@ class AppFixtures extends Fixture
         $connectorFirma->setDefaultAccount($accounts[0]);
         $manager->flush();
 
-        /** @var array<string, array{account: Folder, inbox: Folder, outbox: Folder, drafts: Folder, others: list<Folder>}> $foldersByAccount */
+        /** @var array<string, array{account: Folder, inbox: Folder, outbox: Folder, scheduled: Folder, drafts: Folder, others: list<Folder>}> $foldersByAccount */
         $foldersByAccount = [];
         foreach ($accounts as $account) {
             $this->folderManager->ensureDefaultFolders($account);
@@ -134,6 +134,7 @@ class AppFixtures extends Fixture
                 'account' => $this->folderManager->ensureSystemFolder($account, FolderFunction::MAILBOX),
                 'inbox' => $this->folderManager->ensureSystemFolder($account, FolderFunction::INBOX),
                 'outbox' => $this->folderManager->ensureSystemFolder($account, FolderFunction::OUTBOX),
+                'scheduled' => $this->folderManager->ensureSystemFolder($account, FolderFunction::SCHEDULED),
                 'drafts' => $this->folderManager->ensureSystemFolder($account, FolderFunction::DRAFTS),
                 'others' => $others,
             ];
@@ -194,7 +195,9 @@ class AppFixtures extends Fixture
             $mbId = (string) $account->getId();
             $isOutgoing = random_int(0, 100) < 35;
             $email->setIsOutgoing($isOutgoing);
-            $targetFolders = [];
+            // Postfach contains ALL mails; the second folder marks the special
+            // folder the mail belongs in.
+            $targetFolders = [$foldersByAccount[$mbId]['account']];
             if ($isOutgoing) {
                 $rand = random_int(0, 100);
                 if ($rand < 80) {
@@ -211,7 +214,7 @@ class AppFixtures extends Fixture
                     $email->setSentAt(null);
                     $email->setIsSent(false);
                     $email->setIsDraft(false);
-                    $targetFolders[] = $foldersByAccount[$mbId]['outbox'];
+                    $targetFolders[] = $foldersByAccount[$mbId]['scheduled'];
                 }
                 $email->setIsRead(true);
                 $sender = self::randomElement($accountAddresses);
@@ -223,7 +226,6 @@ class AppFixtures extends Fixture
             } else {
                 $email->setReceivedAt(new \DateTimeImmutable('-'.random_int(0, 30).' days'));
                 $email->setIsRead(random_int(0, 100) < 40);
-                $targetFolders[] = $foldersByAccount[$mbId]['account'];
                 $targetFolders[] = $foldersByAccount[$mbId]['inbox'];
                 $externalAddresses = [] !== $externalAddresses ? $externalAddresses : $accountAddresses;
                 $sender = self::randomElement($externalAddresses);

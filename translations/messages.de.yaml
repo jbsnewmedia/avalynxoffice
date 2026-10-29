@@ -222,6 +222,7 @@ folder.function.none: "Keine Funktion"
 folder.function.mailbox: "Postfach"
 folder.function.inbox: "Posteingang"
 folder.function.outbox: "Postausgang"
+folder.function.scheduled: "Geplant"
 folder.function.drafts: "Entwürfe"
 
 # Email Detail & Drucken

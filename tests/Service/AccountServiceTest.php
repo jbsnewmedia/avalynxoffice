@@ -244,6 +244,7 @@ class AccountServiceTest extends TestCase
             [
                 'folder.function.mailbox',
                 'folder.function.outbox',
+                'folder.function.scheduled',
                 'folder.function.drafts',
             ],
             $missing,
@@ -557,7 +558,7 @@ class AccountServiceTest extends TestCase
     public function testFindMissingSystemFolderFunctionsIgnoreNoneSentinel(): void
     {
         $this->assertSame(
-            ['folder.function.mailbox', 'folder.function.inbox', 'folder.function.outbox', 'folder.function.drafts'],
+            ['folder.function.mailbox', 'folder.function.inbox', 'folder.function.outbox', 'folder.function.scheduled', 'folder.function.drafts'],
             $this->service->findMissingSystemFolderFunctions([
                 ['functions' => ['none'], 'name' => 'Archive', 'sortOrder' => 0],
             ]),
