@@ -2,34 +2,48 @@
 
 declare(strict_types=1);
 
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
+
 namespace AvalynxOffice\Tests\Service\Mail;
 
-use AvalynxOffice\Entity\Email;
-use AvalynxOffice\Entity\EmailFolder;
-use AvalynxOffice\Entity\Folder;
 use AvalynxOffice\Entity\Account;
+use AvalynxOffice\Entity\Folder;
+use AvalynxOffice\Repository\EmailRepository;
 use AvalynxOffice\Repository\FolderRepository;
 use AvalynxOffice\Service\Mail\MailService;
-use Doctrine\Common\Collections\ArrayCollection;
-use Doctrine\Common\Collections\Collection;
 use PHPUnit\Framework\TestCase;
 
 final class MailServiceTest extends TestCase
 {
-    public function testCountEmailsPerFolderSkipsInvalidEntriesAndCountsOnlyUnreadEmails(): void
+    public function testCountEmailsPerFolderMergesRepositoryCountsAndSkipsInvalidEntries(): void
     {
-        $unreadEmail = (new Email())->setIsRead(false);
-        $readEmail = (new Email())->setIsRead(true);
-        $folder = $this->createFolderWithEmailFolders('Inbox', [
-            (new EmailFolder())->setEmail($unreadEmail),
-            (new EmailFolder())->setEmail($readEmail),
-            new EmailFolder(),
-        ]);
+        $folderA = (new Folder())->setName('A');
+        $folderB = (new Folder())->setName('B');
+        $passedFolders = null;
 
-        $service = new MailService($this->createStub(FolderRepository::class));
-        $counts = $service->countEmailsPerFolder([$folder, new \stdClass()]);
+        $emailRepo = $this->createMock(EmailRepository::class);
+        $emailRepo->expects(self::once())
+            ->method('unreadCountsPerFolder')
+            ->willReturnCallback(static function (array $folders) use (&$passedFolders, $folderA, $folderB): array {
+                $passedFolders = $folders;
 
-        self::assertSame([((string) $folder->getId()) => 1], $counts);
+                return [
+                    (string) $folderB->getId() => 4,
+                    (string) $folderA->getId() => 1,
+                ];
+            });
+
+        $service = new MailService($this->createStub(FolderRepository::class), $emailRepo);
+        $counts = $service->countEmailsPerFolder([$folderA, new \stdClass(), $folderB]);
+
+        self::assertSame([$folderA, $folderB], $passedFolders);
+        self::assertSame([
+            (string) $folderA->getId() => 1,
+            (string) $folderB->getId() => 4,
+        ], $counts);
     }
 
     public function testGroupFoldersByNameAndFunctionsMergesCounts(): void
@@ -43,7 +57,7 @@ final class MailServiceTest extends TestCase
         $archive = (new Folder())
             ->setName('Archive');
 
-        $service = new MailService($this->createStub(FolderRepository::class));
+        $service = new MailService($this->createStub(FolderRepository::class), $this->createStub(EmailRepository::class));
         $result = $service->groupFoldersByName(
             [$inboxA, $inboxB, $archive],
             [
@@ -68,7 +82,7 @@ final class MailServiceTest extends TestCase
             ->setName('Drafts')
             ->setFunctions(['drafts']);
 
-        $service = new MailService($this->createStub(FolderRepository::class));
+        $service = new MailService($this->createStub(FolderRepository::class), $this->createStub(EmailRepository::class));
 
         self::assertSame(
             [$archiveUpper, $archiveLower],
@@ -95,84 +109,11 @@ final class MailServiceTest extends TestCase
             ->method('findFirstFolderForAccount')
             ->willReturnCallback(static fn (Account $account): ?Folder => 'a@example.com' === $account->getEmail() ? $folder : null);
 
-        $service = new MailService($repository);
+        $service = new MailService($repository, $this->createStub(EmailRepository::class));
 
         self::assertSame(
             [((string) $accountA->getId()) => $folder],
             $service->getFirstFolderByAccount([$accountA, $accountB]),
         );
-    }
-
-    public function testCollectEmailsGathersNonNullEmailsAndDeduplicates(): void
-    {
-        $sharedEmail = (new Email())->setSubject('Shared');
-        $otherEmail = (new Email())->setSubject('Other');
-
-        $folderA = $this->createFolderWithEmailFolders('A', [
-            (new EmailFolder())->setEmail($sharedEmail),
-            new EmailFolder(),
-            (new EmailFolder())->setEmail($otherEmail),
-        ]);
-        $folderB = $this->createFolderWithEmailFolders('B', [
-            (new EmailFolder())->setEmail($sharedEmail),
-        ]);
-
-        $service = new MailService($this->createStub(FolderRepository::class));
-        $emails = $service->collectEmails([$folderA, $folderB]);
-
-        self::assertSame([$sharedEmail, $otherEmail], $emails);
-    }
-
-    public function testCollectEmailsKeepsDuplicatesWhenDeduplicationDisabled(): void
-    {
-        $sharedEmail = (new Email())->setSubject('Shared');
-
-        $folderA = $this->createFolderWithEmailFolders('A', [
-            (new EmailFolder())->setEmail($sharedEmail),
-        ]);
-        $folderB = $this->createFolderWithEmailFolders('B', [
-            (new EmailFolder())->setEmail($sharedEmail),
-        ]);
-
-        $service = new MailService($this->createStub(FolderRepository::class));
-
-        self::assertSame(
-            [$sharedEmail, $sharedEmail],
-            $service->collectEmails([$folderA, $folderB], false),
-        );
-    }
-
-    public function testSortByDateDescendingOrdersByBestAvailableDate(): void
-    {
-        $newest = (new Email())->setSentAt(new \DateTimeImmutable('2024-01-03 00:00:00'));
-        $middle = (new Email())->setReceivedAt(new \DateTimeImmutable('2024-01-02 00:00:00'));
-        $oldest = (new Email())->setSentAt(new \DateTimeImmutable('2024-01-01 00:00:00'));
-
-        $service = new MailService($this->createStub(FolderRepository::class));
-
-        self::assertSame(
-            [$newest, $middle, $oldest],
-            $service->sortByDateDescending([$oldest, $newest, $middle]),
-        );
-    }
-
-    /**
-     * @param list<EmailFolder> $emailFolders
-     */
-    private function createFolderWithEmailFolders(string $name, array $emailFolders): Folder
-    {
-        return (new class(new ArrayCollection($emailFolders)) extends Folder {
-            public function __construct(
-                private readonly Collection $testEmailFolders,
-            ) {
-                parent::__construct();
-            }
-
-            #[\Override]
-            public function getEmailFolders(): Collection
-            {
-                return $this->testEmailFolders;
-            }
-        })->setName($name);
     }
 }

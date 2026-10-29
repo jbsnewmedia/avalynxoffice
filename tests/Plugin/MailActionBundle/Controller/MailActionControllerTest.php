@@ -152,7 +152,7 @@ final class MailActionControllerTest extends KernelTestCase
         self::assertSame([
             'success' => true,
             'folderCounts' => [
-                (string) $otherTargetFolder->getId() => 0,
+                (string) $otherTargetFolder->getId() => 1,
                 (string) $otherSourceFolder->getId() => 0,
             ],
         ], json_decode($moveResponse->getContent(), true, 512, JSON_THROW_ON_ERROR));

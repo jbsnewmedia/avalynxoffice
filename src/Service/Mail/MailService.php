@@ -10,21 +10,25 @@ declare(strict_types=1);
 namespace AvalynxOffice\Service\Mail;
 
 use AvalynxOffice\Entity\Account;
-use AvalynxOffice\Entity\Email;
 use AvalynxOffice\Entity\Folder;
+use AvalynxOffice\Repository\EmailRepository;
 use AvalynxOffice\Repository\FolderRepository;
 
 class MailService
 {
     public function __construct(
         private readonly FolderRepository $folderRepo,
+        private readonly EmailRepository $emailRepo,
     ) {
     }
 
     /**
+     * Unread email count per folder. Folders without any unread email get 0.
+     * Entries in $folders that are not Folder instances are ignored.
+     *
      * @param array<Folder> $folders
      *
-     * @return array<string, int>
+     * @return array<string, int> folder id => unread email count
      */
     public function countEmailsPerFolder(array $folders): array
     {
@@ -33,17 +37,24 @@ class MailService
             if (!$folder instanceof Folder) {
                 continue;
             }
-            $count = 0;
-            foreach ($folder->getEmailFolders() as $ef) {
-                $email = $ef->getEmail();
-                if ($email && !$email->isRead()) {
-                    ++$count;
-                }
-            }
-            $map[(string) $folder->getId()] = $count;
+            $map[(string) $folder->getId()] = 0;
+        }
+
+        foreach ($this->emailRepo->unreadCountsPerFolder($this->filterFolders($folders)) as $folderId => $count) {
+            $map[$folderId] = $count;
         }
 
         return $map;
+    }
+
+    /**
+     * @param array<Folder> $folders
+     *
+     * @return array<Folder>
+     */
+    private function filterFolders(array $folders): array
+    {
+        return array_values(array_filter($folders, fn (mixed $folder): bool => $folder instanceof Folder));
     }
 
     /**
@@ -102,47 +113,6 @@ class MailService
         }
 
         return $firstFolderByAccount;
-    }
-
-    /**
-     * @param array<Folder> $folders
-     *
-     * @return array<Email>
-     */
-    public function collectEmails(array $folders, bool $deduplicate = true): array
-    {
-        $emails = [];
-        foreach ($folders as $folder) {
-            foreach ($folder->getEmailFolders() as $emailFolder) {
-                $email = $emailFolder->getEmail();
-                if ($email instanceof Email) {
-                    $emails[] = $email;
-                }
-            }
-        }
-
-        if ($deduplicate) {
-            $emails = array_unique($emails, SORT_REGULAR);
-        }
-
-        return array_values($emails);
-    }
-
-    /**
-     * @param array<Email> $emails
-     *
-     * @return array<Email>
-     */
-    public function sortByDateDescending(array $emails): array
-    {
-        usort($emails, static function (Email $a, Email $b): int {
-            $dateB = $b->getSentAt()?->getTimestamp() ?? $b->getReceivedAt()?->getTimestamp() ?? $b->getCreatedAt()?->getTimestamp() ?? 0;
-            $dateA = $a->getSentAt()?->getTimestamp() ?? $a->getReceivedAt()?->getTimestamp() ?? $a->getCreatedAt()?->getTimestamp() ?? 0;
-
-            return $dateB <=> $dateA;
-        });
-
-        return $emails;
     }
 
     private function folderGroupKey(Folder $folder): string

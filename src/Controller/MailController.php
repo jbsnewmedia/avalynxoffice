@@ -71,11 +71,9 @@ class MailController extends AbstractController
         $rawFolders = $this->folderRepo->findFoldersLinkedToAccounts($accounts);
         $rawCounts = $this->mailService->countEmailsPerFolder($rawFolders);
         $grouped = $this->mailService->groupFoldersByName($rawFolders, $rawCounts);
-        $emails = $this->allMailsInFolders($rawFolders);
-        $totalEmails = count($emails);
-        $totalMails = $totalEmails;
         $limit = self::DEFAULT_LIMIT;
-        $emails = array_slice($emails, 0, $limit);
+        $emails = $this->emailRepo->findInFoldersPaginated($rawFolders, $limit, 0);
+        $totalMails = $this->emailRepo->countInFolders($rawFolders);
 
         return $this->renderMailIndex([
             'accounts' => $accounts,
@@ -87,7 +85,7 @@ class MailController extends AbstractController
             'activeEmail' => $emails[0] ?? null,
             'folderEmailCounts' => $grouped['counts'],
             'firstFolderByAccount' => $firstFolderByAccount,
-            'totalEmails' => $totalEmails,
+            'totalEmails' => $totalMails,
             'totalMails' => $totalMails,
             'limit' => $limit,
             'offset' => count($emails),
@@ -135,41 +133,27 @@ class MailController extends AbstractController
         }
         $limit = self::DEFAULT_LIMIT;
         $offset = 0;
-        $emails = [];
-        $totalEmails = 0;
-        $totalMails = count($this->mailService->collectEmails($rawFolders));
+        $folderScope = $rawFolders;
         $activeEmail = null;
+        $totalMails = $this->emailRepo->countInFolders($rawFolders);
         if ($allMails) {
-            $emails = $this->allMailsInFolders($rawFolders);
-            $totalEmails = count($emails);
+            $totalEmails = $totalMails;
         } elseif ($activeFolder) {
-            if (!$activeAccount) {
-                $emails = $this->mailService->collectEmails(
-                    $this->mailService->foldersInSameGroup($rawFolders, $activeFolder),
-                );
-            } else {
-                $emails = $this->mailService->collectEmails([$activeFolder], false);
-            }
-            $emails = $this->mailService->sortByDateDescending($emails);
-            $totalEmails = count($emails);
+            $folderScope = $activeAccount ? [$activeFolder] : $this->mailService->foldersInSameGroup($rawFolders, $activeFolder);
+            $totalEmails = $this->emailRepo->countInFolders($folderScope);
+        } else {
+            $totalEmails = 0;
         }
 
-        if (null !== $emailId) {
-            foreach ($emails as $index => $email) {
-                if ((string) $email->getId() !== $emailId) {
-                    continue;
-                }
-
-                $activeEmail = $email;
-                $offset = intdiv($index, $limit) * $limit;
-
-                break;
-            }
+        $deepLinkedEmail = null !== $emailId ? $this->emailRepo->find($emailId) : null;
+        $deepLinkRank = null !== $deepLinkedEmail ? $this->emailRepo->rankInFolders($deepLinkedEmail, $folderScope) : null;
+        if (null !== $deepLinkRank) {
+            $offset = intdiv($deepLinkRank, $limit) * $limit;
         }
 
-        $emails = array_slice($emails, $offset, $limit);
+        $emails = $this->emailRepo->findInFoldersPaginated($folderScope, $limit, $offset);
 
-        if (null !== $activeEmail) {
+        if (null !== $deepLinkedEmail) {
             foreach ($emails as $email) {
                 if ((string) $email->getId() === $emailId) {
                     $activeEmail = $email;
@@ -280,45 +264,28 @@ class MailController extends AbstractController
             $scopeFolders = $activeAccount
                 ? $this->folderRepo->findByAccountOrderByAssignment($activeAccount)
                 : $this->folderRepo->findFoldersLinkedToAccounts($this->accountsForUser());
-            $emails = $this->mailService->collectEmails($scopeFolders);
+            $emails = $this->emailRepo->findInFoldersPaginated($scopeFolders, $limit, $offset);
         } else {
             $folder = $this->folderRepo->find($folderId);
             if (!$folder) {
                 return new Response($this->translator->trans('folder.not_found'), Response::HTTP_NOT_FOUND);
             }
-            $emails = 'all' === $accountId
-                ? $this->mailService->collectEmails(
-                    $this->mailService->foldersInSameGroup(
-                        $this->folderRepo->findFoldersLinkedToAccounts($this->accountsForUser()),
-                        $folder,
-                    ),
+            $scopeFolders = 'all' === $accountId
+                ? $this->mailService->foldersInSameGroup(
+                    $this->folderRepo->findFoldersLinkedToAccounts($this->accountsForUser()),
+                    $folder,
                 )
-                : $this->mailService->collectEmails([$folder], false);
+                : [$folder];
+            $emails = $this->emailRepo->findInFoldersPaginated($scopeFolders, $limit, $offset);
         }
-        $emails = $this->mailService->sortByDateDescending($emails);
-        $slice = array_slice($emails, $offset, $limit);
         $html = $this->renderView('mail/_email_items.html.twig', [
-            'emails' => $slice,
+            'emails' => $emails,
             'activeEmail' => null,
             'activeAccount' => $activeAccount,
             'activeFolder' => $folder,
         ]);
 
         return new Response($html);
-    }
-
-    /**
-     * All emails of the given folders, deduplicated and sorted by date descending.
-     *
-     * @param array<Folder> $folders
-     *
-     * @return array<Email>
-     */
-    private function allMailsInFolders(array $folders): array
-    {
-        return $this->mailService->sortByDateDescending(
-            $this->mailService->collectEmails($folders),
-        );
     }
 
     /**
