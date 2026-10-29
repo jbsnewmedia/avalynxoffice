@@ -610,6 +610,64 @@ final class MailActionControllerTest extends KernelTestCase
         $method->invoke($this->controller, $email, $form, Request::create('/mail/compose', 'GET'), false);
     }
 
+    public function testHandleDraftSubmissionAcceptsNullForOptionalFields(): void
+    {
+        // Production scenario: unchecked checkboxes and empty hidden fields are
+        // not sent by the browser, so the form resolves them to null.
+        $email = new Email();
+        $this->setCurrentUserRequest();
+        $controller = $this->controller;
+
+        $form = $this->createStub(FormInterface::class);
+        $form->method('isSubmitted')->willReturn(true);
+        $form->method('isValid')->willReturn(true);
+
+        $toField = $this->createStub(FormInterface::class);
+        $toField->method('getData')->willReturn('to@example.com');
+        $fromField = $this->createStub(FormInterface::class);
+        $fromField->method('getData')->willReturn(null);
+        $ccField = $this->createStub(FormInterface::class);
+        $ccField->method('getData')->willReturn(null);
+        $bccField = $this->createStub(FormInterface::class);
+        $bccField->method('getData')->willReturn(null);
+        $replyToField = $this->createStub(FormInterface::class);
+        $replyToField->method('getData')->willReturn(null);
+        $contentField = $this->createStub(FormInterface::class);
+        $contentField->method('getData')->willReturn('Draft content');
+        $retainedAttachmentsField = $this->createStub(FormInterface::class);
+        $retainedAttachmentsField->method('getData')->willReturn(null);
+        $scheduleLaterField = $this->createStub(FormInterface::class);
+        $scheduleLaterField->method('getData')->willReturn(null);
+        $scheduledAtField = $this->createStub(FormInterface::class);
+        $scheduledAtField->method('getData')->willReturn(null);
+        $attachmentsField = $this->createStub(FormInterface::class);
+        $attachmentsField->method('getData')->willReturn(null);
+        $saveDraftButton = new \Symfony\Component\Form\SubmitButtonBuilder('saveDraft');
+        $saveDraftButton = $saveDraftButton->getForm();
+
+        $form->method('get')->willReturnMap([
+            ['from', $fromField],
+            ['to', $toField],
+            ['cc', $ccField],
+            ['bcc', $bccField],
+            ['replyTo', $replyToField],
+            ['content', $contentField],
+            ['retainedAttachmentIds', $retainedAttachmentsField],
+            ['scheduleLater', $scheduleLaterField],
+            ['scheduledAt', $scheduledAtField],
+            ['attachments', $attachmentsField],
+            ['saveDraft', $saveDraftButton],
+        ]);
+
+        $method = new \ReflectionMethod(MailActionController::class, 'handleDraftSubmission');
+        $response = $method->invoke($controller, $email, $form, Request::create('/mail/compose', 'GET', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']), false);
+
+        self::assertInstanceOf(\Symfony\Component\HttpFoundation\JsonResponse::class, $response);
+        $data = json_decode((string) $response->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertTrue($data['success']);
+        self::assertSame('/mails', $data['redirect']);
+    }
+
     public function testHandleDraftSubmissionRequiresScheduledDateWhenDelayedSendingIsEnabled(): void
     {
         $email = new Email();

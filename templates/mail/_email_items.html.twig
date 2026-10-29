@@ -15,13 +15,11 @@
                 <i class="fa-solid fa-inbox me-1 small"></i> {{ mail.account.name }}
             </div>
         {% endif %}
-        <div class="email-item-content px-3 pb-3 {{ (activeAccount is not defined or not activeAccount) ? 'pt-2' : 'pt-3' }}">
-            <div class="email-sender {{ mail.isRead ? '' : 'fw-bold' }}">
-                {{ senderDisplay }}
-            </div>
-            <div class="email-subject mb-1 {{ mail.isRead ? '' : 'fw-semibold' }}">{{ mail.subject }}</div>
-            <div class="text-body-secondary small text-truncate mb-1">{{ mail.previewBody }}</div>
-            <div class="d-flex align-items-center justify-content-between">
+        <div class="email-item-content px-3 py-2">
+            <div class="email-item-sender {{ mail.isRead ? '' : 'fw-bold' }}">{{ senderDisplay }}</div>
+            <div class="email-subject {{ mail.isRead ? '' : 'fw-semibold' }}">{{ mail.subject }}</div>
+            <div class="text-body-secondary small text-truncate">{{ mail.previewBody }}</div>
+            <div class="d-flex align-items-center justify-content-between mt-1">
                 <div class="d-flex align-items-center gap-2">
                     <span class="important-indicator {{ mail.isImportant ? '' : 'd-none' }}" title="{{ 'email.important'|trans }}" aria-label="{{ 'email.important'|trans }}">
                         <i class="fa-solid fa-triangle-exclamation text-danger" aria-hidden="true"></i>
@@ -52,7 +50,7 @@
                         </button>
                     {% endif %}
                 </div>
-                <small class="text-body-secondary" aria-label="{{ 'email.date_label'|trans({'%date%': effDate ? (effDate|user_datetime('short') ~ ' ' ~ ('common.oclock'|trans)) : ('common.unknown'|trans)}) }}">{{ effDate ? (effDate|user_datetime('short') ~ ' ' ~ ('common.oclock'|trans)) : '' }}</small>
+                <small class="text-body-secondary text-nowrap" aria-label="{{ 'email.date_label'|trans({'%date%': effDate ? (effDate|user_datetime('short') ~ ' ' ~ ('common.oclock'|trans)) : ('common.unknown'|trans)}) }}">{{ effDate ? (effDate|user_datetime('short') ~ ' ' ~ ('common.oclock'|trans)) : '' }}</small>
             </div>
         </div>
     </article>

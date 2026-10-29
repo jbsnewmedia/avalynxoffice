@@ -417,15 +417,19 @@ final class MailActionController extends AbstractController
         $attachmentsValue = $form->get('attachments')->getData();
         if ((!is_string($fromValue) && null !== $fromValue)
             || !is_string($toValue)
-            || !is_string($ccValue)
-            || !is_string($bccValue)
-            || !is_string($replyToValue)
+            || (null !== $ccValue && !is_string($ccValue))
+            || (null !== $bccValue && !is_string($bccValue))
+            || (null !== $replyToValue && !is_string($replyToValue))
             || !is_string($contentValue)
-            || !is_string($retainedAttachmentIdsValue)
-            || !is_bool($scheduleLaterValue)
+            || (null !== $retainedAttachmentIdsValue && !is_string($retainedAttachmentIdsValue))
+            || (null !== $scheduleLaterValue && !is_bool($scheduleLaterValue))
         ) {
             throw new \LogicException('Mail draft form values must be strings.');
         }
+
+        // Unchecked checkboxes are not sent by the browser, so the field
+        // resolves to null instead of false.
+        $scheduleLaterChecked = true === $scheduleLaterValue;
 
         if (null !== $scheduledAtValue && !$scheduledAtValue instanceof \DateTimeInterface) {
             throw new \LogicException('Mail draft schedule must be a date or null.');
@@ -447,7 +451,7 @@ final class MailActionController extends AbstractController
         $saveDraftButton = $form->get('saveDraft');
         $isDraft = $saveDraftButton instanceof ClickableInterface && $saveDraftButton->isClicked();
 
-        if ($scheduleLaterValue && null === $scheduledAtValue) {
+        if ($scheduleLaterChecked && null === $scheduledAtValue) {
             $form->get('scheduledAt')->addError(new FormError($this->translator->trans('email.scheduled_at_required')));
 
             return AvalynxFormResponse::invalid([
@@ -455,7 +459,7 @@ final class MailActionController extends AbstractController
             ]);
         }
 
-        $scheduledAt = $scheduleLaterValue && $scheduledAtValue instanceof \DateTimeInterface
+        $scheduledAt = $scheduleLaterChecked && $scheduledAtValue instanceof \DateTimeInterface
             ? \DateTimeImmutable::createFromInterface($scheduledAtValue)
             : null;
 
@@ -464,13 +468,13 @@ final class MailActionController extends AbstractController
                 $email,
                 $fromValue,
                 $toValue,
-                $ccValue,
-                $bccValue,
-                $replyToValue,
+                $ccValue ?? '',
+                $bccValue ?? '',
+                $replyToValue ?? '',
                 $contentValue,
                 $isDraft,
                 $scheduledAt,
-                $this->parseAttachmentIds($retainedAttachmentIdsValue),
+                $this->parseAttachmentIds($retainedAttachmentIdsValue ?? ''),
                 $uploadedAttachments,
             );
         } catch (\RuntimeException $exception) {
