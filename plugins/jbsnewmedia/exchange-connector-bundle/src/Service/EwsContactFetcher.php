@@ -9,6 +9,7 @@ declare(strict_types=1);
 
 namespace JBSNewMedia\ExchangeConnectorBundle\Service;
 
+use AvalynxOffice\Entity\Account;
 use AvalynxOffice\Entity\Address;
 use AvalynxOffice\Entity\Connector;
 use AvalynxOffice\Entity\ConnectorConfig;
@@ -22,6 +23,8 @@ use JBSNewMedia\ExchangeConnectorBundle\Plugin\ExchangeConnectorPlugin;
  * Fetches the contacts of the Exchange address book (Eingang) into the
  * local Address entities (isContact = true). Existing addresses are filled
  * with the fields that are still empty locally; duplicates are skipped.
+ * Every contact is linked to the connector's account (account_address) so
+ * the EAS backend serves it as ActiveSync contacts folder content.
  */
 final class EwsContactFetcher extends AbstractEwsFetcher
 {
@@ -59,7 +62,7 @@ final class EwsContactFetcher extends AbstractEwsFetcher
 
                     continue;
                 }
-                $this->processContact($contact, $addressRepo, $totals);
+                $this->processContact($contact, $connector, $addressRepo, $totals);
             }
             $this->updateTotals($connector, $config, 'contacts_total', $listing['total']);
         } catch (\Throwable $exception) {
@@ -74,7 +77,7 @@ final class EwsContactFetcher extends AbstractEwsFetcher
      * @param \Doctrine\Persistence\ObjectRepository<Address> $addressRepo
      * @param array{imported: int, skipped: int, errors: int} $totals
      */
-    private function processContact(ContactItemType $contact, object $addressRepo, array &$totals): void
+    private function processContact(ContactItemType $contact, Connector $connector, object $addressRepo, array &$totals): void
     {
         $email = self::primaryEmailAddress($contact);
         if (null === $email) {
@@ -84,20 +87,61 @@ final class EwsContactFetcher extends AbstractEwsFetcher
             return;
         }
         $address = $addressRepo->findOneBy(['email' => $email]);
+        $needsFlush = false;
         if (!$address instanceof Address) {
             $address = new Address();
             $address->setEmail($email);
-            $this->applyContact($address, $contact, true);
+            $this->applyContact($address, $contact);
             $this->entityManager->persist($address);
-            $this->entityManager->flush();
+            $needsFlush = true;
             ++$totals['imported'];
             $this->log(sprintf('Contact "%s" imported.', $email), 'info');
-
-            return;
+        } else {
+            $changed = $this->applyContact($address, $contact);
+            $needsFlush = $changed;
+            ++$totals['skipped'];
+            $this->log(sprintf('Contact "%s" already exists%s.', $email, $changed ? ' (fields updated)' : ''), 'comment');
         }
-        $changed = $this->applyContact($address, $contact, false);
-        ++$totals['skipped'];
-        $this->log(sprintf('Contact "%s" already exists%s.', $email, $changed ? ' (fields updated)' : ''), 'comment');
+        $needsFlush = $this->linkToAccount($connector, $address) || $needsFlush;
+        if ($needsFlush) {
+            try {
+                $this->entityManager->flush();
+            } catch (\Throwable $exception) {
+                if (!$this->entityManager->isOpen()) {
+                    throw $exception;
+                }
+                $this->logError(sprintf('Contact "%s" could not be saved: %s', $email, $exception->getMessage()), $exception);
+                ++$totals['errors'];
+            }
+        }
+    }
+
+    /**
+     * Links the address to the connector's account so the EAS backend
+     * (ActiveSync contacts folder) serves it. Returns whether a new link
+     * was created.
+     */
+    private function linkToAccount(Connector $connector, Address $address): bool
+    {
+        $account = $connector->getDefaultAccount();
+
+        if (!$account instanceof Account) {
+            $this->log('Connector has no account. Contact is not linked for ActiveSync.', 'comment');
+
+            return false;
+        }
+
+        $addressId = $address->getId()?->toRfc4122();
+
+        foreach ($account->getAddressLinks() as $link) {
+            if ($link->getAddress()?->getId()?->toRfc4122() === $addressId) {
+                return false;
+            }
+        }
+
+        $account->addAddress($address);
+
+        return true;
     }
 
     /**
@@ -111,20 +155,20 @@ final class EwsContactFetcher extends AbstractEwsFetcher
     }
 
     /**
-     * Applies the contact properties to the Address entity. When $isNew is
-     * false only empty fields are filled, existing local data is never
-     * overwritten. Returns whether anything was changed.
+     * Applies the contact properties to the Address entity. Only empty
+     * fields are filled, existing local data is never overwritten. Returns
+     * whether anything was changed.
      */
-    private function applyContact(Address $address, ContactItemType $contact, bool $isNew): bool
+    private function applyContact(Address $address, ContactItemType $contact): bool
     {
-        $changed = $this->fill($isNew, $address->getName(), self::prop($contact, 'displayName'), $address->setName(...));
-        $changed = $this->fill($isNew, $address->getFirstname(), self::prop($contact, 'givenName'), $address->setFirstname(...)) || $changed;
-        $changed = $this->fill($isNew, $address->getLastname(), self::prop($contact, 'surname'), $address->setLastname(...)) || $changed;
-        $changed = $this->fill($isNew, $address->getCompany(), self::prop($contact, 'companyName'), $address->setCompany(...)) || $changed;
+        $changed = $this->fill($address->getName(), self::prop($contact, 'displayName'), $address->setName(...));
+        $changed = $this->fill($address->getFirstname(), self::prop($contact, 'givenName'), $address->setFirstname(...)) || $changed;
+        $changed = $this->fill($address->getLastname(), self::prop($contact, 'surname'), $address->setLastname(...)) || $changed;
+        $changed = $this->fill($address->getCompany(), self::prop($contact, 'companyName'), $address->setCompany(...)) || $changed;
         $phones = self::phoneNumbers($contact);
-        $changed = $this->fill($isNew, $address->getBusinessPhone(), $phones['BusinessPhone'] ?? null, $address->setBusinessPhone(...)) || $changed;
-        $changed = $this->fill($isNew, $address->getMobilePhone(), $phones['MobilePhone'] ?? null, $address->setMobilePhone(...)) || $changed;
-        $changed = $this->fill($isNew, $address->getHomePhone(), $phones['HomePhone'] ?? null, $address->setHomePhone(...)) || $changed;
+        $changed = $this->fill($address->getBusinessPhone(), $phones['BusinessPhone'] ?? null, $address->setBusinessPhone(...)) || $changed;
+        $changed = $this->fill($address->getMobilePhone(), $phones['MobilePhone'] ?? null, $address->setMobilePhone(...)) || $changed;
+        $changed = $this->fill($address->getHomePhone(), $phones['HomePhone'] ?? null, $address->setHomePhone(...)) || $changed;
         if (!$address->isContact()) {
             $address->setIsContact(true);
             $changed = true;
@@ -137,9 +181,9 @@ final class EwsContactFetcher extends AbstractEwsFetcher
      * Writes $newValue when the local value is empty. Returns whether
      * anything was changed.
      */
-    private function fill(bool $isNew, ?string $current, ?string $newValue, \Closure $setter): bool
+    private function fill(?string $current, ?string $newValue, \Closure $setter): bool
     {
-        if (!$isNew || null === $newValue || '' === $newValue || null !== $current) {
+        if (null === $newValue || '' === $newValue || null !== $current) {
             return false;
         }
         $setter($newValue);
