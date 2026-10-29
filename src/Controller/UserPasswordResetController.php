@@ -106,17 +106,14 @@ final class UserPasswordResetController extends AbstractController
     private function secondsLeft(PasswordResetRequest $request, \DateTimeImmutable $now): int
     {
         $releaseExpiresAt = $request->getReleaseExpiresAt();
-        $expiresAt = $request->getExpiresAt();
 
         if (null !== $releaseExpiresAt && PasswordResetRequest::STATUS_RELEASED === $request->getStatus()) {
             return max(0, $releaseExpiresAt->getTimestamp() - $now->getTimestamp());
         }
 
-        if (null !== $expiresAt) {
-            return max(0, $expiresAt->getTimestamp() - $now->getTimestamp());
-        }
+        $expiresAt = $request->getExpiresAt();
 
-        return 0;
+        return max(0, ($expiresAt?->getTimestamp() ?? $now->getTimestamp()) - $now->getTimestamp());
     }
 
     #[Route('/profile/password-reset/admin-flow/{token}', name: 'app_user_password_reset_submit', methods: ['POST'])]

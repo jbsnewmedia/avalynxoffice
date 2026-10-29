@@ -158,4 +158,16 @@ final class ProfileSessionsControllerTest extends WebTestCase
         self::assertCount(1, $remaining);
         self::assertSame($current->getId()->toRfc4122(), $remaining[0]->getId()->toRfc4122());
     }
+
+    public function testRevokeOthersRejectsInvalidCsrfToken(): void
+    {
+        $this->createSession('203.0.113.50', 'Mozilla/5.0 (Windows NT 10.0) Chrome/121.0');
+
+        $this->client->request('POST', '/profile/sessions/revoke-others', ['_token' => 'invalid']);
+
+        self::assertResponseRedirects('/profile/sessions');
+
+        $repository = static::getContainer()->get(UserLoginSessionRepository::class);
+        self::assertCount(1, $repository->findActiveByUser($this->user), 'The sessions must survive the rejected request.');
+    }
 }

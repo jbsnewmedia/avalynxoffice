@@ -149,4 +149,18 @@ final class UserDateTimeExtensionTest extends KernelTestCase
         $dateTime = new \DateTimeImmutable('2026-10-26 10:00:00', new \DateTimeZone('UTC'));
         self::assertSame('26.10.2026 10:00', $this->extension->userDatetime($dateTime, 'short'));
     }
+
+    public function testGetFiltersRegistersTheUserDatetimeFilter(): void
+    {
+        $filters = $this->extension->getFilters();
+
+        self::assertCount(1, $filters);
+        self::assertSame('user_datetime', $filters[0]->getName());
+    }
+
+    public function testNonDateTimeValueRendersEmptyString(): void
+    {
+        self::assertSame('', $this->extension->userDatetime(12345));
+        self::assertSame('', $this->extension->userDatetime(['not', 'a', 'date']));
+    }
 }

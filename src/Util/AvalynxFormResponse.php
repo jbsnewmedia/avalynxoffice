@@ -19,10 +19,6 @@ use Symfony\Component\HttpFoundation\JsonResponse;
  */
 final readonly class AvalynxFormResponse
 {
-    private function __construct()
-    {
-    }
-
     /**
      * @param array<string, mixed> $extra
      */

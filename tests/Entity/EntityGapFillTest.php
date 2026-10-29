@@ -7,6 +7,7 @@ namespace AvalynxOffice\Tests\Entity;
 use AvalynxOffice\Entity\Address;
 use AvalynxOffice\Entity\Attachment;
 use AvalynxOffice\Entity\Body;
+use AvalynxOffice\Entity\CalendarEvent;
 use AvalynxOffice\Entity\Email;
 use AvalynxOffice\Entity\EmailAddressLink;
 use AvalynxOffice\Entity\EmailAttachmentLink;
@@ -18,10 +19,14 @@ use AvalynxOffice\Entity\Folder;
 use AvalynxOffice\Entity\FolderAccount;
 use AvalynxOffice\Entity\Account;
 use AvalynxOffice\Entity\AccountAddress;
+use AvalynxOffice\Entity\AppSetting;
 use AvalynxOffice\Entity\Connector;
 use AvalynxOffice\Entity\ConnectorConfig;
+use AvalynxOffice\Entity\PasswordResetRequest;
+use AvalynxOffice\Entity\RecoveryAddress;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Entity\UserAccount;
+use AvalynxOffice\Entity\UserLoginSession;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Uid\UuidV7;
@@ -222,5 +227,90 @@ final class EntityGapFillTest extends TestCase
         $email->setUpdatedAt($updatedAt);
 
         self::assertSame($updatedAt, $email->getUpdatedAt());
+    }
+
+    public function testCalendarEventExposesRecurrenceAndIcalendarFields(): void
+    {
+        $event = new CalendarEvent();
+        $dtstamp = new \DateTimeImmutable('2026-01-02 03:04:05');
+        $until = new \DateTimeImmutable('2027-01-01 00:00:00');
+
+        $event->setTimezone('Europe/Berlin');
+        $event->setRecurrenceType(2);
+        $event->setRecurrenceInterval(3);
+        $event->setRecurrenceUntil($until);
+        $event->setRecurrenceDayOfWeek(4);
+        $event->setRecurrenceDayOfMonth(15);
+        $event->setRecurrenceWeekOfMonth(2);
+        $event->setRecurrenceMonthOfYear(6);
+        $event->setUid('event-uid@example.com');
+        $event->setDtstamp($dtstamp);
+        $event->setBusyStatus(1);
+        $event->setSensitivity(2);
+        $event->setReminder(30);
+
+        self::assertSame('Europe/Berlin', $event->getTimezone());
+        self::assertSame(2, $event->getRecurrenceType());
+        self::assertSame(3, $event->getRecurrenceInterval());
+        self::assertSame($until, $event->getRecurrenceUntil());
+        self::assertSame(4, $event->getRecurrenceDayOfWeek());
+        self::assertSame(15, $event->getRecurrenceDayOfMonth());
+        self::assertSame(2, $event->getRecurrenceWeekOfMonth());
+        self::assertSame(6, $event->getRecurrenceMonthOfYear());
+        self::assertSame('event-uid@example.com', $event->getUid());
+        self::assertSame($dtstamp, $event->getDtstamp());
+        self::assertSame(1, $event->getBusyStatus());
+        self::assertSame(2, $event->getSensitivity());
+        self::assertSame(30, $event->getReminder());
+    }
+
+    public function testAppSettingExposesIdentifierAndMutableKey(): void
+    {
+        $setting = new AppSetting();
+
+        self::assertNotNull($setting->getId());
+
+        $setting->setSettingKey('theme.primary_color');
+
+        self::assertSame('theme.primary_color', $setting->getSettingKey());
+    }
+
+    public function testPasswordResetRequestExposesReleaseMetadata(): void
+    {
+        $request = new PasswordResetRequest();
+        $releasedBy = Uuid::v7();
+
+        $request->setReleasedByAdmin($releasedBy);
+        $request->setReleasedIp('203.0.113.7');
+
+        self::assertSame($releasedBy, $request->getReleasedByAdmin());
+        self::assertSame('203.0.113.7', $request->getReleasedIp());
+    }
+
+    public function testRecoveryAddressRejectsEmptyEmailOnRead(): void
+    {
+        $address = new RecoveryAddress();
+        $address->setEmail('');
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('Email must not be empty');
+
+        $address->getEmail();
+    }
+
+    public function testUserExposesLoginSessionsCollection(): void
+    {
+        $user = new User();
+
+        self::assertInstanceOf(\Doctrine\Common\Collections\Collection::class, $user->getLoginSessions());
+        self::assertCount(0, $user->getLoginSessions());
+    }
+
+    public function testUserLoginSessionExposesUserAgent(): void
+    {
+        $session = new UserLoginSession();
+        $session->setUserAgent('Mozilla/5.0 (Windows NT 10.0) Chrome/121.0');
+
+        self::assertSame('Mozilla/5.0 (Windows NT 10.0) Chrome/121.0', $session->getUserAgent());
     }
 }

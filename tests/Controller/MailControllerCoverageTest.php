@@ -158,6 +158,11 @@ final class MailControllerCoverageTest extends WebTestCase
         self::assertSelectorExists(sprintf('.email-item[data-email="%s"]', $emailId));
         self::assertSelectorTextContains('a[href="/mails/all/all"] .badge', '1');
 
+        // An unknown folder id is neither "all" nor a resolvable folder: the
+        // listing renders with a zero total.
+        $this->client->request('GET', '/mails/all/00000000-0000-7000-8000-000000000000');
+        self::assertResponseIsSuccessful();
+
         $this->client->request('GET', sprintf('/mails/%s/all', $accountId));
         self::assertResponseIsSuccessful();
 

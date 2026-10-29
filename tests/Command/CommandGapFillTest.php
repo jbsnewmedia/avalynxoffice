@@ -91,6 +91,15 @@ final class CommandGapFillTest extends TestCase
         ]));
         self::assertStringContainsString('Input file not found', $missing->getDisplay());
 
+        // An empty input resolves to the project directory: scssphp happens
+        // to compile it, the branch itself must be exercised.
+        $empty = new CommandTester(new CompileScssCommand());
+        self::assertSame(Command::SUCCESS, $empty->execute([
+            'input' => '',
+            'output' => 'var/test/scss/empty.css',
+        ]));
+        self::assertStringContainsString('Compiled', $empty->getDisplay());
+
         $baseDir = self::varDir();
         $suffix = bin2hex(random_bytes(4));
         self::assertNotFalse(file_put_contents($baseDir.'/compile-'.$suffix.'.scss', '$color: #123456; .box { color: $color; }'));
@@ -1027,6 +1036,57 @@ final class CommandGapFillTest extends TestCase
     private function pluginRegistry(FakeConnectorPlugin ...$plugins): ConnectorPluginRegistry
     {
         return new ConnectorPluginRegistry($plugins, $this->createStub(ConnectorConfigRepository::class));
+    }
+
+    public function testMailFetchCommandSkipsConnectorsWithoutConfiguredInput(): void
+    {
+        $connector = (new Connector())
+            ->setName('Idle')
+            ->setDomain('idle.example.com');
+
+        $connectorRepository = $this->createMock(ConnectorRepository::class);
+        $connectorRepository->expects(self::once())
+            ->method('findBy')
+            ->willReturn([$connector]);
+
+        $registry = $this->pluginRegistry(new FakeConnectorPlugin('idle', input: true, inputConfigured: false));
+
+        $tester = new CommandTester(new MailFetchCommand($connectorRepository, $registry));
+
+        self::assertSame(Command::SUCCESS, $tester->execute([]));
+        self::assertStringContainsString('Kein Eingangs-Plugin konfiguriert.', $tester->getDisplay());
+        self::assertStringContainsString('Done. Total: imported=0, skipped=0, errors=0', $tester->getDisplay());
+    }
+
+    public function testMailSendCommandReportsMissingMailerForResolvedConnector(): void
+    {
+        $connector = (new Connector())
+            ->setName('Smtp')
+            ->setDomain('smtp.example.com');
+
+        $repository = $this->createStub(EmailRepository::class);
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->expects(self::never())->method('flush');
+
+        $folderManager = $this->createMock(FolderManager::class);
+        $folderManager->expects(self::never())->method('syncEmailSystemFolders');
+        $attachmentStorage = $this->createStub(AttachmentStorage::class);
+
+        $command = new MailSendCommand($repository, $entityManager, $folderManager, $attachmentStorage, $this->pluginRegistry(), $this->connectorRepositoryFor($connector), new AllowAllLicenseEnforcement());
+
+        $email = (new Email())
+            ->setSubject('No mailer')
+            ->setAccount((new Account())->setName('Smtp')->setEmail('unused@example.com'));
+        $email->addEmailAddress(
+            (new EmailAddressLink())
+                ->setType(EmailAddressType::SENDER)
+                ->setAddress((new Address())->setEmail('sender@smtp.example.com'))
+        );
+
+        $output = new BufferedOutput();
+        $this->invokeMailSend($command, $email, $output);
+
+        self::assertStringContainsString('No SMTP configuration', $output->fetch());
     }
 
     private function connectorRepositoryFor(?Connector $connector): ConnectorRepository

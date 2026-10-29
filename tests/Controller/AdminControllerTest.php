@@ -97,6 +97,34 @@ final class AdminControllerTest extends WebTestCase
         $this->client->request('GET', '/admin/connectors');
         self::assertResponseIsSuccessful();
 
+        // A connector with a plugin key that is no longer registered keeps
+        // its raw key in the table and gains an extra form choice.
+        $ghostConnector = (new Connector())
+            ->setName('Ghost Connector')
+            ->setDomain('ghost.example.com')
+            ->setPluginKey('ghost-plugin');
+        $this->entityManager->persist($ghostConnector);
+        $this->entityManager->flush();
+        $this->entityManager->clear();
+
+        $this->client->request('POST', '/admin/connectors/data', ['search' => 'ghost']);
+        self::assertResponseIsSuccessful();
+        $payload = json_decode((string) $this->client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        $connectorId = $ghostConnector->getId()?->toRfc4122() ?? '';
+        $row = null;
+        foreach ($payload['data'] as $candidate) {
+            if (($candidate['data']['id'] ?? null) === $connectorId) {
+                $row = $candidate;
+                break;
+            }
+        }
+        \assert(null !== $row);
+        self::assertStringContainsString('ghost-plugin', (string) $row['data']['domain']);
+
+        $this->client->request('POST', sprintf('/admin/connectors/%s/edit', $ghostConnector->getId()), [], [], ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $editPayload = json_decode((string) $this->client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertFalse($editPayload['success']);
+
         // The create form is a modal fragment: it is only served to
         // XMLHttpRequests.
         $this->client->request('GET', '/admin/connectors/new');

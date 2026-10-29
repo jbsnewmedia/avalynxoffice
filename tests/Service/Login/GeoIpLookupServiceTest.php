@@ -90,4 +90,40 @@ final class GeoIpLookupServiceTest extends TestCase
 
         self::assertSame(['city' => null, 'country' => null], $result);
     }
+
+    public function testRealFetchGeoSwallowsHttpClientFailures(): void
+    {
+        $httpClient = $this->createStub(\Symfony\Contracts\HttpClient\HttpClientInterface::class);
+        $httpClient->method('request')->willThrowException(new \RuntimeException('dns kaputt'));
+
+        $service = new GeoIpLookupService($httpClient);
+
+        self::assertSame(['city' => null, 'country' => null], $service->lookup('81.2.69.160'));
+    }
+
+    public function testRealFetchGeoReturnsUnknownLocationOnNonSuccessStatus(): void
+    {
+        $response = $this->createStub(\Symfony\Contracts\HttpClient\ResponseInterface::class);
+        $response->method('toArray')->willReturn(['status' => 'fail']);
+
+        $httpClient = $this->createStub(\Symfony\Contracts\HttpClient\HttpClientInterface::class);
+        $httpClient->method('request')->willReturn($response);
+
+        $service = new GeoIpLookupService($httpClient);
+
+        self::assertSame(['city' => null, 'country' => null], $service->lookup('81.2.69.160'));
+    }
+
+    public function testRealFetchGeoReturnsCityAndCountryOnSuccess(): void
+    {
+        $response = $this->createStub(\Symfony\Contracts\HttpClient\ResponseInterface::class);
+        $response->method('toArray')->willReturn(['status' => 'success', 'city' => 'Mainz', 'country' => 'Germany']);
+
+        $httpClient = $this->createStub(\Symfony\Contracts\HttpClient\HttpClientInterface::class);
+        $httpClient->method('request')->willReturn($response);
+
+        $service = new GeoIpLookupService($httpClient);
+
+        self::assertSame(['city' => 'Mainz', 'country' => 'Germany'], $service->lookup('81.2.69.160'));
+    }
 }

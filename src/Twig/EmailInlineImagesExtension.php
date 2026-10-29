@@ -77,15 +77,11 @@ final class EmailInlineImagesExtension extends AbstractExtension
         } catch (\Throwable) {
             return null;
         }
-        if (!is_file($absolutePath) || !is_readable($absolutePath)) {
+        $content = @file_get_contents($absolutePath);
+        if (false === $content || '' === $content) {
             return null;
         }
-        $size = (int) filesize($absolutePath);
-        if ($size <= 0 || $size > self::MAX_BYTES) {
-            return null;
-        }
-        $content = file_get_contents($absolutePath);
-        if (false === $content) {
+        if (strlen($content) > self::MAX_BYTES) {
             return null;
         }
         $type = null !== $mimeType ? trim((string) explode(';', $mimeType)[0]) : '';

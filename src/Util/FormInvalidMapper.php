@@ -17,10 +17,6 @@ use Symfony\Component\Form\FormInterface;
  */
 final readonly class FormInvalidMapper
 {
-    private function __construct()
-    {
-    }
-
     /**
      * @template TData
      *

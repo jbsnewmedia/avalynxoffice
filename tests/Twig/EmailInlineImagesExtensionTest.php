@@ -141,4 +141,62 @@ final class EmailInlineImagesExtensionTest extends TestCase
         }
         @rmdir($directory);
     }
+
+    public function testGetFiltersRegistersTheInlineImagesFilter(): void
+    {
+        $filters = $this->extension->getFilters();
+
+        self::assertCount(1, $filters);
+        self::assertSame('email_inline_images', $filters[0]->getName());
+    }
+
+    public function testLinkWithoutAttachmentIsSkipped(): void
+    {
+        $email = new Email();
+        $email->addEmailAttachment((new EmailAttachmentLink())->setEmail($email));
+
+        $html = '<html><body><img src="cid:orphan"></body></html>';
+
+        self::assertSame($html, $this->extension->inlineImages($html, $email));
+    }
+
+    public function testAttachmentWithEmptyFilePathIsSkipped(): void
+    {
+        $email = $this->createEmailWithAttachment('logo', 'logo.png', 'image/png', 'PNGDATA');
+        foreach ($email->getEmailAttachments() as $link) {
+            $link->getAttachment()?->setFilePath('');
+        }
+
+        $html = '<html><body><img src="cid:logo"></body></html>';
+
+        self::assertSame($html, $this->extension->inlineImages($html, $email));
+    }
+
+    public function testUnresolvableAttachmentPathIsSwallowed(): void
+    {
+        $storage = $this->createStub(AttachmentStorage::class);
+        $storage->method('resolveAbsolutePath')->willThrowException(new \RuntimeException('storage kaputt'));
+        $extension = new EmailInlineImagesExtension($storage);
+
+        $email = $this->createEmailWithAttachment('logo', 'logo.png', 'image/png', 'PNGDATA');
+
+        $html = '<html><body><img src="cid:logo"></body></html>';
+
+        self::assertSame($html, $extension->inlineImages($html, $email));
+    }
+
+    public function testEmptyAttachmentFileIsSkipped(): void
+    {
+        $emptyPath = $this->tempDir.'/empty-attachment.bin';
+        file_put_contents($emptyPath, '');
+
+        $email = $this->createEmailWithAttachment('empty', 'empty.png', 'image/png', 'x');
+        foreach ($email->getEmailAttachments() as $link) {
+            $link->getAttachment()?->setFilePath($emptyPath);
+        }
+
+        $html = '<html><body><img src="cid:empty"></body></html>';
+
+        self::assertSame($html, $this->extension->inlineImages($html, $email));
+    }
 }

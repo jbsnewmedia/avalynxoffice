@@ -988,4 +988,44 @@ final class MailActionControllerTest extends KernelTestCase
         $request->setSession(new Session(new MockArraySessionStorage()));
         $this->requestStack->push($request);
     }
+
+    public function testHandleDraftSubmissionReturnsJsonForAjaxDraftSaveInEditMode(): void
+    {
+        $response = $this->invokeHandleDraftSubmission(
+            $this->createPersistedDraftEmail('ajax-draft-save'),
+            $this->createSubmittedDraftForm(saveDraftClicked: true),
+            Request::create('/mail/edit', 'POST', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']),
+            true,
+        );
+
+        self::assertInstanceOf(\Symfony\Component\HttpFoundation\JsonResponse::class, $response);
+        $data = json_decode((string) $response->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertTrue($data['success']);
+        self::assertNull($data['redirect']);
+        self::assertArrayHasKey('message', $data);
+    }
+
+    public function testCreateSenderChoicesSkipsBlankAndDuplicateAddresses(): void
+    {
+        $connector = (new Connector())
+            ->setName('Support')
+            ->setDomain('example.com');
+        $account = (new Account())
+            ->setName('Support')
+            ->setEmail('');
+        $account->addAlias((new AccountAlias())->setLocalPart('alias')->setAccount($account)->setConnector($connector));
+        $account->addAlias((new AccountAlias())->setLocalPart('ALIAS')->setAccount($account)->setConnector($connector));
+
+        $email = (new Email())->setAccount($account)->setSubject('Choices');
+
+        $method = new \ReflectionMethod(MailActionController::class, 'createSenderChoices');
+        $choices = $method->invoke($this->controller, $email);
+
+        self::assertSame(
+            [
+                'Support <alias@example.com>' => 'alias@example.com',
+            ],
+            $choices,
+        );
+    }
 }

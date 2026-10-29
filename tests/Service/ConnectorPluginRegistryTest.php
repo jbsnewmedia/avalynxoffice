@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AvalynxOffice\Tests\Service;
 
 use AvalynxOffice\Entity\Connector;
+use AvalynxOffice\Plugin\Contract\ConnectorPluginInterface;
 use AvalynxOffice\Repository\ConnectorConfigRepository;
 use AvalynxOffice\Service\ConnectorPluginRegistry;
 use AvalynxOffice\Tests\Support\FakeConnectorPlugin;
@@ -192,5 +193,81 @@ final class ConnectorPluginRegistryTest extends TestCase
     private function registry(FakeConnectorPlugin ...$plugins): ConnectorPluginRegistry
     {
         return new ConnectorPluginRegistry($plugins, $this->createStub(ConnectorConfigRepository::class));
+    }
+
+    public function testFetchersCollectConfiguredFetchersAndSkipTheRest(): void
+    {
+        $connector = new Connector();
+        $configured = new FakeConnectorPlugin('pop3', input: true, inputConfigured: true);
+        $unconfigured = new FakeConnectorPlugin('imap', input: true, inputConfigured: false);
+        $plain = new class('plain') implements ConnectorPluginInterface {
+            #[\Override]
+            public function getKey(): string
+            {
+                return 'plain';
+            }
+
+            #[\Override]
+            public function getName(): string
+            {
+                return 'connector.plugin.plain';
+            }
+
+            #[\Override]
+            public function supportsInput(): bool
+            {
+                return true;
+            }
+
+            #[\Override]
+            public function supportsOutput(): bool
+            {
+                return false;
+            }
+
+            #[\Override]
+            public function getSettingsFormType(): string
+            {
+                return FakeConnectorSettingsType::class;
+            }
+
+            #[\Override]
+            public function getSettingsTemplate(): string
+            {
+                return '@FakeConnector/settings_form.html.twig';
+            }
+
+            #[\Override]
+            public function isInputConfigured(array $config): bool
+            {
+                return true;
+            }
+
+            #[\Override]
+            public function isOutputConfigured(array $config): bool
+            {
+                return false;
+            }
+
+            #[\Override]
+            public function getStatus(Connector $connector, array $config): array
+            {
+                return ['mails' => null, 'contacts' => null, 'calendar' => null];
+            }
+        };
+
+        $registry = new ConnectorPluginRegistry([$configured, $unconfigured, $plain], $this->createStub(ConnectorConfigRepository::class));
+
+        $fetchers = $registry->getFetchers($connector);
+        self::assertCount(1, $fetchers);
+        self::assertSame($configured, $fetchers[0]['plugin']);
+
+        $contactFetchers = $registry->getContactFetchers($connector);
+        self::assertCount(1, $contactFetchers);
+        self::assertSame($configured, $contactFetchers[0]['plugin']);
+
+        $calendarFetchers = $registry->getCalendarFetchers($connector);
+        self::assertCount(1, $calendarFetchers);
+        self::assertSame($configured, $calendarFetchers[0]['plugin']);
     }
 }

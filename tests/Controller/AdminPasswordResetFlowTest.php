@@ -7,12 +7,16 @@ namespace AvalynxOffice\Tests\Controller;
 use AvalynxOffice\Entity\PasswordResetRequest;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Repository\PasswordResetRequestRepository;
+use AvalynxOffice\Repository\UserRepository;
+use AvalynxOffice\Service\AdminPasswordResetService;
+use AvalynxOffice\Controller\UserPasswordResetController;
 use AvalynxOffice\Tests\Support\RefreshDatabaseTrait;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\Group;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Crawler;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 #[Group('integration')]
@@ -405,6 +409,133 @@ final class AdminPasswordResetFlowTest extends WebTestCase
         $payload = $this->jsonPayload();
         self::assertSame('unknown', $payload['state']);
         self::assertSame(0, $payload['secondsLeft']);
+    }
+
+    public function testStatusEndpointReportsExpiredForStaleRequests(): void
+    {
+        ['token' => $token] = $this->startReset();
+
+        $openRequest = $this->findResetRequest($token);
+        $openRequest->setExpiresAt(new \DateTimeImmutable('-1 minute'));
+        $this->entityManager->flush();
+
+        $this->client->request('GET', '/profile/password-reset/admin-flow/'.$token.'/status');
+        $payload = $this->jsonPayload();
+        self::assertSame('expired', $payload['state']);
+        self::assertSame(0, $payload['secondsLeft']);
+    }
+
+    public function testSubmitPasswordRejectsInvalidCsrfToken(): void
+    {
+        ['token' => $token] = $this->startReset();
+        $this->openFlowPage($token);
+
+        $this->client->request('POST', '/profile/password-reset/admin-flow/'.$token, [
+            'password' => self::NEW_PASSWORD,
+            'password_confirm' => self::NEW_PASSWORD,
+            '_token' => 'garbage',
+        ]);
+
+        self::assertResponseStatusCodeSame(403);
+        $payload = $this->jsonPayload();
+        self::assertFalse($payload['success']);
+        self::assertArrayHasKey('message', $payload);
+    }
+
+    public function testSubmitPasswordRequiresNonEmptyPassword(): void
+    {
+        ['token' => $token, 'number' => $number] = $this->startReset();
+        $this->openFlowPage($token);
+
+        $openRequest = $this->findResetRequest($token);
+        $this->release($openRequest, $number);
+        self::assertTrue($this->jsonPayload()['success']);
+
+        $this->submitPassword($token, '', '');
+
+        self::assertResponseStatusCodeSame(422);
+        $payload = $this->jsonPayload();
+        self::assertFalse($payload['success']);
+        self::assertArrayHasKey('password', $payload['invalid']);
+    }
+
+    public function testSubmitPasswordFailsForUnknownToken(): void
+    {
+        ['token' => $token, 'number' => $number] = $this->startReset();
+        $this->openFlowPage($token);
+
+        $openRequest = $this->findResetRequest($token);
+        $this->release($openRequest, $number);
+        self::assertTrue($this->jsonPayload()['success']);
+
+        // The CSRF token of a rendered flow page is not bound to the token.
+        $crawler = $this->openFlowPage($token);
+        $submitInputs = $crawler->filter('#password-reset-flow-form input[name="_token"]');
+        \assert($submitInputs->count() > 0);
+        $csrfToken = (string) $submitInputs->attr('value');
+
+        $this->client->request('POST', '/profile/password-reset/admin-flow/BOGUS-TOKEN', [
+            'password' => self::NEW_PASSWORD,
+            'password_confirm' => self::NEW_PASSWORD,
+            '_token' => $csrfToken,
+        ]);
+
+        $payload = $this->jsonPayload();
+        self::assertFalse($payload['success']);
+        self::assertSame('The reset process is invalid.', $payload['message']);
+    }
+
+    public function testSubmitPasswordFailsWhenTheReleaseWindowExpired(): void
+    {
+        ['token' => $token, 'number' => $number] = $this->startReset();
+        $this->openFlowPage($token);
+
+        $openRequest = $this->findResetRequest($token);
+        $this->release($openRequest, $number);
+        self::assertTrue($this->jsonPayload()['success']);
+
+        $released = $this->findResetRequest($token);
+        $released->setReleaseExpiresAt(new \DateTimeImmutable('-1 minute'));
+        $this->entityManager->flush();
+
+        $this->submitPassword($token, self::NEW_PASSWORD, self::NEW_PASSWORD);
+
+        self::assertResponseStatusCodeSame(403);
+        $payload = $this->jsonPayload();
+        self::assertFalse($payload['success']);
+        self::assertSame('The reset process has expired or has been invalidated.', $payload['message']);
+    }
+
+    public function testFlowKeepsPendingStateWhenTheClaimLosesARace(): void
+    {
+        $pending = new PasswordResetRequest();
+        $pending->setStatus(PasswordResetRequest::STATUS_PENDING);
+        $pending->setExpiresAt(new \DateTimeImmutable('+1 hour'));
+
+        // The flow looks the request up, then the service claims it with a
+        // second lookup - when that lookup comes up empty (the request was
+        // superseded in between), the flow must keep the pending state.
+        $repository = $this->createMock(PasswordResetRequestRepository::class);
+        $repository->expects(self::exactly(2))
+            ->method('findByToken')
+            ->willReturnOnConsecutiveCalls($pending, null);
+
+        $service = new AdminPasswordResetService(
+            $repository,
+            $this->createStub(UserRepository::class),
+            $this->createStub(EntityManagerInterface::class),
+            $this->createStub(UserPasswordHasherInterface::class),
+        );
+
+        $controller = new UserPasswordResetController($service, $repository, static::getContainer()->get('translator'));
+        $controller->setContainer(static::getContainer());
+
+        $request = Request::create('/profile/password-reset/admin-flow/race-token');
+        static::getContainer()->get('request_stack')->push($request);
+
+        $response = $controller->flow('race-token');
+
+        self::assertStringContainsString('data-state="pending"', (string) $response->getContent());
     }
 
     /**

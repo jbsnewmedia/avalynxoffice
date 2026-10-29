@@ -9,6 +9,7 @@ declare(strict_types=1);
 
 namespace AvalynxOffice\Tests\Controller;
 
+use AvalynxOffice\Controller\ProfileController;
 use AvalynxOffice\Entity\RecoveryAddress;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Service\UserService;
@@ -338,6 +339,35 @@ final class ProfileControllerTest extends WebTestCase
         self::assertResponseStatusCodeSame(403);
         $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
         self::assertFalse($data['success']);
+    }
+
+    public function testPasswordResetSubmitReturnsNotFoundForUnknownUser(): void
+    {
+        $url = $this->signUrl('/profile/password-reset/submit/00000000-0000-7000-8000-000000000000');
+
+        $this->client->request('POST', $url, ['password' => 'new-secret', 'password_confirm' => 'new-secret']);
+
+        self::assertResponseStatusCodeSame(404);
+    }
+
+    public function testPasswordResetCodeStartRejectsInvalidCsrfToken(): void
+    {
+        $this->client->loginUser($this->user);
+        $this->client->request('POST', '/profile/password-reset/code', ['_token' => 'invalid', 'email' => 'target@example.com']);
+
+        self::assertResponseStatusCodeSame(403);
+        $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertFalse($data['success']);
+    }
+
+    public function testSignedRequestCheckWithoutActiveRequestReturnsFalse(): void
+    {
+        $controller = static::getContainer()->get(ProfileController::class);
+        \assert($controller instanceof ProfileController);
+
+        $method = new \ReflectionMethod(ProfileController::class, 'isSignedRequestValid');
+
+        self::assertFalse($method->invoke($controller));
     }
 
     public function testPasswordResetSubmitReRendersFormForEmptyPassword(): void
