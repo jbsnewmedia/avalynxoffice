@@ -64,7 +64,7 @@ final class DatabasePurgerTest extends TestCase
         $connection = $this->createConnection('postgresql', ['a', 'b']);
 
         $statements = [];
-        $connection->expects(self::any())
+        $connection->expects(self::atLeastOnce())
             ->method('executeStatement')
             ->willReturnCallback(static function (string $sql) use (&$statements): int {
                 $statements[] = $sql;
@@ -119,7 +119,7 @@ final class DatabasePurgerTest extends TestCase
         $connection = $this->createConnection('mysql', ['t1']);
 
         $statements = [];
-        $connection->expects(self::any())
+        $connection->expects(self::atLeastOnce())
             ->method('executeStatement')
             ->willReturnCallback(static function (string $sql) use (&$statements): int {
                 $statements[] = $sql;
@@ -141,7 +141,7 @@ final class DatabasePurgerTest extends TestCase
         $connection = $this->createConnection('mysql', ['t1']);
 
         $statements = [];
-        $connection->expects(self::any())
+        $connection->expects(self::atLeastOnce())
             ->method('executeStatement')
             ->willReturnCallback(static function (string $sql) use (&$statements): int {
                 $statements[] = $sql;
@@ -187,7 +187,7 @@ final class DatabasePurgerTest extends TestCase
      */
     private function captureStatements(Connection $connection, array &$statements): void
     {
-        $connection->expects(self::any())
+        $connection->expects(self::atLeastOnce())
             ->method('executeStatement')
             ->willReturnCallback(static function (string $sql) use (&$statements): int {
                 $statements[] = $sql;
@@ -210,7 +210,7 @@ final class DatabasePurgerTest extends TestCase
 
         $connection = $this->createMock(Connection::class);
         $connection->expects(self::once())->method('createSchemaManager')->willReturn($schemaManager);
-        $connection->expects(self::any())->method('getDatabasePlatform')->willReturn($platform);
+        $connection->expects(self::atLeastOnce())->method('getDatabasePlatform')->willReturn($platform);
 
         return $connection;
     }

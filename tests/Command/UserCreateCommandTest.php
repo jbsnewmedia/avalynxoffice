@@ -78,7 +78,7 @@ final class UserCreateCommandTest extends TestCase
     public function testCreatesAdministratorWhenEmailIsUnknown(): void
     {
         $entityManager = $this->createMock(EntityManagerInterface::class);
-        $entityManager->method('getRepository')
+        $entityManager->expects(self::once())->method('getRepository')
             ->with(User::class)
             ->willReturn($this->createRepositoryStub(null));
         $entityManager->method('wrapInTransaction')
@@ -157,7 +157,7 @@ final class UserCreateCommandTest extends TestCase
         $existing->setEmail('admin@example.com');
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
-        $entityManager->method('getRepository')
+        $entityManager->expects(self::once())->method('getRepository')
             ->with(User::class)
             ->willReturn($this->createRepositoryStub($existing));
         $entityManager->expects(self::never())->method('persist');

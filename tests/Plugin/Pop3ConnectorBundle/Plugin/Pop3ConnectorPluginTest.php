@@ -44,7 +44,7 @@ final class Pop3ConnectorPluginTest extends TestCase
     {
         $connector = new Connector();
         $emailRepository = $this->createMock(EmailRepository::class);
-        $emailRepository->method('count')->with(['connector' => $connector])->willReturn(120);
+        $emailRepository->expects(self::atLeastOnce())->method('count')->with(['connector' => $connector])->willReturn(120);
 
         $translator = $this->createMock(TranslatorInterface::class);
         $translator->expects(self::once())

@@ -68,7 +68,7 @@ final class InitCommandTest extends TestCase
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $repository = $this->createMock(EntityRepository::class);
         $repository->expects(self::exactly(2))->method('findOneBy')->with([])->willReturn(null);
-        $entityManager->expects(self::any())->method('getRepository')->with(User::class)->willReturn($repository);
+        $entityManager->expects(self::atLeastOnce())->method('getRepository')->with(User::class)->willReturn($repository);
         $entityManager->expects(self::once())
             ->method('persist')
             ->willReturnCallback(static function (object $entity) use (&$persisted): void {
@@ -111,7 +111,7 @@ final class InitCommandTest extends TestCase
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $repository = $this->createMock(EntityRepository::class);
         $repository->expects(self::exactly(2))->method('findOneBy')->with([])->willReturn($existingUser);
-        $entityManager->expects(self::any())->method('getRepository')->with(User::class)->willReturn($repository);
+        $entityManager->expects(self::atLeastOnce())->method('getRepository')->with(User::class)->willReturn($repository);
         $entityManager->expects(self::never())->method('persist');
         $entityManager->expects(self::never())->method('flush');
 
@@ -139,7 +139,7 @@ final class InitCommandTest extends TestCase
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $repository = $this->createMock(EntityRepository::class);
         $repository->expects(self::exactly(2))->method('findOneBy')->with([])->willReturn($existingUser);
-        $entityManager->expects(self::any())->method('getRepository')->with(User::class)->willReturn($repository);
+        $entityManager->expects(self::atLeastOnce())->method('getRepository')->with(User::class)->willReturn($repository);
         $entityManager->expects(self::once())->method('clear');
         $entityManager->expects(self::never())->method('persist');
 
@@ -171,7 +171,7 @@ final class InitCommandTest extends TestCase
             ->method('findOneBy')
             ->with([])
             ->willReturnOnConsecutiveCalls($existingUser, null);
-        $entityManager->expects(self::any())->method('getRepository')->with(User::class)->willReturn($repository);
+        $entityManager->expects(self::atLeastOnce())->method('getRepository')->with(User::class)->willReturn($repository);
         $entityManager->expects(self::once())->method('clear');
         $entityManager->expects(self::once())->method('persist');
         $entityManager->expects(self::once())->method('flush');
@@ -210,7 +210,7 @@ final class InitCommandTest extends TestCase
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $repository = $this->createMock(EntityRepository::class);
         $repository->expects(self::once())->method('findOneBy')->with([])->willReturn($existingUser);
-        $entityManager->expects(self::any())->method('getRepository')->with(User::class)->willReturn($repository);
+        $entityManager->expects(self::atLeastOnce())->method('getRepository')->with(User::class)->willReturn($repository);
         $entityManager->expects(self::never())->method('persist');
 
         $purger = $this->createMock(DatabasePurger::class);
@@ -235,7 +235,7 @@ final class InitCommandTest extends TestCase
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $repository = $this->createMock(EntityRepository::class);
         $repository->expects(self::exactly(2))->method('findOneBy')->with([])->willReturn(null);
-        $entityManager->expects(self::any())->method('getRepository')->with(User::class)->willReturn($repository);
+        $entityManager->expects(self::atLeastOnce())->method('getRepository')->with(User::class)->willReturn($repository);
         $entityManager->expects(self::never())->method('persist');
 
         $command = $this->createCommand(
@@ -255,7 +255,7 @@ final class InitCommandTest extends TestCase
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $repository = $this->createMock(EntityRepository::class);
         $repository->expects(self::exactly(2))->method('findOneBy')->with([])->willReturn(null);
-        $entityManager->expects(self::any())->method('getRepository')->with(User::class)->willReturn($repository);
+        $entityManager->expects(self::atLeastOnce())->method('getRepository')->with(User::class)->willReturn($repository);
         $entityManager->expects(self::never())->method('persist');
 
         $command = $this->createCommand(

@@ -125,7 +125,7 @@ final class Pop3FetcherFetchTest extends TestCase
         $addressRepository->method('findOneBy')->willReturn(null);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
-        $entityManager->method('getRepository')->with(Address::class)->willReturn($addressRepository);
+        $entityManager->expects(self::atLeastOnce())->method('getRepository')->with(Address::class)->willReturn($addressRepository);
         $entityManager->expects(self::atLeastOnce())->method('persist');
         $entityManager->expects(self::once())->method('flush');
         $entityManager->method('isOpen')->willReturn(true);
@@ -238,7 +238,7 @@ final class Pop3FetcherFetchTest extends TestCase
             ->with(self::callback(static fn (array $config): bool => 'TLS' === $config['ssl']))
             ->willReturn($storage);
 
-        $emailRepository = $this->createMock(EmailRepository::class);
+        $emailRepository = $this->createStub(EmailRepository::class);
         $emailRepository->method('importKeysForConnector')->willReturn([]);
         $emailRepository->method('findOneBy')->willReturnCallback(static function (array $criteria) use (&$processed): mixed {
             $key = $criteria['importKey'] ?? null;
@@ -272,13 +272,13 @@ final class Pop3FetcherFetchTest extends TestCase
         $connector = $this->createConnector();
         $processed = [];
 
-        $storage = $this->createMock(Pop3Storage::class);
+        $storage = $this->createStub(Pop3Storage::class);
         $storage->method('getUniqueId')->willReturn([1 => 'uid-1', 2 => 'uid-2']);
 
         $factory = $this->createStub(Pop3StorageFactory::class);
         $factory->method('create')->willReturn($storage);
 
-        $emailRepository = $this->createMock(EmailRepository::class);
+        $emailRepository = $this->createStub(EmailRepository::class);
         $emailRepository->method('importKeysForConnector')->willReturn([]);
         $emailRepository->method('findOneBy')->willReturnCallback(static function (array $criteria) use (&$processed): mixed {
             $key = $criteria['importKey'] ?? null;
@@ -330,7 +330,7 @@ final class Pop3FetcherFetchTest extends TestCase
         $addressRepository->method('findOneBy')->willReturn(null);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
-        $entityManager->method('getRepository')->with(Address::class)->willReturn($addressRepository);
+        $entityManager->expects(self::atLeastOnce())->method('getRepository')->with(Address::class)->willReturn($addressRepository);
         $entityManager->expects(self::atLeastOnce())->method('persist');
         $entityManager->expects(self::once())->method('flush')->willThrowException($this->createUniqueConstraintViolationException());
         $entityManager->method('isOpen')->willReturn(true);
@@ -375,7 +375,7 @@ final class Pop3FetcherFetchTest extends TestCase
         $addressRepository->method('findOneBy')->willReturn(null);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
-        $entityManager->method('getRepository')->with(Address::class)->willReturn($addressRepository);
+        $entityManager->expects(self::atLeastOnce())->method('getRepository')->with(Address::class)->willReturn($addressRepository);
         $entityManager->expects(self::atLeastOnce())->method('persist');
         $entityManager->expects(self::once())->method('flush')->willThrowException($this->createUniqueConstraintViolationException());
         $entityManager->method('isOpen')->willReturn(false);
@@ -414,7 +414,7 @@ final class Pop3FetcherFetchTest extends TestCase
         $factory = $this->createStub(Pop3StorageFactory::class);
         $factory->method('create')->willReturn($storage);
 
-        $emailRepository = $this->createMock(EmailRepository::class);
+        $emailRepository = $this->createStub(EmailRepository::class);
         $emailRepository->method('importKeysForConnector')->willReturn([]);
         $emailRepository->method('findOneBy')->willReturnCallback(static function (array $criteria) use (&$processed): mixed {
             $key = $criteria['importKey'] ?? null;
@@ -429,7 +429,7 @@ final class Pop3FetcherFetchTest extends TestCase
         $addressRepository->method('findOneBy')->willReturn(null);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
-        $entityManager->method('getRepository')->with(Address::class)->willReturn($addressRepository);
+        $entityManager->expects(self::atLeastOnce())->method('getRepository')->with(Address::class)->willReturn($addressRepository);
         $entityManager->expects(self::atLeastOnce())->method('persist');
         $entityManager->expects(self::exactly(2))->method('flush');
         $entityManager->method('isOpen')->willReturn(true);
@@ -470,7 +470,7 @@ final class Pop3FetcherFetchTest extends TestCase
         $entityManager = $this->createStub(EntityManagerInterface::class);
         $entityManager->method('isOpen')->willReturn(false);
 
-        $emailRepository = $this->createMock(EmailRepository::class);
+        $emailRepository = $this->createStub(EmailRepository::class);
         $emailRepository->method('importKeysForConnector')->willReturn([]);
         $emailRepository->method('findOneBy')->willReturnCallback(static function (array $criteria) use (&$processed): mixed {
             $key = $criteria['importKey'] ?? null;
@@ -577,7 +577,7 @@ final class Pop3FetcherFetchTest extends TestCase
         $emailRepository = $this->createMock(EmailRepository::class);
         $emailRepository->method('importKeysForConnector')->willReturn([]);
         $emailRepository->method('findOneBy')->willReturn(new \stdClass());
-        $emailRepository->method('count')->with(['connector' => $connector])->willReturn(5);
+        $emailRepository->expects(self::once())->method('count')->with(['connector' => $connector])->willReturn(5);
 
         $configEntity = new \AvalynxOffice\Entity\ConnectorConfig();
         $configEntity->setConnector($connector);

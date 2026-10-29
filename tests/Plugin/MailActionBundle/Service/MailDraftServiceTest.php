@@ -681,6 +681,7 @@ final class MailDraftServiceTest extends TestCase
             ->willReturn(null);
 
         $entityManager
+            ->expects(self::once())
             ->method('getRepository')
             ->with(Address::class)
             ->willReturn($addressRepository);

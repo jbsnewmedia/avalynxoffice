@@ -505,7 +505,7 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
 
         $storage = $this->createMock(\Laminas\Mail\Storage\Pop3::class);
         $storage->method('getUniqueId')->willReturn([1 => 'uid-import-1']);
-        $storage->method('getMessage')->with(1)->willReturn(new \Laminas\Mail\Storage\Message(['raw' => $rawMessage]));
+        $storage->expects(self::atLeastOnce())->method('getMessage')->with(1)->willReturn(new \Laminas\Mail\Storage\Message(['raw' => $rawMessage]));
         $storage->expects(self::once())->method('removeMessage')->with(1);
 
         $factory = $this->createStub(\JBSNewMedia\Pop3ConnectorBundle\Service\Pop3StorageFactory::class);
@@ -550,7 +550,7 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
         // A repeated import does not create duplicates.
         $storage2 = $this->createMock(\Laminas\Mail\Storage\Pop3::class);
         $storage2->method('getUniqueId')->willReturn([1 => 'uid-import-1']);
-        $storage2->method('getMessage')->with(1)->willReturn(new \Laminas\Mail\Storage\Message(['raw' => $rawMessage]));
+        $storage2->expects(self::never())->method('getMessage')->with(1)->willReturn(new \Laminas\Mail\Storage\Message(['raw' => $rawMessage]));
         $storage2->expects(self::never())->method('removeMessage');
         $factory->method('create')->willReturn($storage2);
 

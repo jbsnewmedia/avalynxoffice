@@ -11,7 +11,7 @@ use AvalynxOffice\Service\Mail\AttachmentStorage;
 use AvalynxOffice\Service\Mail\FolderManager;
 use AvalynxOffice\Plugin\Contract\ConnectorFetchRequest;
 use JBSNewMedia\Pop3ConnectorBundle\Service\Pop3Fetcher;
-use JBSNewMedia\Pop3ConnectorBundle\Service\Pop3FetcherTestFunctionOverrides;
+use AvalynxOffice\Tests\Plugin\Pop3ConnectorBundle\Service\Pop3FetcherTestFunctionOverrides;
 use AvalynxOffice\Service\Mail\MailRoutingService;
 use JBSNewMedia\Pop3ConnectorBundle\Service\Pop3StorageFactory;
 use Doctrine\ORM\EntityManagerInterface;
@@ -266,7 +266,7 @@ final class Pop3FetcherErrorHandlingTest extends TestCase
         $addressRepository->method('findOneBy')->willReturn(null);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
-        $entityManager->method('getRepository')->with(\AvalynxOffice\Entity\Address::class)->willReturn($addressRepository);
+        $entityManager->expects(self::atLeastOnce())->method('getRepository')->with(\AvalynxOffice\Entity\Address::class)->willReturn($addressRepository);
         $entityManager->expects(self::atLeastOnce())->method('persist');
         $entityManager->expects(self::once())->method('flush');
         $entityManager->method('isOpen')->willReturn(true);

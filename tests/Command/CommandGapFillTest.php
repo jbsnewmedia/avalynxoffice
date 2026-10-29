@@ -335,7 +335,7 @@ final class CommandGapFillTest extends TestCase
         $connection->expects(self::once())->method('beginTransaction');
         $connection->expects(self::once())->method('commit');
         $connection->expects(self::never())->method('rollBack');
-        $connection->expects(self::any())
+        $connection->expects(self::atLeastOnce())
             ->method('executeStatement')
             ->willReturnCallback(static function (string $sql): int {
                 if ('UPDATE account SET inbox_folder_id = NULL' === $sql) {
@@ -381,7 +381,7 @@ final class CommandGapFillTest extends TestCase
         $connection->expects(self::once())->method('commit');
         $connection->expects(self::once())->method('isTransactionActive')->willReturn(true);
         $connection->expects(self::once())->method('rollBack');
-        $connection->expects(self::any())
+        $connection->expects(self::atLeastOnce())
             ->method('executeStatement')
             ->willReturnCallback(static function (string $sql) use ($tables): int {
                 if (str_starts_with($sql, 'TRUNCATE ')) {
@@ -414,7 +414,7 @@ final class CommandGapFillTest extends TestCase
         $connection->expects(self::never())->method('commit');
         $connection->expects(self::once())->method('isTransactionActive')->willReturn(true);
         $connection->expects(self::once())->method('rollBack');
-        $connection->expects(self::any())
+        $connection->expects(self::atLeastOnce())
             ->method('executeStatement')
             ->willReturnCallback(static function (string $sql): int {
                 if ('DELETE FROM email_address_link' === $sql) {
@@ -717,7 +717,7 @@ final class CommandGapFillTest extends TestCase
         $connection->expects(self::once())->method('beginTransaction');
         $connection->expects(self::once())->method('commit');
         $connection->expects(self::never())->method('rollBack');
-        $connection->expects(self::any())->method('executeStatement')->willReturn(1);
+        $connection->expects(self::atLeastOnce())->method('executeStatement')->willReturn(1);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->expects(self::once())->method('getConnection')->willReturn($connection);
@@ -737,7 +737,7 @@ final class CommandGapFillTest extends TestCase
         $connection->expects(self::once())->method('beginTransaction');
         $connection->expects(self::once())->method('commit');
         $connection->expects(self::never())->method('rollBack');
-        $connection->expects(self::any())->method('executeStatement')->willReturn(1);
+        $connection->expects(self::atLeastOnce())->method('executeStatement')->willReturn(1);
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->expects(self::once())->method('getConnection')->willReturn($connection);
@@ -758,7 +758,7 @@ final class CommandGapFillTest extends TestCase
         $connection->expects(self::never())->method('commit');
         $connection->expects(self::once())->method('isTransactionActive')->willReturn(true);
         $connection->expects(self::once())->method('rollBack');
-        $connection->expects(self::any())
+        $connection->expects(self::atLeastOnce())
             ->method('executeStatement')
             ->willReturnCallback(static function (string $sql): int {
                 if ('DELETE FROM address' === $sql) {
@@ -786,7 +786,7 @@ final class CommandGapFillTest extends TestCase
         $connection->expects(self::never())->method('commit');
         $connection->expects(self::exactly(2))->method('isTransactionActive')->willReturn(true);
         $connection->expects(self::exactly(2))->method('rollBack');
-        $connection->expects(self::any())
+        $connection->expects(self::atLeastOnce())
             ->method('executeStatement')
             ->willReturnCallback(static function (string $sql): int {
                 if (str_starts_with($sql, 'TRUNCATE ')) {
