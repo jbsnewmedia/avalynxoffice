@@ -175,7 +175,7 @@
             "bash -lc 'status=0; vendor-bin/phpunit/vendor/bin/phpunit --configuration=phpunit-no-coverage.xml.dist || status=$?; php bin/console doctrine:fixtures:load --no-interaction; restore_status=$?; if [ $restore_status -ne 0 ]; then exit $restore_status; fi; exit $status'"
         ],
         "bin-phpunit-coverage": [
-            "bash -lc 'status=0; XDEBUG_MODE=coverage vendor-bin/phpunit/vendor/bin/phpunit --configuration=phpunit-coverage.xml.dist --coverage-html var/coverage || status=$?; php bin/console doctrine:fixtures:load --no-interaction; restore_status=$?; if [ $restore_status -ne 0 ]; then exit $restore_status; fi; exit $status'"
+            "bash -lc 'status=0; XDEBUG_MODE=coverage php -d pcov.directory=/app vendor-bin/phpunit/vendor/bin/phpunit --configuration=phpunit-coverage.xml.dist --coverage-html var/coverage || status=$?; php bin/console doctrine:fixtures:load --no-interaction; restore_status=$?; if [ $restore_status -ne 0 ]; then exit $restore_status; fi; exit $status'"
         ],
         "bin-phpunit-v": [
             "vendor-bin/phpunit/vendor/bin/phpunit --version"
