@@ -6,9 +6,10 @@ when@dev:
     monolog:
         handlers:
             main:
-                type: stream
+                type: rotating_file
                 path: "%kernel.logs_dir%/%kernel.environment%.log"
                 level: debug
+                max_files: 14 # keep two weeks of daily logs
                 channels: ["!event"]
             # uncomment to get logging in your browser
             # you may have to allow bigger header sizes in your Web server configuration
@@ -31,11 +32,15 @@ when@test:
                 action_level: error
                 handler: nested
                 excluded_http_codes: [404, 405]
+                buffer_size: 50 # How many messages should be saved? Prevent memory leaks
                 channels: ["!event"]
             nested:
                 type: stream
                 path: "%kernel.logs_dir%/%kernel.environment%.log"
                 level: debug
+                # The SQL statement log is the bulk of the test log; it is only
+                # needed for debugging a single test, not for the full run.
+                channels: ["!event", "!doctrine"]
 
 when@prod:
     monolog:
