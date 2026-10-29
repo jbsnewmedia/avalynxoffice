@@ -181,6 +181,9 @@
         "bin-phpunit-v": [
             "vendor-bin/phpunit/vendor/bin/phpunit --version"
         ],
+        "bin-paratest": [
+            "bash -lc 'status=0; vendor-bin/phpunit/vendor/bin/paratest --configuration=phpunit-no-coverage.xml.dist --processes=${PARATEST_PROCESSES:-8} || status=$?; exit $status'"
+        ],
         "bin-rector-install": [
             "composer bin rector install"
         ],
@@ -204,6 +207,9 @@
         ],
         "test-full": [
             "@bin-phpunit"
+        ],
+        "test-parallel": [
+            "@bin-paratest"
         ],
         "test-watch": [
             "bash -lc 'status=0; vendor-bin/phpunit/vendor/bin/phpunit --testdox || status=$?; php bin/console doctrine:fixtures:load --no-interaction; restore_status=$?; if [ $restore_status -ne 0 ]; then exit $restore_status; fi; exit $status'"
