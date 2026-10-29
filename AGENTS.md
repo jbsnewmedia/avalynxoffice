@@ -33,8 +33,12 @@
     - Do not add exclusions or ignore rules.
     - Do not use stubs.
 - PHPUnit:
-    - `composer test-coverage`
-    - Maintain **100% code coverage** for classes, methods, and lines.
+    - `composer test` — this is the default and sufficient in normal
+      development.
+    - `composer test-coverage` only when explicitly requested (e.g. by the
+      maintainer or when the coverage requirement itself is the task). The
+      **100% code coverage** requirement (classes, methods, lines) applies
+      only on explicit instruction too.
     - Do not add exclusions or ignore rules.
     - Do not use stubs.
 - ECS:
@@ -52,14 +56,29 @@ Before **every** commit, the following must run and pass:
 Notes:
 
 - Run these commands inside the Docker container as described above.
-- The full quality gate (PHPStan level max, PHPUnit with all tests green,
-  PHPUnit coverage with 100 % line coverage — use
-  `COMPOSER_PROCESS_TIMEOUT=3600 composer test-coverage`) is enforced by CI
-  on every push and must be green before a release; it does not have to run
-  before each local commit.
-- The test suite resets the shared development database (SchemaTool, without
-  migration tracking): after running tests, recreate the test accounts
-  (e.g. `php bin/console app:user:create`) and re-sync the migration tracking
+- The full quality gate (ECS, Rector, PHPStan, PHPUnit without coverage) is
+  enforced by CI on every push and must be green before a release. Locally,
+  `composer test` (without coverage) is sufficient; a coverage run
+  (`COMPOSER_PROCESS_TIMEOUT=3600 composer test-coverage`, 100 % line
+  coverage) is only needed when explicitly requested.
+- The test suite resets the shared development database between tests
+  (truncate-based; the schema is only rebuilt when it no longer matches the
+  entity metadata — the fingerprint lives in the `_test_schema_hash` table).
+  System tables (`doctrine_migration_versions`, `messenger_messages`) survive
+  the reset, so the migration tracking normally stays intact.
+- `composer test-parallel` runs the suite in 8 parallel workers
+  (`PARATEST_PROCESSES=N` to change): each worker gets its own database
+  (`my_database_t<token>`) and its own kernel cache directory, so the dev
+  database is never touched and no `fixtures:load` restore is needed. The
+  worker databases are reused across runs (schema fingerprint makes the next
+  run skip the rebuild).
+- When running phpunit directly (without the composer test scripts), the dev
+  data is wiped: recreate the test accounts afterwards
+  (e.g. `php bin/console app:user:create`). The composer test scripts
+  (`composer test`, `composer test-coverage`) already restore the data via
+  `doctrine:fixtures:load` after the suite.
+- Only if the suite had to rebuild the schema (first run against an unknown
+  schema or after entity changes) is the migration tracking gone: re-sync it
   (`php bin/console doctrine:migrations:version --all --add --no-interaction`),
   otherwise the container bootstrap entrypoint fails on the next restart.
 
@@ -112,7 +131,10 @@ section; kept as pointer so greps still find it.)
 ## Test data flow
 
 - PHPUnit tests must generate their own data for each test run.
-- For integration and functional tests, the database must be rebuilt in `setUp()` and then freshly populated using `AppFixtures`.
+- For integration and functional tests, `setUp()` must reset the database
+  (`RefreshDatabaseTrait::refreshDatabase()`: truncates all tables, rebuilds
+  the schema only when it no longer matches the entity metadata) and then
+  freshly populate the data the test needs.
 - No test may assume that fixture data from a previous test or from a manually prepared database is still available.
 
 ## Tags and releases — maintainer only

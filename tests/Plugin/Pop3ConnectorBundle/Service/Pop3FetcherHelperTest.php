@@ -2,47 +2,6 @@
 
 declare(strict_types=1);
 
-namespace JBSNewMedia\Pop3ConnectorBundle\Service;
-
-final class Pop3FetcherTestFunctionOverrides
-{
-    public static bool $forceMissingIconvMimeDecode = false;
-
-    public static bool $forceMbDetectEncodingFailure = false;
-
-    public static bool $forceInvalidMbConvertEncoding = false;
-}
-
-function function_exists(string $function): bool
-{
-    if ('iconv_mime_decode' === $function && Pop3FetcherTestFunctionOverrides::$forceMissingIconvMimeDecode) {
-        return false;
-    }
-
-    return \function_exists($function);
-}
-
-function mb_convert_encoding(array|string|int|float|null $string, ?string $toEncoding, array|string|null $fromEncoding = null): array|string|false
-{
-    if (Pop3FetcherTestFunctionOverrides::$forceInvalidMbConvertEncoding) {
-        return "\xfe\xfe";
-    }
-
-    return \mb_convert_encoding($string, $toEncoding, $fromEncoding);
-}
-
-/**
- * @param array<int, string>|string|null $encodings
- */
-function mb_detect_encoding(string $string, array|string|null $encodings = null, bool $strict = false): string|false
-{
-    if (Pop3FetcherTestFunctionOverrides::$forceMbDetectEncodingFailure) {
-        return false;
-    }
-
-    return \mb_detect_encoding($string, $encodings, $strict);
-}
-
 namespace AvalynxOffice\Tests\Plugin\Pop3ConnectorBundle\Service;
 
 use AvalynxOffice\Entity\Address;
@@ -57,7 +16,7 @@ use AvalynxOffice\Service\Mail\AttachmentStorage;
 use AvalynxOffice\Service\Mail\FolderManager;
 use AvalynxOffice\Plugin\Contract\ConnectorFetchRequest;
 use JBSNewMedia\Pop3ConnectorBundle\Service\Pop3Fetcher;
-use JBSNewMedia\Pop3ConnectorBundle\Service\Pop3FetcherTestFunctionOverrides;
+use AvalynxOffice\Tests\Plugin\Pop3ConnectorBundle\Service\Pop3FetcherTestFunctionOverrides;
 use AvalynxOffice\Service\Mail\MailRoutingService;
 use JBSNewMedia\Pop3ConnectorBundle\Service\Pop3StorageFactory;
 use Doctrine\ORM\EntityManagerInterface;
