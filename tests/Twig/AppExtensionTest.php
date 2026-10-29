@@ -89,13 +89,26 @@ class AppExtensionTest extends TestCase
     public function testGetFunctions(): void
     {
         $functions = $this->extension->getFunctions();
-        $this->assertCount(6, $functions);
+        $this->assertCount(7, $functions);
         $this->assertEquals('file_icon', $functions[0]->getName());
         $this->assertEquals('file_icon_color', $functions[1]->getName());
-        $this->assertEquals('mail_compose_button_views', $functions[2]->getName());
-        $this->assertEquals('mail_email_action_views', $functions[3]->getName());
-        $this->assertEquals('mail_contact_action_views', $functions[4]->getName());
-        $this->assertEquals('mail_calendar_action_views', $functions[5]->getName());
+        $this->assertEquals('avatar_hue', $functions[2]->getName());
+        $this->assertEquals('mail_compose_button_views', $functions[3]->getName());
+        $this->assertEquals('mail_email_action_views', $functions[4]->getName());
+        $this->assertEquals('mail_contact_action_views', $functions[5]->getName());
+        $this->assertEquals('mail_calendar_action_views', $functions[6]->getName());
+    }
+
+    public function testAvatarHueIsDeterministicAndInRange(): void
+    {
+        $this->assertSame(201, $this->extension->avatarHue('alice@example.com'));
+        $this->assertSame(42, $this->extension->avatarHue('bob@example.com'));
+        $this->assertSame(19, $this->extension->avatarHue('carol@example.com'));
+
+        $hue = $this->extension->avatarHue('any-address@example.org');
+        $this->assertGreaterThanOrEqual(0, $hue);
+        $this->assertLessThan(360, $hue);
+        $this->assertSame($hue, $this->extension->avatarHue('any-address@example.org'));
     }
 
     public function testPluginFunctionsFallBackToEmptyArrays(): void

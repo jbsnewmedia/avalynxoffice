@@ -143,18 +143,22 @@ document.addEventListener('DOMContentLoaded', function () {
                     window.I18N = JSON.parse(txt);
                 } else {
                     var d = el.dataset || {};
+                    var decodeI18n = function (v) {
+                        if (typeof v !== 'string') return v;
+                        try { return JSON.parse(v); } catch (e) { return v; }
+                    };
                     window.I18N = {
-                        loading_email: d.loadingEmail,
-                        load_more: d.loadMore,
-                        email_load_error: d.emailLoadError,
-                        no_results: d.noResults,
-                        already_in_folder: d.alreadyInFolder,
-                        unexpected_response: d.unexpectedResponse,
-                        move_failed: d.moveFailed,
-                        moved_to_folder: d.movedToFolder,
-                        read_label: d.readLabel,
-                        unread_label: d.unreadLabel,
-                        folder_unread_aria: d.folderUnreadAria
+                        loading_email: decodeI18n(d.loadingEmail),
+                        load_more: decodeI18n(d.loadMore),
+                        email_load_error: decodeI18n(d.emailLoadError),
+                        no_results: decodeI18n(d.noResults),
+                        already_in_folder: decodeI18n(d.alreadyInFolder),
+                        unexpected_response: decodeI18n(d.unexpectedResponse),
+                        move_failed: decodeI18n(d.moveFailed),
+                        moved_to_folder: decodeI18n(d.movedToFolder),
+                        read_label: decodeI18n(d.readLabel),
+                        unread_label: decodeI18n(d.unreadLabel),
+                        folder_unread_aria: decodeI18n(d.folderUnreadAria)
                     };
                 }
             } catch(e){ console.warn('Failed to parse i18n data', e); }
@@ -1588,7 +1592,11 @@ document.addEventListener('DOMContentLoaded', function () {
                         const dicon = dbtn.querySelector('i');
                         if (dicon) dicon.className = 'fa-solid ' + (json.read ? 'fa-envelope' : 'fa-envelope-open') + ' me-1';
                         const dtext = dbtn.querySelector('.toggle-read-detail-text');
-                        if (dtext) dtext.textContent = json.read ? 'Ungelesen' : 'Gelesen';
+                        if (dtext) {
+                            const unreadLabel = (window.I18N && window.I18N.unread_label) || 'Ungelesen';
+                            const readLabel = (window.I18N && window.I18N.read_label) || 'Gelesen';
+                            dtext.textContent = json.read ? unreadLabel : readLabel;
+                        }
                     }
                     updateFolderUnreadBadges(json.folderCounts);
                 }).catch(console.error);
@@ -1638,7 +1646,11 @@ document.addEventListener('DOMContentLoaded', function () {
                     const dicon = dbtn.querySelector('i');
                     if (dicon) dicon.className = 'fa-solid ' + (json.read ? 'fa-envelope' : 'fa-envelope-open') + ' me-1';
                     const dtext = dbtn.querySelector('.toggle-read-detail-text');
-                    if (dtext) dtext.textContent = json.read ? 'Ungelesen' : 'Gelesen';
+                    if (dtext) {
+                        const unreadLabel = (window.I18N && window.I18N.unread_label) || 'Ungelesen';
+                        const readLabel = (window.I18N && window.I18N.read_label) || 'Gelesen';
+                        dtext.textContent = json.read ? unreadLabel : readLabel;
+                    }
                 }
                 updateFolderUnreadBadges(json.folderCounts);
             }).catch(console.error);

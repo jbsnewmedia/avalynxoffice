@@ -47,6 +47,7 @@ class AppExtension extends AbstractExtension
         return [
             new TwigFunction('file_icon', $this->fileIconClass(...)),
             new TwigFunction('file_icon_color', $this->fileIconColor(...)),
+            new TwigFunction('avatar_hue', $this->avatarHue(...)),
             new TwigFunction('mail_compose_button_views', $this->getComposeButtonViews(...)),
             new TwigFunction('mail_email_action_views', $this->getEmailActionViews(...)),
             new TwigFunction('mail_contact_action_views', $this->getContactActionViews(...)),
@@ -220,5 +221,14 @@ class AppExtension extends AbstractExtension
         }
 
         return null;
+    }
+
+    /**
+     * Deterministic hue (0-359) for avatar gradients: the same address always
+     * gets the same color, different addresses get well spread colors.
+     */
+    public function avatarHue(string $seed): int
+    {
+        return crc32($seed) % 360;
     }
 }

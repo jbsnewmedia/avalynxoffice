@@ -1,19 +1,21 @@
 {% extends 'base.html.twig' %}
 {% block javascripts %}
     {{ parent() }}
-    <script id="i18n-mail" type="application/json"
-            data-loading-email={{ 'js.loading_email'|trans|json_encode|raw }}
-            data-load-more={{ 'js.load_more'|trans|json_encode|raw }}
-            data-email-load-error={{ 'js.email_load_error'|trans|json_encode|raw }}
-            data-no-results={{ 'js.no_results'|trans|json_encode|raw }}
-            data-already-in-folder={{ 'js.already_in_folder'|trans|json_encode|raw }}
-            data-unexpected-response={{ 'js.unexpected_response'|trans|json_encode|raw }}
-            data-move-failed={{ 'js.move_failed'|trans|json_encode|raw }}
-            data-moved-to-folder={{ 'js.moved_to_folder'|trans({'%name%': '__NAME__'})|json_encode|raw }}
-            data-read-label={{ 'js.read_label'|trans|json_encode|raw }}
-            data-unread-label={{ 'js.unread_label'|trans|json_encode|raw }}
-            data-folder-unread-aria={{ 'folder.unread_emails_count'|trans({'%count%': '__COUNT__'})|json_encode|raw }}>
-    </script>
+    <script id="i18n-mail" type="application/json">{{
+        {
+            loading_email: 'js.loading_email'|trans,
+            load_more: 'js.load_more'|trans,
+            email_load_error: 'js.email_load_error'|trans,
+            no_results: 'js.no_results'|trans,
+            already_in_folder: 'js.already_in_folder'|trans,
+            unexpected_response: 'js.unexpected_response'|trans,
+            move_failed: 'js.move_failed'|trans,
+            moved_to_folder: 'js.moved_to_folder'|trans({'%name%': '__NAME__'}),
+            read_label: 'js.read_label'|trans,
+            unread_label: 'js.unread_label'|trans,
+            folder_unread_aria: 'folder.unread_emails_count'|trans({'%count%': '__COUNT__'})
+        }|json_encode(constant('JSON_HEX_TAG'))|raw
+    }}</script>
 {% endblock %}
 {% block stylesheets %}
     {% include '_assets.html.twig' with { mode: 'user' } %}

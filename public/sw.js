@@ -1,5 +1,5 @@
 /* Service Worker with offline fallback page for Avalynx Mailer */
-const CACHE_NAME = 'mailer-cache-v3';
+const CACHE_NAME = 'mailer-cache-v4';
 const OFFLINE_URL = '/offline.html';
 const CORE_ASSETS = [
   '/',
@@ -37,6 +37,12 @@ self.addEventListener('fetch', (event) => {
     );
     return;
   }
+
+  // AJAX/API calls (all internal fetches send X-Requested-With) must never
+  // be answered from the cache: their content changes server-side (mail
+  // detail view, read state, templates). Serving stale copies here would
+  // show outdated mails until the cache version is bumped.
+  if (req.headers.get('x-requested-with') === 'XMLHttpRequest') return;
 
   // Default: cache-first for other GET requests (minimal change to existing behavior)
   event.respondWith(
