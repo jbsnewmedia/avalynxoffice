@@ -3,10 +3,11 @@
         <i class="fa-solid fa-lock" aria-hidden="true"></i>
     </span>
 {% else %}
-<a class="btn btn-primary"
-   href="#"
+<a class="btn btn-primary action-btn-modal"
+   href="{{ path('mail_email_move', {id: email.id}) }}"
    data-action-id="move"
    data-priority="60"
+   data-title="{{ 'email.move'|trans }}"
    aria-label="{{ 'email.move'|trans }}"
    title="{{ 'email.move'|trans }}">
     <i class="fa-solid fa-folder" aria-hidden="true"></i>

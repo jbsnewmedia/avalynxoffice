@@ -139,6 +139,14 @@ body:has(> .min-vh-100) > .min-vh-100 > .flex-grow-1 {
 .email-attachment-chip {
     max-width: 100%;
 }
+/* In-content flash overlay for the fixed-height mail module layout. */
+.mail-flash-overlay {
+    z-index: 1040;
+    pointer-events: none;
+}
+.mail-flash-overlay .alert {
+    pointer-events: auto;
+}
 .avatar-circle {
     width: 40px;
     height: 40px;

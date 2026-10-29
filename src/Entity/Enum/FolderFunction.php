@@ -17,6 +17,7 @@ enum FolderFunction: string
     case OUTBOX = 'outbox';
     case SCHEDULED = 'scheduled';
     case DRAFTS = 'drafts';
+    case TRASH = 'trash';
 
     public function translationKey(): string
     {

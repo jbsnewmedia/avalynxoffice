@@ -1,4 +1,5 @@
 {% extends 'base.html.twig' %}
+{% block flashes %}{% endblock %}
 {% block javascripts %}
     {{ parent() }}
     <script id="i18n-mail" type="application/json">{{
@@ -13,6 +14,7 @@
             moved_to_folder: 'js.moved_to_folder'|trans({'%name%': '__NAME__'}),
             read_label: 'js.read_label'|trans,
             unread_label: 'js.unread_label'|trans,
+            spam_failed: 'js.spam_failed'|trans,
             folder_unread_aria: 'folder.unread_emails_count'|trans({'%count%': '__COUNT__'})
         }|json_encode(constant('JSON_HEX_TAG'))|raw
     }}</script>
@@ -49,7 +51,10 @@
         </section>
     </div>
 </div>
-<div class="container-fluid">
+<div class="container-fluid position-relative">
+    <div class="position-absolute top-0 start-0 end-0 px-3 pt-3 mail-flash-overlay">
+        {% include 'connector/_flashes.html.twig' %}
+    </div>
     <div class="row">
         <aside class="col-xxl-2 d-none d-xxl-block mail-body-height overflow-auto bg-body shadow-sm p-0 border-end">
             {% include 'mail/_accounts.html.twig' with { accounts: accounts, activeAccount: activeAccount } %}

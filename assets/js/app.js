@@ -1764,6 +1764,106 @@ document.addEventListener('DOMContentLoaded', function () {
                 document.querySelectorAll('.folder-drop-target.drag-over').forEach(el=>el.classList.remove('drag-over'));
             });
         });
+        function removeEmailItems(emailId, sourceFolderId){
+            const selector = sourceFolderId
+                ? '.email-list-container[data-current-folder-id="' + sourceFolderId + '"] .email-item[data-email="' + emailId + '"]'
+                : '.email-item[data-email="' + emailId + '"]';
+            document.querySelectorAll(selector).forEach(function(it){
+                it.parentElement && it.parentElement.removeChild(it);
+            });
+        }
+        function moveEmailRequest(emailId, sourceFolderId, targetFolderId, targetFolderName, token){
+            if (!emailId || !targetFolderId){ return; }
+            if (sourceFolderId && targetFolderId && sourceFolderId === targetFolderId){
+                alertError((window.I18N && window.I18N.already_in_folder) || 'E-Mail befindet sich bereits in diesem Ordner.');
+                return;
+            }
+            if (!window.__movingEmailIds) { window.__movingEmailIds = new Set(); }
+            if (window.__movingEmailIds.has(emailId)) { return; }
+            window.__movingEmailIds.add(emailId);
+            const body = new URLSearchParams();
+            body.set('sourceFolderId', sourceFolderId);
+            body.set('targetFolderId', targetFolderId);
+            if (token) { body.set('_token', token); }
+            fetch('/email/' + encodeURIComponent(emailId) + '/move', {
+                method: 'POST',
+                headers: {'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded'},
+                body
+            }).then(async resp => {
+                let json;
+                try { json = await resp.json(); } catch(e){ json = {success:false, error: ((window.I18N && window.I18N.unexpected_response) || 'Unerwartete Antwort') }; }
+                if (!resp.ok || !json || !json.success){
+                    alertError(json && json.error ? json.error : ((window.I18N && window.I18N.move_failed) || 'Verschieben fehlgeschlagen.'));
+                    return;
+                }
+                if (sourceFolderId){
+                    removeEmailItems(emailId, sourceFolderId);
+                }
+                (Array.isArray(json.leftFolderIds) ? json.leftFolderIds : []).forEach(function(fid){
+                    if (fid && fid !== sourceFolderId) { removeEmailItems(emailId, fid); }
+                });
+                updateFolderUnreadBadges(json.folderCounts);
+                const movedTpl = (window.I18N && window.I18N.moved_to_folder) || 'E-Mail in "__NAME__" verschoben.';
+                alertSuccess(String(movedTpl).replace('__NAME__', targetFolderName));
+            }).catch(function(){
+                alertError((window.I18N && window.I18N.move_failed) || 'Verschieben fehlgeschlagen.');
+            }).finally(function(){
+                try { window.__movingEmailIds && window.__movingEmailIds.delete(emailId); } catch(e){}
+            });
+        }
+        document.addEventListener('click', function(ev){
+            const choice = ev.target.closest('.move-folder-choice');
+            if (choice){
+                ev.preventDefault();
+                moveEmailRequest(
+                    choice.getAttribute('data-email'),
+                    '',
+                    choice.getAttribute('data-folder-id'),
+                    choice.getAttribute('data-folder-name') || 'Ordner',
+                    choice.getAttribute('data-token')
+                );
+                const actionModalEl = document.getElementById('actionModal');
+                if (actionModalEl && window.bootstrap && window.bootstrap.Modal){
+                    try { window.bootstrap.Modal.getOrCreateInstance(actionModalEl).hide(); } catch(e) {}
+                }
+                return;
+            }
+            const spamBtn = ev.target.closest('.spam-action');
+            if (spamBtn){
+                ev.preventDefault();
+                markEmailSpam(spamBtn);
+            }
+        });
+        function markEmailSpam(btn){
+            const emailId = btn.getAttribute('data-email');
+            if (!emailId) return;
+            if (!window.__movingEmailIds) { window.__movingEmailIds = new Set(); }
+            if (window.__movingEmailIds.has(emailId)) { return; }
+            window.__movingEmailIds.add(emailId);
+            const body = new URLSearchParams();
+            body.set('_token', btn.getAttribute('data-token') || '');
+            fetch(btn.getAttribute('data-url') || '/email/' + encodeURIComponent(emailId) + '/spam', {
+                method: 'POST',
+                headers: {'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded'},
+                body
+            }).then(async resp => {
+                let json;
+                try { json = await resp.json(); } catch(e){ json = {success:false, error: ((window.I18N && window.I18N.unexpected_response) || 'Unerwartete Antwort') }; }
+                if (!resp.ok || !json || !json.success){
+                    alertError(json && json.error ? json.error : ((window.I18N && window.I18N.spam_failed) || 'Als Spam markieren fehlgeschlagen.'));
+                    return;
+                }
+                (Array.isArray(json.leftFolderIds) ? json.leftFolderIds : []).forEach(function(fid){
+                    if (fid) { removeEmailItems(emailId, fid); }
+                });
+                updateFolderUnreadBadges(json.folderCounts);
+                alertSuccess(json.message || ((window.I18N && window.I18N.marked_as_spam) || 'E-Mail wurde als Spam markiert.'));
+            }).catch(function(){
+                alertError((window.I18N && window.I18N.spam_failed) || 'Als Spam markieren fehlgeschlagen.');
+            }).finally(function(){
+                try { window.__movingEmailIds && window.__movingEmailIds.delete(emailId); } catch(e){}
+            });
+        }
         function setupFolderDrops(root){
             root.querySelectorAll('.folder-drop-target').forEach(function(el){
                 if (el.dataset.dropInit === '1') return;
@@ -1782,43 +1882,13 @@ document.addEventListener('DOMContentLoaded', function () {
                         emailId = ev.dataTransfer.getData('application/x-email-id') || ev.dataTransfer.getData('text/plain');
                         sourceFolderId = ev.dataTransfer.getData('application/x-source-folder-id');
                     } catch(err) {}
-                    const targetFolderId = el.getAttribute('data-folder-id');
-                    const targetFolderName = el.getAttribute('data-folder-name') || 'Ordner';
-                    if (!emailId || !targetFolderId){ return; }
-                    if (sourceFolderId && targetFolderId && sourceFolderId === targetFolderId){
-                        alertError((window.I18N && window.I18N.already_in_folder) || 'E-Mail befindet sich bereits in diesem Ordner.');
-                        return;
-                    }
-                    if (!window.__movingEmailIds) { window.__movingEmailIds = new Set(); }
-                    if (window.__movingEmailIds.has(emailId)) { return; }
-                    window.__movingEmailIds.add(emailId);
-                    const body = new URLSearchParams();
-                    body.set('sourceFolderId', sourceFolderId);
-                    body.set('targetFolderId', targetFolderId);
-                    fetch('/email/' + encodeURIComponent(emailId) + '/move', {
-                        method: 'POST',
-                        headers: {'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded'},
-                        body
-                    }).then(async resp => {
-                        let json;
-                        try { json = await resp.json(); } catch(e){ json = {success:false, error: ((window.I18N && window.I18N.unexpected_response) || 'Unerwartete Antwort') }; }
-                        if (!resp.ok || !json || !json.success){
-                            alertError(json && json.error ? json.error : ((window.I18N && window.I18N.move_failed) || 'Verschieben fehlgeschlagen.'));
-                            return;
-                        }
-                        if (sourceFolderId){
-                            document.querySelectorAll('.email-list-container[data-current-folder-id="' + sourceFolderId + '"] .email-item[data-email="' + emailId + '"]').forEach(function(it){
-                                it.parentElement && it.parentElement.removeChild(it);
-                            });
-                        }
-                        updateFolderUnreadBadges(json.folderCounts);
-                        const movedTpl = (window.I18N && window.I18N.moved_to_folder) || 'E-Mail in "__NAME__" verschoben.';
-                        alertSuccess(String(movedTpl).replace('__NAME__', targetFolderName));
-                    }).catch(function(){
-                        alertError((window.I18N && window.I18N.move_failed) || 'Verschieben fehlgeschlagen.');
-                    }).finally(function(){
-                        try { window.__movingEmailIds && window.__movingEmailIds.delete(emailId); } catch(e){}
-                    });
+                    moveEmailRequest(
+                        emailId,
+                        sourceFolderId,
+                        el.getAttribute('data-folder-id'),
+                        el.getAttribute('data-folder-name') || 'Ordner',
+                        el.getAttribute('data-move-token') || ''
+                    );
                 });
             });
         }

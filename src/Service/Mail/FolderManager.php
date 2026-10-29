@@ -25,6 +25,8 @@ class FolderManager
     public const FOLDER_OUTBOX = 'Postausgang';
     public const FOLDER_SCHEDULED = 'Geplant';
     public const FOLDER_DRAFTS = 'Entwürfe';
+    public const FOLDER_SPAM = 'Spam';
+    public const FOLDER_TRASH = 'Papierkorb';
 
     /**
      * @return array<string, array{name: string, sortOrder: int}>
@@ -37,6 +39,7 @@ class FolderManager
             FolderFunction::OUTBOX->value => ['name' => self::FOLDER_OUTBOX, 'sortOrder' => -80],
             FolderFunction::SCHEDULED->value => ['name' => self::FOLDER_SCHEDULED, 'sortOrder' => -70],
             FolderFunction::DRAFTS->value => ['name' => self::FOLDER_DRAFTS, 'sortOrder' => -60],
+            FolderFunction::TRASH->value => ['name' => self::FOLDER_TRASH, 'sortOrder' => -50],
         ];
     }
 
@@ -314,12 +317,22 @@ class FolderManager
     /**
      * The mailbox function is part of every target set: Postfach always
      * contains ALL mails, the second function marks the special folder
-     * (Posteingang / Postausgang / Geplant / Entwürfe) the mail belongs in.
+     * (Posteingang / Postausgang / Geplant / Entwürfe / Papierkorb) the mail
+     * belongs in.
      *
      * @return array<string>
      */
     private function resolveTargetFunctions(Email $email): array
     {
+        // Deleted mails stay in the trash across syncs; only moving them out
+        // of the trash (or a manual move) changes this.
+        foreach ($email->getEmailFolders() as $emailFolder) {
+            $folder = $emailFolder->getFolder();
+            if ($folder instanceof Folder && $folder->hasFunction(FolderFunction::TRASH->value)) {
+                return [FolderFunction::MAILBOX->value, FolderFunction::TRASH->value];
+            }
+        }
+
         if (!$email->isOutgoing() && $email->getReceivedAt() instanceof \DateTimeImmutable) {
             return [FolderFunction::MAILBOX->value, FolderFunction::INBOX->value];
         }

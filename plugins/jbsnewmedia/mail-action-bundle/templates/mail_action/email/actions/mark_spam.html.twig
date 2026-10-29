@@ -3,12 +3,14 @@
         <i class="fa-solid fa-lock me-2" aria-hidden="true"></i>{{ 'license.read_only_action'|trans }}
     </span>
 {% else %}
-<a class="btn btn-primary"
-   href="#"
-   data-action-id="mark-spam"
-   data-priority="50"
-   aria-label="{{ 'email.mark_spam'|trans }}"
-   title="{{ 'email.mark_spam'|trans }}">
+<button type="button" class="btn btn-primary spam-action"
+        data-action-id="mark-spam"
+        data-priority="50"
+        data-email="{{ email.id }}"
+        data-url="{{ path('mail_email_spam', {id: email.id}) }}"
+        data-token="{{ csrf_token('spam_email_' ~ email.id) }}"
+        aria-label="{{ 'email.mark_spam'|trans }}"
+        title="{{ 'email.mark_spam'|trans }}">
     <i class="fa-solid fa-tag" aria-hidden="true"></i>
-</a>
+</button>
 {% endif %}

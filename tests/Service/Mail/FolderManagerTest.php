@@ -51,7 +51,7 @@ class FolderManagerTest extends TestCase
     {
         $folder = (new Folder())->setFunctions(['mailbox']);
 
-        $this->assertSame(['mailbox', 'inbox', 'outbox', 'scheduled', 'drafts'], FolderManager::requiredSystemFunctions());
+        $this->assertSame(['mailbox', 'inbox', 'outbox', 'scheduled', 'drafts', 'trash'], FolderManager::requiredSystemFunctions());
         $this->assertSame(FolderManager::FOLDER_OUTBOX, FolderManager::defaultFolderName('sent'));
         $this->assertSame(-80, FolderManager::defaultSortOrder('sent'));
         $this->assertTrue(FolderManager::isSystemFunction('drafts'));
@@ -331,6 +331,72 @@ class FolderManagerTest extends TestCase
         $this->assertSame(-90, $account->getFolderLinks()->first()->getSortOrder());
     }
 
+    public function testSyncEmailSystemFoldersKeepsDeletedMailInTrash(): void
+    {
+        $account = new Account();
+        $email = (new Email())
+            ->setAccount($account)
+            ->setReceivedAt(new \DateTimeImmutable());
+        $trashFolder = (new Folder())->setName(FolderManager::FOLDER_TRASH)->setFunctions(['trash']);
+        $inboxFolder = (new Folder())->setName(FolderManager::FOLDER_INBOX)->setFunctions(['inbox']);
+        $mailboxFolder = (new Folder())->setName(FolderManager::FOLDER_MAILBOX)->setFunctions(['mailbox']);
+        $account->addFolder($trashFolder, -50);
+        $account->addFolder($inboxFolder, -90);
+        $account->addFolder($mailboxFolder, -100);
+        $this->folderManager->assignEmailToFolder($email, $mailboxFolder);
+        $this->folderManager->assignEmailToFolder($email, $trashFolder);
+
+        $folderRepo = $this->createMock(FolderRepository::class);
+        $folderRepo->expects($this->atLeastOnce())->method('findByAccountOrderByAssignment')->with($account)->willReturn([$mailboxFolder, $inboxFolder, $trashFolder]);
+        $folderManager = new FolderManager($this->createStub(EntityManagerInterface::class), $folderRepo);
+
+        $folderManager->syncEmailSystemFolders($email);
+
+        $assignedNames = [];
+        foreach ($email->getEmailFolders() as $emailFolder) {
+            $assignedNames[] = $emailFolder->getFolder()?->getName();
+        }
+
+        $this->assertSame([FolderManager::FOLDER_MAILBOX, FolderManager::FOLDER_TRASH], $assignedNames);
+    }
+
+    public function testSyncEmailSystemFoldersReleasesMailFromTrashWhenMovedOut(): void
+    {
+        $account = new Account();
+        $email = (new Email())
+            ->setAccount($account)
+            ->setReceivedAt(new \DateTimeImmutable());
+        $trashFolder = (new Folder())->setName(FolderManager::FOLDER_TRASH)->setFunctions(['trash']);
+        $inboxFolder = (new Folder())->setName(FolderManager::FOLDER_INBOX)->setFunctions(['inbox']);
+        $mailboxFolder = (new Folder())->setName(FolderManager::FOLDER_MAILBOX)->setFunctions(['mailbox']);
+        $account->addFolder($trashFolder, -50);
+        $account->addFolder($inboxFolder, -90);
+        $account->addFolder($mailboxFolder, -100);
+        $this->folderManager->assignEmailToFolder($email, $mailboxFolder);
+        $this->folderManager->assignEmailToFolder($email, $trashFolder);
+
+        // Simulate moving the mail out of the trash into the inbox.
+        $this->folderManager->assignEmailToFolder($email, $inboxFolder);
+        foreach ($email->getEmailFolders() as $emailFolder) {
+            if ($emailFolder->getFolder() === $trashFolder) {
+                $email->removeEmailFolder($emailFolder);
+            }
+        }
+
+        $folderRepo = $this->createMock(FolderRepository::class);
+        $folderRepo->expects($this->atLeastOnce())->method('findByAccountOrderByAssignment')->with($account)->willReturn([$mailboxFolder, $inboxFolder, $trashFolder]);
+        $folderManager = new FolderManager($this->createStub(EntityManagerInterface::class), $folderRepo);
+
+        $folderManager->syncEmailSystemFolders($email);
+
+        $assignedNames = [];
+        foreach ($email->getEmailFolders() as $emailFolder) {
+            $assignedNames[] = $emailFolder->getFolder()?->getName();
+        }
+
+        $this->assertSame([FolderManager::FOLDER_MAILBOX, FolderManager::FOLDER_INBOX], $assignedNames);
+    }
+
     public function testEnsureDefaultFoldersCreatesAllRequiredSystemFolders(): void
     {
         $account = new Account();
@@ -341,7 +407,7 @@ class FolderManagerTest extends TestCase
 
         $folderManager->ensureDefaultFolders($account);
 
-        $this->assertCount(5, $account->getFolderLinks());
+        $this->assertCount(6, $account->getFolderLinks());
         $this->assertSame(FolderManager::FOLDER_MAILBOX, $account->getInboxFolder()?->getName());
     }
 }

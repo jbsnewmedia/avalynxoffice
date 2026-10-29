@@ -186,7 +186,7 @@ final class AdminControllerTest extends WebTestCase
         $createdAccount = $this->entityManager->getRepository(Account::class)->findOneBy(['email' => 'created@example.com']);
         self::assertInstanceOf(Account::class, $createdAccount);
         self::assertSame('Created Account', $createdAccount->getName());
-        self::assertCount(5, $createdAccount->getFolders());
+        self::assertCount(6, $createdAccount->getFolders());
         self::assertCount(1, $createdAccount->getAliases());
 
         $editCrawler = $this->client->request('GET', sprintf('/admin/accounts/%s/edit', $createdAccount->getId()), server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
@@ -928,6 +928,11 @@ final class AdminControllerTest extends WebTestCase
                 'name' => 'Entwürfe',
                 'sortOrder' => -60,
                 'functions' => [FolderFunction::DRAFTS->value],
+            ],
+            [
+                'name' => 'Papierkorb',
+                'sortOrder' => -50,
+                'functions' => [FolderFunction::TRASH->value],
             ],
         ], JSON_THROW_ON_ERROR);
     }

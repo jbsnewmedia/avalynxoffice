@@ -53,6 +53,7 @@ final class MailActionControllerTest extends KernelTestCase
     private EntityManagerInterface $entityManager;
     private MailActionController $controller;
     private RequestStack $requestStack;
+    private \Symfony\Component\Security\Csrf\CsrfTokenManagerInterface $csrfTokenManager;
     private bool $attachmentStorageThrows = false;
 
     protected function setUp(): void
@@ -72,6 +73,8 @@ final class MailActionControllerTest extends KernelTestCase
         $emailFolderRepository = $container->get(EmailFolderRepository::class);
         $folderManager = $this->createStub(FolderManager::class);
         $folderManager->method('syncEmailSystemFolders');
+        $realFolderManager = $container->get(FolderManager::class);
+        $this->csrfTokenManager = $container->get('security.csrf.token_manager');
         $attachmentStorage = $this->createStub(AttachmentStorage::class);
         $attachmentStorage->method('store')->willReturnCallback(function (Attachment $attachment, string $payload): string {
             if ($this->attachmentStorageThrows) {
@@ -91,10 +94,12 @@ final class MailActionControllerTest extends KernelTestCase
             $mailService,
             $emailActionService,
             $mailDraftService,
+            $realFolderManager,
             new AllowAllLicenseEnforcement(),
         );
 
         $this->requestStack = $container->get('request_stack');
+        $csrfTokenManager = $this->csrfTokenManager;
         $this->controller->setContainer(new ServiceLocator([
             'router' => static fn (): UrlGeneratorInterface => new class implements UrlGeneratorInterface {
                 public function generate(string $name, array $parameters = [], int $referenceType = UrlGeneratorInterface::ABSOLUTE_PATH): string
@@ -124,7 +129,13 @@ final class MailActionControllerTest extends KernelTestCase
             'twig' => static fn () => static::getContainer()->get('twig'),
             'form.factory' => static fn () => static::getContainer()->get('form.factory'),
             'request_stack' => static fn () => static::getContainer()->get('request_stack'),
+            'security.csrf.token_manager' => static fn () => $csrfTokenManager,
         ]));
+    }
+
+    private function csrfToken(string $id): string
+    {
+        return $this->csrfTokenManager->getToken($id)->getValue();
     }
 
     public function testSetReadAndMoveEmailUpdateFolderCounts(): void
@@ -134,11 +145,10 @@ final class MailActionControllerTest extends KernelTestCase
 
         $setReadResponse = $this->controller->setRead((string) $email->getId(), Request::create('/', 'POST', ['read' => '1']));
         self::assertSame(Response::HTTP_OK, $setReadResponse->getStatusCode());
-        self::assertSame([
-            'success' => true,
-            'read' => true,
-            'folderCounts' => [(string) $sourceFolder->getId() => 0],
-        ], json_decode($setReadResponse->getContent(), true, 512, JSON_THROW_ON_ERROR));
+        $setReadData = json_decode($setReadResponse->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertTrue($setReadData['success']);
+        self::assertTrue($setReadData['read']);
+        self::assertSame(0, $setReadData['folderCounts'][(string) $sourceFolder->getId()]);
 
         [$otherUser, $otherEmail, $otherSourceFolder, $otherTargetFolder] = $this->createFixtureData('two');
         $this->setCurrentUserRequest();
@@ -146,6 +156,7 @@ final class MailActionControllerTest extends KernelTestCase
         $moveResponse = $this->controller->moveEmail((string) $otherEmail->getId(), Request::create('/', 'POST', [
             'targetFolderId' => (string) $otherTargetFolder->getId(),
             'sourceFolderId' => (string) $otherSourceFolder->getId(),
+            '_token' => $this->csrfToken('move_email'),
         ]));
 
         self::assertSame(Response::HTTP_OK, $moveResponse->getStatusCode());
@@ -155,6 +166,7 @@ final class MailActionControllerTest extends KernelTestCase
                 (string) $otherTargetFolder->getId() => 1,
                 (string) $otherSourceFolder->getId() => 0,
             ],
+            'leftFolderIds' => [(string) $otherSourceFolder->getId()],
         ], json_decode($moveResponse->getContent(), true, 512, JSON_THROW_ON_ERROR));
     }
 
@@ -169,13 +181,20 @@ final class MailActionControllerTest extends KernelTestCase
         $missingMoveEmailResponse = $this->controller->moveEmail('00000000-0000-0000-0000-000000000000', Request::create('/', 'POST'));
         self::assertSame(Response::HTTP_NOT_FOUND, $missingMoveEmailResponse->getStatusCode());
 
+        $invalidTokenResponse = $this->controller->moveEmail((string) $email->getId(), Request::create('/', 'POST', [
+            'targetFolderId' => 'invalid',
+        ]));
+        self::assertSame(Response::HTTP_FORBIDDEN, $invalidTokenResponse->getStatusCode());
+
         $invalidTargetResponse = $this->controller->moveEmail((string) $email->getId(), Request::create('/', 'POST', [
             'targetFolderId' => 'invalid',
+            '_token' => $this->csrfToken('move_email'),
         ]));
         self::assertSame(Response::HTTP_BAD_REQUEST, $invalidTargetResponse->getStatusCode());
 
         $missingTargetResponse = $this->controller->moveEmail((string) $email->getId(), Request::create('/', 'POST', [
             'targetFolderId' => '00000000-0000-0000-0000-000000000000',
+            '_token' => $this->csrfToken('move_email'),
         ]));
         self::assertSame(Response::HTTP_NOT_FOUND, $missingTargetResponse->getStatusCode());
     }
@@ -201,9 +220,25 @@ final class MailActionControllerTest extends KernelTestCase
         self::assertSame(Response::HTTP_SEE_OTHER, $forwardResponse->getStatusCode());
         self::assertStringContainsString('/mail/edit/', (string) $forwardResponse->headers->get('Location'));
 
-        $deleteResponse = $this->controller->delete();
+        $deleteResponse = $this->controller->delete((string) $email->getId(), Request::create('/mail/delete/'.$email->getId(), 'POST', [
+            '_token' => $this->csrfToken('delete_email_'.$email->getId()),
+        ]));
         self::assertSame(Response::HTTP_FOUND, $deleteResponse->getStatusCode());
         self::assertSame('/mails', (string) $deleteResponse->headers->get('Location'));
+
+        $this->entityManager->clear();
+        $deletedEmail = $this->entityManager->find(Email::class, $email->getId());
+        self::assertInstanceOf(Email::class, $deletedEmail);
+        $deletedFolderNames = [];
+        foreach ($deletedEmail->getEmailFolders() as $emailFolder) {
+            $deletedFolderNames[] = $emailFolder->getFolder()?->getName();
+        }
+        self::assertSame([FolderManager::FOLDER_MAILBOX, FolderManager::FOLDER_TRASH], $deletedFolderNames);
+
+        $invalidTokenDeleteResponse = $this->controller->delete((string) $email->getId(), Request::create('/mail/delete/'.$email->getId(), 'POST', [
+            '_token' => 'invalid',
+        ]));
+        self::assertSame(Response::HTTP_FOUND, $invalidTokenDeleteResponse->getStatusCode());
 
         $composeResponse = $this->controller->compose(Request::create('/mail/compose', 'GET', [], [], [], ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']));
         self::assertSame(Response::HTTP_OK, $composeResponse->getStatusCode());
@@ -229,6 +264,59 @@ final class MailActionControllerTest extends KernelTestCase
 
         $this->expectException(\Symfony\Component\HttpKernel\Exception\NotFoundHttpException::class);
         $this->controller->edit('00000000-0000-0000-0000-000000000000', Request::create('/mail/edit/missing', 'GET', ['ajax' => '1']));
+    }
+
+    public function testMoveEmailGetRendersFolderPicker(): void
+    {
+        [$user, $email, $sourceFolder, $targetFolder] = $this->createFixtureData('picker');
+        $this->setCurrentUserRequest();
+
+        $response = $this->controller->moveEmail((string) $email->getId(), Request::create('/email/'.$email->getId().'/move', 'GET', [], [], [], ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']));
+        self::assertSame(Response::HTTP_OK, $response->getStatusCode());
+        $content = (string) $response->getContent();
+        self::assertStringContainsString('move-folder-choice', $content);
+        self::assertStringContainsString('Archive', $content);
+        // The current folder (Inbox) is rendered without a move choice.
+        self::assertStringNotContainsString('data-folder-id="'.(string) $sourceFolder->getId().'"', $content);
+        self::assertStringContainsString('data-folder-id="'.(string) $targetFolder->getId().'"', $content);
+    }
+
+    public function testMarkSpamMovesMailIntoSpamFolder(): void
+    {
+        [$user, $email, $sourceFolder] = $this->createFixtureData('spam');
+        $this->setCurrentUserRequest();
+
+        $response = $this->controller->markSpam((string) $email->getId(), Request::create('/', 'POST', [
+            '_token' => $this->csrfToken('spam_email_'.$email->getId()),
+        ]));
+
+        self::assertSame(Response::HTTP_OK, $response->getStatusCode());
+        $data = json_decode((string) $response->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertTrue($data['success']);
+        self::assertSame('Email marked as spam.', $data['message']);
+
+        $this->entityManager->clear();
+        $spammedEmail = $this->entityManager->find(Email::class, $email->getId());
+        self::assertInstanceOf(Email::class, $spammedEmail);
+        $folderNames = [];
+        foreach ($spammedEmail->getEmailFolders() as $emailFolder) {
+            $folderNames[] = $emailFolder->getFolder()?->getName();
+        }
+        self::assertSame([FolderManager::FOLDER_MAILBOX, FolderManager::FOLDER_SPAM], $folderNames, 'Postfach keeps every mail and the mail lands in Spam');
+
+        $invalidTokenResponse = $this->controller->markSpam((string) $email->getId(), Request::create('/', 'POST', [
+            '_token' => 'invalid',
+        ]));
+        self::assertSame(Response::HTTP_FORBIDDEN, $invalidTokenResponse->getStatusCode());
+    }
+
+    public function testMarkSpamReturnsNotFoundForMissingEmail(): void
+    {
+        $this->setCurrentUserRequest();
+
+        $response = $this->controller->markSpam('00000000-0000-0000-0000-000000000000', Request::create('/', 'POST'));
+
+        self::assertSame(Response::HTTP_NOT_FOUND, $response->getStatusCode());
     }
 
     public function testComposeReturnsInvalidPayloadForInvalidSubmission(): void
@@ -924,10 +1012,12 @@ final class MailActionControllerTest extends KernelTestCase
             ->setName('Support '.$suffix)
             ->setEmail($suffix.'+support@example.com');
 
-        $sourceFolder = (new Folder())->setName('Inbox');
+        $sourceFolder = (new Folder())->setName('Inbox')->setFunctions(['inbox']);
         $targetFolder = (new Folder())->setName('Archive');
+        $mailboxFolder = (new Folder())->setName(FolderManager::FOLDER_MAILBOX)->setFunctions(['mailbox']);
         $account->addFolder($sourceFolder);
         $account->addFolder($targetFolder);
+        $account->addFolder($mailboxFolder);
 
         $user = (new User())
             ->setEmail($suffix.'+user@example.com')
@@ -958,15 +1048,20 @@ final class MailActionControllerTest extends KernelTestCase
         $folderLink = (new EmailFolder())
             ->setEmail($email)
             ->setFolder($sourceFolder);
+        $mailboxLink = (new EmailFolder())
+            ->setEmail($email)
+            ->setFolder($mailboxFolder);
 
         $email->addEmailAddress($senderLink);
         $email->addEmailAddress($recipientLink);
         $email->addEmailBody($bodyLink);
         $email->addEmailFolder($folderLink);
+        $email->addEmailFolder($mailboxLink);
 
         $this->entityManager->persist($account);
         $this->entityManager->persist($sourceFolder);
         $this->entityManager->persist($targetFolder);
+        $this->entityManager->persist($mailboxFolder);
         $this->entityManager->persist($user);
         $this->entityManager->persist($email);
         $this->entityManager->persist($sender);
@@ -976,6 +1071,7 @@ final class MailActionControllerTest extends KernelTestCase
         $this->entityManager->persist($recipientLink);
         $this->entityManager->persist($bodyLink);
         $this->entityManager->persist($folderLink);
+        $this->entityManager->persist($mailboxLink);
         $this->entityManager->flush();
 
         return [$user, $email, $sourceFolder, $targetFolder];

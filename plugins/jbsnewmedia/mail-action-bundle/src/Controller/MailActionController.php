@@ -12,12 +12,14 @@ namespace JBSNewMedia\MailActionBundle\Controller;
 use AvalynxOffice\Entity\Account;
 use AvalynxOffice\Entity\Email;
 use AvalynxOffice\Entity\Enum\EmailAddressType;
+use AvalynxOffice\Entity\Enum\FolderFunction;
 use AvalynxOffice\Entity\Folder;
 use AvalynxOffice\Form\EmailReplyType;
 use AvalynxOffice\Licensing\Service\LicenseEnforcementInterface;
 use AvalynxOffice\Licensing\Service\LicenseOperation;
 use AvalynxOffice\Repository\EmailRepository;
 use AvalynxOffice\Repository\FolderRepository;
+use AvalynxOffice\Service\Mail\FolderManager;
 use AvalynxOffice\Service\Mail\MailService;
 use AvalynxOffice\Util\AvalynxFormResponse;
 use AvalynxOffice\Util\FormInvalidMapper;
@@ -43,6 +45,7 @@ final class MailActionController extends AbstractController
         private readonly MailService $mailService,
         private readonly EmailActionService $emailActionService,
         private readonly MailDraftService $mailDraftService,
+        private readonly FolderManager $folderManager,
         private readonly LicenseEnforcementInterface $licenseEnforcement,
     ) {
     }
@@ -88,13 +91,44 @@ final class MailActionController extends AbstractController
         ]);
     }
 
-    #[Route(path: '/email/{id}/move', name: 'mail_email_move', requirements: ['id' => '[0-9a-fA-F\-]{36}'], methods: ['POST'])]
-    public function moveEmail(string $id, Request $request): JsonResponse
+    #[Route(path: '/email/{id}/move', name: 'mail_email_move', requirements: ['id' => '[0-9a-fA-F\-]{36}'], methods: ['GET', 'POST'])]
+    public function moveEmail(string $id, Request $request): Response
     {
-        $this->licenseEnforcement->assertCanPerform(LicenseOperation::MAIL_MODIFY);
         $email = $this->emailRepository->find($id);
         if (!$email instanceof Email) {
-            return new JsonResponse(['success' => false, 'error' => $this->translator->trans('email.not_found')], Response::HTTP_NOT_FOUND);
+            if ($request->isMethod('POST')) {
+                return new JsonResponse(['success' => false, 'error' => $this->translator->trans('email.not_found')], Response::HTTP_NOT_FOUND);
+            }
+
+            throw $this->createNotFoundException($this->translator->trans('email.not_found'));
+        }
+
+        if (!$request->isMethod('POST')) {
+            // Folder picker rendered into the action modal for the move button.
+            if (!$request->isXmlHttpRequest()) {
+                return $this->redirectToRoute('mail_index');
+            }
+
+            $account = $email->getAccount();
+            $folders = $account instanceof Account ? $this->folderRepository->findByAccountOrderByAssignment($account) : [];
+            $currentFolderIds = [];
+            foreach ($email->getEmailFolders() as $emailFolder) {
+                $folder = $emailFolder->getFolder();
+                if ($folder instanceof Folder) {
+                    $currentFolderIds[] = (string) $folder->getId();
+                }
+            }
+
+            return $this->render('@MailAction/mail_action/email/actions/move_form.html.twig', [
+                'email' => $email,
+                'folders' => $folders,
+                'currentFolderIds' => $currentFolderIds,
+            ]);
+        }
+
+        $this->licenseEnforcement->assertCanPerform(LicenseOperation::MAIL_MODIFY);
+        if (!$this->isCsrfTokenValid('move_email', (string) $request->request->get('_token', ''))) {
+            return new JsonResponse(['success' => false, 'error' => $this->translator->trans('common.invalid_token')], Response::HTTP_FORBIDDEN);
         }
 
         $targetId = (string) $request->request->get('targetFolderId', '');
@@ -108,6 +142,7 @@ final class MailActionController extends AbstractController
         }
 
         $sourceId = (string) $request->request->get('sourceFolderId', '');
+        $leftFolderIds = $this->resolveLeftFolderIds($email, $target);
         $this->emailActionService->moveEmail($email, $target);
 
         $affectedFolders = [$target];
@@ -121,7 +156,35 @@ final class MailActionController extends AbstractController
         return new JsonResponse([
             'success' => true,
             'folderCounts' => $this->mailService->countEmailsPerFolder($affectedFolders),
+            'leftFolderIds' => $leftFolderIds,
         ]);
+    }
+
+    /**
+     * Folder ids the mail leaves behind when moved to the target: all its
+     * current folders except the target itself and Postfach (which always
+     * keeps every mail).
+     *
+     * @return list<string>
+     */
+    private function resolveLeftFolderIds(Email $email, Folder $target): array
+    {
+        $left = [];
+        foreach ($email->getEmailFolders() as $emailFolder) {
+            $folder = $emailFolder->getFolder();
+            if (!$folder instanceof Folder) {
+                continue;
+            }
+
+            $folderId = (string) $folder->getId();
+            if ($folderId === (string) $target->getId() || $folder->hasFunction('mailbox')) {
+                continue;
+            }
+
+            $left[] = $folderId;
+        }
+
+        return array_values(array_unique($left));
     }
 
     #[Route('/mail/reply/{id}', name: 'mail_reply')]
@@ -195,12 +258,82 @@ final class MailActionController extends AbstractController
         return $this->redirectToRoute('mail_edit', ['id' => $draft->getId(), 'ajax' => '1'], Response::HTTP_SEE_OTHER);
     }
 
-    #[Route('/mail/delete/{id}', name: 'mail_delete', methods: ['POST', 'DELETE'])]
-    public function delete(): Response
+    #[Route('/mail/delete/{id}', name: 'mail_delete', requirements: ['id' => '[0-9a-fA-F\-]{36}'], methods: ['POST', 'DELETE'])]
+    public function delete(string $id, Request $request): Response
     {
-        $this->addFlash('info', $this->translator->trans('email.delete_not_implemented'));
+        $this->licenseEnforcement->assertCanPerform(LicenseOperation::MAIL_MODIFY);
+        $email = $this->emailRepository->find($id);
+        if (!$email instanceof Email) {
+            throw $this->createNotFoundException($this->translator->trans('email.not_found'));
+        }
+
+        if (!$this->isCsrfTokenValid('delete_email_'.$id, (string) $request->request->get('_token', ''))) {
+            $this->addFlash('error', $this->translator->trans('common.invalid_token'));
+
+            return $this->redirectToRoute('mail_index');
+        }
+
+        $account = $email->getAccount();
+        if (!$account instanceof Account) {
+            $this->addFlash('error', $this->translator->trans('email.not_found'));
+
+            return $this->redirectToRoute('mail_index');
+        }
+
+        // Deleting moves the mail to the account's trash folder, so it stays
+        // recoverable; the trash folder is a required system folder.
+        $trash = $this->folderManager->ensureSystemFolder($account, FolderFunction::TRASH);
+        $this->emailActionService->moveEmail($email, $trash);
+
+        $this->addFlash('success', $this->translator->trans('email.moved_to_trash'));
+
+        $referer = $request->headers->get('referer');
+        if (is_string($referer) && '' !== $referer) {
+            return $this->redirect($referer);
+        }
 
         return $this->redirectToRoute('mail_index');
+    }
+
+    #[Route(path: '/email/{id}/spam', name: 'mail_email_spam', requirements: ['id' => '[0-9a-fA-F\-]{36}'], methods: ['POST'])]
+    public function markSpam(string $id, Request $request): JsonResponse
+    {
+        $this->licenseEnforcement->assertCanPerform(LicenseOperation::MAIL_MODIFY);
+        $email = $this->emailRepository->find($id);
+        if (!$email instanceof Email) {
+            return new JsonResponse(['success' => false, 'error' => $this->translator->trans('email.not_found')], Response::HTTP_NOT_FOUND);
+        }
+
+        if (!$this->isCsrfTokenValid('spam_email_'.$id, (string) $request->request->get('_token', ''))) {
+            return new JsonResponse(['success' => false, 'error' => $this->translator->trans('common.invalid_token')], Response::HTTP_FORBIDDEN);
+        }
+
+        $account = $email->getAccount();
+        if (!$account instanceof Account) {
+            return new JsonResponse(['success' => false, 'error' => $this->translator->trans('email.not_found')], Response::HTTP_BAD_REQUEST);
+        }
+
+        // The spam folder is created on first use and is not one of the
+        // required system folders.
+        $spam = $this->folderManager->ensureFolder($account, FolderManager::FOLDER_SPAM, 50);
+
+        $affectedFolders[(string) $spam->getId()] = $spam;
+        $leftFolderIds = $this->resolveLeftFolderIds($email, $spam);
+        foreach ($email->getEmailFolders() as $emailFolder) {
+            $folder = $emailFolder->getFolder();
+            if ($folder instanceof Folder) {
+                $affectedFolders[(string) $folder->getId()] = $folder;
+            }
+        }
+
+        $this->emailActionService->moveEmail($email, $spam);
+
+        return new JsonResponse([
+            'success' => true,
+            'message' => $this->translator->trans('email.marked_as_spam'),
+            'folderCounts' => $this->mailService->countEmailsPerFolder(array_values($affectedFolders)),
+            'leftFolderIds' => $leftFolderIds,
+        ]);
     }
 
     #[Route('/mail/compose', name: 'mail_compose')]
