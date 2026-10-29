@@ -1577,7 +1577,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     const item = toggleBtn.closest('.email-item');
                     if (item) {
                         if (json.read) item.classList.remove('email-unread'); else item.classList.add('email-unread');
-                        const sender = item.querySelector('span');
+                        const sender = item.querySelector('.email-sender');
                         if (sender) sender.classList.toggle('fw-bold', !json.read);
                         const subj = item.querySelector('.email-subject');
                         if (subj) subj.classList.toggle('fw-semibold', !json.read);
@@ -1628,7 +1628,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const icon = toggleBtn.querySelector('i');
                 if (icon) icon.className = 'fa-solid ' + (json.read ? 'fa-envelope' : 'fa-envelope-open');
                 if (json.read) item.classList.remove('email-unread'); else item.classList.add('email-unread');
-                const sender = item.querySelector('span');
+                const sender = item.querySelector('.email-sender');
                 if (sender) sender.classList.toggle('fw-bold', !json.read);
                 const subj = item.querySelector('.email-subject');
                 if (subj) subj.classList.toggle('fw-semibold', !json.read);
@@ -1710,7 +1710,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     const ic = toggleBtn.querySelector('i');
                     if (ic) ic.className = 'fa-solid ' + (json.read ? 'fa-envelope' : 'fa-envelope-open');
                 }
-                const sender = item.querySelector('span');
+                const sender = item.querySelector('.email-sender');
                 if (sender) sender.classList.toggle('fw-bold', !json.read);
                 const subj = item.querySelector('.email-subject');
                 if (subj) subj.classList.toggle('fw-semibold', !json.read);

@@ -16,79 +16,44 @@
             </div>
         {% endif %}
         <div class="email-item-content px-3 pb-3 {{ (activeAccount is not defined or not activeAccount) ? 'pt-2' : 'pt-3' }}">
-            <div class="d-flex flex-column flex-xxl-row justify-content-between align-items-start align-items-xxl-center mb-1">
-            <span class="{{ mail.isRead ? '' : 'fw-bold' }}">
+            <div class="email-sender {{ mail.isRead ? '' : 'fw-bold' }}">
                 {{ senderDisplay }}
-            </span>
-            <div class="d-none d-xxl-flex align-items-center gap-2 mt-2 mt-xxl-0">
-                <span class="important-indicator {{ mail.isImportant ? '' : 'd-none' }}" title="{{ 'email.important'|trans }}" aria-label="{{ 'email.important'|trans }}">
-                    <i class="fa-solid fa-triangle-exclamation text-danger" aria-hidden="true"></i>
-                </span>
-                <span class="encoding-indicator {{ mail.hasEncodingIssues ? '' : 'd-none' }}" title="{{ 'email.encoding_issues'|trans }}" aria-label="{{ 'email.encoding_issues'|trans }}">
-                    <i class="fa-solid fa-font text-warning-emphasis" aria-hidden="true"></i>
-                </span>
-                <span class="favorite-indicator {{ mail.isFavorite ? '' : 'd-none' }}" title="{{ 'email.favorite'|trans }}" aria-label="{{ 'email.favorite'|trans }}">
-                    <i class="fa-solid fa-star text-warning" aria-hidden="true"></i>
-                </span>
-                {% if attCount > 0 %}
-                    <small class="text-body-secondary" title="{{ 'email.attachments'|trans }}" aria-label="{{ 'email.attachments_count'|trans({'%count%': attCount}) }}">
-                        <i class="fa-solid fa-paperclip me-1" aria-hidden="true"></i>{{ attCount }}
-                    </small>
-                {% endif %}
-                {% if isOutgoing %}
-                    {% if mail.sentAt %}
-                        <i class="fa-solid fa-paper-plane text-primary" title="{{ 'email.sent'|trans }}" aria-label="{{ 'email.sent'|trans }}" aria-hidden="false"></i>
-                    {% else %}
-                        <i class="fa-solid fa-clock text-warning" title="{{ 'email.not_sent'|trans }}" aria-label="{{ 'email.not_sent'|trans }}" aria-hidden="false"></i>
+            </div>
+            <div class="email-subject mb-1 {{ mail.isRead ? '' : 'fw-semibold' }}">{{ mail.subject }}</div>
+            <div class="text-body-secondary small text-truncate mb-1">{{ mail.previewBody }}</div>
+            <div class="d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="important-indicator {{ mail.isImportant ? '' : 'd-none' }}" title="{{ 'email.important'|trans }}" aria-label="{{ 'email.important'|trans }}">
+                        <i class="fa-solid fa-triangle-exclamation text-danger" aria-hidden="true"></i>
+                    </span>
+                    <span class="encoding-indicator {{ mail.hasEncodingIssues ? '' : 'd-none' }}" title="{{ 'email.encoding_issues'|trans }}" aria-label="{{ 'email.encoding_issues'|trans }}">
+                        <i class="fa-solid fa-font text-warning-emphasis" aria-hidden="true"></i>
+                    </span>
+                    <span class="favorite-indicator {{ mail.isFavorite ? '' : 'd-none' }}" title="{{ 'email.favorite'|trans }}" aria-label="{{ 'email.favorite'|trans }}">
+                        <i class="fa-solid fa-star text-warning" aria-hidden="true"></i>
+                    </span>
+                    {% if attCount > 0 %}
+                        <small class="text-body-secondary" title="{{ 'email.attachments'|trans }}" aria-label="{{ 'email.attachments_count'|trans({'%count%': attCount}) }}">
+                            <i class="fa-solid fa-paperclip me-1" aria-hidden="true"></i>{{ attCount }}
+                        </small>
                     {% endif %}
-                {% else %}
-                    <i class="fa-solid fa-inbox text-success" title="{{ 'email.received'|trans }}" aria-label="{{ 'email.received'|trans }}" aria-hidden="false"></i>
-                {% endif %}
-                {% if not isOutgoing %}
-                    <button type="button" class="btn btn-sm btn-link text-body-secondary p-0 toggle-read" data-email="{{ mail.id }}" data-read="{{ mail.isRead ? '0' : '1' }}" {{ license_manager.isReadOnly ? 'disabled aria-disabled="true"' }} title="{{ license_manager.isReadOnly ? ('license.read_only_action'|trans) : (mail.isRead ? ('email.mark_unread'|trans) : ('email.mark_read'|trans)) }}" aria-label="{{ mail.isRead ? ('email.mark_unread'|trans) : ('email.mark_read'|trans) }}">
-                        <i class="fa-solid {{ mail.isRead ? 'fa-envelope' : 'fa-envelope-open' }}" aria-hidden="true"></i>
-                    </button>
-                {% endif %}
+                    {% if isOutgoing %}
+                        {% if mail.sentAt %}
+                            <i class="fa-solid fa-paper-plane text-primary" title="{{ 'email.sent'|trans }}" aria-label="{{ 'email.sent'|trans }}" aria-hidden="false"></i>
+                        {% else %}
+                            <i class="fa-solid fa-clock text-warning" title="{{ 'email.not_sent'|trans }}" aria-label="{{ 'email.not_sent'|trans }}" aria-hidden="false"></i>
+                        {% endif %}
+                    {% else %}
+                        <i class="fa-solid fa-inbox text-success" title="{{ 'email.received'|trans }}" aria-label="{{ 'email.received'|trans }}" aria-hidden="false"></i>
+                    {% endif %}
+                    {% if not isOutgoing %}
+                        <button type="button" class="btn btn-sm btn-link text-body-secondary p-0 toggle-read" data-email="{{ mail.id }}" data-read="{{ mail.isRead ? '0' : '1' }}" {{ license_manager.isReadOnly ? 'disabled aria-disabled="true"' }} title="{{ license_manager.isReadOnly ? ('license.read_only_action'|trans) : (mail.isRead ? ('email.mark_unread'|trans) : ('email.mark_read'|trans)) }}" aria-label="{{ mail.isRead ? ('email.mark_unread'|trans) : ('email.mark_read'|trans) }}">
+                            <i class="fa-solid {{ mail.isRead ? 'fa-envelope' : 'fa-envelope-open' }}" aria-hidden="true"></i>
+                        </button>
+                    {% endif %}
+                </div>
                 <small class="text-body-secondary" aria-label="{{ 'email.date_label'|trans({'%date%': effDate ? (effDate|user_datetime('short') ~ ' ' ~ ('common.oclock'|trans)) : ('common.unknown'|trans)}) }}">{{ effDate ? (effDate|user_datetime('short') ~ ' ' ~ ('common.oclock'|trans)) : '' }}</small>
             </div>
         </div>
-        <div class="email-subject mb-1 {{ mail.isRead ? '' : 'fw-semibold' }}">{{ mail.subject }}</div>
-        <div class="text-body-secondary small text-truncate mb-1">{{ mail.previewBody }}</div>
-        <div class="d-flex d-xxl-none align-items-center justify-content-between">
-            <small class="text-body-secondary" aria-label="{{ 'email.date_label'|trans({'%date%': effDate ? (effDate|user_datetime('short') ~ ' ' ~ ('common.oclock'|trans)) : ('common.unknown'|trans)}) }}">
-                {{ effDate ? (effDate|user_datetime('short') ~ ' ' ~ ('common.oclock'|trans)) : '' }}
-            </small>
-            <div class="d-flex align-items-center gap-2">
-                <span class="important-indicator {{ mail.isImportant ? '' : 'd-none' }}" title="{{ 'email.important'|trans }}" aria-label="{{ 'email.important'|trans }}">
-                    <i class="fa-solid fa-triangle-exclamation text-danger" aria-hidden="true"></i>
-                </span>
-                <span class="encoding-indicator {{ mail.hasEncodingIssues ? '' : 'd-none' }}" title="{{ 'email.encoding_issues'|trans }}" aria-label="{{ 'email.encoding_issues'|trans }}">
-                    <i class="fa-solid fa-font text-warning-emphasis" aria-hidden="true"></i>
-                </span>
-                <span class="favorite-indicator {{ mail.isFavorite ? '' : 'd-none' }}" title="{{ 'email.favorite'|trans }}" aria-label="{{ 'email.favorite'|trans }}">
-                    <i class="fa-solid fa-star text-warning" aria-hidden="true"></i>
-                </span>
-                {% if attCount > 0 %}
-                    <small class="text-body-secondary" title="{{ 'email.attachments'|trans }}" aria-label="{{ 'email.attachments_count'|trans({'%count%': attCount}) }}">
-                        <i class="fa-solid fa-paperclip me-1" aria-hidden="true"></i>{{ attCount }}
-                    </small>
-                {% endif %}
-                {% if isOutgoing %}
-                    {% if mail.sentAt %}
-                        <i class="fa-solid fa-paper-plane text-primary" title="{{ 'email.sent'|trans }}" aria-label="{{ 'email.sent'|trans }}" aria-hidden="false"></i>
-                    {% else %}
-                        <i class="fa-solid fa-clock text-warning" title="{{ 'email.not_sent'|trans }}" aria-label="{{ 'email.not_sent'|trans }}" aria-hidden="false"></i>
-                    {% endif %}
-                {% else %}
-                    <i class="fa-solid fa-inbox text-success" title="{{ 'email.received'|trans }}" aria-label="{{ 'email.received'|trans }}" aria-hidden="false"></i>
-                {% endif %}
-                {% if not isOutgoing %}
-                    <button type="button" class="btn btn-sm btn-link text-body-secondary p-0 toggle-read" data-email="{{ mail.id }}" data-read="{{ mail.isRead ? '0' : '1' }}" {{ license_manager.isReadOnly ? 'disabled aria-disabled="true"' }} title="{{ license_manager.isReadOnly ? ('license.read_only_action'|trans) : (mail.isRead ? ('email.mark_unread'|trans) : ('email.mark_read'|trans)) }}" aria-label="{{ mail.isRead ? ('email.mark_unread'|trans) : ('email.mark_read'|trans) }}">
-                        <i class="fa-solid {{ mail.isRead ? 'fa-envelope' : 'fa-envelope-open' }}" aria-hidden="true"></i>
-                    </button>
-                {% endif %}
-            </div>
-        </div>
-    </div>
     </article>
 {% endfor %}
