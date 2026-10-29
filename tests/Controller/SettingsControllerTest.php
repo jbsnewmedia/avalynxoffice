@@ -19,6 +19,18 @@ final class SettingsControllerTest extends WebTestCase
 {
     use RefreshDatabaseTrait;
 
+    /**
+     * The theme compile writes the compiled CSS files; these tests must not
+     * leave a modified theme behind. The files are snapshotted once per class
+     * run and restored afterwards byte-identical — without recompiling SCSS.
+     *
+     * @var list<non-empty-string>
+     */
+    private const array THEME_CSS_FILES = ['assets/css/bootstrap.css', 'assets/css/bootstrap.min.css'];
+
+    /** @var array<string, string|null> absolute path -> original bytes (null = file did not exist) */
+    private static array $themeFileSnapshots = [];
+
     private KernelBrowser $client;
 
     private EntityManagerInterface $em;
@@ -36,10 +48,36 @@ final class SettingsControllerTest extends WebTestCase
         $this->seedUsers();
     }
 
-    protected function tearDown(): void
+    public static function setUpBeforeClass(): void
     {
-        self::ensureKernelShutdown();
-        $this->restoreDefaultTheme();
+        self::$themeFileSnapshots = [];
+
+        foreach (self::THEME_CSS_FILES as $file) {
+            $path = self::projectDir().'/'.$file;
+            self::$themeFileSnapshots[$path] = is_file($path) ? (string) file_get_contents($path) : null;
+        }
+    }
+
+    public static function tearDownAfterClass(): void
+    {
+        foreach (self::$themeFileSnapshots as $path => $bytes) {
+            if ($bytes === null) {
+                if (is_file($path)) {
+                    @unlink($path);
+                }
+
+                continue;
+            }
+
+            if (!is_file($path) || (string) file_get_contents($path) !== $bytes) {
+                file_put_contents($path, $bytes);
+            }
+        }
+    }
+
+    private static function projectDir(): string
+    {
+        return dirname(__DIR__, 2);
     }
 
     public function testSettingsOverviewRendersDashboardForAdmins(): void
@@ -208,16 +246,6 @@ final class SettingsControllerTest extends WebTestCase
         $session->save();
 
         return $value;
-    }
-
-    private function restoreDefaultTheme(): void
-    {
-        try {
-            $themeService = static::getContainer()->get(ThemeService::class);
-            $themeService->compile(ThemeService::DEFAULT_PRIMARY_COLOR);
-        } catch (\Throwable) {
-            // The kernel might already be shut down; nothing to restore.
-        }
     }
 
     public function testTimePageShowsCurrentUserTimezoneAndFormat(): void
