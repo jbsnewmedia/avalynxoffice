@@ -8,6 +8,7 @@ use AvalynxOffice\Entity\Connector;
 use AvalynxOffice\Repository\ConnectorConfigRepository;
 use AvalynxOffice\Repository\SyncRunRepository;
 use AvalynxOffice\Service\ConnectorPluginRegistry;
+use AvalynxOffice\Service\Security\SecretCrypto;
 use AvalynxOffice\Service\Sync\SyncService;
 use AvalynxOffice\Tests\Support\FakeConnectorPlugin;
 use AvalynxOffice\Tests\Support\RefreshDatabaseTrait;
@@ -42,7 +43,9 @@ final class SyncServiceTest extends KernelTestCase
     {
         $configRepository = self::getContainer()->get(ConnectorConfigRepository::class);
         \assert($configRepository instanceof ConnectorConfigRepository);
-        $registry = new ConnectorPluginRegistry($plugins, $configRepository);
+        $secretCrypto = self::getContainer()->get(SecretCrypto::class);
+        \assert($secretCrypto instanceof SecretCrypto);
+        $registry = new ConnectorPluginRegistry($plugins, $configRepository, $secretCrypto);
 
         return new SyncService($registry, $this->em->getRepository(Connector::class), $this->syncRunRepository);
     }
@@ -152,7 +155,7 @@ final class SyncServiceTest extends KernelTestCase
         $fake = new FakeConnectorPlugin(inputConfigured: true);
         $this->createConnector('Crash Connector');
 
-        $registry = new class([$fake], self::getContainer()->get(ConnectorConfigRepository::class)) extends ConnectorPluginRegistry {
+        $registry = new class([$fake], self::getContainer()->get(ConnectorConfigRepository::class), self::getContainer()->get(SecretCrypto::class)) extends ConnectorPluginRegistry {
             #[\Override]
             public function getFetchers(Connector $connector): array
             {
@@ -207,7 +210,7 @@ final class SyncServiceTest extends KernelTestCase
         $fake = new FakeConnectorPlugin(inputConfigured: true);
         $this->createConnector('Crash Contacts Connector');
 
-        $registry = new class([$fake], self::getContainer()->get(ConnectorConfigRepository::class)) extends ConnectorPluginRegistry {
+        $registry = new class([$fake], self::getContainer()->get(ConnectorConfigRepository::class), self::getContainer()->get(SecretCrypto::class)) extends ConnectorPluginRegistry {
             #[\Override]
             public function getContactFetchers(Connector $connector): array
             {
@@ -227,7 +230,7 @@ final class SyncServiceTest extends KernelTestCase
         $fake = new FakeConnectorPlugin(inputConfigured: true);
         $this->createConnector('Crash Calendar Connector');
 
-        $registry = new class([$fake], self::getContainer()->get(ConnectorConfigRepository::class)) extends ConnectorPluginRegistry {
+        $registry = new class([$fake], self::getContainer()->get(ConnectorConfigRepository::class), self::getContainer()->get(SecretCrypto::class)) extends ConnectorPluginRegistry {
             #[\Override]
             public function getCalendarFetchers(Connector $connector): array
             {

@@ -31,6 +31,7 @@ final class Pop3ConnectorPluginTest extends TestCase
         self::assertTrue($plugin->supportsOutput());
         self::assertSame(Pop3ConnectorSettingsType::class, $plugin->getSettingsFormType());
         self::assertSame('@Pop3Connector/pop3_connector/settings_form.html.twig', $plugin->getSettingsTemplate());
+        self::assertSame(['pop3Password', 'smtpPassword'], $plugin->getSecretConfigKeys());
 
         self::assertFalse($plugin->isInputConfigured([]));
         self::assertFalse($plugin->isInputConfigured(['pop3Host' => 'mail.example.com']));

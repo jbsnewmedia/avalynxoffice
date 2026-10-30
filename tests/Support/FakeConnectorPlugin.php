@@ -2,13 +2,18 @@
 
 declare(strict_types=1);
 
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
+
 namespace AvalynxOffice\Tests\Support;
 
 use AvalynxOffice\Entity\Connector;
 use AvalynxOffice\Plugin\Contract\ConnectorCalendarFetcherInterface;
 use AvalynxOffice\Plugin\Contract\ConnectorContactFetcherInterface;
-use AvalynxOffice\Plugin\Contract\ConnectorFetchRequest;
 use AvalynxOffice\Plugin\Contract\ConnectorFetcherInterface;
+use AvalynxOffice\Plugin\Contract\ConnectorFetchRequest;
 use AvalynxOffice\Plugin\Contract\ConnectorMailerInterface;
 use AvalynxOffice\Plugin\Contract\ConnectorPluginInterface;
 use Symfony\Component\Mailer\MailerInterface;
@@ -54,6 +59,8 @@ class FakeConnectorPlugin implements ConnectorPluginInterface, ConnectorFetcherI
         public bool $inputConfigured = false,
         public bool $outputConfigured = false,
         public ?MailerInterface $mailer = null,
+        /** @var list<string> */
+        public array $secretConfigKeys = [],
     ) {
     }
 
@@ -91,6 +98,12 @@ class FakeConnectorPlugin implements ConnectorPluginInterface, ConnectorFetcherI
     public function getSettingsTemplate(): string
     {
         return '@FakeConnector/settings_form.html.twig';
+    }
+
+    #[\Override]
+    public function getSecretConfigKeys(): array
+    {
+        return $this->secretConfigKeys;
     }
 
     #[\Override]

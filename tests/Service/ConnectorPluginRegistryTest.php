@@ -2,20 +2,27 @@
 
 declare(strict_types=1);
 
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
+
 namespace AvalynxOffice\Tests\Service;
 
 use AvalynxOffice\Entity\Connector;
 use AvalynxOffice\Plugin\Contract\ConnectorPluginInterface;
 use AvalynxOffice\Repository\ConnectorConfigRepository;
 use AvalynxOffice\Service\ConnectorPluginRegistry;
+use AvalynxOffice\Service\Security\SecretCrypto;
 use AvalynxOffice\Tests\Support\FakeConnectorPlugin;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Mailer\Mailer;
-use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Mailer\Transport\NullTransport;
 
 final class ConnectorPluginRegistryTest extends TestCase
 {
+    private const string TEST_KEY = 'ylnmhNTxE6uJxSt0NVduo9/tPPFgA9hZf20A6vbHCwM=';
+
     public function testCollectsAndSortsPluginsByKey(): void
     {
         $smtp = new FakeConnectorPlugin('smtp');
@@ -131,7 +138,7 @@ final class ConnectorPluginRegistryTest extends TestCase
             ->with(self::callback(static fn (object $connector): bool => $connector instanceof Connector), 'pop3')
             ->willReturn(['pop3Host' => 'mail.example.com']);
 
-        $registry = new ConnectorPluginRegistry([new FakeConnectorPlugin('pop3')], $repository);
+        $registry = new ConnectorPluginRegistry([new FakeConnectorPlugin('pop3')], $repository, new SecretCrypto(self::TEST_KEY));
 
         self::assertSame(['pop3Host' => 'mail.example.com'], $registry->getConfig(new Connector(), $registry->get('pop3')));
     }
@@ -190,9 +197,29 @@ final class ConnectorPluginRegistryTest extends TestCase
         self::assertSame([], $registry->getFetchers($connector));
     }
 
+    public function testGetConfigDecryptsSecretKeysDeclaredByThePlugin(): void
+    {
+        $connector = new Connector();
+        $plugin = new FakeConnectorPlugin('pop3', secretConfigKeys: ['pop3Password']);
+        $crypto = new SecretCrypto(self::TEST_KEY);
+        $repository = $this->createStub(ConnectorConfigRepository::class);
+        $repository->method('getConfig')->willReturn([
+            'pop3Host' => 'mail.example.com',
+            'pop3Password' => $crypto->encrypt('s3cret'),
+            'smtpPassword' => $crypto->encrypt('not-declared'),
+        ]);
+
+        $registry = new ConnectorPluginRegistry([$plugin], $repository, $crypto);
+        $config = $registry->getConfig($connector, $plugin);
+
+        self::assertSame('mail.example.com', $config['pop3Host']);
+        self::assertSame('s3cret', $config['pop3Password']);
+        self::assertStringStartsWith(SecretCrypto::PREFIX, $config['smtpPassword']);
+    }
+
     private function registry(FakeConnectorPlugin ...$plugins): ConnectorPluginRegistry
     {
-        return new ConnectorPluginRegistry($plugins, $this->createStub(ConnectorConfigRepository::class));
+        return new ConnectorPluginRegistry($plugins, $this->createStub(ConnectorConfigRepository::class), new SecretCrypto(self::TEST_KEY));
     }
 
     public function testFetchersCollectConfiguredFetchersAndSkipTheRest(): void
@@ -238,6 +265,12 @@ final class ConnectorPluginRegistryTest extends TestCase
             }
 
             #[\Override]
+            public function getSecretConfigKeys(): array
+            {
+                return [];
+            }
+
+            #[\Override]
             public function isInputConfigured(array $config): bool
             {
                 return true;
@@ -256,7 +289,7 @@ final class ConnectorPluginRegistryTest extends TestCase
             }
         };
 
-        $registry = new ConnectorPluginRegistry([$configured, $unconfigured, $plain], $this->createStub(ConnectorConfigRepository::class));
+        $registry = new ConnectorPluginRegistry([$configured, $unconfigured, $plain], $this->createStub(ConnectorConfigRepository::class), new SecretCrypto(self::TEST_KEY));
 
         $fetchers = $registry->getFetchers($connector);
         self::assertCount(1, $fetchers);

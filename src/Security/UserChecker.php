@@ -20,6 +20,13 @@ use Symfony\Component\Security\Core\User\UserInterface;
  */
 final class UserChecker implements UserCheckerInterface
 {
+    /**
+     * Same message (and translation key of the "security" domain) the
+     * authenticator shows for wrong credentials, so a login attempt cannot
+     * tell a deactivated account apart from a non-existent one.
+     */
+    public const string MESSAGE = 'Invalid credentials.';
+
     #[\Override]
     public function checkPreAuth(UserInterface $user): void
     {
@@ -28,7 +35,7 @@ final class UserChecker implements UserCheckerInterface
         }
 
         if (!$user->isActive()) {
-            throw new CustomUserMessageAccountStatusException('This account has been deactivated.');
+            throw new CustomUserMessageAccountStatusException(self::MESSAGE);
         }
     }
 

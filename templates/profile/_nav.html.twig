@@ -1,10 +1,11 @@
 {# Params:
-    active (string) — currently active profile section: 'overview'|'account'|'recovery'
+    active (string) — currently active profile section: 'overview'|'account'|'sessions'|'app_passwords'|'recovery'
 #}
 {% set profileNavItems = {
     'overview': {route: 'app_profile', icon: 'fa-sliders', label: 'profile.nav.overview'},
     'account': {route: 'app_profile_account', icon: 'fa-user', label: 'profile.nav.account'},
     'sessions': {route: 'app_profile_sessions', icon: 'fa-display', label: 'profile.nav.sessions'},
+    'app_passwords': {route: 'app_profile_app_passwords', icon: 'fa-key', label: 'profile.nav.app_passwords'},
     'recovery': {route: 'app_profile_recovery', icon: 'fa-life-ring', label: 'profile.nav.recovery'},
 } %}
 {% set profileNavCurrent = profileNavItems[active]|default(profileNavItems.overview) %}

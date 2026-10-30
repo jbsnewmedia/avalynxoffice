@@ -40,9 +40,13 @@ final class ProfileSessionsController extends AbstractController
         $user = $this->getUser();
         \assert($user instanceof \AvalynxOffice\Entity\User);
 
+        // Rows store the hashed token, so the template compares against the
+        // hash of the plaintext token carried by the current session.
+        $currentToken = $this->currentToken();
+
         return $this->render('profile/sessions.html.twig', [
             'sessions' => $this->loginSessionService->activeFor($user),
-            'currentToken' => $this->currentToken(),
+            'currentToken' => null === $currentToken ? null : LoginSessionService::hashToken($currentToken),
         ]);
     }
 

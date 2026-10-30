@@ -17,6 +17,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
@@ -32,6 +33,7 @@ final class UserPasswordResetController extends AbstractController
         private readonly AdminPasswordResetService $adminPasswordResetService,
         private readonly PasswordResetRequestRepository $passwordResetRequestRepository,
         private readonly TranslatorInterface $translator,
+        private readonly RateLimiterFactoryInterface $passwordResetStatusLimiter,
     ) {
     }
 
@@ -75,9 +77,21 @@ final class UserPasswordResetController extends AbstractController
         ]);
     }
 
+    /**
+     * Polled by the flow page; rate limited per IP so the token in the URL
+     * cannot be probed at high speed.
+     */
     #[Route('/profile/password-reset/admin-flow/{token}/status', name: 'app_user_password_reset_status', methods: ['GET'])]
-    public function status(string $token): JsonResponse
+    public function status(string $token, Request $httpRequest): JsonResponse
     {
+        if (!$this->passwordResetStatusLimiter->create($httpRequest->getClientIp() ?? 'unknown')->consume()->isAccepted()) {
+            return $this->json([
+                'state' => 'unknown',
+                'secondsLeft' => 0,
+                'error' => $this->translator->trans('password.reset.too_many_requests'),
+            ], Response::HTTP_TOO_MANY_REQUESTS);
+        }
+
         $request = $this->passwordResetRequestRepository->findByToken($token);
         $now = new \DateTimeImmutable();
 

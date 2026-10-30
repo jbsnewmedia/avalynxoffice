@@ -146,6 +146,49 @@ final class LegalControllerTest extends WebTestCase
         self::assertSame('<h2>AGB</h2><p>Paragraph 1</p>', $this->legalService()->getContent(LegalContentService::PAGE_TERMS));
     }
 
+    public function testSaveSanitizesScriptsOutOfTheContent(): void
+    {
+        $this->client->loginUser($this->admin);
+        $token = $this->setCsrfToken('save_legal');
+        $this->client->request('POST', '/admin/legal/save', [
+            '_token' => $token,
+            'page' => LegalContentService::PAGE_TERMS,
+            'content' => '<h2>AGB</h2><script>alert("xss")</script><p onmouseover="alert(1)">Text</p>',
+        ]);
+
+        self::assertResponseIsSuccessful();
+        $stored = $this->legalService()->getContent(LegalContentService::PAGE_TERMS);
+        self::assertIsString($stored);
+        self::assertStringNotContainsString('<script', $stored);
+        self::assertStringNotContainsString('onmouseover', $stored);
+        self::assertStringContainsString('<h2>AGB</h2>', $stored);
+        self::assertStringContainsString('<p>Text</p>', $stored);
+    }
+
+    /**
+     * Defense in depth: even content that bypassed the save path (e.g. a
+     * direct database write) is sanitized again when rendered.
+     */
+    public function testPublicPageSanitizesStoredContentOnRender(): void
+    {
+        $settings = static::getContainer()->get(\AvalynxOffice\Repository\AppSettingRepository::class);
+        $settings->setValue('legal_page_impressum', '<p>Safe</p><script>alert("stored")</script>');
+
+        $this->client->request('GET', '/impressum');
+
+        self::assertResponseIsSuccessful();
+        $content = (string) $this->client->getResponse()->getContent();
+        self::assertStringContainsString('<p>Safe</p>', $content);
+        self::assertStringNotContainsString('alert("stored")', $content);
+
+        $this->client->request('GET', '/login');
+
+        self::assertResponseIsSuccessful();
+        $content = (string) $this->client->getResponse()->getContent();
+        self::assertStringContainsString('<p>Safe</p>', $content);
+        self::assertStringNotContainsString('alert("stored")', $content);
+    }
+
     public function testPublicImpressumRendersStoredContentForGuests(): void
     {
         $this->legalService()->setContent(LegalContentService::PAGE_IMPRINT, '<p>JBS New Media GmbH</p>');

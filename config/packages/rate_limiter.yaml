@@ -1,0 +1,26 @@
+framework:
+    rate_limiter:
+        # Anonymous password reset entry points: link mail and code flow start.
+        password_reset:
+            policy: 'sliding_window'
+            limit: 5
+            interval: '15 minutes'
+        # Status polling of the admin-assisted flow (the page polls every 5s).
+        password_reset_status:
+            policy: 'sliding_window'
+            limit: 30
+            interval: '1 minute'
+
+# Tests use an in-memory storage: it lives as long as the kernel, so limits
+# never leak between tests (each test boots its own kernel) but can still be
+# exercised within one test by disabling the client reboot.
+when@test:
+    framework:
+        rate_limiter:
+            password_reset:
+                storage_service: 'test.rate_limiter.storage'
+            password_reset_status:
+                storage_service: 'test.rate_limiter.storage'
+    services:
+        test.rate_limiter.storage:
+            class: Symfony\Component\RateLimiter\Storage\InMemoryStorage

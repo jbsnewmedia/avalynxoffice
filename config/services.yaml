@@ -4,6 +4,9 @@
 # Put parameters here that don't need to change on each machine where the app is deployed
 # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
+    # GeoIP lookups of login IPs call the external ip-api.com service over
+    # plain HTTP (the free tier offers no HTTPS) and are therefore opt-in.
+    env(AVALYNXOFFICE_GEOIP_ENABLED): 'false'
 
 services:
     # default configuration for services in *this* file
@@ -26,9 +29,21 @@ services:
         arguments:
             $plugins: !tagged_iterator avalynxoffice.connector_plugin
 
+    AvalynxOffice\Service\Security\SecretCrypto:
+        arguments:
+            $encryptionKey: '%env(string:AVALYNXOFFICE_ENCRYPTION_KEY)%'
+
     AvalynxOffice\Service\PluginManifestService:
         bind:
             $projectDir: '%kernel.project_dir%'
+
+    AvalynxOffice\Service\Login\GeoIpLookupService:
+        arguments:
+            $enabled: '%env(bool:AVALYNXOFFICE_GEOIP_ENABLED)%'
+
+    AvalynxOffice\Service\LegalContentService:
+        arguments:
+            $legalSanitizer: '@html_sanitizer.sanitizer.legal'
 
     AvalynxOffice\Service\UserService:
         arguments:

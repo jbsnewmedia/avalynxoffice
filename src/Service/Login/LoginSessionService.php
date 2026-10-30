@@ -10,8 +10,10 @@ declare(strict_types=1);
 namespace AvalynxOffice\Service\Login;
 
 use AvalynxOffice\Entity\User;
+use AvalynxOffice\Entity\UserAppPassword;
 use AvalynxOffice\Entity\UserLoginSession;
 use AvalynxOffice\EventSubscriber\LoginRememberMeSubscriber;
+use AvalynxOffice\Repository\UserAppPasswordRepository;
 use AvalynxOffice\Repository\UserLoginSessionRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\Request;
@@ -21,6 +23,9 @@ use Symfony\Component\HttpFoundation\Request;
  * every request refreshes its activity and rows can be revoked (kicked)
  * from the profile. The row token is stored inside the Symfony session —
  * a missing or revoked token means the session must be terminated.
+ *
+ * Only the SHA-256 hash of the token is persisted: a leaked database dump
+ * does not allow an attacker to impersonate an existing login session.
  */
 final readonly class LoginSessionService
 {
@@ -50,7 +55,7 @@ final readonly class LoginSessionService
         $token = $session->get(self::SESSION_ATTRIBUTE);
 
         if (is_string($token) && '' !== $token) {
-            $row = $this->repository()->findOneBy(['sessionToken' => $token, 'user' => $user]);
+            $row = $this->repository()->findOneBy(['sessionToken' => self::hashToken($token), 'user' => $user]);
 
             if (null !== $row && null === $row->getRevokedAt()) {
                 $this->refresh($row, $request, $rememberMe);
@@ -64,7 +69,7 @@ final readonly class LoginSessionService
 
         $row = new UserLoginSession()
             ->setUser($user)
-            ->setSessionToken($token)
+            ->setSessionToken(self::hashToken($token))
             ->setRememberMe($rememberMe)
             ->setCreatedAt(new \DateTimeImmutable())
             ->setLastSeenAt(new \DateTimeImmutable());
@@ -87,7 +92,7 @@ final readonly class LoginSessionService
             return;
         }
 
-        $row = $this->repository()->findActiveByToken($user, $token);
+        $row = $this->repository()->findActiveByToken($user, self::hashToken($token));
 
         if (null === $row) {
             $this->terminate($request, $session);
@@ -141,11 +146,29 @@ final readonly class LoginSessionService
      */
     public function revokeOthers(User $user, string $currentToken): int
     {
-        $revoked = $this->repository()->revokeOthers($user, $currentToken);
+        $revoked = $this->repository()->revokeOthers($user, self::hashToken($currentToken));
 
         if ($revoked > 0) {
             $this->revokeRememberTokens($user);
         }
+
+        return $revoked;
+    }
+
+    /**
+     * Ends every active session of the user, deletes all remember-me tokens
+     * and revokes every device/app password. Used after a password reset or
+     * change so that nobody who held the old credentials (or a device set up
+     * with them) stays logged in. Returns the number of revoked sessions.
+     */
+    public function revokeAll(User $user): int
+    {
+        $revoked = $this->repository()->revokeAll($user);
+        $this->revokeRememberTokens($user);
+
+        $appPasswords = $this->entityManager->getRepository(UserAppPassword::class);
+        \assert($appPasswords instanceof UserAppPasswordRepository);
+        $appPasswords->revokeAll($user);
 
         return $revoked;
     }
@@ -156,7 +179,7 @@ final readonly class LoginSessionService
      */
     public function revokeByToken(User $user, string $token): void
     {
-        $row = $this->repository()->findActiveByToken($user, $token);
+        $row = $this->repository()->findActiveByToken($user, self::hashToken($token));
 
         if (null !== $row) {
             $row->setRevokedAt(new \DateTimeImmutable());
@@ -178,6 +201,14 @@ final readonly class LoginSessionService
     public function mustTerminate(Request $request): bool
     {
         return (bool) $request->attributes->get(self::FORCE_LOGOUT_ATTRIBUTE, false);
+    }
+
+    /**
+     * Hash under which a plaintext session token is stored in the registry.
+     */
+    public static function hashToken(string $token): string
+    {
+        return hash('sha256', $token);
     }
 
     private function terminate(Request $request, \Symfony\Component\HttpFoundation\Session\SessionInterface $session): void

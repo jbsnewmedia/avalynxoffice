@@ -20,8 +20,44 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 final class UserCreateCommandTest extends TestCase
 {
+    private const ENV_VARIABLES = ['OFFICE_ADMIN_EMAIL', 'OFFICE_ADMIN_PASSWORD'];
+
     /** @var list<User> */
     private array $persistedUsers = [];
+
+    /** @var array<string, string|false> */
+    private array $originalEnvironment = [];
+
+    protected function setUp(): void
+    {
+        // The command falls back to OFFICE_ADMIN_* from the environment; the
+        // tests must not depend on what the surrounding container defines.
+        foreach (self::ENV_VARIABLES as $name) {
+            $this->originalEnvironment[$name] = getenv($name);
+            $this->setEnvironmentVariable($name, null);
+        }
+    }
+
+    protected function tearDown(): void
+    {
+        foreach ($this->originalEnvironment as $name => $value) {
+            $this->setEnvironmentVariable($name, false === $value ? null : $value);
+        }
+    }
+
+    private function setEnvironmentVariable(string $name, ?string $value): void
+    {
+        if (null === $value) {
+            putenv($name);
+            unset($_ENV[$name], $_SERVER[$name]);
+
+            return;
+        }
+
+        putenv($name.'='.$value);
+        $_ENV[$name] = $value;
+        $_SERVER[$name] = $value;
+    }
 
     private function createRepositoryStub(?User $existing): UserRepository
     {
@@ -236,5 +272,49 @@ final class UserCreateCommandTest extends TestCase
 
         self::assertSame(Command::FAILURE, $tester->execute(['--email' => 'admin@example.com']));
         self::assertStringContainsString('The password must not be empty', $tester->getDisplay());
+    }
+
+    public function testReadsEmailAndPasswordFromEnvironmentWhenOptionsAreMissing(): void
+    {
+        $this->setEnvironmentVariable('OFFICE_ADMIN_EMAIL', 'env-admin@example.com');
+        $this->setEnvironmentVariable('OFFICE_ADMIN_PASSWORD', 'p4$$ "word" `with` $(chars)');
+
+        $command = new UserCreateCommand(
+            $this->createEntityManagerStub(),
+            $this->createHasherStub(),
+            $this->createStub(LicenseEnforcementInterface::class),
+            $this->createUserService([]),
+        );
+        $tester = new CommandTester($command);
+
+        self::assertSame(Command::SUCCESS, $tester->execute(['--admin' => true]));
+        self::assertStringContainsString('User env-admin@example.com created successfully (administrator).', $tester->getDisplay());
+
+        self::assertCount(1, $this->persistedUsers);
+        self::assertSame('env-admin@example.com', $this->persistedUsers[0]->getEmail());
+        self::assertSame('hashed:p4$$ "word" `with` $(chars)', $this->persistedUsers[0]->getPassword());
+    }
+
+    public function testOptionsTakePrecedenceOverEnvironment(): void
+    {
+        $this->setEnvironmentVariable('OFFICE_ADMIN_EMAIL', 'env-admin@example.com');
+        $this->setEnvironmentVariable('OFFICE_ADMIN_PASSWORD', 'env-secret');
+
+        $command = new UserCreateCommand(
+            $this->createEntityManagerStub(),
+            $this->createHasherStub(),
+            $this->createStub(LicenseEnforcementInterface::class),
+            $this->createUserService([]),
+        );
+        $tester = new CommandTester($command);
+
+        self::assertSame(Command::SUCCESS, $tester->execute([
+            '--email' => 'option@example.com',
+            '--password' => 'option-secret',
+        ]));
+
+        self::assertCount(1, $this->persistedUsers);
+        self::assertSame('option@example.com', $this->persistedUsers[0]->getEmail());
+        self::assertSame('hashed:option-secret', $this->persistedUsers[0]->getPassword());
     }
 }

@@ -32,6 +32,19 @@ final readonly class UserService
      */
     public const int MAX_RECOVERY_ADDRESSES = 2;
 
+    /**
+     * Query parameter of the signed reset link carrying the password
+     * fingerprint. The signature covers it, so the link stops working as
+     * soon as the password (and with it the fingerprint) changes.
+     */
+    public const string RESET_FINGERPRINT_PARAMETER = 'v';
+
+    /** Number of hex characters of the fingerprint included in the link. */
+    private const int RESET_FINGERPRINT_LENGTH = 16;
+
+    /** Validity of a signed reset link (ISO 8601 duration: 30 minutes). */
+    public const string RESET_LINK_TTL = 'PT30M';
+
     public function __construct(
         private UserRepository $userRepository,
         private RecoveryAddressRepository $recoveryAddressRepository,
@@ -116,8 +129,10 @@ final readonly class UserService
             }
         }
 
+        // Neutral wording: the message must not reveal that the address
+        // belongs to another account (enumeration).
         if ([] !== $this->recoveryAddressRepository->findByEmail($normalized)) {
-            throw new \DomainException('This recovery address is already registered for another user.');
+            throw new \DomainException('This recovery address cannot be registered.');
         }
 
         $address = new RecoveryAddress();
@@ -168,6 +183,10 @@ final readonly class UserService
      * recovery addresses. Unknown users and users without recovery
      * addresses are silently ignored to prevent account enumeration.
      *
+     * The link is bound to the current password via
+     * {@see self::passwordResetFingerprint()}: once the password changed the
+     * signature no longer matches and the link cannot be used a second time.
+     *
      * @param non-empty-string       $email
      * @param \Closure(User): string $resetUrlFor builds the absolute reset URL for the given user
      */
@@ -179,13 +198,42 @@ final readonly class UserService
             return;
         }
 
-        $signedUrl = $this->uriSigner->sign($resetUrlFor($user), 1800);
+        // UriSigner interprets an int expiration as an absolute timestamp -
+        // the validity therefore has to be passed as interval.
+        $signedUrl = $this->uriSigner->sign($this->withResetFingerprint($resetUrlFor($user), $user), new \DateInterval(self::RESET_LINK_TTL));
 
         $this->sendToRecoveryAddresses(
             $user,
             'Password Reset Request',
             sprintf('Hello %s,'."\n\n".'a password reset was requested for your account. Please use the following link to reset your password:'."\n\n".'%s'."\n\n".'This link is valid for 30 minutes.', $user->getEmail(), $signedUrl)
         );
+    }
+
+    /**
+     * Fingerprint of the user's current password hash (first 16 hex
+     * characters of its SHA-256). It changes with every password change and
+     * reveals nothing about the hash itself.
+     */
+    public function passwordResetFingerprint(User $user): string
+    {
+        return substr(hash('sha256', $user->getPassword()), 0, self::RESET_FINGERPRINT_LENGTH);
+    }
+
+    /**
+     * Appends the password fingerprint to a reset URL before signing.
+     */
+    public function withResetFingerprint(string $url, User $user): string
+    {
+        return $url.(str_contains($url, '?') ? '&' : '?').self::RESET_FINGERPRINT_PARAMETER.'='.$this->passwordResetFingerprint($user);
+    }
+
+    /**
+     * True when the fingerprint carried by a reset link still matches the
+     * user's current password.
+     */
+    public function isResetFingerprintValid(User $user, ?string $fingerprint): bool
+    {
+        return is_string($fingerprint) && hash_equals($this->passwordResetFingerprint($user), $fingerprint);
     }
 
     /**

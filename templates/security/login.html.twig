@@ -96,7 +96,7 @@
             </div>
             <div class="modal-body">
                 {% if legal_pages.impressum is not empty %}
-                    {{ legal_pages.impressum|raw }}
+                    {{ legal_pages.impressum|sanitize_html('legal') }}
                 {% else %}
                     {{ 'login.legal_placeholder'|trans }}
                 {% endif %}
@@ -116,7 +116,7 @@
             </div>
             <div class="modal-body">
                 {% if legal_pages.datenschutz is not empty %}
-                    {{ legal_pages.datenschutz|raw }}
+                    {{ legal_pages.datenschutz|sanitize_html('legal') }}
                 {% else %}
                     {{ 'login.legal_placeholder'|trans }}
                 {% endif %}
@@ -136,7 +136,7 @@
             </div>
             <div class="modal-body">
                 {% if legal_pages.agb is not empty %}
-                    {{ legal_pages.agb|raw }}
+                    {{ legal_pages.agb|sanitize_html('legal') }}
                 {% else %}
                     {{ 'login.legal_placeholder'|trans }}
                 {% endif %}

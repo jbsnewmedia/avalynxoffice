@@ -12,6 +12,8 @@ use AvalynxOffice\Entity\Account;
 use AvalynxOffice\Entity\AccountAlias;
 use AvalynxOffice\Entity\Connector;
 use AvalynxOffice\Entity\User;
+use AvalynxOffice\Service\ConnectorPluginRegistry;
+use AvalynxOffice\Service\Security\SecretCrypto;
 use AvalynxOffice\Tests\Support\RefreshDatabaseTrait;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\Group;
@@ -462,13 +464,37 @@ final class AdminControllerTest extends WebTestCase
         self::assertInstanceOf(\AvalynxOffice\Entity\ConnectorConfig::class, $savedConfig);
         $config = $savedConfig->getConfig();
         self::assertSame('pop.example.com', $config['pop3Host']);
-        self::assertSame('pop-secret', $config['pop3Password']);
-        self::assertSame('smtp-secret', $config['smtpPassword']);
         self::assertTrue($config['pop3DeleteAfterFetch']);
+
+        // Passwords are stored encrypted at rest, never in plain text.
+        $secretCrypto = self::getContainer()->get(SecretCrypto::class);
+        \assert($secretCrypto instanceof SecretCrypto);
+        self::assertStringStartsWith(SecretCrypto::PREFIX, $config['pop3Password']);
+        self::assertStringStartsWith(SecretCrypto::PREFIX, $config['smtpPassword']);
+        self::assertSame('pop-secret', $secretCrypto->decrypt($config['pop3Password']));
+        self::assertSame('smtp-secret', $secretCrypto->decrypt($config['smtpPassword']));
+        self::assertStringNotContainsString('pop-secret', json_encode($config, JSON_THROW_ON_ERROR));
 
         // The repository helper returns the stored config as plain array.
         self::assertSame($config, $configRepository->getConfig($createdConnector, 'pop3'));
         self::assertSame([], $configRepository->getConfig($createdConnector, 'unknown'));
+
+        // The plugin registry resolves the config with decrypted secrets.
+        $registry = self::getContainer()->get(ConnectorPluginRegistry::class);
+        \assert($registry instanceof ConnectorPluginRegistry);
+        $pop3Plugin = $registry->get('pop3');
+        self::assertNotNull($pop3Plugin);
+        $resolved = $registry->getConfig($createdConnector, $pop3Plugin);
+        self::assertSame('pop-secret', $resolved['pop3Password']);
+        self::assertSame('smtp-secret', $resolved['smtpPassword']);
+
+        // The edit form never echoes the stored password back to the browser.
+        $settingsCrawler = $this->client->request('GET', sprintf('/admin/connectors/%s/settings', $createdConnector->getId()), server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        self::assertResponseIsSuccessful();
+        $settingsHtml = (string) $this->client->getResponse()->getContent();
+        self::assertStringNotContainsString('pop-secret', $settingsHtml);
+        self::assertStringNotContainsString('smtp-secret', $settingsHtml);
+        self::assertStringNotContainsString(SecretCrypto::PREFIX, $settingsHtml);
 
         // Re-saving with empty password fields keeps the stored passwords.
         $settingsCrawler = $this->client->request('GET', sprintf('/admin/connectors/%s/settings', $createdConnector->getId()), server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
@@ -488,8 +514,9 @@ final class AdminControllerTest extends WebTestCase
         self::assertInstanceOf(\AvalynxOffice\Entity\ConnectorConfig::class, $savedConfig);
         $config = $savedConfig->getConfig();
         self::assertSame('pop-updated.example.com', $config['pop3Host']);
-        self::assertSame('pop-secret', $config['pop3Password']);
-        self::assertSame('smtp-secret', $config['smtpPassword']);
+        self::assertStringStartsWith(SecretCrypto::PREFIX, $config['pop3Password']);
+        self::assertSame('pop-secret', $secretCrypto->decrypt($config['pop3Password']));
+        self::assertSame('smtp-secret', $secretCrypto->decrypt($config['smtpPassword']));
 
         // Several connectors may serve the same domain (e.g. one per mailbox
         // access): uniqueness lives on the alias level (connector + local

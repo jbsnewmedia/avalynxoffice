@@ -26,6 +26,11 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
  * production entrypoint calls this (with --admin) after the migrations when
  * OFFICE_ADMIN_EMAIL and OFFICE_ADMIN_PASSWORD are provided.
  *
+ * Email and password can be given as options or - preferred for container
+ * bootstraps - via the environment variables OFFICE_ADMIN_EMAIL and
+ * OFFICE_ADMIN_PASSWORD, so the password never shows up on a command line
+ * (process list, shell history).
+ *
  * The first user automatically becomes the administrator; further users
  * start as regular users unless --admin is given.
  *
@@ -51,8 +56,8 @@ class UserCreateCommand extends Command
     protected function configure(): void
     {
         $this
-            ->addOption('email', null, InputOption::VALUE_REQUIRED, 'User email address')
-            ->addOption('password', null, InputOption::VALUE_REQUIRED, 'User password')
+            ->addOption('email', null, InputOption::VALUE_REQUIRED, 'User email address (default: env OFFICE_ADMIN_EMAIL)')
+            ->addOption('password', null, InputOption::VALUE_REQUIRED, 'User password (default: env OFFICE_ADMIN_PASSWORD; prefer the environment variable so the password is not visible in the process list)')
             ->addOption('admin', null, InputOption::VALUE_NONE, 'Force the administrator role (otherwise the first user becomes administrator automatically)')
         ;
     }
@@ -63,18 +68,24 @@ class UserCreateCommand extends Command
         $io = new SymfonyStyle($input, $output);
 
         $emailArgument = $input->getOption('email');
+        if (!is_string($emailArgument) || '' === $emailArgument) {
+            $emailArgument = self::env('OFFICE_ADMIN_EMAIL');
+        }
         $email = is_string($emailArgument) ? trim($emailArgument) : '';
         $passwordArgument = $input->getOption('password');
+        if (!is_string($passwordArgument) || '' === $passwordArgument) {
+            $passwordArgument = self::env('OFFICE_ADMIN_PASSWORD');
+        }
         $password = is_string($passwordArgument) ? $passwordArgument : '';
 
         if ('' === $email || false === filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $io->error('A valid email address must be provided (--email).');
+            $io->error('A valid email address must be provided (--email or env OFFICE_ADMIN_EMAIL).');
 
             return Command::FAILURE;
         }
 
         if ('' === $password) {
-            $io->error('The password must not be empty (--password).');
+            $io->error('The password must not be empty (--password or env OFFICE_ADMIN_PASSWORD).');
 
             return Command::FAILURE;
         }
@@ -109,5 +120,12 @@ class UserCreateCommand extends Command
         $io->success(sprintf('User %s created successfully (%s).', $email, $role));
 
         return Command::SUCCESS;
+    }
+
+    private static function env(string $name): ?string
+    {
+        $value = $_SERVER[$name] ?? $_ENV[$name] ?? getenv($name);
+
+        return is_string($value) && '' !== $value ? $value : null;
     }
 }

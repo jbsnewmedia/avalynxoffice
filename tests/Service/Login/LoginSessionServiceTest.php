@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace AvalynxOffice\Tests\Service\Login;
 
 use AvalynxOffice\Entity\User;
+use AvalynxOffice\Repository\UserAppPasswordRepository;
+use AvalynxOffice\Service\Login\AppPasswordService;
 use AvalynxOffice\Service\Login\GeoIpLookupService;
 use AvalynxOffice\Service\Login\LoginSessionService;
 use AvalynxOffice\Tests\Support\RefreshDatabaseTrait;
@@ -37,7 +39,7 @@ final class LoginSessionServiceTest extends KernelTestCase
             new class extends GeoIpLookupService {
                 public function __construct()
                 {
-                    parent::__construct(null);
+                    parent::__construct(null, true);
                 }
 
                 #[\Override]
@@ -90,8 +92,62 @@ final class LoginSessionServiceTest extends KernelTestCase
         self::assertNotNull($row->getLastSeenAt());
         self::assertNull($row->getRevokedAt());
 
-        // The token is stored in the session for later request matching.
-        self::assertSame($row->getSessionToken(), $request->getSession()->get(LoginSessionService::SESSION_ATTRIBUTE));
+        // The plaintext token is stored in the session for later request
+        // matching; the row only holds its SHA-256 hash.
+        $plaintext = $request->getSession()->get(LoginSessionService::SESSION_ATTRIBUTE);
+        self::assertIsString($plaintext);
+        self::assertNotSame($plaintext, $row->getSessionToken());
+        self::assertSame(LoginSessionService::hashToken($plaintext), $row->getSessionToken());
+        self::assertSame(hash('sha256', $plaintext), $row->getSessionToken());
+        self::assertMatchesRegularExpression('/^[0-9a-f]{64}$/', $row->getSessionToken());
+    }
+
+    public function testStoredTokenHashIsNotAcceptedAsSessionToken(): void
+    {
+        $request = $this->request();
+        $this->service->register($this->user, $request);
+        $row = $this->service->activeFor($this->user)[0];
+
+        // An attacker who read the database must not be able to use the
+        // stored hash as session token.
+        $forged = $this->request(cookieSessionId: 'forged');
+        $forged->getSession()->set(LoginSessionService::SESSION_ATTRIBUTE, $row->getSessionToken());
+
+        $this->service->handleRequest($this->user, $forged);
+
+        self::assertTrue($this->service->mustTerminate($forged));
+    }
+
+    public function testRevokeAllEndsEverySessionAndDeletesRememberMeTokens(): void
+    {
+        $appPasswords = static::getContainer()->get(AppPasswordService::class);
+        \assert($appPasswords instanceof AppPasswordService);
+        $appPasswords->create($this->user, 'Phone');
+
+        $this->service->register($this->user, $this->request(cookieSessionId: 'device-1'));
+        $this->service->register($this->user, $this->request(ip: '198.51.100.5', cookieSessionId: 'device-2'));
+        $this->entityManager->getConnection()->executeStatement(
+            'INSERT INTO rememberme_token (series, value, lastUsed, class, username) VALUES (:series, :value, :lastUsed, :class, :username)',
+            [
+                'series' => bin2hex(random_bytes(16)),
+                'value' => bin2hex(random_bytes(16)),
+                'lastUsed' => new \DateTimeImmutable()->format('Y-m-d H:i:s'),
+                'class' => User::class,
+                'username' => 'session@example.com',
+            ],
+        );
+
+        $revoked = $this->service->revokeAll($this->user);
+
+        self::assertSame(2, $revoked);
+        self::assertSame([], $this->service->activeFor($this->user));
+        $remaining = $this->entityManager->getConnection()->fetchOne('SELECT COUNT(*) FROM rememberme_token WHERE username = :email', ['email' => 'session@example.com']);
+        self::assertSame(0, (int) $remaining);
+
+        // Devices set up with an app password must be cut off as well.
+        $appPasswordRepository = static::getContainer()->get(UserAppPasswordRepository::class);
+        \assert($appPasswordRepository instanceof UserAppPasswordRepository);
+        self::assertSame([], $appPasswordRepository->findActiveByUser($this->user));
     }
 
     public function testRegisterWithSameSessionRefreshesInsteadOfDuplicating(): void

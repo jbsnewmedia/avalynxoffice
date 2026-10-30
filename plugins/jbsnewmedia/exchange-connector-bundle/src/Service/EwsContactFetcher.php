@@ -64,7 +64,7 @@ final class EwsContactFetcher extends AbstractEwsFetcher
                 }
                 $this->processContact($contact, $connector, $addressRepo, $totals);
             }
-            $this->updateTotals($connector, $config, 'contacts_total', $listing['total']);
+            $this->updateTotals($connector, 'contacts_total', $listing['total']);
         } catch (\Throwable $exception) {
             $this->logError('Error during the Exchange contacts sync: '.$exception->getMessage(), $exception);
             ++$totals['errors'];
@@ -192,17 +192,19 @@ final class EwsContactFetcher extends AbstractEwsFetcher
     }
 
     /**
-     * @param array<string, mixed> $config
+     * Works on the stored (encrypted) config so no decrypted secret is
+     * written back.
      */
-    private function updateTotals(Connector $connector, array $config, string $key, int $total): void
+    private function updateTotals(Connector $connector, string $key, int $total): void
     {
         try {
             $entity = $this->connectorConfigRepository->findOneBy(['connector' => $connector, 'pluginKey' => ExchangeConnectorPlugin::KEY]);
             if (!$entity instanceof ConnectorConfig) {
                 return;
             }
-            $config[$key] = $total;
-            $entity->setConfig($config);
+            $stored = $entity->getConfig();
+            $stored[$key] = $total;
+            $entity->setConfig($stored);
             $this->entityManager->flush();
         } catch (\Throwable $exception) {
             $this->logError('Could not update the fetch status: '.$exception->getMessage(), $exception);

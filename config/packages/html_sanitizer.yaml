@@ -6,3 +6,12 @@ framework:
                 allowed_link_schemes: ['http', 'https', 'mailto']
                 allow_relative_links: true
                 allowed_media_schemes: ['data']
+            # Editable legal texts (imprint, privacy policy, terms): standard
+            # elements and links only - no scripts, styles or event handlers.
+            legal:
+                allow_safe_elements: true
+                allowed_link_schemes: ['http', 'https', 'mailto', 'tel']
+                allow_relative_links: true
+                allowed_media_schemes: ['http', 'https']
+                allow_relative_medias: true
+                force_https_urls: false

@@ -4,11 +4,14 @@ set -euo pipefail
 # =========================
 # Konfiguration
 # =========================
-SSH_USER="${SSH_USER:-root}"
-SSH_HOST="${SSH_HOST:-10.11.6.2}"
+# Pflicht-Variablen ohne Default (keine internen Hosts/Benutzer im Repo):
+#   SSH_USER=deploy SSH_HOST=office.example.com REMOTE_BASE_DIR=/srv/docker/office ./deploy-rsync.sh
+: "${SSH_USER:?SSH_USER muss gesetzt sein (Remote-Benutzer)}"
+: "${SSH_HOST:?SSH_HOST muss gesetzt sein (Remote-Host)}"
+: "${REMOTE_BASE_DIR:?REMOTE_BASE_DIR muss gesetzt sein (Zielverzeichnis auf dem Host)}"
 SSH_PORT="${SSH_PORT:-22}"
 SSH_KEY="${SSH_KEY:-}"
-REMOTE_BASE_DIR="${REMOTE_BASE_DIR:-/srv/docker/office}"
+REMOTE_CONTAINER="${REMOTE_CONTAINER:-office-web-1}"
 
 SSH_OPTS=(-p "$SSH_PORT" -o StrictHostKeyChecking=accept-new)
 RSYNC_SSH="ssh -p $SSH_PORT -o StrictHostKeyChecking=accept-new"
@@ -49,11 +52,11 @@ rsync "${RSYNC_OPTS[@]}" \
   "${SSH_USER}@${SSH_HOST}:${REMOTE_BASE_DIR}/"
 
 echo "🔐 Rechte/Cache remote ..."
-ssh "${SSH_OPTS[@]}" "${SSH_USER}@${SSH_HOST}" bash -s << 'REMOTE_CMDS'
+ssh "${SSH_OPTS[@]}" "${SSH_USER}@${SSH_HOST}" bash -s -- "$REMOTE_BASE_DIR" "$REMOTE_CONTAINER" << 'REMOTE_CMDS'
 set -euo pipefail
-cd /srv/docker/office
+cd "$1"
 # applikation (uid 1000 im webdevops-image) braucht Schreibrechte auf var
-docker exec office-web-1 sh -c "chown -R application:application /app/var 2>/dev/null || true"
+docker exec "$2" sh -c "chown -R application:application /app/var 2>/dev/null || true"
 rm -rf var/cache/prod
 echo "✅ Remote bereit."
 REMOTE_CMDS

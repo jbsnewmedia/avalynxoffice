@@ -12,6 +12,7 @@ namespace AvalynxOffice\Controller;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Service\AdminPasswordResetService;
 use AvalynxOffice\Util\AvalynxFormResponse;
+use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -36,6 +37,7 @@ final class AdminPasswordResetController extends AbstractController
     public function __construct(
         private readonly AdminPasswordResetService $adminPasswordResetService,
         private readonly TranslatorInterface $translator,
+        private readonly LoggerInterface $logger,
     ) {
     }
 
@@ -134,8 +136,15 @@ final class AdminPasswordResetController extends AbstractController
 
             $this->addFlash('success', $this->translator->trans('admin.password_resets.released'));
         } catch (\DomainException $exception) {
+            // The internal reason is logged only; the form shows a generic,
+            // translated message that does not leak state details.
+            $this->logger->info('Password reset release rejected.', [
+                'request_id' => $id,
+                'reason' => $exception->getMessage(),
+            ]);
+
             return AvalynxFormResponse::invalid([
-                'number' => $exception->getMessage(),
+                'number' => $this->translator->trans('admin.password_resets.release_failed'),
             ]);
         }
 

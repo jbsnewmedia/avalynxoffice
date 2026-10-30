@@ -8,7 +8,16 @@ vendor
 vendor-bin/*/vendor
 node_modules
 mail_dumps
+data
+tests
 docker/postgres
+office-backup-*
+# Local secrets: only the committed .env (defaults) belongs into the image.
+.env.local
+.env.*.local
+.env.dev
+.env.test
+.env.local.php
 *.md
 !README.md
 !plugins/jbsnewmedia/exchange-connector-bundle/lib/vendor

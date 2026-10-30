@@ -31,6 +31,7 @@ use AvalynxOffice\Service\Mail\AttachmentStorage;
 use AvalynxOffice\Service\Mail\FolderManager;
 use AvalynxOffice\Repository\ConnectorConfigRepository;
 use AvalynxOffice\Service\ConnectorPluginRegistry;
+use AvalynxOffice\Service\Security\SecretCrypto;
 use AvalynxOffice\Tests\Support\FakeConnectorPlugin;
 use AvalynxOffice\Tests\Support\AllowAllLicenseEnforcement;
 use AvalynxOffice\Util\CssClassCollector;
@@ -1035,7 +1036,7 @@ final class CommandGapFillTest extends TestCase
 
     private function pluginRegistry(FakeConnectorPlugin ...$plugins): ConnectorPluginRegistry
     {
-        return new ConnectorPluginRegistry($plugins, $this->createStub(ConnectorConfigRepository::class));
+        return new ConnectorPluginRegistry($plugins, $this->createStub(ConnectorConfigRepository::class), new SecretCrypto('ylnmhNTxE6uJxSt0NVduo9/tPPFgA9hZf20A6vbHCwM='));
     }
 
     public function testMailFetchCommandSkipsConnectorsWithoutConfiguredInput(): void

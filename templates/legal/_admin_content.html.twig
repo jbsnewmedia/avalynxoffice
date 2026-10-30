@@ -25,7 +25,7 @@
     </ul>
 
     {% for page, content in pages %}
-        <template data-legal-content="{{ page }}">{{ content|raw }}</template>
+        <template data-legal-content="{{ page }}">{{ (content ?? '')|sanitize_html('legal') }}</template>
     {% endfor %}
 
     <div class="card shadow-sm">

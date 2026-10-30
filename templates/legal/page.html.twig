@@ -14,7 +14,7 @@
                     <h1 class="h3 mb-4">{{ ('legal.page.' ~ page)|trans }}</h1>
                     {% if content is not empty %}
                         <div class="legal-content">
-                            {{ content|raw }}
+                            {{ content|sanitize_html('legal') }}
                         </div>
                     {% else %}
                         <p class="text-body-secondary">{{ 'legal.page.empty'|trans }}</p>

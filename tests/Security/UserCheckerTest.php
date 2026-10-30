@@ -34,6 +34,28 @@ final class UserCheckerTest extends TestCase
         $checker->checkPreAuth($user);
     }
 
+    /**
+     * The message must be the generic "Invalid credentials." the
+     * authenticator uses for wrong passwords: a deactivated account must not
+     * be distinguishable from a non-existent one.
+     */
+    public function testDeactivatedUserMessageIsIndistinguishableFromBadCredentials(): void
+    {
+        $checker = new UserChecker();
+        $user = new User();
+        $user->setEmail('inactive@example.com');
+        $user->setActive(false);
+
+        try {
+            $checker->checkPreAuth($user);
+            self::fail('Expected a CustomUserMessageAccountStatusException.');
+        } catch (CustomUserMessageAccountStatusException $exception) {
+            self::assertSame('Invalid credentials.', $exception->getMessageKey());
+            self::assertSame(new \Symfony\Component\Security\Core\Exception\BadCredentialsException()->getMessageKey(), $exception->getMessageKey());
+            self::assertStringNotContainsStringIgnoringCase('deactivated', $exception->getMessageKey());
+        }
+    }
+
     public function testCheckPreAuthIgnoresForeignUserObjects(): void
     {
         $checker = new UserChecker();

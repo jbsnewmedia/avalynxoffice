@@ -8,12 +8,14 @@ DIST_DIR="${DIST_DIR:-dist}"
 ARCHIVE_NAME="${ARCHIVE_NAME:-avalynxoffice-prod.tar.gz}"
 ARCHIVE_PATH="$DIST_DIR/$ARCHIVE_NAME"
 
-# SSH / Remote Einstellungen
-SSH_USER="${SSH_USER:-root}"
-SSH_HOST="${SSH_HOST:-10.11.6.2}"
+# SSH / Remote Einstellungen - Pflicht-Variablen ohne Default (keine
+# internen Hosts/Benutzer im Repo):
+#   SSH_USER=deploy SSH_HOST=office.example.com REMOTE_BASE_DIR=/srv/docker/office ./update.sh
+: "${SSH_USER:?SSH_USER muss gesetzt sein (Remote-Benutzer)}"
+: "${SSH_HOST:?SSH_HOST muss gesetzt sein (Remote-Host)}"
+: "${REMOTE_BASE_DIR:?REMOTE_BASE_DIR muss gesetzt sein (Zielverzeichnis auf dem Host)}"
 SSH_PORT="${SSH_PORT:-22}"
 SSH_KEY="${SSH_KEY:-}"
-REMOTE_BASE_DIR="${REMOTE_BASE_DIR:-/srv/docker/office}"
 REMOTE_DIST_DIR="${REMOTE_DIST_DIR:-$REMOTE_BASE_DIR/dist}"
 REMOTE_UNPACK_DIR="${REMOTE_UNPACK_DIR:-$REMOTE_BASE_DIR}"
 
@@ -99,9 +101,9 @@ fi
 
 # Remote: Entpacken & Cleanup
 echo "🧰 Führe remote Deploy-Schritte aus ..."
-ssh -p "$SSH_PORT" ${SSH_KEY:+-i "$SSH_KEY"} "$SSH_USER@$SSH_HOST" bash << 'REMOTE_CMDS'
+ssh -p "$SSH_PORT" ${SSH_KEY:+-i "$SSH_KEY"} "$SSH_USER@$SSH_HOST" bash -s -- "$REMOTE_UNPACK_DIR" << 'REMOTE_CMDS'
 set -euo pipefail
-cd '/srv/docker/office'
+cd "$1"
 [[ -x ./unpack.sh ]] || chmod +x ./unpack.sh
 ./unpack.sh
 rm -rf var

@@ -2,6 +2,11 @@
 
 declare(strict_types=1);
 
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
+
 namespace AvalynxOffice\Tests\Command;
 
 use AvalynxOffice\Command\SyncDaemonCommand;
@@ -11,6 +16,7 @@ use AvalynxOffice\Entity\SyncRun;
 use AvalynxOffice\Repository\ConnectorConfigRepository;
 use AvalynxOffice\Repository\SyncRunRepository;
 use AvalynxOffice\Service\ConnectorPluginRegistry;
+use AvalynxOffice\Service\Security\SecretCrypto;
 use AvalynxOffice\Service\Sync\SyncService;
 use AvalynxOffice\Service\Sync\SyncSettingsService;
 use AvalynxOffice\Tests\Support\FakeConnectorPlugin;
@@ -41,6 +47,14 @@ final class SyncCommandTest extends KernelTestCase
         $this->refreshDatabase($this->em);
     }
 
+    private function secretCrypto(): SecretCrypto
+    {
+        $crypto = self::getContainer()->get(SecretCrypto::class);
+        \assert($crypto instanceof SecretCrypto);
+
+        return $crypto;
+    }
+
     private function syncSettings(): SyncSettingsService
     {
         $settings = self::getContainer()->get(SyncSettingsService::class);
@@ -57,7 +71,7 @@ final class SyncCommandTest extends KernelTestCase
         $fake->calendarFetchResult = ['imported' => 3, 'skipped' => 0, 'errors' => 0];
         $configRepository = self::getContainer()->get(ConnectorConfigRepository::class);
         \assert($configRepository instanceof ConnectorConfigRepository);
-        $registry = new ConnectorPluginRegistry([$fake], $configRepository);
+        $registry = new ConnectorPluginRegistry([$fake], $configRepository, $this->secretCrypto());
 
         $connector = (new Connector())
             ->setName('Test Connector')
@@ -74,7 +88,7 @@ final class SyncCommandTest extends KernelTestCase
         $fake->fetchResult = ['imported' => 2, 'skipped' => 0, 'errors' => 0];
         $configRepository = self::getContainer()->get(ConnectorConfigRepository::class);
         \assert($configRepository instanceof ConnectorConfigRepository);
-        $registry = new ConnectorPluginRegistry([$fake], $configRepository);
+        $registry = new ConnectorPluginRegistry([$fake], $configRepository, $this->secretCrypto());
 
         $connector = (new Connector())
             ->setName('Test Connector')
@@ -133,7 +147,7 @@ final class SyncCommandTest extends KernelTestCase
         $fake->fetchResult = ['imported' => 2, 'skipped' => 0, 'errors' => 0];
         $configRepository = self::getContainer()->get(ConnectorConfigRepository::class);
         \assert($configRepository instanceof ConnectorConfigRepository);
-        $registry = new ConnectorPluginRegistry([$fake], $configRepository);
+        $registry = new ConnectorPluginRegistry([$fake], $configRepository, $this->secretCrypto());
 
         $connector = (new Connector())
             ->setName('Backfill Connector')
@@ -160,7 +174,7 @@ final class SyncCommandTest extends KernelTestCase
         $fake = new FakeConnectorPlugin(inputConfigured: true);
         $configRepository = self::getContainer()->get(ConnectorConfigRepository::class);
         \assert($configRepository instanceof ConnectorConfigRepository);
-        $registry = new ConnectorPluginRegistry([$fake], $configRepository);
+        $registry = new ConnectorPluginRegistry([$fake], $configRepository, $this->secretCrypto());
 
         $command = new SyncDaemonCommand(new SyncService($registry, $this->em->getRepository(Connector::class), $this->syncRunRepository), $this->syncSettings());
         $tester = new CommandTester($command);
@@ -179,8 +193,8 @@ final class SyncCommandTest extends KernelTestCase
     {
         // The admin system status page stores the settings: the daemon
         // re-reads them on every pass without a restart.
-        $settingsService = self::getContainer()->get(\AvalynxOffice\Service\Sync\SyncSettingsService::class);
-        \assert($settingsService instanceof \AvalynxOffice\Service\Sync\SyncSettingsService);
+        $settingsService = self::getContainer()->get(SyncSettingsService::class);
+        \assert($settingsService instanceof SyncSettingsService);
         $settingsService->save([
             'intervalSeconds' => 0,
             'busyIntervalSeconds' => 0,
@@ -207,7 +221,7 @@ final class SyncCommandTest extends KernelTestCase
         $fake = new FakeConnectorPlugin(inputConfigured: true);
         $configRepository = self::getContainer()->get(ConnectorConfigRepository::class);
         \assert($configRepository instanceof ConnectorConfigRepository);
-        $registry = new class([$fake], $configRepository) extends ConnectorPluginRegistry {
+        $registry = new class([$fake], $configRepository, $this->secretCrypto()) extends ConnectorPluginRegistry {
             #[\Override]
             public function getFetchers(Connector $connector): array
             {

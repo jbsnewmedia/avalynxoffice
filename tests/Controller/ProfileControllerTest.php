@@ -12,6 +12,8 @@ namespace AvalynxOffice\Tests\Controller;
 use AvalynxOffice\Controller\ProfileController;
 use AvalynxOffice\Entity\RecoveryAddress;
 use AvalynxOffice\Entity\User;
+use AvalynxOffice\Entity\UserLoginSession;
+use AvalynxOffice\Service\Login\LoginSessionService;
 use AvalynxOffice\Service\UserService;
 use AvalynxOffice\Tests\Support\RefreshDatabaseTrait;
 use Doctrine\ORM\EntityManagerInterface;
@@ -322,7 +324,7 @@ final class ProfileControllerTest extends WebTestCase
 
     public function testPasswordResetExecuteRendersResetFormWithSignedSubmitUrl(): void
     {
-        $url = $this->signUrl('/profile/password-reset/execute/'.($this->user->getId()?->toRfc4122() ?? ''));
+        $url = $this->signUrl('/profile/password-reset/execute/'.($this->user->getId()?->toRfc4122() ?? ''), $this->user);
 
         $this->client->request('GET', $url);
 
@@ -330,6 +332,112 @@ final class ProfileControllerTest extends WebTestCase
         $content = (string) $this->client->getResponse()->getContent();
         self::assertStringContainsString('passwordResetForm', $content);
         self::assertStringContainsString('_hash=', $content);
+        self::assertStringContainsString(UserService::RESET_FINGERPRINT_PARAMETER.'=', $content);
+    }
+
+    public function testPasswordResetExecuteRejectsLinkWithoutPasswordFingerprint(): void
+    {
+        $url = $this->signUrl('/profile/password-reset/execute/'.($this->user->getId()?->toRfc4122() ?? ''));
+
+        $this->client->request('GET', $url);
+
+        self::assertResponseStatusCodeSame(404);
+    }
+
+    public function testPasswordResetSubmitRejectsLinkWithoutPasswordFingerprint(): void
+    {
+        $url = $this->signUrl('/profile/password-reset/submit/'.($this->user->getId()?->toRfc4122() ?? ''));
+
+        $this->client->request('POST', $url, ['password' => 'new-secret', 'password_confirm' => 'new-secret']);
+
+        self::assertResponseStatusCodeSame(403);
+        $this->em->clear();
+        $refreshed = $this->em->find(User::class, $this->user->getId());
+        self::assertInstanceOf(User::class, $refreshed);
+        $hasher = static::getContainer()->get(UserPasswordHasherInterface::class);
+        self::assertTrue($hasher->isPasswordValid($refreshed, 'user'));
+    }
+
+    public function testPasswordResetExecuteRendersSubmitUrlThatIsStillValid(): void
+    {
+        $url = $this->signUrl('/profile/password-reset/execute/'.($this->user->getId()?->toRfc4122() ?? ''), $this->user);
+
+        $crawler = $this->client->request('GET', $url);
+        self::assertResponseIsSuccessful();
+
+        // The submit URL rendered into the form carries an expiration in the
+        // future (a relative TTL, not a 1970 timestamp) and verifies.
+        $submitUrl = $crawler->filter('#passwordResetForm')->attr('action');
+        self::assertIsString($submitUrl);
+        parse_str((string) parse_url($submitUrl, PHP_URL_QUERY), $query);
+        self::assertGreaterThan(time(), (int) ($query['_expiration'] ?? 0));
+        self::assertTrue(static::getContainer()->get(UriSigner::class)->check($submitUrl));
+    }
+
+    public function testPasswordResetLinkBecomesInvalidAfterPasswordChange(): void
+    {
+        $userId = $this->user->getId()?->toRfc4122() ?? '';
+        $executeUrl = $this->signUrl('/profile/password-reset/execute/'.$userId, $this->user);
+        $submitUrl = $this->signUrl('/profile/password-reset/submit/'.$userId, $this->user);
+
+        // First use: the link works and the password is changed.
+        $this->client->request('POST', $submitUrl, ['password' => 'new-secret', 'password_confirm' => 'new-secret']);
+        self::assertResponseIsSuccessful();
+
+        // Second use of the very same (still validly signed) links: rejected.
+        $this->client->request('GET', $executeUrl);
+        self::assertResponseStatusCodeSame(404);
+
+        $this->client->request('POST', $submitUrl, ['password' => 'other-secret', 'password_confirm' => 'other-secret']);
+        self::assertResponseStatusCodeSame(403);
+        $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertFalse($data['success']);
+
+        $this->em->clear();
+        $refreshed = $this->em->find(User::class, $this->user->getId());
+        self::assertInstanceOf(User::class, $refreshed);
+        $hasher = static::getContainer()->get(UserPasswordHasherInterface::class);
+        self::assertTrue($hasher->isPasswordValid($refreshed, 'new-secret'));
+    }
+
+    public function testPasswordResetSubmitRevokesAllLoginSessionsAndRememberMeTokens(): void
+    {
+        $this->seedLoginSession($this->user, 'device-a');
+        $this->seedLoginSession($this->user, 'device-b');
+        $this->seedRememberMeToken($this->user);
+
+        $url = $this->signUrl('/profile/password-reset/submit/'.($this->user->getId()?->toRfc4122() ?? ''), $this->user);
+        $this->client->request('POST', $url, ['password' => 'new-secret', 'password_confirm' => 'new-secret']);
+        self::assertResponseIsSuccessful();
+
+        $this->em->clear();
+        $rows = $this->em->getRepository(UserLoginSession::class)->findBy(['user' => $this->user->getId()]);
+        self::assertCount(2, $rows);
+        foreach ($rows as $row) {
+            self::assertNotNull($row->getRevokedAt());
+        }
+
+        $remaining = $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM rememberme_token WHERE username = :email', ['email' => 'user@example.com']);
+        self::assertSame(0, (int) $remaining);
+    }
+
+    public function testPasswordResetSendIsRateLimitedPerIp(): void
+    {
+        $this->client->disableReboot();
+
+        for ($attempt = 0; $attempt < 5; ++$attempt) {
+            $token = $this->setCsrfToken('password_reset_request');
+            $this->client->request('POST', '/profile/password-reset', ['_token' => $token, 'email' => 'user@example.com']);
+            self::assertResponseIsSuccessful();
+        }
+
+        $token = $this->setCsrfToken('password_reset_request');
+        $this->client->request('POST', '/profile/password-reset', ['_token' => $token, 'email' => 'user@example.com']);
+
+        self::assertResponseStatusCodeSame(429);
+        $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertFalse($data['success']);
+        self::assertSame('Too many requests. Please try again in a few minutes.', $data['message']);
     }
 
     public function testPasswordResetSubmitRejectsInvalidSignature(): void
@@ -372,7 +480,7 @@ final class ProfileControllerTest extends WebTestCase
 
     public function testPasswordResetSubmitReRendersFormForEmptyPassword(): void
     {
-        $url = $this->signUrl('/profile/password-reset/submit/'.($this->user->getId()?->toRfc4122() ?? ''));
+        $url = $this->signUrl('/profile/password-reset/submit/'.($this->user->getId()?->toRfc4122() ?? ''), $this->user);
 
         $this->client->request('POST', $url, ['password' => '']);
 
@@ -384,7 +492,7 @@ final class ProfileControllerTest extends WebTestCase
 
     public function testPasswordResetSubmitRejectsTooShortPassword(): void
     {
-        $url = $this->signUrl('/profile/password-reset/submit/'.($this->user->getId()?->toRfc4122() ?? ''));
+        $url = $this->signUrl('/profile/password-reset/submit/'.($this->user->getId()?->toRfc4122() ?? ''), $this->user);
 
         $this->client->request('POST', $url, ['password' => 'short', 'password_confirm' => 'short']);
 
@@ -402,7 +510,7 @@ final class ProfileControllerTest extends WebTestCase
 
     public function testPasswordResetSubmitRejectsMismatchedConfirmation(): void
     {
-        $url = $this->signUrl('/profile/password-reset/submit/'.($this->user->getId()?->toRfc4122() ?? ''));
+        $url = $this->signUrl('/profile/password-reset/submit/'.($this->user->getId()?->toRfc4122() ?? ''), $this->user);
 
         $this->client->request('POST', $url, ['password' => 'new-secret', 'password_confirm' => 'other-secret']);
 
@@ -420,7 +528,7 @@ final class ProfileControllerTest extends WebTestCase
 
     public function testPasswordResetSubmitStoresHashedPassword(): void
     {
-        $url = $this->signUrl('/profile/password-reset/submit/'.($this->user->getId()?->toRfc4122() ?? ''));
+        $url = $this->signUrl('/profile/password-reset/submit/'.($this->user->getId()?->toRfc4122() ?? ''), $this->user);
 
         $this->client->request('POST', $url, ['password' => 'new-secret', 'password_confirm' => 'new-secret']);
 
@@ -435,13 +543,49 @@ final class ProfileControllerTest extends WebTestCase
         self::assertTrue($hasher->isPasswordValid($refreshed, 'new-secret'));
     }
 
-    private function signUrl(string $path): string
+    /**
+     * Signs a reset URL the way the application does: with the password
+     * fingerprint of the given user included (when a user is passed).
+     */
+    private function signUrl(string $path, ?User $user = null): string
     {
         $signer = static::getContainer()->get(UriSigner::class);
-        $signed = $signer->sign('http://localhost'.$path);
+        $url = 'http://localhost'.$path;
+
+        if (null !== $user) {
+            $userService = static::getContainer()->get(UserService::class);
+            $url = $userService->withResetFingerprint($url, $user);
+        }
+
+        $signed = $signer->sign($url);
 
         return (string) (parse_url($signed, PHP_URL_PATH) ?? $path)
             .'?'.(parse_url($signed, PHP_URL_QUERY) ?? '');
+    }
+
+    private function seedLoginSession(User $user, string $token): void
+    {
+        $row = new UserLoginSession()
+            ->setUser($user)
+            ->setSessionToken(LoginSessionService::hashToken($token))
+            ->setCreatedAt(new \DateTimeImmutable())
+            ->setLastSeenAt(new \DateTimeImmutable());
+        $this->em->persist($row);
+        $this->em->flush();
+    }
+
+    private function seedRememberMeToken(User $user): void
+    {
+        $this->em->getConnection()->executeStatement(
+            'INSERT INTO rememberme_token (series, value, lastUsed, class, username) VALUES (:series, :value, :lastUsed, :class, :username)',
+            [
+                'series' => bin2hex(random_bytes(16)),
+                'value' => bin2hex(random_bytes(16)),
+                'lastUsed' => new \DateTimeImmutable()->format('Y-m-d H:i:s'),
+                'class' => User::class,
+                'username' => (string) $user->getEmail(),
+            ],
+        );
     }
 
     private function createRecoveryAddress(User $owner, string $email): RecoveryAddress

@@ -115,7 +115,7 @@ final class EwsCalendarFetcher extends AbstractEwsFetcher
             foreach ($itemRefs as $ref) {
                 $this->processItem($client, $connector, $ref, $delete, $totals);
             }
-            $this->updateTotals($connector, $config, $listing['total']);
+            $this->updateTotals($connector, $listing['total']);
         } catch (\Throwable $exception) {
             $this->logError('Error during the Exchange calendar sync: '.$exception->getMessage(), $exception);
             ++$totals['errors'];
@@ -375,17 +375,19 @@ final class EwsCalendarFetcher extends AbstractEwsFetcher
     }
 
     /**
-     * @param array<string, mixed> $config
+     * Works on the stored (encrypted) config so no decrypted secret is
+     * written back.
      */
-    private function updateTotals(Connector $connector, array $config, int $total): void
+    private function updateTotals(Connector $connector, int $total): void
     {
         try {
             $entity = $this->connectorConfigRepository->findOneBy(['connector' => $connector, 'pluginKey' => ExchangeConnectorPlugin::KEY]);
             if (!$entity instanceof ConnectorConfig) {
                 return;
             }
-            $config['calendar_total'] = $total;
-            $entity->setConfig($config);
+            $stored = $entity->getConfig();
+            $stored['calendar_total'] = $total;
+            $entity->setConfig($stored);
             $this->entityManager->flush();
         } catch (\Throwable $exception) {
             $this->logError('Could not update the fetch status: '.$exception->getMessage(), $exception);

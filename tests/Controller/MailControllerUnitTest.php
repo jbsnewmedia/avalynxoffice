@@ -14,6 +14,7 @@ use AvalynxOffice\Service\Mail\FolderManager;
 use AvalynxOffice\Service\Mail\MailService;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use AvalynxOffice\Tests\Support\AllowAllLicenseEnforcement;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -33,6 +34,7 @@ final class MailControllerUnitTest extends TestCase
             $this->createStub(EmailRepository::class),
             $this->createStub(EntityManagerInterface::class),
             new AllowAllLicenseEnforcement(),
+            new NullLogger(),
         ) extends MailController {
             public function callDenyAccessToEmail(Email $email): void
             {

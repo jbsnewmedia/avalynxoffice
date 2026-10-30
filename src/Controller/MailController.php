@@ -23,6 +23,7 @@ use AvalynxOffice\Service\Mail\EmailDetailTemplateResolver;
 use AvalynxOffice\Service\Mail\FolderManager;
 use AvalynxOffice\Service\Mail\MailService;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -44,6 +45,7 @@ class MailController extends AbstractController
         private readonly EmailRepository $emailRepo,
         private readonly EntityManagerInterface $entityManager,
         private readonly LicenseEnforcementInterface $licenseEnforcement,
+        private readonly LoggerInterface $logger,
     ) {
     }
 
@@ -211,7 +213,14 @@ class MailController extends AbstractController
                 try {
                     return $attachmentStorage->createDownloadResponse($attachment);
                 } catch (\RuntimeException $e) {
-                    throw $this->createNotFoundException($e->getMessage());
+                    // Storage details (paths, reasons) are logged only; the
+                    // client receives a generic translated message.
+                    $this->logger->warning('Attachment download failed.', [
+                        'attachment_id' => $attachmentId,
+                        'reason' => $e->getMessage(),
+                    ]);
+
+                    throw $this->createNotFoundException($this->translator->trans('email.attachment_not_found'), $e);
                 }
             }
         }

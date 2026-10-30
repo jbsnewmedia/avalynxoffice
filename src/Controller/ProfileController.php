@@ -13,6 +13,7 @@ use AvalynxOffice\Entity\RecoveryAddress;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Repository\UserRepository;
 use AvalynxOffice\Service\AdminPasswordResetService;
+use AvalynxOffice\Service\Login\LoginSessionService;
 use AvalynxOffice\Service\UserService;
 use AvalynxOffice\Util\AvalynxFormResponse;
 use Doctrine\ORM\EntityManagerInterface;
@@ -24,6 +25,7 @@ use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\UriSigner;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
@@ -50,6 +52,8 @@ class ProfileController extends AbstractController
         private readonly RequestStack $requestStack,
         private readonly TranslatorInterface $translator,
         private readonly AdminPasswordResetService $adminPasswordResetService,
+        private readonly LoginSessionService $loginSessionService,
+        private readonly RateLimiterFactoryInterface $passwordResetLimiter,
     ) {
     }
 
@@ -177,6 +181,10 @@ class ProfileController extends AbstractController
      * number on this page and presents both to the administrator in person.
      * Logged-in users start the flow for their own account, anonymous users
      * have to provide their account email address.
+     *
+     * Anonymous callers always receive the same success response: unknown
+     * or inactive accounts get a decoy code that is not backed by a stored
+     * request, so the answer never reveals whether the account exists.
      */
     #[Route('/profile/password-reset/code', name: 'app_password_reset_code_start', methods: ['POST'])]
     public function passwordResetCodeStart(Request $request): JsonResponse
@@ -197,6 +205,10 @@ class ProfileController extends AbstractController
         if ($user instanceof User) {
             $target = $user;
         } else {
+            if (!$this->consumeResetAttempt($request)) {
+                return $this->tooManyRequests();
+            }
+
             if ('' === $email) {
                 return AvalynxFormResponse::invalid([
                     'email' => $this->translator->trans('password.reset.code_email_required'),
@@ -211,22 +223,21 @@ class ProfileController extends AbstractController
 
             $candidate = $this->userRepository->findOneBy(['email' => strtolower($email)]);
 
-            if (null === $candidate || !$candidate->isActive()) {
-                return AvalynxFormResponse::invalid([
-                    'email' => $this->translator->trans('password.reset.code_user_not_found'),
-                ]);
+            if (null !== $candidate && $candidate->isActive()) {
+                $target = $candidate;
             }
-
-            $target = $candidate;
         }
 
         $clientIp = $request->getClientIp() ?? 'unknown';
         \assert('' !== $clientIp);
 
-        $result = $this->adminPasswordResetService->startUserRequest(
-            $target,
-            $clientIp,
-        );
+        $result = null === $target
+            ? $this->adminPasswordResetService->generateDecoyCode()
+            : $this->adminPasswordResetService->startUserRequest(
+                $target,
+                $clientIp,
+                anonymous: !$user instanceof User,
+            );
 
         // The code is shown exactly once: it is stashed in the session and
         // survives the client-side redirect, then the GET clears it so it
@@ -247,6 +258,10 @@ class ProfileController extends AbstractController
 
         if (null === $token || !$this->isCsrfTokenValid('password_reset_request', $token)) {
             return AvalynxFormResponse::failure($this->translator->trans('password.reset.invalid_token'));
+        }
+
+        if (!$this->consumeResetAttempt($request)) {
+            return $this->tooManyRequests();
         }
 
         $emailRaw = $request->request->get('email');
@@ -280,18 +295,29 @@ class ProfileController extends AbstractController
         return AvalynxFormResponse::success($this->generateUrl('app_password_reset_request'));
     }
 
+    /**
+     * The signed link carries a fingerprint of the password it was issued
+     * for: a link that was already used (or a password changed by any other
+     * means) no longer matches and is rejected like an expired one.
+     */
     #[Route('/profile/password-reset/execute/{userId}', name: 'app_profile_password_reset_execute', methods: ['GET'])]
-    public function executePasswordReset(string $userId): Response
+    public function executePasswordReset(Request $request, string $userId): Response
     {
         if (!$this->isSignedRequestValid()) {
             throw $this->createNotFoundException('Invalid or expired reset link.');
         }
 
-        if (null === $this->userRepository->find($userId)) {
+        $user = $this->userRepository->find($userId);
+
+        if (null === $user) {
             throw $this->createNotFoundException('User not found.');
         }
 
-        return $this->renderResetForm($userId);
+        if (!$this->isResetFingerprintValid($request, $user)) {
+            throw $this->createNotFoundException('Invalid or expired reset link.');
+        }
+
+        return $this->renderResetForm($user);
     }
 
     #[Route('/profile/password-reset/submit/{userId}', name: 'app_profile_password_reset_submit', methods: ['POST'])]
@@ -305,6 +331,10 @@ class ProfileController extends AbstractController
 
         if (null === $user) {
             throw $this->createNotFoundException('User not found.');
+        }
+
+        if (!$this->isResetFingerprintValid($request, $user)) {
+            return AvalynxFormResponse::failure($this->translator->trans('password.reset.link_invalid'));
         }
 
         $passwordRaw = $request->request->get('password');
@@ -334,6 +364,9 @@ class ProfileController extends AbstractController
         $user->setPassword($this->passwordHasher->hashPassword($user, $password));
         $this->entityManager->flush();
 
+        // Whoever held the old credentials must not stay logged in.
+        $this->loginSessionService->revokeAll($user);
+
         $this->addFlash('success', 'password.reset.success');
 
         return AvalynxFormResponse::success($this->generateUrl('app_login'));
@@ -342,19 +375,48 @@ class ProfileController extends AbstractController
     /**
      * The reset form posts to its own freshly signed URL: the signature of
      * the execute link does not cover the submit endpoint, so handing a
-     * plain path to the template would fail verification on submit.
+     * plain path to the template would fail verification on submit. The
+     * submit URL carries the same password fingerprint as the execute link.
      */
-    private function renderResetForm(string $userId): Response
+    private function renderResetForm(User $user): Response
     {
+        $userId = $user->getId()?->toRfc4122() ?? '';
         $submitUrl = $this->uriSigner->sign(
-            $this->generateUrl('app_profile_password_reset_submit', ['userId' => $userId], UrlGeneratorInterface::ABSOLUTE_URL),
-            1800,
+            $this->userService->withResetFingerprint(
+                $this->generateUrl('app_profile_password_reset_submit', ['userId' => $userId], UrlGeneratorInterface::ABSOLUTE_URL),
+                $user,
+            ),
+            new \DateInterval(UserService::RESET_LINK_TTL),
         );
 
         return $this->render('profile/password_reset.html.twig', [
             'userId' => $userId,
             'submitUrl' => $submitUrl,
         ]);
+    }
+
+    private function isResetFingerprintValid(Request $request, User $user): bool
+    {
+        $fingerprintRaw = $request->query->get(UserService::RESET_FINGERPRINT_PARAMETER);
+
+        return $this->userService->isResetFingerprintValid($user, is_string($fingerprintRaw) ? $fingerprintRaw : null);
+    }
+
+    /**
+     * Consumes one attempt of the per-IP password reset limiter. Returns
+     * false when the limit is exhausted.
+     */
+    private function consumeResetAttempt(Request $request): bool
+    {
+        return $this->passwordResetLimiter->create($request->getClientIp() ?? 'unknown')->consume()->isAccepted();
+    }
+
+    private function tooManyRequests(): JsonResponse
+    {
+        $response = AvalynxFormResponse::failure($this->translator->trans('password.reset.too_many_requests'));
+        $response->setStatusCode(Response::HTTP_TOO_MANY_REQUESTS);
+
+        return $response;
     }
 
     private function isSignedRequestValid(): bool

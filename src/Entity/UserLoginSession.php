@@ -19,7 +19,7 @@ use Symfony\Component\Uid\UuidV7;
  * One concurrent login of a user: created on every interactive login,
  * revoked when the user ends the session from their profile (or on logout).
  * The session token is stored inside the Symfony session and links the live
- * session to this row.
+ * session to this row; the row only holds the SHA-256 hash of that token.
  */
 #[ORM\Entity(repositoryClass: UserLoginSessionRepository::class)]
 #[ORM\Table(name: 'app_user_login_session')]
@@ -33,6 +33,7 @@ class UserLoginSession
     #[ORM\ManyToOne(targetEntity: User::class, inversedBy: 'loginSessions')]
     #[ORM\JoinColumn(name: 'user_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
     private ?User $user = null;
+    /** SHA-256 hash (64 hex characters) of the plaintext session token. */
     #[ORM\Column(name: 'session_token', type: Types::STRING, length: 64, unique: true)]
     private string $sessionToken = '';
     #[ORM\Column(name: 'remember_me', type: Types::BOOLEAN, options: ['default' => false])]

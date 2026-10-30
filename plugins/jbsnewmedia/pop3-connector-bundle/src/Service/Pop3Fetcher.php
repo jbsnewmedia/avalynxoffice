@@ -435,7 +435,7 @@ class Pop3Fetcher
                     $storage->removeMessage($num);
                 }
             }
-            $this->updateServerTotal($connector, $config, $count, $delete, $imported);
+            $this->updateServerTotal($connector, $count, $delete, $imported);
         } finally {
             $storage->close();
             $this->log('Verbindung geschlossen.');
@@ -448,10 +448,10 @@ class Pop3Fetcher
      * Updates the fetch progress in the stored plugin config: server_total
      * is the number of messages this connector has to have local in total
      * (messages still on the server plus everything already imported).
-     *
-     * @param array<string, mixed> $config
+     * Works on the stored (encrypted) config so no decrypted secret is
+     * written back.
      */
-    private function updateServerTotal(Connector $connector, array $config, int $serverCountAtStart, bool $delete, int $imported): void
+    private function updateServerTotal(Connector $connector, int $serverCountAtStart, bool $delete, int $imported): void
     {
         try {
             $serverAfter = max(0, $serverCountAtStart - ($delete ? $imported : 0));
@@ -460,8 +460,9 @@ class Pop3Fetcher
             if (!$entity instanceof ConnectorConfig) {
                 return;
             }
-            $config['server_total'] = $delete ? $local + $serverAfter : $serverAfter;
-            $entity->setConfig($config);
+            $stored = $entity->getConfig();
+            $stored['server_total'] = $delete ? $local + $serverAfter : $serverAfter;
+            $entity->setConfig($stored);
             $this->em->flush();
         } catch (\Throwable $e) {
             $this->log('Could not update the fetch status: '.$e->getMessage(), 'error');

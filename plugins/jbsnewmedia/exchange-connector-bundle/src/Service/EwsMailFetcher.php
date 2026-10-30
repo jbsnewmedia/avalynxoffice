@@ -76,7 +76,7 @@ final class EwsMailFetcher extends AbstractEwsFetcher
             foreach ($itemRefs as $ref) {
                 $this->processItem($client, $connector, $ref, $delete, $totals);
             }
-            $this->updateMailsTotal($connector, $config, $listing['total'], $delete, $totals['imported']);
+            $this->updateMailsTotal($connector, $listing['total'], $delete, $totals['imported']);
         } catch (\Throwable $exception) {
             $this->logError('Error during the Exchange mail sync: '.$exception->getMessage(), $exception);
             ++$totals['errors'];
@@ -140,10 +140,10 @@ final class EwsMailFetcher extends AbstractEwsFetcher
     /**
      * Persists the fetch progress in the stored plugin config: the "X of Y"
      * status in the admin area. Same convention as the POP3 connector.
-     *
-     * @param array<string, mixed> $config
+     * Works on the stored (encrypted) config so no decrypted secret is
+     * written back.
      */
-    private function updateMailsTotal(Connector $connector, array $config, int $serverTotal, bool $delete, int $imported): void
+    private function updateMailsTotal(Connector $connector, int $serverTotal, bool $delete, int $imported): void
     {
         try {
             $entity = $this->connectorConfigRepository->findOneBy(['connector' => $connector, 'pluginKey' => ExchangeConnectorPlugin::KEY]);
@@ -151,8 +151,9 @@ final class EwsMailFetcher extends AbstractEwsFetcher
                 return;
             }
             $serverAfter = max(0, $serverTotal - ($delete ? $imported : 0));
-            $config['mails_total'] = $delete ? $this->emailRepo->count(['connector' => $connector]) + $serverAfter : $serverTotal;
-            $entity->setConfig($config);
+            $stored = $entity->getConfig();
+            $stored['mails_total'] = $delete ? $this->emailRepo->count(['connector' => $connector]) + $serverAfter : $serverTotal;
+            $entity->setConfig($stored);
             $this->entityManager->flush();
         } catch (\Throwable $exception) {
             $this->logError('Could not update the fetch status: '.$exception->getMessage(), $exception);

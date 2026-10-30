@@ -16,6 +16,7 @@ use AvalynxOffice\Plugin\Contract\ConnectorFetcherInterface;
 use AvalynxOffice\Plugin\Contract\ConnectorMailerInterface;
 use AvalynxOffice\Plugin\Contract\ConnectorPluginInterface;
 use AvalynxOffice\Repository\ConnectorConfigRepository;
+use AvalynxOffice\Service\Security\SecretCrypto;
 use Symfony\Component\Mailer\MailerInterface;
 
 /**
@@ -36,6 +37,7 @@ class ConnectorPluginRegistry
     public function __construct(
         iterable $plugins,
         private readonly ConnectorConfigRepository $configRepository,
+        private readonly SecretCrypto $secretCrypto,
     ) {
         $collected = [];
         foreach ($plugins as $plugin) {
@@ -86,11 +88,15 @@ class ConnectorPluginRegistry
 
     /**
      * @return array<string, mixed> the stored plugin config of the connector
-     *                              (empty array when not configured yet)
+     *                              with secrets decrypted for use (empty
+     *                              array when not configured yet)
      */
     public function getConfig(Connector $connector, ConnectorPluginInterface $plugin): array
     {
-        return $this->configRepository->getConfig($connector, $plugin->getKey());
+        return $this->secretCrypto->decryptKeys(
+            $this->configRepository->getConfig($connector, $plugin->getKey()),
+            $plugin->getSecretConfigKeys(),
+        );
     }
 
     /**

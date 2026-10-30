@@ -10,10 +10,13 @@ declare(strict_types=1);
 namespace AvalynxOffice\Service;
 
 use AvalynxOffice\Repository\AppSettingRepository;
+use Symfony\Component\HtmlSanitizer\HtmlSanitizerInterface;
 
 /**
  * Manages the editable legal page content (Imprint, Privacy Policy, Terms)
- * stored as key/value settings rows in the app_setting table.
+ * stored as key/value settings rows in the app_setting table. Content is
+ * passed through the "legal" HTML sanitizer before it is stored (and again
+ * when rendered) so administrator input can never inject scripts.
  */
 final readonly class LegalContentService
 {
@@ -30,6 +33,7 @@ final readonly class LegalContentService
 
     public function __construct(
         private AppSettingRepository $appSettingRepository,
+        private HtmlSanitizerInterface $legalSanitizer,
     ) {
     }
 
@@ -55,12 +59,21 @@ final readonly class LegalContentService
     }
 
     /**
-     * Stores the HTML content of a legal page.
+     * Stores the HTML content of a legal page after sanitizing it.
      *
      * @param non-empty-string $page
      */
     public function setContent(string $page, string $content): void
     {
-        $this->appSettingRepository->setValue($this->settingKey($page), $content);
+        $this->appSettingRepository->setValue($this->settingKey($page), $this->sanitize($content));
+    }
+
+    /**
+     * Removes everything but safe standard elements and links (no scripts,
+     * styles or event handler attributes) from the given HTML.
+     */
+    public function sanitize(string $content): string
+    {
+        return $this->legalSanitizer->sanitize($content);
     }
 }

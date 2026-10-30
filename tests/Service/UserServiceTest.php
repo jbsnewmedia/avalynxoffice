@@ -212,16 +212,24 @@ final class UserServiceTest extends TestCase
         $service->addRecoveryAddress($user, 'FIRST@example.com');
     }
 
+    /**
+     * The message must not reveal that the address belongs to another
+     * account (enumeration).
+     */
     #[\PHPUnit\Framework\Attributes\Group('unit')]
-    public function testAddRecoveryAddressRejectsAddressUsedByOtherUser(): void
+    public function testAddRecoveryAddressRejectsAddressUsedByOtherUserWithNeutralMessage(): void
     {
         $other = new RecoveryAddress();
         $other->setEmail('taken@example.com');
         $service = $this->createRecoveryService($this->createRecoveryRepository([$other]), $this->createStub(MailerInterface::class));
 
-        $this->expectException(\DomainException::class);
-        $this->expectExceptionMessage('This recovery address is already registered for another user.');
-        $service->addRecoveryAddress(new User(), 'taken@example.com');
+        try {
+            $service->addRecoveryAddress(new User(), 'taken@example.com');
+            self::fail('Expected a DomainException.');
+        } catch (\DomainException $exception) {
+            self::assertSame('This recovery address cannot be registered.', $exception->getMessage());
+            self::assertStringNotContainsString('another user', $exception->getMessage());
+        }
     }
 
     #[\PHPUnit\Framework\Attributes\Group('unit')]
@@ -307,6 +315,7 @@ final class UserServiceTest extends TestCase
         );
         $user = new User();
         $user->setEmail('known@example.com');
+        $user->setPassword('current-hash');
         $service = $this->createRecoveryService($this->createRecoveryRepository(), $systemMailer, ['user' => $user]);
         $service->addRecoveryAddress($user, 'one@example.com');
 
@@ -320,6 +329,42 @@ final class UserServiceTest extends TestCase
         self::assertMatchesRegularExpression('/https:\/\/office\.example\/[^\s]+/', $body, $body);
         preg_match('/https:\/\/office\.example\/[^\s]+/', $body, $matches);
         self::assertNotEmpty($matches);
+
+        // The link carries the password fingerprint and is validly signed.
+        $link = $matches[0];
+        self::assertStringContainsString(UserService::RESET_FINGERPRINT_PARAMETER.'='.$service->passwordResetFingerprint($user), $link);
+        self::assertTrue(new UriSigner('unit-test-secret')->check($link));
+    }
+
+    #[\PHPUnit\Framework\Attributes\Group('unit')]
+    public function testPasswordResetFingerprintChangesWithThePassword(): void
+    {
+        $service = $this->createRecoveryService($this->createRecoveryRepository(), $this->createStub(MailerInterface::class));
+        $user = new User();
+        $user->setPassword('old-hash');
+
+        $before = $service->passwordResetFingerprint($user);
+        self::assertSame(16, strlen($before));
+        self::assertTrue($service->isResetFingerprintValid($user, $before));
+        self::assertFalse($service->isResetFingerprintValid($user, null));
+        self::assertFalse($service->isResetFingerprintValid($user, 'wrong'));
+
+        $service->resetPassword($user, 'new-secret');
+
+        self::assertNotSame($before, $service->passwordResetFingerprint($user));
+        self::assertFalse($service->isResetFingerprintValid($user, $before));
+    }
+
+    #[\PHPUnit\Framework\Attributes\Group('unit')]
+    public function testWithResetFingerprintAppendsQueryParameter(): void
+    {
+        $service = $this->createRecoveryService($this->createRecoveryRepository(), $this->createStub(MailerInterface::class));
+        $user = new User();
+        $user->setPassword('hash');
+        $fingerprint = $service->passwordResetFingerprint($user);
+
+        self::assertSame('https://office.example/reset?v='.$fingerprint, $service->withResetFingerprint('https://office.example/reset', $user));
+        self::assertSame('https://office.example/reset?a=1&v='.$fingerprint, $service->withResetFingerprint('https://office.example/reset?a=1', $user));
     }
 
     #[\PHPUnit\Framework\Attributes\Group('unit')]

@@ -83,6 +83,40 @@ final class LegalContentServiceTest extends KernelTestCase
         self::assertNull($service->getContent(LegalContentService::PAGE_PRIVACY));
     }
 
+    public function testSetContentStripsScriptsStylesAndEventHandlers(): void
+    {
+        $service = $this->createService();
+
+        $service->setContent(
+            LegalContentService::PAGE_IMPRINT,
+            '<h2>Imprint</h2><script>alert(1)</script><style>body{display:none}</style>'
+            .'<p onclick="alert(2)">Text <a href="javascript:alert(3)">evil</a> <a href="https://example.com">ok</a> <a href="mailto:info@example.com">mail</a></p>'
+            .'<iframe src="https://evil.example"></iframe>',
+        );
+
+        $stored = $service->getContent(LegalContentService::PAGE_IMPRINT);
+        self::assertIsString($stored);
+        self::assertStringNotContainsString('<script', $stored);
+        self::assertStringNotContainsString('alert(1)', $stored);
+        self::assertStringNotContainsString('<style', $stored);
+        self::assertStringNotContainsString('onclick', $stored);
+        self::assertStringNotContainsString('javascript:', $stored);
+        self::assertStringNotContainsString('<iframe', $stored);
+        self::assertStringContainsString('<h2>Imprint</h2>', $stored);
+        self::assertStringContainsString('href="https://example.com"', $stored);
+        // The sanitizer entity-encodes "@" in attributes.
+        self::assertStringContainsString('href="mailto:info@example.com"', html_entity_decode($stored));
+    }
+
+    public function testSanitizeKeepsStandardFormattingElements(): void
+    {
+        $service = $this->createService();
+
+        $html = '<h3>Title</h3><p><strong>bold</strong> <em>italic</em></p><ul><li>one</li><li>two</li></ul>';
+
+        self::assertSame($html, $service->sanitize($html));
+    }
+
     private function createService(): LegalContentService
     {
         return static::getContainer()->get(LegalContentService::class);

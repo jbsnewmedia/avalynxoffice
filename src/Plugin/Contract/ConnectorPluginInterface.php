@@ -56,6 +56,15 @@ interface ConnectorPluginInterface
     public function getSettingsTemplate(): string;
 
     /**
+     * Config array keys that hold secrets (passwords, tokens). These are
+     * encrypted at rest by the application and decrypted when the config
+     * is resolved for use.
+     *
+     * @return list<string>
+     */
+    public function getSecretConfigKeys(): array;
+
+    /**
      * Whether the input (Eingang) is fully configured for the given config.
      *
      * @param array<string, mixed> $config

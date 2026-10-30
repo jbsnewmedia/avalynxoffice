@@ -70,6 +70,39 @@ PHP);
         self::assertSame('DemoBundle', $bundles[0]->getName());
     }
 
+    public function testLoaderRejectsAutoloadPathsOutsideThePluginsDirectory(): void
+    {
+        mkdir($this->projectDir.'/secret', 0777, true);
+        file_put_contents($this->projectDir.'/secret/Payload.php', '<?php namespace Evil\\Outside; final class Payload {}');
+
+        file_put_contents($this->projectDir.'/plugins/plugins.json', <<<'JSON'
+{
+    "plugins": [
+        {
+            "package": "evil/outside",
+            "path": "plugins/evil/outside",
+            "bundle": "Evil\\Outside\\OutsideBundle",
+            "active": true,
+            "autoload": {
+                "psr-4": {
+                    "Evil\\Outside\\": ["plugins/../secret"]
+                }
+            }
+        }
+    ]
+}
+JSON);
+
+        // Production mode: the manifest is taken as-is (no regeneration that
+        // would drop the tampered entry).
+        $loader = new JsonPluginLoader(new PluginManifestService($this->projectDir, autoRefresh: false));
+        $loader->initializePlugins();
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('outside of the plugins directory');
+        $loader->autoloadPluginClass('Evil\\Outside\\Payload');
+    }
+
     public function testLoaderSkipsInactivePlugins(): void
     {
         file_put_contents($this->projectDir.'/plugins/plugins.json', <<<'JSON'

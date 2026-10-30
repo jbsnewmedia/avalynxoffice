@@ -13,8 +13,15 @@ class PluginManifestService
 {
     public const MANIFEST_RELATIVE_PATH = 'plugins/plugins.json';
 
+    /**
+     * @param bool $autoRefresh Regenerate a missing or stale manifest on load.
+     *                          Disabled for production web requests: there
+     *                          the manifest must already exist (generated
+     *                          at build time via app:plugin:manifest).
+     */
     public function __construct(
         private readonly string $projectDir,
+        private readonly bool $autoRefresh = true,
     ) {
     }
 
@@ -23,8 +30,12 @@ class PluginManifestService
      */
     public function loadManifest(): array
     {
-        if (!$this->isManifestFresh()) {
-            return $this->refreshManifest();
+        if ($this->autoRefresh) {
+            if (!$this->isManifestFresh()) {
+                return $this->refreshManifest();
+            }
+        } elseif (!is_file($this->getManifestPath())) {
+            throw new \RuntimeException('plugins/plugins.json is missing. Generate it with "php bin/console app:plugin:manifest" (the manifest is not regenerated automatically outside the dev environment).');
         }
 
         try {
@@ -66,9 +77,57 @@ class PluginManifestService
         return $this->projectDir.'/'.self::MANIFEST_RELATIVE_PATH;
     }
 
+    /**
+     * Resolves a manifest path and guarantees that it points into the
+     * plugins/ directory. Manifest entries end up in require/import calls, so
+     * traversal (".."), absolute paths and symlinks escaping plugins/ are
+     * rejected.
+     */
     public function toAbsolutePath(string $relativePath): string
     {
-        return $this->projectDir.'/'.ltrim($relativePath, '/');
+        $pluginsDir = $this->normalizePath($this->projectDir.'/plugins');
+        $candidate = $this->normalizePath($this->projectDir.'/'.ltrim(str_replace('\\', '/', $relativePath), '/'));
+
+        if (!$this->isInsideDirectory($candidate, $pluginsDir)) {
+            throw new \RuntimeException(sprintf('Plugin path "%s" is outside of the plugins directory.', $relativePath));
+        }
+
+        // Symlinks are only visible to realpath(); compare the resolved
+        // locations when the path exists.
+        $realCandidate = realpath($candidate);
+        $realPluginsDir = realpath($pluginsDir);
+        if (false !== $realCandidate && false !== $realPluginsDir && !$this->isInsideDirectory($realCandidate, $realPluginsDir)) {
+            throw new \RuntimeException(sprintf('Plugin path "%s" resolves outside of the plugins directory.', $relativePath));
+        }
+
+        return $candidate;
+    }
+
+    private function isInsideDirectory(string $path, string $directory): bool
+    {
+        return $path === $directory || str_starts_with($path, rtrim($directory, '/').'/');
+    }
+
+    /**
+     * Lexically resolves "." and ".." segments (the path does not need to exist).
+     */
+    private function normalizePath(string $path): string
+    {
+        $path = str_replace('\\', '/', $path);
+        $isAbsolute = str_starts_with($path, '/');
+        $segments = [];
+        foreach (explode('/', $path) as $segment) {
+            if ('' === $segment || '.' === $segment) {
+                continue;
+            }
+            if ('..' === $segment) {
+                array_pop($segments);
+                continue;
+            }
+            $segments[] = $segment;
+        }
+
+        return ($isAbsolute ? '/' : '').implode('/', $segments);
     }
 
     protected function isManifestFresh(): bool

@@ -30,7 +30,12 @@ class Kernel extends BaseKernel
     {
         parent::__construct($environment, $debug);
 
-        $this->pluginLoader = new JsonPluginLoader(new PluginManifestService($this->getProjectDir()));
+        // The plugin manifest is regenerated on the fly only in dev/test and
+        // on the command line (bin/console app:plugin:manifest, cache
+        // warm-up during the image build). Production web requests never
+        // write into plugins/: the manifest must already exist.
+        $autoRefresh = \in_array($environment, ['dev', 'test'], true) || \PHP_SAPI === 'cli';
+        $this->pluginLoader = new JsonPluginLoader(new PluginManifestService($this->getProjectDir(), $autoRefresh));
         $this->pluginLoader->initializePlugins();
     }
 

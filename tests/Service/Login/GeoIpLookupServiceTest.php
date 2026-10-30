@@ -36,7 +36,7 @@ final class GeoIpLookupServiceTest extends TestCase
         $service = new class extends GeoIpLookupService {
             public function __construct()
             {
-                parent::__construct(null);
+                parent::__construct(null, true);
             }
 
             #[\Override]
@@ -49,6 +49,40 @@ final class GeoIpLookupServiceTest extends TestCase
         $result = $service->lookup('81.2.69.160');
 
         self::assertSame(['city' => 'Mainz', 'country' => 'Germany'], $result);
+    }
+
+    public function testLookupIsDisabledByDefaultAndNeverCallsTheService(): void
+    {
+        $service = new class extends GeoIpLookupService {
+            public bool $fetched = false;
+
+            public function __construct()
+            {
+                parent::__construct(null);
+            }
+
+            #[\Override]
+            protected function fetchGeo(string $ip): ?array
+            {
+                $this->fetched = true;
+
+                return ['status' => 'success', 'city' => 'Mainz', 'country' => 'Germany'];
+            }
+        };
+
+        self::assertFalse($service->isEnabled());
+        self::assertSame(['city' => null, 'country' => null], $service->lookup('81.2.69.160'));
+        self::assertFalse($service->fetched, 'Disabled lookups must not contact the external service');
+    }
+
+    public function testDisabledLookupNeverUsesTheHttpClient(): void
+    {
+        $httpClient = $this->createMock(\Symfony\Contracts\HttpClient\HttpClientInterface::class);
+        $httpClient->expects(self::never())->method('request');
+
+        $service = new GeoIpLookupService($httpClient, false);
+
+        self::assertSame(['city' => null, 'country' => null], $service->lookup('81.2.69.160'));
     }
 
     public function testFailedLookupReturnsUnknownLocation(): void
@@ -96,7 +130,7 @@ final class GeoIpLookupServiceTest extends TestCase
         $httpClient = $this->createStub(\Symfony\Contracts\HttpClient\HttpClientInterface::class);
         $httpClient->method('request')->willThrowException(new \RuntimeException('dns kaputt'));
 
-        $service = new GeoIpLookupService($httpClient);
+        $service = new GeoIpLookupService($httpClient, true);
 
         self::assertSame(['city' => null, 'country' => null], $service->lookup('81.2.69.160'));
     }
@@ -109,7 +143,7 @@ final class GeoIpLookupServiceTest extends TestCase
         $httpClient = $this->createStub(\Symfony\Contracts\HttpClient\HttpClientInterface::class);
         $httpClient->method('request')->willReturn($response);
 
-        $service = new GeoIpLookupService($httpClient);
+        $service = new GeoIpLookupService($httpClient, true);
 
         self::assertSame(['city' => null, 'country' => null], $service->lookup('81.2.69.160'));
     }
@@ -119,10 +153,14 @@ final class GeoIpLookupServiceTest extends TestCase
         $response = $this->createStub(\Symfony\Contracts\HttpClient\ResponseInterface::class);
         $response->method('toArray')->willReturn(['status' => 'success', 'city' => 'Mainz', 'country' => 'Germany']);
 
-        $httpClient = $this->createStub(\Symfony\Contracts\HttpClient\HttpClientInterface::class);
-        $httpClient->method('request')->willReturn($response);
+        $httpClient = $this->createMock(\Symfony\Contracts\HttpClient\HttpClientInterface::class);
+        $httpClient->expects(self::once())->method('request')->with(
+            'GET',
+            'http://ip-api.com/json/81.2.69.160',
+            self::callback(static fn (array $options): bool => 1 === ($options['timeout'] ?? null) && 1 === ($options['max_duration'] ?? null)),
+        )->willReturn($response);
 
-        $service = new GeoIpLookupService($httpClient);
+        $service = new GeoIpLookupService($httpClient, true);
 
         self::assertSame(['city' => 'Mainz', 'country' => 'Germany'], $service->lookup('81.2.69.160'));
     }

@@ -13,6 +13,7 @@ use AvalynxOffice\Entity\PasswordResetRequest;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Repository\PasswordResetRequestRepository;
 use AvalynxOffice\Repository\UserRepository;
+use AvalynxOffice\Service\Login\LoginSessionService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
@@ -45,11 +46,20 @@ final readonly class AdminPasswordResetService
     /** Upper bound (inclusive) of the 4-digit release number. */
     private const int NUMBER_MAX = 9999;
 
+    /**
+     * Anonymous callers may only replace an open request of the user once it
+     * is older than this many seconds. Without the rule anybody knowing an
+     * email address could invalidate a running handshake at will (flow DoS);
+     * with it a stale request is still superseded automatically.
+     */
+    public const int ANONYMOUS_REPLACE_AFTER_SECONDS = 300;
+
     public function __construct(
         private PasswordResetRequestRepository $passwordResetRequestRepository,
         private UserRepository $userRepository,
         private EntityManagerInterface $entityManager,
         private UserPasswordHasherInterface $passwordHasher,
+        private ?LoginSessionService $loginSessionService = null,
     ) {
     }
 
@@ -95,16 +105,27 @@ final readonly class AdminPasswordResetService
      * administrator in person. As the user sees the token from the start, the
      * request is created in the claimed state and can be released right away.
      *
-     * @param non-empty-string $ip IP of the requesting user
+     * Anonymous callers (not logged in, identified the account by email only)
+     * do not supersede a young open request of the user: see
+     * {@see self::ANONYMOUS_REPLACE_AFTER_SECONDS}. When the open request is
+     * kept, a fresh decoy code is returned so the response looks identical.
      *
-     * @return array{request: PasswordResetRequest, token: string, number: int}
+     * @param non-empty-string $ip        IP of the requesting user
+     * @param bool             $anonymous true when the caller is not authenticated
+     *
+     * @return array{request: ?PasswordResetRequest, token: string, number: int}
      */
     public function startUserRequest(
         User $user,
         string $ip,
         int $claimTtl = PasswordResetRequest::CLAIM_TTL_SECONDS,
         int $releaseTtl = PasswordResetRequest::RELEASE_TTL_SECONDS,
+        bool $anonymous = false,
     ): array {
+        if ($anonymous && $this->hasRecentOpenRequest($user)) {
+            return $this->generateDecoyCode();
+        }
+
         $result = $this->createRequest($user, $ip, $claimTtl);
 
         $token = $result['token'];
@@ -112,6 +133,45 @@ final readonly class AdminPasswordResetService
         $claimed = $this->claim($token);
 
         return ['request' => $claimed, 'token' => $token, 'number' => $result['number']];
+    }
+
+    /**
+     * Produces a token and release number that are not backed by any stored
+     * request. Used to answer anonymous callers uniformly when no request may
+     * be created (unknown or inactive account, young open request).
+     *
+     * @return array{request: null, token: string, number: int}
+     */
+    public function generateDecoyCode(): array
+    {
+        return [
+            'request' => null,
+            'token' => $this->generateToken(),
+            'number' => random_int(self::NUMBER_MIN, self::NUMBER_MAX),
+        ];
+    }
+
+    /**
+     * True when the user has an open request that is still younger than
+     * {@see self::ANONYMOUS_REPLACE_AFTER_SECONDS} and not yet expired.
+     */
+    private function hasRecentOpenRequest(User $user, \DateTimeImmutable $now = new \DateTimeImmutable()): bool
+    {
+        $threshold = $now->modify(sprintf('-%d seconds', self::ANONYMOUS_REPLACE_AFTER_SECONDS));
+
+        foreach ($this->passwordResetRequestRepository->findActiveByUser($user) as $open) {
+            if (!$this->isAwaitingUser($open, $now)) {
+                continue;
+            }
+
+            $createdAt = $open->getCreatedAt();
+
+            if (null !== $createdAt && $createdAt > $threshold) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -263,10 +323,17 @@ final readonly class AdminPasswordResetService
             throw new \DomainException('The user of this reset request no longer exists.');
         }
 
+        // Every other open flow of the user is invalidated immediately; the
+        // request being completed is marked afterwards so it keeps its state.
+        $this->invalidateOpenRequests($user);
+
         $user->setPassword($this->passwordHasher->hashPassword($user, $newPassword));
         $request->setStatus(PasswordResetRequest::STATUS_COMPLETED);
         $request->setCompletedAt($now);
         $this->entityManager->flush();
+
+        // Whoever held the old credentials must not stay logged in.
+        $this->loginSessionService?->revokeAll($user);
     }
 
     /**

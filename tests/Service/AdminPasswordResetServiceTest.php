@@ -109,6 +109,143 @@ final class AdminPasswordResetServiceTest extends TestCase
     }
 
     #[Group('unit')]
+    public function testAnonymousStartUserRequestKeepsYoungOpenRequestAndReturnsDecoy(): void
+    {
+        $user = new User();
+        $user->setEmail('user@example.com');
+
+        $openRequest = new PasswordResetRequest();
+        $openRequest->setUser($user);
+        $openRequest->setStatus(PasswordResetRequest::STATUS_CLAIMED);
+        $openRequest->setExpiresAt(new \DateTimeImmutable('+10 minutes'));
+        $openRequest->setCreatedAt(new \DateTimeImmutable('-1 minute'));
+
+        $resetRepository = $this->createStub(PasswordResetRequestRepository::class);
+        $resetRepository->method('findActiveByUser')->willReturn([$openRequest]);
+
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->expects(self::never())->method('persist');
+        $entityManager->expects(self::never())->method('flush');
+
+        $service = $this->createService($resetRepository, null, $entityManager);
+        $result = $service->startUserRequest($user, '127.0.0.1', anonymous: true);
+
+        self::assertSame(PasswordResetRequest::STATUS_CLAIMED, $openRequest->getStatus());
+        self::assertNull($result['request']);
+        self::assertMatchesRegularExpression('/^[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}$/', $result['token']);
+        self::assertGreaterThanOrEqual(1000, $result['number']);
+        self::assertLessThanOrEqual(9999, $result['number']);
+    }
+
+    #[Group('unit')]
+    public function testAnonymousStartUserRequestReplacesStaleOpenRequest(): void
+    {
+        $user = new User();
+        $user->setEmail('user@example.com');
+
+        $openRequest = new PasswordResetRequest();
+        $openRequest->setUser($user);
+        $openRequest->setStatus(PasswordResetRequest::STATUS_CLAIMED);
+        $openRequest->setExpiresAt(new \DateTimeImmutable('+10 minutes'));
+        $openRequest->setCreatedAt(new \DateTimeImmutable(sprintf('-%d seconds', AdminPasswordResetService::ANONYMOUS_REPLACE_AFTER_SECONDS + 1)));
+
+        $persisted = [];
+        $resetRepository = $this->createStub(PasswordResetRequestRepository::class);
+        $resetRepository->method('findActiveByUser')->willReturn([$openRequest]);
+        $resetRepository->method('findByToken')->willReturnCallback(
+            static function (string $token) use (&$persisted): ?PasswordResetRequest {
+                foreach ($persisted as $candidate) {
+                    \assert($candidate instanceof PasswordResetRequest);
+                    if ($candidate->getTokenHash() === hash('sha256', $token)) {
+                        return $candidate;
+                    }
+                }
+
+                return null;
+            },
+        );
+
+        $entityManager = $this->createStub(EntityManagerInterface::class);
+        $entityManager->method('persist')->willReturnCallback(
+            static function (PasswordResetRequest $request) use (&$persisted): void {
+                $persisted[] = $request;
+            },
+        );
+
+        $service = $this->createService($resetRepository, null, $entityManager);
+        $result = $service->startUserRequest($user, '127.0.0.1', anonymous: true);
+
+        self::assertSame(PasswordResetRequest::STATUS_INVALIDATED, $openRequest->getStatus());
+        self::assertNotNull($result['request']);
+        self::assertSame(PasswordResetRequest::STATUS_CLAIMED, $result['request']->getStatus());
+    }
+
+    #[Group('unit')]
+    public function testGenerateDecoyCodeLooksLikeARealCodeWithoutRequest(): void
+    {
+        $service = $this->createService();
+
+        $decoy = $service->generateDecoyCode();
+
+        self::assertNull($decoy['request']);
+        self::assertMatchesRegularExpression('/^[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}$/', $decoy['token']);
+        self::assertGreaterThanOrEqual(1000, $decoy['number']);
+        self::assertLessThanOrEqual(9999, $decoy['number']);
+    }
+
+    #[Group('unit')]
+    public function testCompleteRevokesLoginSessionsAndInvalidatesOtherOpenRequests(): void
+    {
+        $user = new User();
+        $user->setEmail('user@example.com');
+
+        $request = new PasswordResetRequest();
+        $request->setUser($user);
+        $request->setStatus(PasswordResetRequest::STATUS_RELEASED);
+        $request->setReleaseExpiresAt(new \DateTimeImmutable('+2 minutes'));
+
+        $other = new PasswordResetRequest();
+        $other->setUser($user);
+        $other->setStatus(PasswordResetRequest::STATUS_PENDING);
+
+        $resetRepository = $this->createStub(PasswordResetRequestRepository::class);
+        $resetRepository->method('findActiveByUser')->willReturn([$request, $other]);
+
+        // LoginSessionService is final: drive a real instance through mocked
+        // collaborators and verify that every session row and remember-me
+        // token of the user is revoked.
+        $sessionRepository = $this->createMock(\AvalynxOffice\Repository\UserLoginSessionRepository::class);
+        $sessionRepository->expects(self::once())->method('revokeAll')->with($user)->willReturn(2);
+
+        $connection = $this->createMock(\Doctrine\DBAL\Connection::class);
+        $connection->expects(self::once())->method('executeStatement')
+            ->with(self::stringContains('DELETE FROM rememberme_token'), ['email' => 'user@example.com'])
+            ->willReturn(1);
+
+        $sessionEntityManager = $this->createStub(EntityManagerInterface::class);
+        $sessionEntityManager->method('getRepository')->willReturn($sessionRepository);
+        $sessionEntityManager->method('getConnection')->willReturn($connection);
+
+        $loginSessions = new \AvalynxOffice\Service\Login\LoginSessionService(
+            $sessionEntityManager,
+            new \AvalynxOffice\Service\Login\GeoIpLookupService(null, false),
+        );
+
+        $service = new AdminPasswordResetService(
+            $resetRepository,
+            $this->createStub(UserRepository::class),
+            $this->createStub(EntityManagerInterface::class),
+            $this->createStub(UserPasswordHasherInterface::class),
+            $loginSessions,
+        );
+
+        $service->complete($request, 'new-secret');
+
+        self::assertSame(PasswordResetRequest::STATUS_COMPLETED, $request->getStatus());
+        self::assertSame(PasswordResetRequest::STATUS_INVALIDATED, $other->getStatus());
+    }
+
+    #[Group('unit')]
     public function testStartRequestRejectsUnknownEmail(): void
     {
         $userRepository = $this->createStub(UserRepository::class);

@@ -45,7 +45,7 @@ class UserLoginSessionRepository extends ServiceEntityRepository
     }
 
     /**
-     * Finds one active session row of the user by its session token.
+     * Finds one active session row of the user by its (hashed) session token.
      */
     public function findActiveByToken(User $user, string $sessionToken): ?UserLoginSession
     {
@@ -65,8 +65,8 @@ class UserLoginSessionRepository extends ServiceEntityRepository
     }
 
     /**
-     * Revokes every active session of the user except the given token.
-     * Returns the number of revoked sessions.
+     * Revokes every active session of the user except the given (hashed)
+     * token. Returns the number of revoked sessions.
      */
     public function revokeOthers(User $user, string $keepToken): int
     {
@@ -78,6 +78,26 @@ class UserLoginSessionRepository extends ServiceEntityRepository
             ->andWhere('s.sessionToken != :keep')
             ->setParameter('user', $user)
             ->setParameter('keep', $keepToken)
+            ->setParameter('now', new \DateTimeImmutable())
+            ->getQuery()
+            ->execute();
+        \assert(is_int($result));
+
+        return $result;
+    }
+
+    /**
+     * Revokes every active session of the user. Returns the number of
+     * revoked sessions.
+     */
+    public function revokeAll(User $user): int
+    {
+        $result = $this->createQueryBuilder('s')
+            ->update()
+            ->set('s.revokedAt', ':now')
+            ->where('s.user = :user')
+            ->andWhere('s.revokedAt IS NULL')
+            ->setParameter('user', $user)
             ->setParameter('now', new \DateTimeImmutable())
             ->getQuery()
             ->execute();

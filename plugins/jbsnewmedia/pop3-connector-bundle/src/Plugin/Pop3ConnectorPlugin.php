@@ -75,6 +75,12 @@ class Pop3ConnectorPlugin implements ConnectorPluginInterface, ConnectorFetcherI
     }
 
     #[\Override]
+    public function getSecretConfigKeys(): array
+    {
+        return ['pop3Password', 'smtpPassword'];
+    }
+
+    #[\Override]
     public function isInputConfigured(array $config): bool
     {
         return self::isFilled($config, 'pop3Host')

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AvalynxOffice\Tests\Service;
 
 use AvalynxOffice\Service\PluginManifestService;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class PluginManifestServiceTest extends TestCase
@@ -339,6 +340,97 @@ JSON);
                 self::assertFalse($plugin['active']);
             }
         }
+    }
+
+    public function testToAbsolutePathResolvesPathsInsideThePluginsDirectory(): void
+    {
+        $service = new PluginManifestService($this->projectDir);
+
+        self::assertSame($this->projectDir.'/plugins/acme/demo-bundle/src', $service->toAbsolutePath('plugins/acme/demo-bundle/src'));
+        self::assertSame($this->projectDir.'/plugins/acme/demo-bundle/src', $service->toAbsolutePath('/plugins/acme/./demo-bundle/src/'));
+        self::assertSame($this->projectDir.'/plugins/acme/demo-bundle', $service->toAbsolutePath('plugins/acme/view-bundle/../demo-bundle'));
+        self::assertSame($this->projectDir.'/plugins', $service->toAbsolutePath('plugins'));
+        self::assertSame($this->projectDir.'/plugins/acme/missing', $service->toAbsolutePath('plugins/acme/missing'));
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function provideTraversalPaths(): iterable
+    {
+        yield 'parent traversal' => ['plugins/../src'];
+        yield 'deep traversal' => ['plugins/acme/../../../etc'];
+        yield 'project root file' => ['config/services.yaml'];
+        yield 'absolute path' => ['/etc/passwd'];
+        yield 'plugins prefix without separator' => ['plugins-evil/src'];
+        yield 'empty path' => [''];
+    }
+
+    #[DataProvider('provideTraversalPaths')]
+    public function testToAbsolutePathRejectsPathsOutsideThePluginsDirectory(string $path): void
+    {
+        $service = new PluginManifestService($this->projectDir);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('outside of the plugins directory');
+        $service->toAbsolutePath($path);
+    }
+
+    public function testToAbsolutePathRejectsSymlinksEscapingThePluginsDirectory(): void
+    {
+        mkdir($this->projectDir.'/secret', 0777, true);
+        self::assertTrue(symlink($this->projectDir.'/secret', $this->projectDir.'/plugins/escape'));
+
+        $service = new PluginManifestService($this->projectDir);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('resolves outside of the plugins directory');
+        $service->toAbsolutePath('plugins/escape');
+    }
+
+    public function testLoadManifestWithoutAutoRefreshThrowsWhenManifestIsMissing(): void
+    {
+        $service = new PluginManifestService($this->projectDir, autoRefresh: false);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('app:plugin:manifest');
+        $service->loadManifest();
+    }
+
+    public function testLoadManifestWithoutAutoRefreshReadsStaleManifestWithoutRewritingIt(): void
+    {
+        $service = new PluginManifestService($this->projectDir, autoRefresh: false);
+        $staleManifest = <<<'JSON'
+{
+    "plugins": [
+        {
+            "path": "plugins/acme/demo-bundle",
+            "bundle": "Acme\\DemoBundle\\DemoBundle",
+            "active": true
+        }
+    ]
+}
+JSON;
+        file_put_contents($service->getManifestPath(), $staleManifest);
+        // Make the manifest older than the plugin composer files: with
+        // auto-refresh enabled this would trigger a regeneration.
+        touch($service->getManifestPath(), time() - 3600);
+
+        $manifest = $service->loadManifest();
+
+        self::assertCount(1, $manifest['plugins']);
+        self::assertSame($staleManifest, file_get_contents($service->getManifestPath()));
+    }
+
+    public function testLoadManifestWithAutoRefreshRegeneratesStaleManifest(): void
+    {
+        $service = new PluginManifestService($this->projectDir);
+        file_put_contents($service->getManifestPath(), '{"plugins": []}');
+        touch($service->getManifestPath(), time() - 3600);
+
+        $manifest = $service->loadManifest();
+
+        self::assertCount(2, $manifest['plugins']);
     }
 
     public function testRefreshManifestThrowsWhenManifestCannotBeWritten(): void

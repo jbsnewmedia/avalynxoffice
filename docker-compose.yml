@@ -21,9 +21,9 @@ services:
     db:
         image: postgres:18-alpine
         environment:
-            POSTGRES_DB: my_database
-            POSTGRES_USER: my_user
-            POSTGRES_PASSWORD: my_password
+            POSTGRES_DB: ${POSTGRES_DB:-my_database}
+            POSTGRES_USER: ${POSTGRES_USER:-my_user}
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-my_password}
         volumes:
             - ./docker/postgres/init:/docker-entrypoint-initdb.d
             # /var/lib/postgresql (not .../data): PostgreSQL 18 keeps its data

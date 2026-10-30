@@ -188,7 +188,7 @@ final class LicenseMailCommandsTest extends KernelTestCase
             $entityManager,
             $this->createStub(\AvalynxOffice\Service\Mail\FolderManager::class),
             $this->createStub(\AvalynxOffice\Service\Mail\AttachmentStorage::class),
-            new \AvalynxOffice\Service\ConnectorPluginRegistry([], $this->createStub(\AvalynxOffice\Repository\ConnectorConfigRepository::class)),
+            new \AvalynxOffice\Service\ConnectorPluginRegistry([], $this->createStub(\AvalynxOffice\Repository\ConnectorConfigRepository::class), new \AvalynxOffice\Service\Security\SecretCrypto('')),
             $this->createStub(\AvalynxOffice\Repository\ConnectorRepository::class),
             new \AvalynxOffice\Tests\Support\FlippingReadOnlyLicenseEnforcement(2),
         );

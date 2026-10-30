@@ -6,9 +6,11 @@ namespace AvalynxOffice\Tests\Controller;
 
 use AvalynxOffice\Entity\PasswordResetRequest;
 use AvalynxOffice\Entity\User;
+use AvalynxOffice\Entity\UserLoginSession;
 use AvalynxOffice\Repository\PasswordResetRequestRepository;
 use AvalynxOffice\Repository\UserRepository;
 use AvalynxOffice\Service\AdminPasswordResetService;
+use AvalynxOffice\Service\Login\LoginSessionService;
 use AvalynxOffice\Controller\UserPasswordResetController;
 use AvalynxOffice\Tests\Support\RefreshDatabaseTrait;
 use Doctrine\ORM\EntityManagerInterface;
@@ -18,6 +20,7 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 
 #[Group('integration')]
 final class AdminPasswordResetFlowTest extends WebTestCase
@@ -185,7 +188,12 @@ final class AdminPasswordResetFlowTest extends WebTestCase
         self::assertTrue($hasher->isPasswordValid($target, self::NEW_PASSWORD));
     }
 
-    public function testUserStartWithUnknownEmailAnswersInvalidField(): void
+    /**
+     * Anonymous start for an unknown account: the response is identical to
+     * the one for an existing account (success + decoy code on the page), and
+     * no request is stored.
+     */
+    public function testUserStartWithUnknownEmailAnswersNeutrally(): void
     {
         $crawler = $this->client->request('GET', '/profile/password-reset');
         $codeInputs = $crawler->filter('#reset-code input[name="_token"]');
@@ -195,11 +203,169 @@ final class AdminPasswordResetFlowTest extends WebTestCase
             'email' => 'nobody@example.com',
             '_token' => (string) $codeInputs->attr('value'),
         ]);
-        self::assertResponseStatusCodeSame(422);
+        self::assertResponseIsSuccessful();
 
         $payload = $this->jsonPayload();
-        self::assertFalse($payload['success']);
-        self::assertSame('No active account exists for this email address.', $payload['invalid']['email']);
+        self::assertTrue($payload['success']);
+        self::assertSame('/profile/password-reset', $payload['redirect']);
+
+        [$token] = $this->loadCodePageAndReadCode();
+
+        $this->entityManager->clear();
+        self::assertNull($this->resetRepository->findByToken($token));
+        self::assertSame(0, $this->countResetRequests());
+    }
+
+    public function testUserStartForInactiveAccountAnswersNeutrally(): void
+    {
+        $target = $this->findUser(self::TARGET_EMAIL);
+        \assert(null !== $target);
+        $target->setActive(false);
+        $this->entityManager->flush();
+
+        $crawler = $this->client->request('GET', '/profile/password-reset');
+        $codeInputs = $crawler->filter('#reset-code input[name="_token"]');
+        \assert($codeInputs->count() > 0);
+
+        $this->client->request('POST', '/profile/password-reset/code', [
+            'email' => self::TARGET_EMAIL,
+            '_token' => (string) $codeInputs->attr('value'),
+        ]);
+        self::assertResponseIsSuccessful();
+        self::assertTrue($this->jsonPayload()['success']);
+
+        [$token] = $this->loadCodePageAndReadCode();
+
+        $this->entityManager->clear();
+        self::assertNull($this->resetRepository->findByToken($token));
+        self::assertSame(0, $this->countResetRequests());
+    }
+
+    /**
+     * A second anonymous start shortly after the first one must not kill the
+     * running handshake: the open request stays, the caller gets a decoy.
+     */
+    public function testRepeatedAnonymousStartKeepsYoungOpenRequest(): void
+    {
+        $crawler = $this->client->request('GET', '/profile/password-reset');
+        $codeInputs = $crawler->filter('#reset-code input[name="_token"]');
+        \assert($codeInputs->count() > 0);
+        $csrf = (string) $codeInputs->attr('value');
+
+        $this->client->request('POST', '/profile/password-reset/code', ['email' => self::TARGET_EMAIL, '_token' => $csrf]);
+        self::assertResponseIsSuccessful();
+        [$firstToken] = $this->loadCodePageAndReadCode();
+
+        $this->client->request('POST', '/profile/password-reset/code', ['email' => self::TARGET_EMAIL, '_token' => $csrf]);
+        self::assertResponseIsSuccessful();
+        [$secondToken] = $this->loadCodePageAndReadCode();
+
+        self::assertNotSame($firstToken, $secondToken);
+
+        $first = $this->findResetRequest($firstToken);
+        self::assertSame(PasswordResetRequest::STATUS_CLAIMED, $first->getStatus());
+        self::assertNull($this->resetRepository->findByToken($secondToken));
+        self::assertSame(1, $this->countResetRequests());
+    }
+
+    public function testAnonymousStartReplacesStaleOpenRequest(): void
+    {
+        $crawler = $this->client->request('GET', '/profile/password-reset');
+        $codeInputs = $crawler->filter('#reset-code input[name="_token"]');
+        \assert($codeInputs->count() > 0);
+        $csrf = (string) $codeInputs->attr('value');
+
+        $this->client->request('POST', '/profile/password-reset/code', ['email' => self::TARGET_EMAIL, '_token' => $csrf]);
+        [$firstToken] = $this->loadCodePageAndReadCode();
+
+        $first = $this->findResetRequest($firstToken);
+        $first->setCreatedAt(new \DateTimeImmutable(sprintf('-%d seconds', AdminPasswordResetService::ANONYMOUS_REPLACE_AFTER_SECONDS + 60)));
+        $this->entityManager->flush();
+
+        $this->client->request('POST', '/profile/password-reset/code', ['email' => self::TARGET_EMAIL, '_token' => $csrf]);
+        [$secondToken] = $this->loadCodePageAndReadCode();
+
+        self::assertSame(PasswordResetRequest::STATUS_INVALIDATED, $this->findResetRequest($firstToken)->getStatus());
+        self::assertSame(PasswordResetRequest::STATUS_CLAIMED, $this->findResetRequest($secondToken)->getStatus());
+    }
+
+    public function testAnonymousCodeStartIsRateLimitedPerIp(): void
+    {
+        $this->client->disableReboot();
+
+        $crawler = $this->client->request('GET', '/profile/password-reset');
+        $codeInputs = $crawler->filter('#reset-code input[name="_token"]');
+        \assert($codeInputs->count() > 0);
+        $csrf = (string) $codeInputs->attr('value');
+
+        for ($attempt = 0; $attempt < 5; ++$attempt) {
+            $this->client->request('POST', '/profile/password-reset/code', ['email' => 'nobody@example.com', '_token' => $csrf]);
+            self::assertResponseIsSuccessful();
+        }
+
+        $this->client->request('POST', '/profile/password-reset/code', ['email' => 'nobody@example.com', '_token' => $csrf]);
+        self::assertResponseStatusCodeSame(429);
+        self::assertFalse($this->jsonPayload()['success']);
+    }
+
+    public function testStatusEndpointIsRateLimitedPerIp(): void
+    {
+        $this->client->disableReboot();
+
+        $limiter = static::getContainer()->get('limiter.password_reset_status');
+        \assert($limiter instanceof RateLimiterFactoryInterface);
+        // Exhaust the budget of the test client's IP directly.
+        $limiter->create('127.0.0.1')->consume(30);
+
+        $this->client->request('GET', '/profile/password-reset/admin-flow/UNKNOWN-TOKEN/status');
+        self::assertResponseStatusCodeSame(429);
+
+        $payload = $this->jsonPayload();
+        self::assertSame('unknown', $payload['state']);
+        self::assertArrayHasKey('error', $payload);
+    }
+
+    public function testCompletedFlowRevokesLoginSessionsAndOtherOpenRequests(): void
+    {
+        $target = $this->findUser(self::TARGET_EMAIL);
+        \assert(null !== $target);
+
+        $this->seedLoginSession($target, 'device-a');
+        $this->seedLoginSession($target, 'device-b');
+
+        ['token' => $token, 'number' => $number] = $this->startReset();
+        $this->openFlowPage($token);
+
+        // A second open request (e.g. started by the administrator again)
+        // that was not superseded must be invalidated by the completion.
+        $other = new PasswordResetRequest();
+        $other->setUser($this->findUser(self::TARGET_EMAIL) ?? $target);
+        $other->setTokenHash(hash('sha256', 'OTHER-TOKEN'));
+        $other->setReleaseNumberHash(hash('sha256', 'x'));
+        $other->setStatus(PasswordResetRequest::STATUS_PENDING);
+        $other->setExpiresAt(new \DateTimeImmutable('+1 hour'));
+        $other->setCreatedIp('127.0.0.1');
+        $this->entityManager->persist($other);
+        $this->entityManager->flush();
+
+        $openRequest = $this->findResetRequest($token);
+        $this->release($openRequest, $number);
+        self::assertTrue($this->jsonPayload()['success']);
+
+        $this->submitPassword($token, self::NEW_PASSWORD, self::NEW_PASSWORD);
+        self::assertResponseIsSuccessful();
+
+        $this->entityManager->clear();
+        self::assertSame(PasswordResetRequest::STATUS_COMPLETED, $this->findResetRequest($token)->getStatus());
+        self::assertSame(PasswordResetRequest::STATUS_INVALIDATED, $this->findResetRequest('OTHER-TOKEN')->getStatus());
+
+        $refreshed = $this->findUser(self::TARGET_EMAIL);
+        \assert(null !== $refreshed);
+        $rows = $this->entityManager->getRepository(UserLoginSession::class)->findBy(['user' => $refreshed->getId()]);
+        self::assertCount(2, $rows);
+        foreach ($rows as $row) {
+            self::assertNotNull($row->getRevokedAt());
+        }
     }
 
     public function testLoggedInUserStartsOwnCodeFlow(): void
@@ -296,7 +462,7 @@ final class AdminPasswordResetFlowTest extends WebTestCase
         self::assertResponseStatusCodeSame(422);
         $payload = $this->jsonPayload();
         self::assertFalse($payload['success']);
-        self::assertSame('Incorrect release number.', $payload['invalid']['number']);
+        self::assertSame('The release was not possible. Check the release number and the state of the request.', $payload['invalid']['number']);
 
         // The correct number releases the flow.
         $this->release($openRequest, $number);
@@ -347,7 +513,8 @@ final class AdminPasswordResetFlowTest extends WebTestCase
 
         $payload = $this->jsonPayload();
         self::assertFalse($payload['success']);
-        self::assertSame('This reset request is not waiting for a release.', $payload['invalid']['number']);
+        // Generic message: the internal state reason is only logged.
+        self::assertSame('The release was not possible. Check the release number and the state of the request.', $payload['invalid']['number']);
     }
 
     public function testReleaseInvalidatesTheRequestAfterTooManyWrongNumbers(): void
@@ -363,7 +530,7 @@ final class AdminPasswordResetFlowTest extends WebTestCase
             $wrongNumber = $number === 9999 ? 1000 : $number + 1;
             $this->release($openRequest, $wrongNumber);
             self::assertResponseStatusCodeSame(422);
-            self::assertSame('Incorrect release number.', $this->jsonPayload()['invalid']['number']);
+            self::assertSame('The release was not possible. Check the release number and the state of the request.', $this->jsonPayload()['invalid']['number']);
         }
 
         $this->entityManager->clear();
@@ -527,7 +694,7 @@ final class AdminPasswordResetFlowTest extends WebTestCase
             $this->createStub(UserPasswordHasherInterface::class),
         );
 
-        $controller = new UserPasswordResetController($service, $repository, static::getContainer()->get('translator'));
+        $controller = new UserPasswordResetController($service, $repository, static::getContainer()->get('translator'), static::getContainer()->get('limiter.password_reset_status'));
         $controller->setContainer(static::getContainer());
 
         $request = Request::create('/profile/password-reset/admin-flow/race-token');
@@ -673,6 +840,24 @@ final class AdminPasswordResetFlowTest extends WebTestCase
         \assert(is_array($payload));
 
         return $payload;
+    }
+
+    private function countResetRequests(): int
+    {
+        $count = $this->resetRepository->createQueryBuilder('r')->select('COUNT(r.id)')->getQuery()->getSingleScalarResult();
+
+        return (int) $count;
+    }
+
+    private function seedLoginSession(User $user, string $token): void
+    {
+        $row = new UserLoginSession()
+            ->setUser($user)
+            ->setSessionToken(LoginSessionService::hashToken($token))
+            ->setCreatedAt(new \DateTimeImmutable())
+            ->setLastSeenAt(new \DateTimeImmutable());
+        $this->entityManager->persist($row);
+        $this->entityManager->flush();
     }
 
     private function csrfInputValue(Crawler $crawler): string

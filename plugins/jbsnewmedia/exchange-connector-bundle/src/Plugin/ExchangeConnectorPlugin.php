@@ -81,6 +81,12 @@ class ExchangeConnectorPlugin implements ConnectorPluginInterface, ConnectorFetc
     }
 
     #[\Override]
+    public function getSecretConfigKeys(): array
+    {
+        return ['ewsPassword'];
+    }
+
+    #[\Override]
     public function isInputConfigured(array $config): bool
     {
         return self::isFilled($config, 'ewsHost')

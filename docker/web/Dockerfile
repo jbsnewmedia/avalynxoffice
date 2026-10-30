@@ -22,7 +22,6 @@ RUN apt-get update && apt-get install -y yarn
 RUN curl -1sLf 'https://dl.cloudsmith.io/public/symfony/stable/setup.deb.sh' | bash
 RUN apt-get update && apt-get install -y symfony-cli
 
-# Git config
+# Git identity is not baked into the image: configure it per developer, e.g.
+#   docker compose exec web git config --global user.name "Your Name"
 USER application
-RUN git config --global user.email "info@juergen-schwind.de"
-RUN git config --global user.name "jschwind"
