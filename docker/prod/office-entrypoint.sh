@@ -60,6 +60,16 @@ run_as_application() {
     gosu application "$@"
 }
 
+# A cache written by a previous image version can break even the simplest
+# console command (e.g. compiled bundle references to classes that no longer
+# exist in this image). That would deadlock the bootstrap: the database wait
+# below retries the same broken command until it gives up and would never
+# reach the cache rebuild at the end of the bootstrap. Remove the stale cache
+# before the first console call; the full rebuild (clear + warmup) still runs
+# after the migrations below.
+CACHE_DIR="/app/var/cache/${APP_ENV:-prod}"
+run_as_application rm -rf "${CACHE_DIR}"
+
 echo '[avalynxoffice] Waiting for the database ...'
 attempt=0
 until run_as_application php bin/console dbal:run-sql 'SELECT 1' >/dev/null 2>&1; do
@@ -88,13 +98,11 @@ fi
 # The Symfony container cache is considered always-fresh in prod and the var
 # directory is a persistent volume: after an image update the stale cache of
 # the previous image version must be rebuilt (it contains the compiled
-# configuration, e.g. new trusted_proxies settings).
+# configuration, e.g. new trusted_proxies settings). The cache directory was
+# already cleared before the database wait above (see the note there); the
+# console commands since then may have written a fresh but unwarmed cache,
+# so rebuild it explicitly here again.
 echo '[avalynxoffice] Rebuilding the application cache ...'
-# The cache must be rebuilt after an image update, but a too-stale cache
-# (e.g. from a previous version with different class names) cannot even boot
-# the kernel for cache:clear. In that case remove it and warm up from scratch.
-# The cache directory follows APP_ENV (prod image: prod, dev image: dev).
-CACHE_DIR="/app/var/cache/${APP_ENV:-prod}"
 run_as_application rm -rf "${CACHE_DIR}"
 if ! run_as_application php bin/console cache:clear --no-warmup 2>&1; then
     echo '[avalynxoffice] cache:clear failed, removing the stale cache directory ...'
