@@ -288,13 +288,7 @@ class MailController extends AbstractController
                 return new Response($this->translator->trans('folder.not_found'), Response::HTTP_NOT_FOUND);
             }
             $allowedAccounts = $this->accountsForUser();
-            $folderAllowed = false;
-            foreach ($allowedAccounts as $allowedAccount) {
-                if ($allowedAccount->getFolders()->contains($folder)) {
-                    $folderAllowed = true;
-                    break;
-                }
-            }
+            $folderAllowed = array_any($allowedAccounts, fn ($allowedAccount) => $allowedAccount->getFolders()->contains($folder));
             if (!$folderAllowed) {
                 return new Response($this->translator->trans('common.access_denied'), Response::HTTP_FORBIDDEN);
             }

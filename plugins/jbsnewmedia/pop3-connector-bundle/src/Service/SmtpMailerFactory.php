@@ -35,7 +35,7 @@ class SmtpMailerFactory
 
         $dsn = new Dsn($scheme, $host, '' !== $user ? $user : null, '' !== $pass ? $pass : null, $port, $options);
 
-        return new Mailer((new Transport(Transport::getDefaultFactories()))->fromDsnObject($dsn));
+        return new Mailer(new Transport(Transport::getDefaultFactories())->fromDsnObject($dsn));
     }
 
     public static function validateHost(string $host): string
