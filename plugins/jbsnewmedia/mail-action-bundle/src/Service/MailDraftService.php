@@ -21,7 +21,6 @@ use AvalynxOffice\Entity\Enum\BodyContentType;
 use AvalynxOffice\Entity\Enum\EmailAddressType;
 use AvalynxOffice\Licensing\Service\LicenseEnforcementInterface;
 use AvalynxOffice\Licensing\Service\LicenseOperation;
-use AvalynxOffice\Repository\AccountRepository;
 use AvalynxOffice\Service\Mail\AttachmentStorage;
 use AvalynxOffice\Service\Mail\FolderManager;
 use Doctrine\ORM\EntityManagerInterface;
@@ -32,7 +31,6 @@ final readonly class MailDraftService
 {
     public function __construct(
         private EntityManagerInterface $entityManager,
-        AccountRepository $accountRepository,
         private FolderManager $folderManager,
         private AttachmentStorage $attachmentStorage,
         private TranslatorInterface $translator,
@@ -422,9 +420,6 @@ final readonly class MailDraftService
     }
 
     /**
-     * @return list<string>
-     */
-    /**
      * Plain-text preview from the HTML editor content: strip tags, collapse
      * whitespace, and truncate to 500 characters.
      */
@@ -436,6 +431,9 @@ final readonly class MailDraftService
         return mb_substr($preview, 0, 500);
     }
 
+    /**
+     * @return list<string>
+     */
     private function parseAddressList(string $value): array
     {
         $emails = preg_split('/[,;\r\n]+/', $value) ?: [];

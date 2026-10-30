@@ -24,7 +24,6 @@ use AvalynxOffice\Entity\Enum\BodyContentType;
 use AvalynxOffice\Entity\Enum\EmailAddressType;
 use AvalynxOffice\Entity\Folder;
 use AvalynxOffice\Entity\User;
-use AvalynxOffice\Repository\AccountRepository;
 use AvalynxOffice\Repository\EmailFolderRepository;
 use AvalynxOffice\Repository\EmailRepository;
 use AvalynxOffice\Repository\FolderRepository;
@@ -80,7 +79,6 @@ final class MailActionControllerTest extends KernelTestCase
         $emailRepository = $container->get(EmailRepository::class);
         $folderRepository = $container->get(FolderRepository::class);
         $mailService = $container->get(MailService::class);
-        $accountRepository = $container->get(AccountRepository::class);
         $emailFolderRepository = $container->get(EmailFolderRepository::class);
         $folderManager = $this->createStub(FolderManager::class);
         $folderManager->method('syncEmailSystemFolders');
@@ -96,7 +94,7 @@ final class MailActionControllerTest extends KernelTestCase
         });
 
         $emailActionService = new EmailActionService($this->entityManager, $emailFolderRepository);
-        $mailDraftService = new MailDraftService($this->entityManager, $accountRepository, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
+        $mailDraftService = new MailDraftService($this->entityManager, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
         $userAccountProvider = $container->get(UserAccountProvider::class);
         $this->tokenStorage = $container->get('security.token_storage');
 

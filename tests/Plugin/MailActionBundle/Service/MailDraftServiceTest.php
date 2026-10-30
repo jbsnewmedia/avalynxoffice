@@ -23,7 +23,6 @@ use AvalynxOffice\Entity\Enum\BodyContentType;
 use AvalynxOffice\Entity\Enum\EmailAddressType;
 use AvalynxOffice\Entity\Folder;
 use AvalynxOffice\Entity\FolderAccount;
-use AvalynxOffice\Repository\AccountRepository;
 use AvalynxOffice\Service\Mail\AttachmentStorage;
 use AvalynxOffice\Service\Mail\FolderManager;
 use AvalynxOffice\Tests\Support\AllowAllLicenseEnforcement;
@@ -74,7 +73,7 @@ final class MailDraftServiceTest extends TestCase
             ->expects(self::never())
             ->method('persist');
 
-        $service = new MailDraftService($entityManager, $this->createStub(AccountRepository::class), $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
+        $service = new MailDraftService($entityManager, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
 
         $draft = $service->createComposeDraft($account);
 
@@ -97,7 +96,7 @@ final class MailDraftServiceTest extends TestCase
             ->expects(self::never())
             ->method('getRepository');
 
-        $service = new MailDraftService($entityManager, $this->createStub(AccountRepository::class), $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
+        $service = new MailDraftService($entityManager, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
         $draft = $service->createComposeDraft();
 
         self::assertTrue($draft->isOutgoing());
@@ -109,11 +108,10 @@ final class MailDraftServiceTest extends TestCase
     public function testCreateReplyDraftCopiesParticipantsAndQuotedBody(): void
     {
         $entityManager = $this->createMock(EntityManagerInterface::class);
-        $accountRepository = $this->createStub(AccountRepository::class);
         $folderManager = $this->createMock(FolderManager::class);
         $attachmentStorage = $this->createStub(AttachmentStorage::class);
         $translator = $this->createTranslatorStub();
-        $service = new MailDraftService($entityManager, $accountRepository, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
+        $service = new MailDraftService($entityManager, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
 
         $account = (new Account())
             ->setName('Primary')
@@ -178,11 +176,10 @@ final class MailDraftServiceTest extends TestCase
     public function testCreateReplyAllDraftAddsReplyToRecipientsAndCc(): void
     {
         $entityManager = $this->createMock(EntityManagerInterface::class);
-        $accountRepository = $this->createStub(AccountRepository::class);
         $folderManager = $this->createMock(FolderManager::class);
         $attachmentStorage = $this->createStub(AttachmentStorage::class);
         $translator = $this->createTranslatorStub();
-        $service = new MailDraftService($entityManager, $accountRepository, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
+        $service = new MailDraftService($entityManager, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
 
         $account = (new Account())
             ->setName('Primary')
@@ -243,11 +240,10 @@ final class MailDraftServiceTest extends TestCase
     public function testCreateForwardDraftCopiesAttachments(): void
     {
         $entityManager = $this->createMock(EntityManagerInterface::class);
-        $accountRepository = $this->createStub(AccountRepository::class);
         $folderManager = $this->createMock(FolderManager::class);
         $attachmentStorage = $this->createStub(AttachmentStorage::class);
         $translator = $this->createTranslatorStub();
-        $service = new MailDraftService($entityManager, $accountRepository, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
+        $service = new MailDraftService($entityManager, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
 
         $account = (new Account())
             ->setName('Primary')
@@ -297,7 +293,6 @@ final class MailDraftServiceTest extends TestCase
         $folderManager = $this->createMock(FolderManager::class);
         $service = new MailDraftService(
             $entityManager,
-            $this->createStub(AccountRepository::class),
             $folderManager,
             $this->createStub(AttachmentStorage::class),
             $this->createTranslatorStub(),
@@ -335,11 +330,10 @@ final class MailDraftServiceTest extends TestCase
     public function testSaveEmailFromFormReplacesRecipientsAndBodyAndAssignsFolder(): void
     {
         $entityManager = $this->createMock(EntityManagerInterface::class);
-        $accountRepository = $this->createStub(AccountRepository::class);
         $folderManager = $this->createMock(FolderManager::class);
         $attachmentStorage = $this->createStub(AttachmentStorage::class);
         $translator = $this->createStub(TranslatorInterface::class);
-        $service = new MailDraftService($entityManager, $accountRepository, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
+        $service = new MailDraftService($entityManager, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
 
         $account = (new Account())
             ->setName('Primary')
@@ -423,11 +417,10 @@ final class MailDraftServiceTest extends TestCase
     public function testSaveEmailFromFormSkipsFolderSyncWithoutAccount(): void
     {
         $entityManager = $this->createMock(EntityManagerInterface::class);
-        $accountRepository = $this->createStub(AccountRepository::class);
         $folderManager = $this->createMock(FolderManager::class);
         $attachmentStorage = $this->createStub(AttachmentStorage::class);
         $translator = $this->createStub(TranslatorInterface::class);
-        $service = new MailDraftService($entityManager, $accountRepository, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
+        $service = new MailDraftService($entityManager, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
 
         $email = new Email();
 
@@ -452,11 +445,10 @@ final class MailDraftServiceTest extends TestCase
     public function testPrivateHelpersResolveAccountAndSenderFallbacks(): void
     {
         $entityManager = $this->createMock(EntityManagerInterface::class);
-        $accountRepository = $this->createStub(AccountRepository::class);
         $folderManager = $this->createStub(FolderManager::class);
         $attachmentStorage = $this->createStub(AttachmentStorage::class);
         $translator = $this->createTranslatorStub();
-        $service = new MailDraftService($entityManager, $accountRepository, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
+        $service = new MailDraftService($entityManager, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
 
         $account = (new Account())
             ->setName('Primary')
@@ -514,7 +506,6 @@ final class MailDraftServiceTest extends TestCase
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $service = new MailDraftService(
             $entityManager,
-            $this->createStub(AccountRepository::class),
             $this->createStub(FolderManager::class),
             $this->createStub(AttachmentStorage::class),
             $this->createTranslatorStub(),
@@ -577,7 +568,6 @@ final class MailDraftServiceTest extends TestCase
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $service = new MailDraftService(
             $entityManager,
-            $this->createStub(AccountRepository::class),
             $this->createStub(FolderManager::class),
             $this->createStub(AttachmentStorage::class),
             $this->createTranslatorStub(),
@@ -614,7 +604,6 @@ final class MailDraftServiceTest extends TestCase
     {
         $service = new MailDraftService(
             $this->createStub(EntityManagerInterface::class),
-            $this->createStub(AccountRepository::class),
             $this->createStub(FolderManager::class),
             $this->createStub(AttachmentStorage::class),
             $this->createTranslatorStub(),
@@ -639,7 +628,6 @@ final class MailDraftServiceTest extends TestCase
         $attachmentStorage = $this->createMock(AttachmentStorage::class);
         $service = new MailDraftService(
             $entityManager,
-            $this->createStub(AccountRepository::class),
             $this->createStub(FolderManager::class),
             $attachmentStorage,
             $this->createTranslatorStub(),
@@ -727,7 +715,6 @@ final class MailDraftServiceTest extends TestCase
         $attachmentStorage = $this->createStub(AttachmentStorage::class);
         $service = new MailDraftService(
             $entityManager,
-            $this->createStub(AccountRepository::class),
             $this->createStub(FolderManager::class),
             $attachmentStorage,
             $this->createTranslatorStub(),
@@ -786,7 +773,6 @@ final class MailDraftServiceTest extends TestCase
     {
         $service = new MailDraftService(
             $this->createStub(EntityManagerInterface::class),
-            $this->createStub(AccountRepository::class),
             $this->createStub(FolderManager::class),
             $this->createStub(AttachmentStorage::class),
             $this->createTranslatorStub(),
