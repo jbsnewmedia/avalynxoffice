@@ -103,8 +103,25 @@ final class PublicControllerTest extends WebTestCase
         $this->client->request('GET', '/locale/de?r=/settings');
         self::assertResponseRedirects('/settings');
 
+        $this->client->request('GET', '/locale/de?r=https://attacker.example/', server: ['HTTP_REFERER' => 'https://attacker.example/']);
+        self::assertResponseRedirects('/');
+
         $this->client->request('GET', '/locale/en', server: ['HTTP_REFERER' => '/fallback']);
+        self::assertResponseRedirects('/');
+
+        $this->client->request('GET', '/locale/en', server: ['HTTP_REFERER' => 'http://localhost/fallback']);
         self::assertResponseRedirects('/fallback');
+    }
+
+    public function testSecurityHeadersAreAddedToMainResponses(): void
+    {
+        $this->client->request('GET', '/login');
+
+        self::assertResponseIsSuccessful();
+        self::assertResponseHeaderSame('X-Content-Type-Options', 'nosniff');
+        self::assertResponseHeaderSame('X-Frame-Options', 'SAMEORIGIN');
+        self::assertResponseHeaderSame('Referrer-Policy', 'strict-origin-when-cross-origin');
+        self::assertResponseHeaderSame('Content-Security-Policy', "frame-ancestors 'self'");
     }
 
     public function testDataEndpointsReturnStructuredMailData(): void
@@ -163,21 +180,10 @@ final class PublicControllerTest extends WebTestCase
         (new \AvalynxOffice\Controller\SecurityController())->logout();
     }
 
-    public function testDatabaseSetupShowsErrorWhenMigrationsDirectoryIsReadOnly(): void
+    public function testDatabaseSetupRouteDoesNotExist(): void
     {
-        $migrationsDir = $this->projectDir().'/migrations';
-        $originalPermissions = fileperms($migrationsDir) ?: null;
-        chmod($migrationsDir, 0555);
-
-        try {
-            $this->client->request('GET', '/admin/database/setup');
-            self::assertResponseIsSuccessful();
-            self::assertSelectorExists('.alert-danger');
-        } finally {
-            if (null !== $originalPermissions) {
-                chmod($migrationsDir, $originalPermissions & 0777);
-            }
-        }
+        $this->client->request('GET', '/admin/database/setup');
+        self::assertResponseStatusCodeSame(404);
     }
 
     private function loginAdmin(): void

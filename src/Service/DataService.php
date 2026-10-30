@@ -17,23 +17,23 @@ use AvalynxOffice\Entity\EmailAddressLink;
 use AvalynxOffice\Entity\EmailAttachmentLink;
 use AvalynxOffice\Entity\EmailBodyLink;
 use AvalynxOffice\Entity\Folder;
-use AvalynxOffice\Repository\AccountRepository;
 use AvalynxOffice\Repository\FolderRepository;
 
 class DataService
 {
     public function __construct(
-        private readonly AccountRepository $accountRepo,
         private readonly FolderRepository $folderRepo,
     ) {
     }
 
     /**
+     * @param list<Account> $accounts
+     *
      * @return array<mixed>
      */
-    public function getAllData(): array
+    public function getAllData(array $accounts): array
     {
-        $accounts = $this->accountRepo->findBy([], ['name' => 'ASC']);
+        usort($accounts, static fn (Account $left, Account $right): int => strcasecmp($left->getName(), $right->getName()));
         $mapEmail = fn (Email $e): array => [
             'id' => (string) $e->getId(),
             'subject' => $e->getSubject(),
@@ -67,7 +67,6 @@ class DataService
                         'size' => $a->getSize(),
                         'mimeType' => $a->getMimeType(),
                         'sha1' => $a->getSha1(),
-                        'filePath' => $a->getFilePath(),
                     ] : null,
                 ];
             }, $e->getEmailAttachments()->toArray()),

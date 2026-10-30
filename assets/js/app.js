@@ -522,6 +522,12 @@ document.addEventListener('DOMContentLoaded', function () {
             renderItems();
         });
     };
+    const COMPOSE_EDITOR_TOOLBAR = [
+        ['style', ['style', 'bold', 'italic', 'underline', 'clear']],
+        ['para', ['ul', 'ol', 'paragraph']],
+        ['insert', ['link']],
+        ['view', ['codeview', 'fullscreen']]
+    ];
     const initComposeEditors = (root) => {
         (root || document).querySelectorAll('[data-compose-editor]').forEach((editor) => {
             if (editor.dataset.composeInitialized === 'true') {
@@ -540,7 +546,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 const storageInputId = autocompleteInput.dataset.targetInputId || '';
                 const storageInput = storageInputId ? document.getElementById(storageInputId) : null;
                 const sourceUrl = autocompleteInput.dataset.sourceUrl || '';
-                if (!storageInput || !sourceUrl || typeof window.AvalynxAutocomplete !== 'function') {
+                // The library declares the class as a bare global, not on
+                // window, so fall back to the lexical global.
+                const AutocompleteClass = typeof window.AvalynxAutocomplete === 'function'
+                    ? window.AvalynxAutocomplete
+                    : (typeof AvalynxAutocomplete === 'function' ? AvalynxAutocomplete : null);
+                if (!storageInput || !sourceUrl || AutocompleteClass === null) {
                     return;
                 }
 
@@ -571,7 +582,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     return { key: trimmedQuery, value: trimmedQuery };
                 };
 
-                const widget = new window.AvalynxAutocomplete('#' + autocompleteInput.id, {
+                const widget = new AutocompleteClass('#' + autocompleteInput.id, {
                     fetchData: async (query) => {
                         const requestUrl = new URL(sourceUrl, window.location.origin);
                         requestUrl.searchParams.set('search', query);
@@ -591,8 +602,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     debounce: 150,
                     maxItems: 8,
                     maxSelections,
-                    tagsPosition: 'above',
-                    clearStyle: 'button',
+                    tagsPosition: 'inline',
+                    clearStyle: 'icon',
                     defaultSelections,
                     onChange: (keys) => syncStorage(Array.isArray(keys) ? keys : [])
                 }, {
@@ -670,8 +681,55 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
             });
 
-            const advancedToggle = editor.querySelector('[data-compose-advanced-toggle]');
-            const advancedFields = editor.querySelector('[data-compose-advanced-fields]');
+            editor.querySelectorAll('select.avalynx-select').forEach(function (select) {
+                if (select.dataset.avalynxSelectInitialized === 'true') {
+                    return;
+                }
+
+                select.dataset.avalynxSelectInitialized = 'true';
+
+                // Like AvalynxAutocomplete, the library declares the class as
+                // a bare global, not on window.
+                const SelectClass = typeof window.AvalynxSelect === 'function'
+                    ? window.AvalynxSelect
+                    : (typeof AvalynxSelect === 'function' ? AvalynxSelect : null);
+                if (SelectClass === null) {
+                    return;
+                }
+
+                new SelectClass('#' + select.id, {}, {
+                    selectPlaceholder: select.dataset.placeholder || 'Please select…'
+                });
+            });
+
+            editor.querySelectorAll('[data-compose-content-editor]').forEach(function (textarea) {
+                if (textarea.dataset.composeContentEditorInitialized === 'true') {
+                    return;
+                }
+
+                const Summernote = window.summernote;
+                if (!Summernote || typeof Summernote.create !== 'function') {
+                    return;
+                }
+
+                textarea.dataset.composeContentEditorInitialized = 'true';
+
+                const form = textarea.closest('form');
+                if (form && typeof form.__syncComposeContentEditor !== 'function') {
+                    form.__syncComposeContentEditor = (event) => {
+                        event.formData.set(textarea.name, Summernote.invoke(textarea, 'code'));
+                    };
+                    form.addEventListener('formdata', form.__syncComposeContentEditor);
+                }
+
+                Summernote.create(textarea, {
+                    height: 250,
+                    minHeight: 150,
+                    dialogsInBody: true,
+                    toolbar: COMPOSE_EDITOR_TOOLBAR
+                });
+            });
+
             const scheduleToggle = editor.querySelector('[data-compose-schedule-toggle]');
             const scheduleFields = editor.querySelector('[data-compose-schedule-fields]');
             const scheduleInput = scheduleFields ? scheduleFields.querySelector('input, select, textarea') : null;
@@ -684,26 +742,6 @@ document.addEventListener('DOMContentLoaded', function () {
             const attachmentList = editor.querySelector('[data-compose-attachments-list]');
             const attachmentEmpty = editor.querySelector('[data-compose-attachments-empty]');
             const retainedAttachmentInput = editor.querySelector('[data-retained-attachments-input]');
-
-            const updateAdvancedToggle = () => {
-                if (!advancedToggle || !advancedFields) {
-                    return;
-                }
-
-                const expanded = !advancedFields.classList.contains('d-none');
-                advancedToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-                const showLabel = advancedToggle.dataset.showLabel || 'Weitere Felder';
-                const hideLabel = advancedToggle.dataset.hideLabel || 'Weniger Felder';
-                advancedToggle.innerHTML = '<i class="fa-solid fa-sliders me-1" aria-hidden="true"></i>' + (expanded ? hideLabel : showLabel);
-            };
-
-            if (advancedToggle && advancedFields) {
-                advancedToggle.addEventListener('click', function () {
-                    advancedFields.classList.toggle('d-none');
-                    updateAdvancedToggle();
-                });
-                updateAdvancedToggle();
-            }
 
             const updateScheduleFields = () => {
                 if (!scheduleToggle || !scheduleFields) {
@@ -930,6 +968,21 @@ document.addEventListener('DOMContentLoaded', function () {
             modalSizeClasses.forEach(cls => actionModalDialog.classList.remove(cls));
             actionModalDialog.classList.add(size || 'modal-lg');
         };
+        // Summernote editors live inside the modal content; destroy them
+        // once the modal is hidden so no context leaks between loads.
+        actionModalEl.addEventListener('hidden.bs.modal', function () {
+            if (!window.summernote || typeof window.summernote.destroy !== 'function') {
+                return;
+            }
+
+            modalContent.querySelectorAll('[data-compose-content-editor]').forEach(function (textarea) {
+                try {
+                    window.summernote.destroy(textarea);
+                } catch (_error) {
+                    // Already destroyed.
+                }
+            });
+        });
         document.addEventListener('click', function(ev) {
             const btn = ev.target.closest('.action-btn-modal');
             if (!btn) return;
@@ -1036,8 +1089,16 @@ document.addEventListener('DOMContentLoaded', function () {
                     });
                 });
             };
+            const method = (btn.dataset.method || 'GET').toUpperCase();
+            const headers = { 'X-Requested-With': 'XMLHttpRequest' };
+            const body = 'POST' === method ? new URLSearchParams() : undefined;
+            if (body && btn.dataset.token) {
+                body.set('_token', btn.dataset.token);
+            }
             fetch(url + (url.includes('?') ? '&' : '?') + '_=' + Date.now(), {
-                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                method,
+                headers,
+                body,
                 cache: 'no-store'
             })
             .then(response => response.text())
@@ -1743,8 +1804,8 @@ document.addEventListener('DOMContentLoaded', function () {
         }).catch(console.error);
     });
     (function(){
-        function alertSuccess(msg){ try{ AvalynxAlert.success({message: msg, position: 'top-right'}); }catch(e){ console.log('SUCCESS:', msg);} }
-        function alertError(msg){ try{ AvalynxAlert.error({message: msg, position: 'top-right'}); }catch(e){ console.error('ERROR:', msg);} }
+        function alertSuccess(msg){ try{ new AvalynxAlert(msg, 'success', { position: 'top-right' }); }catch(e){ console.log('SUCCESS:', msg);} }
+        function alertError(msg){ try{ new AvalynxAlert(msg, 'danger', { position: 'top-right' }); }catch(e){ console.error('ERROR:', msg);} }
         document.querySelectorAll('.email-list-container').forEach(function(container){
             container.addEventListener('dragstart', function(e){
                 const item = e.target && e.target.closest && e.target.closest('.email-item');

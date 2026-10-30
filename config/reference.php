@@ -629,7 +629,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         }>,
  *     },
  *     rate_limiter?: bool|array{ // Rate limiter configuration
- *         enabled?: bool|Param, // Default: false
+ *         enabled?: bool|Param, // Default: true
  *         limiters?: array<string, array{ // Default: []
  *             lock_factory?: scalar|Param|null, // The service ID of the lock factory used by this limiter (or null to disable locking). // Default: "auto"
  *             cache_pool?: scalar|Param|null, // The cache pool to use for storing the current limiter state. // Default: "cache.rate_limiter"
@@ -655,7 +655,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         uuid47_secret?: scalar|Param|null, // A high-entropy secret used by the "uuid47_transformer" service. Defaults to "kernel.secret". // Default: null
  *     },
  *     html_sanitizer?: bool|array{ // HtmlSanitizer configuration
- *         enabled?: bool|Param, // Default: false
+ *         enabled?: bool|Param, // Default: true
  *         sanitizers?: array<string, array{ // Default: []
  *             default_action?: "drop"|"block"|"allow"|Param, // Defines how the sanitizer must behave by default.
  *             allow_safe_elements?: bool|Param, // Allows "safe" elements and attributes. // Default: false
@@ -1533,8 +1533,6 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     doctrine?: DoctrineConfig,
  *     doctrine_migrations?: DoctrineMigrationsConfig,
  *     monolog?: MonologConfig,
- *     maker?: MakerConfig,
- *     zenstruck_foundry?: ZenstruckFoundryConfig,
  *     asset_composer?: AssetComposerConfig,
  *     "when@dev"?: array{
  *         imports?: ImportsConfig,
@@ -1564,8 +1562,6 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         doctrine?: DoctrineConfig,
  *         doctrine_migrations?: DoctrineMigrationsConfig,
  *         monolog?: MonologConfig,
- *         maker?: MakerConfig,
- *         zenstruck_foundry?: ZenstruckFoundryConfig,
  *         asset_composer?: AssetComposerConfig,
  *     },
  *     "when@test"?: array{

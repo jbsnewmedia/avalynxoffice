@@ -5,6 +5,8 @@
 {% else %}
 <a href="{{ path('mail_reply_all', {id: email.id}) }}"
    class="btn btn-primary action-btn-modal"
+   data-method="POST"
+   data-token="{{ csrf_token('reply_all_email_' ~ email.id) }}"
    data-title="{{ 'email.reply_all'|trans }}"
    data-action-id="reply-all"
    data-priority="85"

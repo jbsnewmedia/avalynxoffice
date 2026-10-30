@@ -15,6 +15,10 @@ services:
     # this creates a service per class whose id is the fully-qualified class name
     AvalynxOffice\:
         resource: '../src/'
+        exclude:
+            - '../src/DataFixtures/'
+            - '../src/Factory/'
+            - '../src/Story/'
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
@@ -81,3 +85,30 @@ services:
                 JBSNewMedia\MailActionBundle\Registry\EmailActionRegistry: '@?JBSNewMedia\MailActionBundle\Registry\EmailActionRegistry'
                 JBSNewMedia\MailActionBundle\Registry\ContactActionRegistry: '@?JBSNewMedia\MailActionBundle\Registry\ContactActionRegistry'
                 JBSNewMedia\MailActionBundle\Registry\CalendarActionRegistry: '@?JBSNewMedia\MailActionBundle\Registry\CalendarActionRegistry'
+
+# Fixtures, factories and stories depend on dev-only packages (fixtures-bundle,
+# foundry, faker) and must not be compiled into the prod container.
+when@dev:
+    services:
+        _defaults:
+            autowire: true
+            autoconfigure: true
+        AvalynxOffice\DataFixtures\:
+            resource: '../src/DataFixtures/'
+        AvalynxOffice\Factory\:
+            resource: '../src/Factory/'
+        AvalynxOffice\Story\:
+            resource: '../src/Story/'
+
+when@test:
+    services:
+        _defaults:
+            autowire: true
+            autoconfigure: true
+        AvalynxOffice\DataFixtures\:
+            resource: '../src/DataFixtures/'
+            public: true
+        AvalynxOffice\Factory\:
+            resource: '../src/Factory/'
+        AvalynxOffice\Story\:
+            resource: '../src/Story/'

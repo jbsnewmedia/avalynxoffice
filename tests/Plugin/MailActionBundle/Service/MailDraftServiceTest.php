@@ -35,7 +35,6 @@ final class MailDraftServiceTest extends TestCase
     public function testCreateComposeDraftUsesFirstAccountAsSender(): void
     {
         $entityManager = $this->createMock(EntityManagerInterface::class);
-        $accountRepository = $this->createMock(AccountRepository::class);
         $folderManager = $this->createStub(FolderManager::class);
         $attachmentStorage = $this->createStub(AttachmentStorage::class);
         $translator = $this->createStub(TranslatorInterface::class);
@@ -59,10 +58,6 @@ final class MailDraftServiceTest extends TestCase
             ->with(['email' => 'primary@example.com'])
             ->willReturn($address);
 
-        $accountRepository
-            ->expects(self::once())
-            ->method('findAll')
-            ->willReturn([$account]);
 
         $entityManager
             ->expects(self::once())
@@ -74,9 +69,9 @@ final class MailDraftServiceTest extends TestCase
             ->expects(self::never())
             ->method('persist');
 
-        $service = new MailDraftService($entityManager, $accountRepository, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
+        $service = new MailDraftService($entityManager, $this->createStub(AccountRepository::class), $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
 
-        $draft = $service->createComposeDraft();
+        $draft = $service->createComposeDraft($account);
 
         self::assertTrue($draft->isOutgoing());
         self::assertTrue($draft->isDraft());
@@ -89,21 +84,16 @@ final class MailDraftServiceTest extends TestCase
     public function testCreateComposeDraftWithoutAccountReturnsEmptyDraft(): void
     {
         $entityManager = $this->createMock(EntityManagerInterface::class);
-        $accountRepository = $this->createMock(AccountRepository::class);
         $folderManager = $this->createStub(FolderManager::class);
         $attachmentStorage = $this->createStub(AttachmentStorage::class);
         $translator = $this->createStub(TranslatorInterface::class);
 
-        $accountRepository
-            ->expects(self::once())
-            ->method('findAll')
-            ->willReturn([]);
 
         $entityManager
             ->expects(self::never())
             ->method('getRepository');
 
-        $service = new MailDraftService($entityManager, $accountRepository, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
+        $service = new MailDraftService($entityManager, $this->createStub(AccountRepository::class), $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
         $draft = $service->createComposeDraft();
 
         self::assertTrue($draft->isOutgoing());

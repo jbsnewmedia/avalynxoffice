@@ -21,6 +21,12 @@
 {% endblock %}
 {% block stylesheets %}
     {% include '_assets.html.twig' with { mode: 'user' } %}
+    {% do addAssetComposer('avalynx/avalynx-select/dist/js/avalynx-select.js') %}
+    {% do addAssetComposer('summernote-next/summernote-next/dist/summernote-next.min.css') %}
+    {% do addAssetComposer('summernote-next/summernote-next/dist/summernote-next.min.js') %}
+    {% if app.request.locale starts with 'de' %}
+        {% do addAssetComposer('summernote-next/summernote-next/dist/lang/de-de.js') %}
+    {% endif %}
     {{ parent() }}
 {% endblock %}
 {% block title %}{{ 'nav.mails'|trans }} - {{ 'app.title'|trans }}{% endblock %}

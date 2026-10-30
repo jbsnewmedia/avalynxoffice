@@ -6,6 +6,8 @@
 <a class="btn btn-primary action-btn-modal"
    href="{{ path('mail_forward', {id: email.id}) }}"
    data-title="{{ 'email.forward'|trans }}"
+   data-method="POST"
+   data-token="{{ csrf_token('forward_email_' ~ email.id) }}"
    data-action-id="forward"
    data-priority="70"
    aria-label="{{ 'email.forward'|trans }}"

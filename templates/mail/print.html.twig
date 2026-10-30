@@ -87,7 +87,7 @@
                 {% endif %}
             {% endfor %}
             {% if htmlBody %}
-                <div>{{ htmlBody|email_inline_images(email)|raw }}</div>
+                <div>{{ htmlBody|email_inline_images(email)|sanitize_html('email') }}</div>
             {% elseif textBody %}
                 <pre style="white-space: pre-wrap;">{{ textBody }}</pre>
             {% else %}

@@ -72,6 +72,7 @@ class AttachmentStorageTest extends TestCase
         $response = $storage->createDownloadResponse($attachment);
 
         $this->assertSame('application/gzip', $response->headers->get('Content-Type'));
+        $this->assertSame('nosniff', $response->headers->get('X-Content-Type-Options'));
         $this->assertStringContainsString('attachment;', (string) $response->headers->get('Content-Disposition'));
 
         ob_start();
@@ -79,6 +80,21 @@ class AttachmentStorageTest extends TestCase
         $output = ob_get_clean();
 
         $this->assertSame($payload, $output);
+    }
+
+    public function testCreateDownloadResponseUsesSafeContentTypeForActiveContent(): void
+    {
+        $attachment = (new Attachment())
+            ->setName('invoice.svg')
+            ->setMimeType('image/svg+xml; charset=utf-8');
+        $storage = new AttachmentStorage('/tmp/project', $this->baseDir, 3, 3, 65_536);
+        $relativePath = $storage->store($attachment, '<svg/>');
+        $attachment->setFilePath($relativePath);
+
+        $response = $storage->createDownloadResponse($attachment);
+
+        self::assertSame('application/octet-stream', $response->headers->get('Content-Type'));
+        self::assertSame('nosniff', $response->headers->get('X-Content-Type-Options'));
     }
 
     public function testBuildRelativePathStopsWhenSegmentOffsetExceedsUuid(): void

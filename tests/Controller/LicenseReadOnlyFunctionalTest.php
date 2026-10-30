@@ -230,7 +230,8 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
     public function testReplyDraftCreationIsBlocked(): void
     {
         $this->client->loginUser($this->admin);
-        $this->client->request('GET', '/mail/reply/'.$this->email->getId(), [], [], [
+        $token = $this->setCsrfToken('reply_email_'.$this->email->getId());
+        $this->client->request('POST', '/mail/reply/'.$this->email->getId(), ['_token' => $token], [], [
             'HTTP_X-Requested-With' => 'XMLHttpRequest',
         ]);
 

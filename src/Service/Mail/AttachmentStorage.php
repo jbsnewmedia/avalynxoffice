@@ -68,7 +68,12 @@ class AttachmentStorage
 
         $response = new BinaryFileResponse($absolutePath);
         $response->setContentDisposition(ResponseHeaderBag::DISPOSITION_ATTACHMENT, $attachment->getName());
-        $response->headers->set('Content-Type', $attachment->getMimeType() ?: 'application/octet-stream');
+        $mimeType = strtolower(trim(explode(';', $attachment->getMimeType() ?: 'application/octet-stream', 2)[0]));
+        if (in_array($mimeType, ['application/xhtml+xml', 'application/xml', 'image/svg+xml', 'text/html', 'text/javascript', 'text/xml'], true)) {
+            $mimeType = 'application/octet-stream';
+        }
+        $response->headers->set('Content-Type', $mimeType);
+        $response->headers->set('X-Content-Type-Options', 'nosniff');
         $response->headers->set('Cache-Control', 'private');
 
         return $response;

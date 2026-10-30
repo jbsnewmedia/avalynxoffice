@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace AvalynxOffice\Tests\Controller;
 
 use AvalynxOffice\Controller\DataController;
+use AvalynxOffice\Entity\Account;
 use AvalynxOffice\Entity\Address;
 use AvalynxOffice\Entity\User;
+use AvalynxOffice\Repository\AccountRepository;
 use AvalynxOffice\Repository\AddressRepository;
 use AvalynxOffice\Service\DataService;
+use AvalynxOffice\Service\Mail\UserAccountProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ServiceLocator;
 use Symfony\Component\HttpFoundation\Request;
@@ -21,12 +24,22 @@ final class DataControllerTest extends TestCase
 {
     public function testAllReturnsJsonResponseWithoutDoubleEncoding(): void
     {
+        $account = (new Account())->setName('Personal')->setEmail('user@example.com');
+        $user = new User();
+        $user->addAccount($account);
         $dataService = $this->createMock(DataService::class);
         $dataService->expects(self::once())
             ->method('getAllData')
+            ->with([$account])
             ->willReturn(['accounts' => [['id' => 1]]]);
 
-        $response = (new DataController())->all($dataService);
+        $controller = new DataController();
+        $controller->setContainer(new ServiceLocator([
+            'security.token_storage' => fn (): TokenStorageInterface => $this->createTokenStorage($user),
+        ]));
+        $accountProvider = new UserAccountProvider($this->createStub(AccountRepository::class));
+
+        $response = $controller->all($dataService, $accountProvider);
 
         self::assertSame(Response::HTTP_OK, $response->getStatusCode());
         self::assertJsonStringEqualsJsonString('{"accounts":[{"id":1}]}', (string) $response->getContent());

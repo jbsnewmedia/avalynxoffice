@@ -1,6 +1,13 @@
-zenstruck_foundry:
-    # See full configuration: https://symfony.com/bundles/ZenstruckFoundryBundle/current/index.html#full-default-bundle-configuration
-    enable_auto_refresh_with_lazy_objects: true
-    persistence:
-        # Flush only once per call of `PersistentObjectFactory::create()`
-        flush_once: true
+when@dev:
+    zenstruck_foundry:
+        # See full configuration: https://symfony.com/bundles/ZenstruckFoundryBundle/current/index.html#full-default-bundle-configuration
+        enable_auto_refresh_with_lazy_objects: true
+        persistence:
+            # Flush only once per call of `PersistentObjectFactory::create()`
+            flush_once: true
+
+when@test:
+    zenstruck_foundry:
+        enable_auto_refresh_with_lazy_objects: true
+        persistence:
+            flush_once: true

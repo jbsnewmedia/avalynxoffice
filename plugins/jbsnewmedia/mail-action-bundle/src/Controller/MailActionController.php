@@ -14,6 +14,7 @@ use AvalynxOffice\Entity\Email;
 use AvalynxOffice\Entity\Enum\EmailAddressType;
 use AvalynxOffice\Entity\Enum\FolderFunction;
 use AvalynxOffice\Entity\Folder;
+use AvalynxOffice\Entity\User;
 use AvalynxOffice\Form\EmailReplyType;
 use AvalynxOffice\Licensing\Service\LicenseEnforcementInterface;
 use AvalynxOffice\Licensing\Service\LicenseOperation;
@@ -21,6 +22,7 @@ use AvalynxOffice\Repository\EmailRepository;
 use AvalynxOffice\Repository\FolderRepository;
 use AvalynxOffice\Service\Mail\FolderManager;
 use AvalynxOffice\Service\Mail\MailService;
+use AvalynxOffice\Service\Mail\UserAccountProvider;
 use AvalynxOffice\Util\AvalynxFormResponse;
 use AvalynxOffice\Util\FormInvalidMapper;
 use JBSNewMedia\MailActionBundle\Service\EmailActionService;
@@ -33,6 +35,7 @@ use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
@@ -47,6 +50,8 @@ final class MailActionController extends AbstractController
         private readonly MailDraftService $mailDraftService,
         private readonly FolderManager $folderManager,
         private readonly LicenseEnforcementInterface $licenseEnforcement,
+        private readonly UserAccountProvider $userAccountProvider,
+        private readonly TokenStorageInterface $tokenStorage,
     ) {
     }
 
@@ -58,6 +63,7 @@ final class MailActionController extends AbstractController
         if (!$email instanceof Email) {
             return new JsonResponse(['success' => false, 'error' => $this->translator->trans('email.not_found')], Response::HTTP_NOT_FOUND);
         }
+        $this->assertEmailAccessible($email);
 
         $param = $request->request->get('read') ?? $request->query->get('read');
         $read = in_array($param, ['1', 'true', 1, true], true);
@@ -85,6 +91,7 @@ final class MailActionController extends AbstractController
         if (!$email instanceof Email) {
             throw $this->createNotFoundException($this->translator->trans('email.not_found'));
         }
+        $this->assertEmailAccessible($email);
 
         return $this->render('mail/print.html.twig', [
             'email' => $email,
@@ -102,6 +109,7 @@ final class MailActionController extends AbstractController
 
             throw $this->createNotFoundException($this->translator->trans('email.not_found'));
         }
+        $this->assertEmailAccessible($email);
 
         if (!$request->isMethod('POST')) {
             // Folder picker rendered into the action modal for the move button.
@@ -140,6 +148,7 @@ final class MailActionController extends AbstractController
         if (!$target instanceof Folder) {
             return new JsonResponse(['success' => false, 'error' => $this->translator->trans('folder.target_not_found')], Response::HTTP_NOT_FOUND);
         }
+        $this->assertFolderAccessible($target, $email->getAccount());
 
         $sourceId = (string) $request->request->get('sourceFolderId', '');
         $leftFolderIds = $this->resolveLeftFolderIds($email, $target);
@@ -149,6 +158,7 @@ final class MailActionController extends AbstractController
         if ('' !== $sourceId) {
             $sourceFolder = $this->folderRepository->find($sourceId);
             if ($sourceFolder instanceof Folder) {
+                $this->assertFolderAccessible($sourceFolder, $email->getAccount());
                 $affectedFolders[] = $sourceFolder;
             }
         }
@@ -187,26 +197,30 @@ final class MailActionController extends AbstractController
         return array_values(array_unique($left));
     }
 
-    #[Route('/mail/reply/{id}', name: 'mail_reply')]
-    public function reply(string $id): Response
+    #[Route('/mail/reply/{id}', name: 'mail_reply', methods: ['POST'])]
+    public function reply(string $id, Request $request): Response
     {
+        $this->assertAjaxActionRequest($request, 'reply_email_'.$id);
         $originalEmail = $this->emailRepository->find($id);
         if (!$originalEmail instanceof Email) {
             throw $this->createNotFoundException($this->translator->trans('email.not_found'));
         }
+        $this->assertEmailAccessible($originalEmail);
 
         $draft = $this->mailDraftService->createReplyDraft($originalEmail);
 
         return $this->redirectToRoute('mail_edit', ['id' => $draft->getId(), 'ajax' => '1'], Response::HTTP_SEE_OTHER);
     }
 
-    #[Route('/mail/reply-all/{id}', name: 'mail_reply_all')]
-    public function replyAll(string $id): Response
+    #[Route('/mail/reply-all/{id}', name: 'mail_reply_all', methods: ['POST'])]
+    public function replyAll(string $id, Request $request): Response
     {
+        $this->assertAjaxActionRequest($request, 'reply_all_email_'.$id);
         $originalEmail = $this->emailRepository->find($id);
         if (!$originalEmail instanceof Email) {
             throw $this->createNotFoundException($this->translator->trans('email.not_found'));
         }
+        $this->assertEmailAccessible($originalEmail);
 
         $draft = $this->mailDraftService->createReplyAllDraft($originalEmail);
 
@@ -224,6 +238,7 @@ final class MailActionController extends AbstractController
         if (!$email instanceof Email) {
             throw $this->createNotFoundException($this->translator->trans('email.not_found'));
         }
+        $this->assertEmailAccessible($email);
 
         if (!$email->isDraft() && !($email->isOutgoing() && !$email->isSent())) {
             $this->addFlash('error', $this->translator->trans('email.cannot_edit'));
@@ -245,13 +260,15 @@ final class MailActionController extends AbstractController
         ]);
     }
 
-    #[Route('/mail/forward/{id}', name: 'mail_forward')]
-    public function forwardMail(string $id): Response
+    #[Route('/mail/forward/{id}', name: 'mail_forward', methods: ['POST'])]
+    public function forwardMail(string $id, Request $request): Response
     {
+        $this->assertAjaxActionRequest($request, 'forward_email_'.$id);
         $originalEmail = $this->emailRepository->find($id);
         if (!$originalEmail instanceof Email) {
             throw $this->createNotFoundException($this->translator->trans('email.not_found'));
         }
+        $this->assertEmailAccessible($originalEmail);
 
         $draft = $this->mailDraftService->createForwardDraft($originalEmail);
 
@@ -266,6 +283,7 @@ final class MailActionController extends AbstractController
         if (!$email instanceof Email) {
             throw $this->createNotFoundException($this->translator->trans('email.not_found'));
         }
+        $this->assertEmailAccessible($email);
 
         if (!$this->isCsrfTokenValid('delete_email_'.$id, (string) $request->request->get('_token', ''))) {
             $this->addFlash('error', $this->translator->trans('common.invalid_token'));
@@ -287,9 +305,9 @@ final class MailActionController extends AbstractController
 
         $this->addFlash('success', $this->translator->trans('email.moved_to_trash'));
 
-        $referer = $request->headers->get('referer');
-        if (is_string($referer) && '' !== $referer) {
-            return $this->redirect($referer);
+        $refererPath = $this->safeRefererPath($request);
+        if (null !== $refererPath) {
+            return $this->redirect($refererPath);
         }
 
         return $this->redirectToRoute('mail_index');
@@ -303,6 +321,7 @@ final class MailActionController extends AbstractController
         if (!$email instanceof Email) {
             return new JsonResponse(['success' => false, 'error' => $this->translator->trans('email.not_found')], Response::HTTP_NOT_FOUND);
         }
+        $this->assertEmailAccessible($email);
 
         if (!$this->isCsrfTokenValid('spam_email_'.$id, (string) $request->request->get('_token', ''))) {
             return new JsonResponse(['success' => false, 'error' => $this->translator->trans('common.invalid_token')], Response::HTTP_FORBIDDEN);
@@ -343,7 +362,9 @@ final class MailActionController extends AbstractController
             return $this->redirectToRoute('mail_index');
         }
 
-        $email = $this->mailDraftService->createComposeDraft();
+        $user = $this->tokenStorage->getToken()?->getUser();
+        $account = $user instanceof User ? ($this->userAccountProvider->forUser($user)[0] ?? null) : null;
+        $email = $this->mailDraftService->createComposeDraft($account);
         $form = $this->createDraftForm($email, $this->generateUrl('mail_compose'));
         $form->handleRequest($request);
 
@@ -616,6 +637,62 @@ final class MailActionController extends AbstractController
         }
 
         return $selections;
+    }
+
+    private function assertEmailAccessible(Email $email): void
+    {
+        $user = $this->tokenStorage->getToken()?->getUser();
+        $account = $email->getAccount();
+        if (!$user instanceof User || null === $account || !in_array($account, $this->userAccountProvider->forUser($user), true)) {
+            throw $this->createAccessDeniedException();
+        }
+    }
+
+    private function assertFolderAccessible(Folder $folder, ?Account $expectedAccount = null): void
+    {
+        $user = $this->tokenStorage->getToken()?->getUser();
+        if (!$user instanceof User || null === $expectedAccount
+            || !in_array($expectedAccount, $this->userAccountProvider->forUser($user), true)
+            || !$expectedAccount->getFolders()->contains($folder)) {
+            throw $this->createAccessDeniedException();
+        }
+    }
+
+    private function assertAjaxActionRequest(Request $request, string $tokenId): void
+    {
+        if (!$request->isXmlHttpRequest()) {
+            throw $this->createAccessDeniedException();
+        }
+
+        if (!$this->isCsrfTokenValid($tokenId, (string) $request->request->get('_token', ''))) {
+            throw $this->createAccessDeniedException($this->translator->trans('common.invalid_token'));
+        }
+    }
+
+    private function safeRefererPath(Request $request): ?string
+    {
+        $referer = $request->headers->get('referer');
+        if (!is_string($referer) || '' === $referer) {
+            return null;
+        }
+
+        $parts = parse_url($referer);
+        if (false === $parts || !isset($parts['host'])
+            || strtolower($parts['host']) !== strtolower($request->getHost())
+            || (isset($parts['scheme']) && strtolower($parts['scheme']) !== strtolower($request->getScheme()))
+            || (isset($parts['port']) && $parts['port'] !== $request->getPort())
+        ) {
+            return null;
+        }
+
+        $path = $parts['path'] ?? '/';
+        if (!str_starts_with($path, '/') || str_starts_with($path, '//') || str_contains($path, '\\')) {
+            return null;
+        }
+
+        return $path
+            .(isset($parts['query']) ? '?'.$parts['query'] : '')
+            .(isset($parts['fragment']) ? '#'.$parts['fragment'] : '');
     }
 
     /**

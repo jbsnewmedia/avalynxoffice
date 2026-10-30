@@ -19,7 +19,6 @@ use AvalynxOffice\Entity\Account;
 use AvalynxOffice\Entity\AccountAlias;
 use AvalynxOffice\Entity\Connector;
 use AvalynxOffice\Repository\FolderRepository;
-use AvalynxOffice\Repository\AccountRepository;
 use AvalynxOffice\Service\AppService;
 use AvalynxOffice\Service\DataService;
 use AvalynxOffice\Service\ConnectorService;
@@ -120,15 +119,11 @@ final class BasicServiceTest extends TestCase
         $email->addEmailFolder($emailFolder);
         $this->setPrivateProperty($folder, 'emailFolders', new ArrayCollection([$emailFolder]));
 
-        $accountRepository = $this->createStub(AccountRepository::class);
-        $accountRepository->method('findBy')
-            ->willReturnCallback(static fn (array $criteria, array $orderBy): array => [] === $criteria && ['name' => 'ASC'] === $orderBy ? [$account] : []);
-
         $folderRepository = $this->createStub(FolderRepository::class);
         $folderRepository->method('findByAccountOrderByAssignment')
             ->willReturnCallback(static fn (Account $value): array => $value === $account ? [$folder] : []);
 
-        $data = (new DataService($accountRepository, $folderRepository))->getAllData();
+        $data = (new DataService($folderRepository))->getAllData([$account]);
 
         self::assertCount(1, $data);
         self::assertSame('Support', $data[0]['name']);
@@ -142,6 +137,7 @@ final class BasicServiceTest extends TestCase
         self::assertSame('sender@example.com', $data[0]['folders'][0]['emails'][0]['addresses'][0]['address']['email']);
         self::assertSame('Body content', $data[0]['folders'][0]['emails'][0]['bodies'][0]['body']['content']);
         self::assertSame('invoice.pdf', $data[0]['folders'][0]['emails'][0]['attachments'][0]['attachment']['name']);
+        self::assertArrayNotHasKey('filePath', $data[0]['folders'][0]['emails'][0]['attachments'][0]['attachment']);
     }
 
     private function setPrivateProperty(object $object, string $property, mixed $value): void

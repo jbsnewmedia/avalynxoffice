@@ -19,13 +19,14 @@ use AvalynxOffice\Entity\Account;
 use AvalynxOffice\Entity\AccountAlias;
 use AvalynxOffice\Entity\Connector;
 use AvalynxOffice\Entity\User;
+use AvalynxOffice\Repository\AccountRepository;
 use AvalynxOffice\Repository\EmailFolderRepository;
 use AvalynxOffice\Repository\EmailRepository;
 use AvalynxOffice\Repository\FolderRepository;
-use AvalynxOffice\Repository\AccountRepository;
 use AvalynxOffice\Service\Mail\AttachmentStorage;
 use AvalynxOffice\Service\Mail\FolderManager;
 use AvalynxOffice\Service\Mail\MailService;
+use AvalynxOffice\Service\Mail\UserAccountProvider;
 use AvalynxOffice\Tests\Support\RefreshDatabaseTrait;
 use Doctrine\ORM\EntityManagerInterface;
 use JBSNewMedia\MailActionBundle\Controller\MailActionController;
@@ -42,6 +43,9 @@ use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Session\Session;
 use Symfony\Component\HttpFoundation\Session\Storage\MockArraySessionStorage;
+use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
+use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use AvalynxOffice\Tests\Support\AllowAllLicenseEnforcement;
 
@@ -53,6 +57,8 @@ final class MailActionControllerTest extends KernelTestCase
     private EntityManagerInterface $entityManager;
     private MailActionController $controller;
     private RequestStack $requestStack;
+    private TokenStorageInterface $tokenStorage;
+    private ?User $currentUser = null;
     private \Symfony\Component\Security\Csrf\CsrfTokenManagerInterface $csrfTokenManager;
     private bool $attachmentStorageThrows = false;
 
@@ -86,6 +92,8 @@ final class MailActionControllerTest extends KernelTestCase
 
         $emailActionService = new EmailActionService($this->entityManager, $emailFolderRepository);
         $mailDraftService = new MailDraftService($this->entityManager, $accountRepository, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
+        $userAccountProvider = $container->get(UserAccountProvider::class);
+        $this->tokenStorage = $container->get('security.token_storage');
 
         $this->controller = new MailActionController(
             $translator,
@@ -96,10 +104,13 @@ final class MailActionControllerTest extends KernelTestCase
             $mailDraftService,
             $realFolderManager,
             new AllowAllLicenseEnforcement(),
+            $userAccountProvider,
+            $this->tokenStorage,
         );
 
         $this->requestStack = $container->get('request_stack');
         $csrfTokenManager = $this->csrfTokenManager;
+        $tokenStorage = $this->tokenStorage;
         $this->controller->setContainer(new ServiceLocator([
             'router' => static fn (): UrlGeneratorInterface => new class implements UrlGeneratorInterface {
                 public function generate(string $name, array $parameters = [], int $referenceType = UrlGeneratorInterface::ABSOLUTE_PATH): string
@@ -129,8 +140,10 @@ final class MailActionControllerTest extends KernelTestCase
             'twig' => static fn () => static::getContainer()->get('twig'),
             'form.factory' => static fn () => static::getContainer()->get('form.factory'),
             'request_stack' => static fn () => static::getContainer()->get('request_stack'),
+            'security.token_storage' => static fn (): TokenStorageInterface => $tokenStorage,
             'security.csrf.token_manager' => static fn () => $csrfTokenManager,
         ]));
+        $this->setCurrentUserRequest();
     }
 
     private function csrfToken(string $id): string
@@ -208,15 +221,15 @@ final class MailActionControllerTest extends KernelTestCase
         self::assertSame(Response::HTTP_OK, $printResponse->getStatusCode());
         self::assertStringContainsString('Hello world', $printResponse->getContent());
 
-        $replyResponse = $this->controller->reply((string) $email->getId());
+        $replyResponse = $this->controller->reply((string) $email->getId(), $this->ajaxActionRequest('reply_email_'.$email->getId()));
         self::assertSame(Response::HTTP_SEE_OTHER, $replyResponse->getStatusCode());
         self::assertStringContainsString('/mail/edit/', (string) $replyResponse->headers->get('Location'));
 
-        $replyAllResponse = $this->controller->replyAll((string) $email->getId());
+        $replyAllResponse = $this->controller->replyAll((string) $email->getId(), $this->ajaxActionRequest('reply_all_email_'.$email->getId()));
         self::assertSame(Response::HTTP_SEE_OTHER, $replyAllResponse->getStatusCode());
         self::assertStringContainsString('/mail/edit/', (string) $replyAllResponse->headers->get('Location'));
 
-        $forwardResponse = $this->controller->forwardMail((string) $email->getId());
+        $forwardResponse = $this->controller->forwardMail((string) $email->getId(), $this->ajaxActionRequest('forward_email_'.$email->getId()));
         self::assertSame(Response::HTTP_SEE_OTHER, $forwardResponse->getStatusCode());
         self::assertStringContainsString('/mail/edit/', (string) $forwardResponse->headers->get('Location'));
 
@@ -227,6 +240,7 @@ final class MailActionControllerTest extends KernelTestCase
         self::assertSame('/mails', (string) $deleteResponse->headers->get('Location'));
 
         $this->entityManager->clear();
+        $this->setCurrentUserRequest($user);
         $deletedEmail = $this->entityManager->find(Email::class, $email->getId());
         self::assertInstanceOf(Email::class, $deletedEmail);
         $deletedFolderNames = [];
@@ -253,9 +267,19 @@ final class MailActionControllerTest extends KernelTestCase
     {
         $this->setCurrentUserRequest();
 
+        $missingId = '00000000-0000-0000-0000-000000000000';
+        $ajaxRequest = fn (string $action): Request => $this->ajaxActionRequest($action.'_'.$missingId);
         foreach (['printEmail', 'reply', 'replyAll', 'forwardMail'] as $methodName) {
             try {
-                $this->controller->{$methodName}('00000000-0000-0000-0000-000000000000');
+                if ('printEmail' === $methodName) {
+                    $this->controller->printEmail($missingId);
+                } elseif ('reply' === $methodName) {
+                    $this->controller->reply($missingId, $ajaxRequest('reply_email'));
+                } elseif ('replyAll' === $methodName) {
+                    $this->controller->replyAll($missingId, $ajaxRequest('reply_all_email'));
+                } else {
+                    $this->controller->forwardMail($missingId, $ajaxRequest('forward_email'));
+                }
                 self::fail(sprintf('Expected %s() to throw a not found exception.', $methodName));
             } catch (\Symfony\Component\HttpKernel\Exception\NotFoundHttpException) {
                 self::assertTrue(true);
@@ -264,6 +288,33 @@ final class MailActionControllerTest extends KernelTestCase
 
         $this->expectException(\Symfony\Component\HttpKernel\Exception\NotFoundHttpException::class);
         $this->controller->edit('00000000-0000-0000-0000-000000000000', Request::create('/mail/edit/missing', 'GET', ['ajax' => '1']));
+    }
+
+    public function testPrintRejectsEmailFromAnotherUsersAccount(): void
+    {
+        [$owner] = $this->createFixtureData('owner');
+        [, $foreignEmail] = $this->createFixtureData('foreign');
+        $this->setCurrentUserRequest($owner);
+
+        $this->expectException(AccessDeniedException::class);
+        $this->controller->printEmail((string) $foreignEmail->getId());
+    }
+
+    public function testPrintSanitizesUntrustedEmailHtml(): void
+    {
+        [, $email] = $this->createFixtureData('sanitized-print');
+        $bodyLink = $email->getEmailBodies()->first();
+        self::assertInstanceOf(EmailBodyLink::class, $bodyLink);
+        $bodyLink->setContentType(BodyContentType::HTML);
+        $bodyLink->getBody()->setContent('<p>safe text</p><script>alert(1)</script><img src="x" onerror="alert(2)">');
+        $this->entityManager->flush();
+        $this->setCurrentUserRequest();
+
+        $response = $this->controller->printEmail((string) $email->getId());
+        self::assertSame(Response::HTTP_OK, $response->getStatusCode());
+        self::assertStringContainsString('safe text', (string) $response->getContent());
+        self::assertStringNotContainsString('alert(1)', (string) $response->getContent());
+        self::assertStringNotContainsString('onerror=', (string) $response->getContent());
     }
 
     public function testMoveEmailGetRendersFolderPicker(): void
@@ -296,6 +347,7 @@ final class MailActionControllerTest extends KernelTestCase
         self::assertSame('Email marked as spam.', $data['message']);
 
         $this->entityManager->clear();
+        $this->setCurrentUserRequest($user);
         $spammedEmail = $this->entityManager->find(Email::class, $email->getId());
         self::assertInstanceOf(Email::class, $spammedEmail);
         $folderNames = [];
@@ -1081,6 +1133,7 @@ final class MailActionControllerTest extends KernelTestCase
             ->setEmail($suffix.'+user@example.com')
             ->setPassword('secret');
         $user->addAccount($account);
+        $this->currentUser = $user;
 
         $email = (new Email())
             ->setAccount($account)
@@ -1135,12 +1188,29 @@ final class MailActionControllerTest extends KernelTestCase
         return [$user, $email, $sourceFolder, $targetFolder];
     }
 
-    private function setCurrentUserRequest(): void
+    private function setCurrentUserRequest(?User $user = null): void
     {
+        $user ??= $this->currentUser;
+        if (null === $user) {
+            $user = (new User())->setEmail('admin-test@example.com')->setRoles(['ROLE_ADMIN']);
+        }
+        if (null !== $user->getId()) {
+            $managedUser = $this->entityManager->find(User::class, $user->getId());
+            if ($managedUser instanceof User) {
+                $user = $managedUser;
+            }
+        }
+
+        $this->tokenStorage->setToken(new UsernamePasswordToken($user, 'main', $user->getRoles()));
         $request = Request::create('/');
         $request->setLocale('en');
         $request->setSession(new Session(new MockArraySessionStorage()));
         $this->requestStack->push($request);
+    }
+
+    private function ajaxActionRequest(string $tokenId): Request
+    {
+        return Request::create('/', 'POST', ['_token' => $this->csrfToken($tokenId)], server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
     }
 
     public function testHandleDraftSubmissionReturnsJsonForAjaxDraftSaveInEditMode(): void

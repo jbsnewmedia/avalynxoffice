@@ -1,0 +1,8 @@
+framework:
+    html_sanitizer:
+        sanitizers:
+            email:
+                allow_safe_elements: true
+                allowed_link_schemes: ['http', 'https', 'mailto']
+                allow_relative_links: true
+                allowed_media_schemes: ['data']

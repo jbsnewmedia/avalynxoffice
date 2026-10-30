@@ -32,7 +32,7 @@ final readonly class MailDraftService
 {
     public function __construct(
         private EntityManagerInterface $entityManager,
-        private AccountRepository $accountRepository,
+        AccountRepository $accountRepository,
         private FolderManager $folderManager,
         private AttachmentStorage $attachmentStorage,
         private TranslatorInterface $translator,
@@ -40,13 +40,12 @@ final readonly class MailDraftService
     ) {
     }
 
-    public function createComposeDraft(): Email
+    public function createComposeDraft(?Account $account = null): Email
     {
         $email = new Email();
         $email->setIsOutgoing(true);
         $email->setIsDraft(true);
 
-        $account = $this->accountRepository->findAll()[0] ?? null;
         if (null === $account) {
             return $email;
         }
@@ -147,11 +146,11 @@ final readonly class MailDraftService
         $bodyLink = new EmailBodyLink();
         $bodyLink->setEmail($email);
         $bodyLink->setBody($body);
-        $bodyLink->setContentType(BodyContentType::TEXT);
+        $bodyLink->setContentType(BodyContentType::HTML);
         $this->entityManager->persist($bodyLink);
         $email->addEmailBody($bodyLink);
 
-        $email->setPreviewBody(mb_substr($content, 0, 500));
+        $email->setPreviewBody($this->extractPreviewBody($content));
         $email->setIsOutgoing(true);
         $email->setIsDraft($isDraft);
         $email->setIsSent(false);
@@ -425,8 +424,19 @@ final readonly class MailDraftService
     /**
      * @return list<string>
      */
-    private function parseAddressList(string $value): array
+    /**
+     * Plain-text preview from the HTML editor content: strip tags, collapse
+     * whitespace, and truncate to 500 characters.
+     */
+    private function extractPreviewBody(string $content): string
     {
+        $preview = trim(html_entity_decode(strip_tags($content), ENT_QUOTES, 'UTF-8'));
+        $preview = preg_replace('/\s+/u', ' ', $preview) ?? '';
+
+        return mb_substr($preview, 0, 500);
+    }
+
+    private function parseAddressList(string $value): array    {
         $emails = preg_split('/[,;\r\n]+/', $value) ?: [];
         $normalized = [];
         $seen = [];

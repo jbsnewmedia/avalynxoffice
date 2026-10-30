@@ -2,22 +2,33 @@
     {% set showAdvancedFields = (form.cc.vars.value ?? '') != '' or (form.bcc.vars.value ?? '') != '' or (form.replyTo.vars.value ?? '') != '' %}
     {% set scheduleEnabled = form.scheduleLater.vars.data ?? false %}
     {% set attachmentsEnabled = email.emailAttachments|length > 0 %}
-    {{ form_start(form, {'attr': {'id': 'mail-compose-form', 'class': 'p-4 compose-form', 'data-avalynxform': '1'}}) }}
+    {{ form_start(form, {'attr': {'id': 'mail-compose-form', 'class': 'py-2 compose-form', 'data-avalynxform': '1', 'novalidate': 'novalidate'}}) }}
         <div class="compose-editor" data-compose-editor="1">
             <div class="vstack gap-3">
                 {% if form.from is defined %}
-                    <div>
+                    <div class="form-group">
                         {{ form_label(form.from) }}
-                        {{ form_widget(form.from, {'attr': {'class': 'form-select'}}) }}
-                        {{ form_errors(form.from) }}
+                        {{ form_widget(form.from, {'attr': {'class': 'form-select avalynx-select', 'data-placeholder': 'email.from_placeholder'|trans}}) }}
+                        <div class="invalid-feedback" aria-live="polite"></div>
                     </div>
                 {% endif %}
 
-                <div>
-                    {{ form_label(form.to, null, {'label_attr': {'for': form.to.vars.id ~ '_autocomplete'}}) }}
+                <div class="form-group">
+                    <div class="d-flex align-items-center justify-content-between gap-2">
+                        {{ form_label(form.to, null, {'label_attr': {'for': form.to.vars.id ~ '_autocomplete', 'class': 'form-label mb-0'}}) }}
+                        <button type="button"
+                                class="btn btn-sm btn-link text-body-secondary text-decoration-none rounded-circle p-2 email-detail-toggle flex-shrink-0"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#compose-advanced-fields"
+                                aria-expanded="{{ showAdvancedFields ? 'true' : 'false' }}"
+                                aria-controls="compose-advanced-fields"
+                                title="{{ 'email.details_toggle'|trans }}"
+                                aria-label="{{ 'email.details_toggle'|trans }}">
+                            <i class="fa-solid fa-chevron-down chevron" aria-hidden="true"></i>
+                        </button>
+                    </div>
                     <input type="text"
                            id="{{ form.to.vars.id }}_autocomplete"
-                           class="form-control"
                            data-compose-recipient-autocomplete="1"
                            data-target-input-id="{{ form.to.vars.id }}"
                            data-source-url="{{ path('data_address_suggestions') }}"
@@ -29,85 +40,72 @@
                            data-default-selections="{{ recipientAutocompleteDefaults.to|default([])|json_encode|e('html_attr') }}">
                     {{ form_widget(form.to, {'attr': {'class': 'd-none'}}) }}
                     <div class="form-text">{{ 'email.address_list_help'|trans }}</div>
-                    {{ form_errors(form.to) }}
-                </div>
+                    <div class="invalid-feedback" aria-live="polite"></div>
 
-                <div>
-                    <button type="button"
-                            class="btn btn-sm btn-outline-secondary"
-                            data-compose-advanced-toggle="1"
-                            data-show-label="{{ 'email.show_more_fields'|trans }}"
-                            data-hide-label="{{ 'email.hide_more_fields'|trans }}"
-                            aria-expanded="{{ showAdvancedFields ? 'true' : 'false' }}">
-                        <i class="fa-solid fa-sliders me-1" aria-hidden="true"></i>
-                        {{ showAdvancedFields ? 'email.hide_more_fields'|trans : 'email.show_more_fields'|trans }}
-                    </button>
-                </div>
-
-                <div class="row g-3 {{ showAdvancedFields ? '' : 'd-none' }}" data-compose-advanced-fields="1">
-                    <div class="col-12">
-                        {{ form_label(form.cc, null, {'label_attr': {'for': form.cc.vars.id ~ '_autocomplete'}}) }}
-                        <input type="text"
-                               id="{{ form.cc.vars.id }}_autocomplete"
-                               class="form-control"
-                               data-compose-recipient-autocomplete="1"
-                               data-target-input-id="{{ form.cc.vars.id }}"
-                               data-source-url="{{ path('data_address_suggestions') }}"
-                               data-max-selections="50"
-                               data-placeholder="{{ 'email.cc_placeholder'|trans }}"
-                               data-no-results="{{ 'email.autocomplete_no_results'|trans }}"
-                               data-clear-title="{{ 'email.autocomplete_clear'|trans }}"
-                               data-remove-title="{{ 'email.autocomplete_remove'|trans }}"
-                               data-default-selections="{{ recipientAutocompleteDefaults.cc|default([])|json_encode|e('html_attr') }}">
-                        {{ form_widget(form.cc, {'attr': {'class': 'd-none'}}) }}
-                        {{ form_errors(form.cc) }}
-                    </div>
-                    <div class="col-12">
-                        {{ form_label(form.bcc, null, {'label_attr': {'for': form.bcc.vars.id ~ '_autocomplete'}}) }}
-                        <input type="text"
-                               id="{{ form.bcc.vars.id }}_autocomplete"
-                               class="form-control"
-                               data-compose-recipient-autocomplete="1"
-                               data-target-input-id="{{ form.bcc.vars.id }}"
-                               data-source-url="{{ path('data_address_suggestions') }}"
-                               data-max-selections="50"
-                               data-placeholder="{{ 'email.bcc_placeholder'|trans }}"
-                               data-no-results="{{ 'email.autocomplete_no_results'|trans }}"
-                               data-clear-title="{{ 'email.autocomplete_clear'|trans }}"
-                               data-remove-title="{{ 'email.autocomplete_remove'|trans }}"
-                               data-default-selections="{{ recipientAutocompleteDefaults.bcc|default([])|json_encode|e('html_attr') }}">
-                        {{ form_widget(form.bcc, {'attr': {'class': 'd-none'}}) }}
-                        {{ form_errors(form.bcc) }}
-                    </div>
-                    <div class="col-12">
-                        {{ form_label(form.replyTo, null, {'label_attr': {'for': form.replyTo.vars.id ~ '_autocomplete'}}) }}
-                        <input type="text"
-                               id="{{ form.replyTo.vars.id }}_autocomplete"
-                               class="form-control"
-                               data-compose-recipient-autocomplete="1"
-                               data-target-input-id="{{ form.replyTo.vars.id }}"
-                               data-source-url="{{ path('data_address_suggestions') }}"
-                               data-max-selections="1"
-                               data-placeholder="{{ 'email.reply_to_placeholder'|trans }}"
-                               data-no-results="{{ 'email.autocomplete_no_results'|trans }}"
-                               data-clear-title="{{ 'email.autocomplete_clear'|trans }}"
-                               data-remove-title="{{ 'email.autocomplete_remove'|trans }}"
-                               data-default-selections="{{ recipientAutocompleteDefaults.replyTo|default([])|json_encode|e('html_attr') }}">
-                        {{ form_widget(form.replyTo, {'attr': {'class': 'd-none'}}) }}
-                        {{ form_errors(form.replyTo) }}
+                    <div id="compose-advanced-fields" class="collapse {{ showAdvancedFields ? 'show' : '' }} mt-3">
+                        <div class="vstack gap-3">
+                            <div class="form-group">
+                                {{ form_label(form.cc, null, {'label_attr': {'for': form.cc.vars.id ~ '_autocomplete'}}) }}
+                                <input type="text"
+                                       id="{{ form.cc.vars.id }}_autocomplete"
+                                       data-compose-recipient-autocomplete="1"
+                                       data-target-input-id="{{ form.cc.vars.id }}"
+                                       data-source-url="{{ path('data_address_suggestions') }}"
+                                       data-max-selections="50"
+                                       data-placeholder="{{ 'email.cc_placeholder'|trans }}"
+                                       data-no-results="{{ 'email.autocomplete_no_results'|trans }}"
+                                       data-clear-title="{{ 'email.autocomplete_clear'|trans }}"
+                                       data-remove-title="{{ 'email.autocomplete_remove'|trans }}"
+                                       data-default-selections="{{ recipientAutocompleteDefaults.cc|default([])|json_encode|e('html_attr') }}">
+                                {{ form_widget(form.cc, {'attr': {'class': 'd-none'}}) }}
+                                <div class="invalid-feedback" aria-live="polite"></div>
+                            </div>
+                            <div class="form-group">
+                                {{ form_label(form.bcc, null, {'label_attr': {'for': form.bcc.vars.id ~ '_autocomplete'}}) }}
+                                <input type="text"
+                                       id="{{ form.bcc.vars.id }}_autocomplete"
+                                       data-compose-recipient-autocomplete="1"
+                                       data-target-input-id="{{ form.bcc.vars.id }}"
+                                       data-source-url="{{ path('data_address_suggestions') }}"
+                                       data-max-selections="50"
+                                       data-placeholder="{{ 'email.bcc_placeholder'|trans }}"
+                                       data-no-results="{{ 'email.autocomplete_no_results'|trans }}"
+                                       data-clear-title="{{ 'email.autocomplete_clear'|trans }}"
+                                       data-remove-title="{{ 'email.autocomplete_remove'|trans }}"
+                                       data-default-selections="{{ recipientAutocompleteDefaults.bcc|default([])|json_encode|e('html_attr') }}">
+                                {{ form_widget(form.bcc, {'attr': {'class': 'd-none'}}) }}
+                                <div class="invalid-feedback" aria-live="polite"></div>
+                            </div>
+                            <div class="form-group">
+                                {{ form_label(form.replyTo, null, {'label_attr': {'for': form.replyTo.vars.id ~ '_autocomplete'}}) }}
+                                <input type="text"
+                                       id="{{ form.replyTo.vars.id }}_autocomplete"
+                                       data-compose-recipient-autocomplete="1"
+                                       data-target-input-id="{{ form.replyTo.vars.id }}"
+                                       data-source-url="{{ path('data_address_suggestions') }}"
+                                       data-max-selections="1"
+                                       data-placeholder="{{ 'email.reply_to_placeholder'|trans }}"
+                                       data-no-results="{{ 'email.autocomplete_no_results'|trans }}"
+                                       data-clear-title="{{ 'email.autocomplete_clear'|trans }}"
+                                       data-remove-title="{{ 'email.autocomplete_remove'|trans }}"
+                                       data-default-selections="{{ recipientAutocompleteDefaults.replyTo|default([])|json_encode|e('html_attr') }}">
+                                {{ form_widget(form.replyTo, {'attr': {'class': 'd-none'}}) }}
+                                <div class="invalid-feedback" aria-live="polite"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div>
+                <div class="form-group">
                     {{ form_label(form.subject) }}
                     {{ form_widget(form.subject, {'attr': {'class': 'form-control', 'placeholder': 'email.subject'|trans}}) }}
-                    {{ form_errors(form.subject) }}
+                    <div class="invalid-feedback" aria-live="polite"></div>
                 </div>
 
-                <div>
+                <div class="form-group">
                     {{ form_label(form.content) }}
-                    {{ form_widget(form.content, {'attr': {'class': 'form-control', 'rows': '12'}}) }}
-                    {{ form_errors(form.content) }}
+                    {{ form_widget(form.content, {'attr': {'data-compose-content-editor': '1'}}) }}
+                    <div class="invalid-feedback" aria-live="polite"></div>
                 </div>
 
                 {{ form_widget(form.retainedAttachmentIds, {'attr': {'data-retained-attachments-input': '1'}}) }}
@@ -141,7 +139,7 @@
                                 <span class="compose-attachments-dropzone-label">{{ 'email.drop_attachments_here'|trans }}</span>
                                 {{ form_widget(form.attachments, {'attr': {'class': 'd-none', 'data-compose-attachments-input': '1'}}) }}
                             </label>
-                            {{ form_errors(form.attachments) }}
+                            <div class="invalid-feedback" aria-live="polite"></div>
                             <ul class="list-group list-group-flush mt-3" data-compose-attachments-list="1">
                                 {% for attachmentLink in email.emailAttachments %}
                                     {% set attachment = attachmentLink.attachment %}
@@ -179,7 +177,7 @@
                         <div class="mt-3 {{ scheduleEnabled ? '' : 'd-none' }}" data-compose-schedule-fields="1">
                             {{ form_label(form.scheduledAt) }}
                             {{ form_widget(form.scheduledAt, {'attr': {'class': 'form-control'}}) }}
-                            {{ form_errors(form.scheduledAt) }}
+                            <div class="invalid-feedback" aria-live="polite"></div>
                         </div>
                     </div>
                 </section>

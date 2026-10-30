@@ -13,6 +13,7 @@ use AvalynxOffice\Entity\Address;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Repository\AddressRepository;
 use AvalynxOffice\Service\DataService;
+use AvalynxOffice\Service\Mail\UserAccountProvider;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -22,9 +23,14 @@ use Symfony\Component\Routing\Attribute\Route;
 class DataController extends AbstractController
 {
     #[Route(path: '/data/all', name: 'data_all')]
-    public function all(DataService $dataService): JsonResponse
+    public function all(DataService $dataService, UserAccountProvider $accountProvider): JsonResponse
     {
-        $data = $dataService->getAllData();
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException();
+        }
+
+        $data = $dataService->getAllData($accountProvider->forUser($user));
 
         return new JsonResponse($data, Response::HTTP_OK, [], false);
     }

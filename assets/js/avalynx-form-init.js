@@ -33,6 +33,29 @@
         return originalFetch(input, options);
     };
 
+    /*
+     * AvalynxForm builds its payload with new FormData(form), which drops the
+     * clicked submit button. Symfony forms, however, use the clicked button
+     * (e.g. "Save draft" vs. "Send") to decide what the submission means.
+     * Remember the submitter in the capture phase (before AvalynxForm's own
+     * submit listener runs) and let onBeforeSubmit inject it as a hidden
+     * field so the server still sees which button was clicked.
+     */
+    document.addEventListener('submit', function (event) {
+        const submitter = event.submitter;
+        if (!submitter || '' === submitter.name) {
+            return;
+        }
+
+        const form = event.target;
+        if (!(form instanceof HTMLFormElement) || form.dataset.avalynxformInit !== 'true') {
+            return;
+        }
+
+        form.dataset.avalynxformSubmitterName = submitter.name;
+        form.dataset.avalynxformSubmitterValue = submitter.value || '';
+    }, true);
+
     const initializeForm = (form) => {
         if (form.dataset.avalynxformInit === 'true') {
             return;
@@ -54,16 +77,27 @@
                     submittedForm.__syncAccountListEditors();
                 }
 
+                const submitterName = submittedForm.dataset.avalynxformSubmitterName || '';
+                submittedForm.querySelectorAll('[data-avalynxform-submitter]').forEach((element) => element.remove());
+                if (submitterName !== '') {
+                    const submitterField = document.createElement('input');
+                    submitterField.type = 'hidden';
+                    submitterField.name = submitterName;
+                    submitterField.value = submittedForm.dataset.avalynxformSubmitterValue || '';
+                    submitterField.dataset.avalynxformSubmitter = '1';
+                    submittedForm.appendChild(submitterField);
+                }
+
                 return true;
             },
             onSuccess: (response) => {
-                if (response.message && typeof AvalynxAlert !== 'undefined') {
-                    AvalynxAlert.success({ message: response.message, position: 'top-right' });
+                if (response.message && typeof AvalynxAlert === 'function') {
+                    new AvalynxAlert(response.message, 'success', { position: 'top-right' });
                 }
             },
             onError: (response) => {
-                if (response && response.message && typeof AvalynxAlert !== 'undefined') {
-                    AvalynxAlert.error({ message: response.message, position: 'top-right' });
+                if (response && response.message && typeof AvalynxAlert === 'function') {
+                    new AvalynxAlert(response.message, 'danger', { position: 'top-right' });
                 }
             }
         });

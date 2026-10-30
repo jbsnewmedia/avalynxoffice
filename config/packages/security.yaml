@@ -23,13 +23,16 @@ security:
                 secret: '%env(APP_SECRET)%'
                 lifetime: 1209600 # 14 days
                 path: /
+                secure: auto
+                samesite: lax
                 token_provider:
                     doctrine: true
+            login_throttling:
+                max_attempts: 5
             logout:
                 path: app_logout
                 target: /login
     access_control:
-        - { path: ^/admin/database/setup, roles: PUBLIC_ACCESS }
         - { path: ^/(login|logout)$, roles: PUBLIC_ACCESS }
         - { path: ^/(impressum|datenschutz|agb)$, roles: PUBLIC_ACCESS }
         - { path: ^/profile/password-reset, roles: PUBLIC_ACCESS }

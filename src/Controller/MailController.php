@@ -270,9 +270,24 @@ class MailController extends AbstractController
             if (!$folder) {
                 return new Response($this->translator->trans('folder.not_found'), Response::HTTP_NOT_FOUND);
             }
+            $allowedAccounts = $this->accountsForUser();
+            $folderAllowed = false;
+            foreach ($allowedAccounts as $allowedAccount) {
+                if ($allowedAccount->getFolders()->contains($folder)) {
+                    $folderAllowed = true;
+                    break;
+                }
+            }
+            if (!$folderAllowed) {
+                return new Response($this->translator->trans('common.access_denied'), Response::HTTP_FORBIDDEN);
+            }
+            if ('all' !== $accountId && (null === $activeAccount || !$activeAccount->getFolders()->contains($folder))) {
+                return new Response($this->translator->trans('common.access_denied'), Response::HTTP_FORBIDDEN);
+            }
+
             $scopeFolders = 'all' === $accountId
                 ? $this->mailService->foldersInSameGroup(
-                    $this->folderRepo->findFoldersLinkedToAccounts($this->accountsForUser()),
+                    $this->folderRepo->findFoldersLinkedToAccounts($allowedAccounts),
                     $folder,
                 )
                 : [$folder];
