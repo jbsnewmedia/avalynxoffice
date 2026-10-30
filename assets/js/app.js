@@ -1448,9 +1448,17 @@ document.addEventListener('DOMContentLoaded', function () {
             detailContainer.innerHTML = '<div class="alert alert-danger m-4">' + errText + '</div>' + previousHtml;
         }
     }
+    function mailCsrfToken() {
+        const listContainer = document.querySelector('.email-list-container[data-mail-token]');
+        return listContainer ? listContainer.getAttribute('data-mail-token') : null;
+    }
     async function postRead(id, read) {
         const body = new URLSearchParams();
         body.set('read', read ? '1' : '0');
+        const token = mailCsrfToken();
+        if (token) {
+            body.set('_token', token);
+        }
         const resp = await fetch('/email/' + encodeURIComponent(id) + '/read', {
             method: 'POST',
             headers: {'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded'},
@@ -1462,6 +1470,10 @@ document.addEventListener('DOMContentLoaded', function () {
     async function postFavorite(id, favorite) {
         const body = new URLSearchParams();
         body.set('favorite', favorite ? '1' : '0');
+        const token = mailCsrfToken();
+        if (token) {
+            body.set('_token', token);
+        }
         const resp = await fetch('/email/' + encodeURIComponent(id) + '/favorite', {
             method: 'POST',
             headers: {'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded'},
@@ -1802,6 +1814,25 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             updateFolderUnreadBadges(json.folderCounts);
         }).catch(console.error);
+    });
+    // "Load external content": the mail iframe starts with a strict CSP that
+    // blocks remote images (tracking pixels). On request the srcdoc is
+    // re-set with the relaxed policy carried on the button; the sandbox
+    // attributes stay untouched.
+    document.addEventListener('click', function (event) {
+        const btn = event.target.closest('[data-action="load-external-content"]');
+        if (!btn) return;
+        event.preventDefault();
+        const wrapper = btn.closest('.email-body-wrapper');
+        const frame = wrapper ? wrapper.querySelector('iframe.email-html-frame') : null;
+        const strict = btn.getAttribute('data-csp-strict') || '';
+        const relaxed = btn.getAttribute('data-csp-relaxed') || '';
+        if (!frame || !strict || !relaxed) return;
+        const srcdoc = frame.getAttribute('srcdoc') || '';
+        if (srcdoc.indexOf(strict) === -1) return;
+        frame.setAttribute('srcdoc', srcdoc.replace(strict, relaxed));
+        const notice = btn.closest('.email-external-content-notice');
+        if (notice) notice.remove();
     });
     (function(){
         function alertSuccess(msg){ try{ new AvalynxAlert(msg, 'success', { position: 'top-right' }); }catch(e){ console.log('SUCCESS:', msg);} }

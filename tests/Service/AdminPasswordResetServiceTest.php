@@ -222,8 +222,15 @@ final class AdminPasswordResetServiceTest extends TestCase
             ->with(self::stringContains('DELETE FROM rememberme_token'), ['email' => 'user@example.com'])
             ->willReturn(1);
 
+        $appPasswordRepository = $this->createMock(\AvalynxOffice\Repository\UserAppPasswordRepository::class);
+        $appPasswordRepository->expects(self::once())->method('revokeAll')->with($user)->willReturn(1);
+
         $sessionEntityManager = $this->createStub(EntityManagerInterface::class);
-        $sessionEntityManager->method('getRepository')->willReturn($sessionRepository);
+        $sessionEntityManager->method('getRepository')->willReturnCallback(
+            static fn (string $class): object => \AvalynxOffice\Entity\UserAppPassword::class === $class
+                ? $appPasswordRepository
+                : $sessionRepository,
+        );
         $sessionEntityManager->method('getConnection')->willReturn($connection);
 
         $loginSessions = new \AvalynxOffice\Service\Login\LoginSessionService(

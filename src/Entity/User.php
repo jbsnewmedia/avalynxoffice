@@ -281,6 +281,20 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this->recoveryAddresses;
     }
 
+    /**
+     * Recovery addresses whose ownership has been confirmed. Only these take
+     * part in account-recovery flows.
+     *
+     * @return list<RecoveryAddress>
+     */
+    public function getVerifiedRecoveryAddresses(): array
+    {
+        return array_values(array_filter(
+            $this->recoveryAddresses->toArray(),
+            static fn (RecoveryAddress $address): bool => $address->isVerified(),
+        ));
+    }
+
     public function addRecoveryAddress(RecoveryAddress $recoveryAddress): self
     {
         if (!$this->recoveryAddresses->contains($recoveryAddress)) {

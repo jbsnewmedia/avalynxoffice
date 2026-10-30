@@ -8,11 +8,40 @@
 #   3. Grant the (optional) least-privilege EAS database role access to the
 #      tables it needs (idempotent, only when EAS_DB_USER is set).
 #   4. Create the env-defined administrator (OFFICE_ADMIN_EMAIL /
-#      OFFICE_ADMIN_PASSWORD) when that email is not present yet.
+#      OFFICE_ADMIN_PASSWORD, or *_FILE pointing to a secret file) when that
+#      email is not present yet.
 #   5. Hand over to the base image entrypoint (Apache/supervisor).
 set -euo pipefail
 
 cd /app
+
+# Docker/Compose secrets support: VAR_FILE takes precedence over VAR and is
+# read from the given file (trailing newline stripped). Both set is an error
+# to avoid silently using the wrong value.
+read_secret_file() {
+    local var="$1" file_var="$1_FILE" file
+    file="${!file_var:-}"
+    if [ -z "${file}" ]; then
+        return 0
+    fi
+    if [ -n "${!var:-}" ]; then
+        echo "[avalynxoffice] Both ${var} and ${file_var} are set; use only one of them." >&2
+        exit 1
+    fi
+    if [ ! -r "${file}" ]; then
+        echo "[avalynxoffice] ${file_var} points to ${file}, which is not readable." >&2
+        exit 1
+    fi
+    printf -v "${var}" '%s' "$(cat "${file}")"
+    export "${var?}"
+}
+
+read_secret_file OFFICE_ADMIN_EMAIL
+read_secret_file OFFICE_ADMIN_PASSWORD
+ADMIN_PASSWORD_FROM_ENV=0
+if [ -n "${OFFICE_ADMIN_PASSWORD:-}" ] && [ -z "${OFFICE_ADMIN_PASSWORD_FILE:-}" ]; then
+    ADMIN_PASSWORD_FROM_ENV=1
+fi
 
 if [ -z "${APP_SECRET:-}" ]; then
     echo '[avalynxoffice] APP_SECRET is not set. Provide it via the environment (e.g. -e APP_SECRET=$(openssl rand -hex 16)).' >&2
@@ -48,53 +77,12 @@ run_as_application php bin/console doctrine:migrations:migrate --no-interaction 
 # Least privilege for the ActiveSync service: the EAS container connects with
 # its own database role (created by the postgres init script of the Compose
 # stack). The tables only exist after the migrations above, therefore the
-# grants are (re-)applied here on every start. The DO block is a no-op when
-# the role does not exist; the role name is validated before interpolation.
+# grants are (re-)applied here on every start. The grant statements live in
+# /usr/local/lib/avalynxoffice/eas-grants.sql (single source of truth, also
+# used by `office-grant-eas` for manual re-application). A missing role is
+# skipped with a notice; the role name is validated by the script.
 if [ -n "${EAS_DB_USER:-}" ]; then
-    if ! printf '%s' "${EAS_DB_USER}" | grep -Eq '^[a-z_][a-z0-9_]{0,62}$'; then
-        echo "[avalynxoffice] EAS_DB_USER must match ^[a-z_][a-z0-9_]*$ (got: ${EAS_DB_USER})." >&2
-        exit 1
-    fi
-    echo "[avalynxoffice] Granting EAS database privileges to role ${EAS_DB_USER} ..."
-    run_as_application php bin/console dbal:run-sql "
-        DO \$\$
-        DECLARE
-            r text := '${EAS_DB_USER}';
-            t text;
-        BEGIN
-            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = r) THEN
-                RAISE NOTICE 'role % does not exist, skipping EAS grants', r;
-                RETURN;
-            END IF;
-            EXECUTE format('GRANT USAGE ON SCHEMA public TO %I', r);
-            EXECUTE format('GRANT SELECT ON ALL TABLES IN SCHEMA public TO %I', r);
-            EXECUTE format('GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO %I', r);
-            EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO %I', r);
-            EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO %I', r);
-            -- Mail, address book and calendar tables written by the EAS service.
-            FOREACH t IN ARRAY ARRAY[
-                'email', 'email_folder', 'email_address_link', 'email_body_link', 'email_attachment_link',
-                'body', 'attachment', 'address', 'account_address', 'folder', 'account_folder',
-                'calendar_event'
-            ] LOOP
-                IF to_regclass('public.' || quote_ident(t)) IS NOT NULL THEN
-                    EXECUTE format('GRANT INSERT, UPDATE, DELETE ON TABLE public.%I TO %I', t, r);
-                END IF;
-            END LOOP;
-            -- Column-restricted updates: inbox folder detection and the
-            -- last-authentication timestamp of a user.
-            IF to_regclass('public.account') IS NOT NULL THEN
-                EXECUTE format('GRANT UPDATE (inbox_folder_id) ON TABLE public.account TO %I', r);
-            END IF;
-            IF to_regclass('public.app_user') IS NOT NULL THEN
-                EXECUTE format('GRANT UPDATE (last_auth_at) ON TABLE public.app_user TO %I', r);
-            END IF;
-            IF to_regclass('public.app_user_app_password') IS NOT NULL THEN
-                EXECUTE format('GRANT UPDATE (last_used_at) ON TABLE public.app_user_app_password TO %I', r);
-            END IF;
-        END
-        \$\$;
-    "
+    /usr/local/bin/office-grant-eas "${EAS_DB_USER}"
 fi
 
 # The Symfony container cache is considered always-fresh in prod and the var
@@ -124,10 +112,13 @@ if [ -n "${OFFICE_ADMIN_EMAIL:-}" ] && [ -n "${OFFICE_ADMIN_PASSWORD:-}" ]; then
     # environment itself, so the password never appears on a command line
     # (visible in `ps`) and is never re-parsed by a shell.
     run_as_application php bin/console app:user:create --admin
+    if [ "${ADMIN_PASSWORD_FROM_ENV}" = '1' ]; then
+        echo '[avalynxoffice] WARNING: OFFICE_ADMIN_PASSWORD is passed as a plain environment variable. The administrator exists now; remove it from .env (or switch to OFFICE_ADMIN_PASSWORD_FILE with a Compose secret).' >&2
+    fi
 fi
 # The credentials are only needed for the bootstrap above; do not leak them
 # into the web server process tree.
-unset OFFICE_ADMIN_PASSWORD OFFICE_ADMIN_EMAIL
+unset OFFICE_ADMIN_PASSWORD OFFICE_ADMIN_EMAIL OFFICE_ADMIN_PASSWORD_FILE OFFICE_ADMIN_EMAIL_FILE
 
 echo '[avalynxoffice] Starting web server ...'
 exec /entrypoint "$@"

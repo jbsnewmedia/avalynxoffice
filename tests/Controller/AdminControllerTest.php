@@ -2,15 +2,20 @@
 
 declare(strict_types=1);
 
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
+
 namespace AvalynxOffice\Tests\Controller;
 
+use AvalynxOffice\Entity\Account;
+use AvalynxOffice\Entity\AccountAlias;
+use AvalynxOffice\Entity\Connector;
 use AvalynxOffice\Entity\Email;
 use AvalynxOffice\Entity\EmailFolder;
 use AvalynxOffice\Entity\Enum\FolderFunction;
 use AvalynxOffice\Entity\Folder;
-use AvalynxOffice\Entity\Account;
-use AvalynxOffice\Entity\AccountAlias;
-use AvalynxOffice\Entity\Connector;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Service\ConnectorPluginRegistry;
 use AvalynxOffice\Service\Security\SecretCrypto;
@@ -109,9 +114,7 @@ final class AdminControllerTest extends WebTestCase
         $this->entityManager->flush();
         $this->entityManager->clear();
 
-        $this->client->request('POST', '/admin/connectors/data', ['search' => 'ghost']);
-        self::assertResponseIsSuccessful();
-        $payload = json_decode((string) $this->client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        $payload = $this->fetchConnectorData(['search' => 'ghost']);
         $connectorId = $ghostConnector->getId()?->toRfc4122() ?? '';
         $row = null;
         foreach ($payload['data'] as $candidate) {
@@ -557,7 +560,7 @@ final class AdminControllerTest extends WebTestCase
         self::assertSame(2, $payload['count']['filtered']);
         $row = null;
         foreach ($payload['data'] as $dataRow) {
-            if ($dataRow['data']['name'] === 'Renamed Connector') {
+            if ('Renamed Connector' === $dataRow['data']['name']) {
                 $row = $dataRow;
 
                 break;
@@ -583,6 +586,21 @@ final class AdminControllerTest extends WebTestCase
     }
 
     /**
+     * Reads the datatable CSRF token from the rendered admin page; the
+     * datatable JS sends it as `_token` with every data request.
+     */
+    private function fetchDatatableToken(string $indexPath): string
+    {
+        $crawler = $this->client->request('GET', $indexPath);
+        self::assertResponseIsSuccessful();
+
+        $token = $crawler->filter('[data-avalynxdatatable]')->attr('data-csrf-token');
+        self::assertNotNull($token);
+
+        return $token;
+    }
+
+    /**
      * Fetches the admin account datatable payload.
      *
      * @param array<string, string> $params
@@ -591,6 +609,7 @@ final class AdminControllerTest extends WebTestCase
      */
     private function fetchAccountData(array $params = []): array
     {
+        $params += ['_token' => $this->fetchDatatableToken('/admin/accounts')];
         $this->client->request('POST', '/admin/accounts/data', $params);
 
         self::assertResponseIsSuccessful();
@@ -725,6 +744,24 @@ final class AdminControllerTest extends WebTestCase
         self::assertResponseStatusCodeSame(403);
     }
 
+    public function testAccountDataEndpointRejectsMissingOrInvalidCsrfToken(): void
+    {
+        $this->loginAdmin();
+        $this->createAccount('Token Account', 'token-account@example.com');
+
+        $this->client->request('POST', '/admin/accounts/data');
+        self::assertResponseStatusCodeSame(403);
+        $payload = json_decode((string) $this->client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertFalse($payload['success']);
+        self::assertArrayNotHasKey('data', $payload);
+
+        $this->client->request('POST', '/admin/accounts/data', ['_token' => 'invalid']);
+        self::assertResponseStatusCodeSame(403);
+
+        $valid = $this->fetchAccountData();
+        self::assertSame(1, $valid['count']['total']);
+    }
+
     private function generateAccountEditUrl(string $id): string
     {
         /** @var \Symfony\Component\Routing\RouterInterface $router */
@@ -742,6 +779,7 @@ final class AdminControllerTest extends WebTestCase
      */
     private function fetchConnectorData(array $params = []): array
     {
+        $params += ['_token' => $this->fetchDatatableToken('/admin/connectors')];
         $this->client->request('POST', '/admin/connectors/data', $params);
 
         self::assertResponseIsSuccessful();
@@ -833,6 +871,20 @@ final class AdminControllerTest extends WebTestCase
         $this->client->loginUser($user);
         $this->client->request('POST', '/admin/connectors/data');
 
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    public function testConnectorDataEndpointRejectsMissingCsrfToken(): void
+    {
+        $this->loginAdmin();
+
+        $this->client->request('POST', '/admin/connectors/data');
+        self::assertResponseStatusCodeSame(403);
+        $payload = json_decode((string) $this->client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertFalse($payload['success']);
+        self::assertArrayNotHasKey('data', $payload);
+
+        $this->client->request('POST', '/admin/connectors/data', ['_token' => 'invalid']);
         self::assertResponseStatusCodeSame(403);
     }
 

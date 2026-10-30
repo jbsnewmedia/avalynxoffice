@@ -11,3 +11,8 @@ services:
 
     JBSNewMedia\Pop3ConnectorBundle\Plugin\Pop3ConnectorPlugin:
         tags: ['avalynxoffice.connector_plugin']
+
+    JBSNewMedia\Pop3ConnectorBundle\Service\Pop3Fetcher:
+        arguments:
+            $mailDumpDir: '%app.mail_dump_dir%'
+            $mailDumpRetentionDays: '%app.mail_dump_retention_days%'

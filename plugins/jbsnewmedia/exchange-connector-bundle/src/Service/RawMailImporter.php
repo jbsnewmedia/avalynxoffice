@@ -39,6 +39,9 @@ use Laminas\Mail\Storage\Message as StorageMessage;
 final class RawMailImporter
 {
     private bool $lastParseNeededSanitizing = false;
+    private readonly string $mailDumpDir;
+    /** @var array<string, true> */
+    private array $prunedDumpKeys = [];
 
     public function __construct(
         private readonly EntityManagerInterface $em,
@@ -46,7 +49,10 @@ final class RawMailImporter
         private readonly FolderManager $folderManager,
         private readonly AttachmentStorage $attachmentStorage,
         private readonly MailRoutingService $mailRoutingService,
+        ?string $mailDumpDir = null,
+        private readonly int $mailDumpRetentionDays = 14,
     ) {
+        $this->mailDumpDir = rtrim(null !== $mailDumpDir && '' !== $mailDumpDir ? $mailDumpDir : sys_get_temp_dir().'/avalynxoffice/mail_dumps', '/');
     }
 
     /**
@@ -459,7 +465,7 @@ final class RawMailImporter
 
     private function storeAttachmentPart(StorageMessage $part, Email $email, string $contentType): void
     {
-        $filename = $this->detectFileName($part) ?? 'attachment.bin';
+        $filename = self::normalizeAttachmentFilename($this->detectFileName($part));
         $data = $this->getPartContent($part, true);
         if ('' === $data) {
             return;
@@ -539,18 +545,107 @@ final class RawMailImporter
         return null;
     }
 
+    /**
+     * Normalizes an attachment file name: path components and control characters
+     * are removed, the length is limited to 255 bytes, empty names fall back to
+     * "attachment.bin".
+     */
+    public static function normalizeAttachmentFilename(?string $filename): string
+    {
+        if (null === $filename) {
+            return 'attachment.bin';
+        }
+        $name = str_replace('\\', '/', $filename);
+        $name = basename($name);
+        $name = preg_replace('/[\x00-\x1F\x7F]/u', '', $name) ?? '';
+        if (!mb_check_encoding($name, 'UTF-8')) {
+            $name = preg_replace('/[\x00-\x1F\x7F]/', '', $name) ?? '';
+        }
+        $name = trim($name, " .\t");
+        if ('' === $name || '.' === $name || '..' === $name) {
+            return 'attachment.bin';
+        }
+        if (strlen($name) > 255) {
+            $ext = '';
+            $dot = strrpos($name, '.');
+            if (false !== $dot && strlen($name) - $dot <= 16) {
+                $ext = substr($name, $dot);
+                $name = substr($name, 0, $dot);
+            }
+            $name = mb_strcut($name, 0, 255 - strlen($ext)).$ext;
+        }
+
+        return $name;
+    }
+
+    /**
+     * Builds a safe dump file name from an import key: only [A-Za-z0-9._-]
+     * are kept and the length is capped at 120 characters (plus ".eml").
+     */
+    public static function dumpFileName(string $key): string
+    {
+        $safe = preg_replace('/[^A-Za-z0-9._-]/', '_', $key) ?? '';
+        $safe = trim($safe, '.');
+        if ('' === $safe) {
+            $safe = 'unknown';
+        }
+
+        return substr($safe, 0, 120).'.eml';
+    }
+
     private function dumpRaw(Connector $connector, string $importKey, string $rawContent, string $status, ?string $errorReason = null): void
     {
         try {
-            $dir = 'mail_dumps/'.self::connectorDumpKey($connector).'/'.new \DateTimeImmutable()->format('Y/m/d').'/'.$status;
+            $connectorKey = self::connectorDumpKey($connector);
+            $this->pruneOldDumps($connectorKey);
+            $dir = $this->mailDumpDir.'/'.$connectorKey.'/'.new \DateTimeImmutable()->format('Y/m/d').'/'.$status;
             if (!is_dir($dir)) {
                 @mkdir($dir, 0775, true);
             }
             $prefix = 'success' === $status
                 ? "X-Mail-Fetch-Status: success\nX-Mail-Fetch-Date: ".date('c')."\n\n"
                 : 'X-Mail-Fetch-Status: error'."\n".'X-Mail-Fetch-Error: '.str_replace(["\r", "\n"], ' ', (string) $errorReason)."\n".'X-Mail-Fetch-Date: '.date('c')."\n\n";
-            $filename = str_replace([':', '/'], '_', $importKey).'.eml';
+            $filename = self::dumpFileName($importKey);
             file_put_contents($dir.'/'.$filename, $prefix.$rawContent);
+        } catch (\Throwable) {
+        }
+    }
+
+    /**
+     * Deletes dump files older than the configured retention (in days) below the
+     * connector's dump directory. Runs at most once per connector key per instance.
+     */
+    private function pruneOldDumps(string $connectorKey): void
+    {
+        if (isset($this->prunedDumpKeys[$connectorKey]) || $this->mailDumpRetentionDays <= 0) {
+            return;
+        }
+        $this->prunedDumpKeys[$connectorKey] = true;
+        $base = $this->mailDumpDir.'/'.$connectorKey;
+        if (!is_dir($base)) {
+            return;
+        }
+        $realBase = realpath($base);
+        $realRoot = realpath($this->mailDumpDir);
+        if (false === $realBase || false === $realRoot || !str_starts_with($realBase, rtrim($realRoot, '/').'/')) {
+            return;
+        }
+        $threshold = time() - $this->mailDumpRetentionDays * 86400;
+        try {
+            $iterator = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($base, \FilesystemIterator::SKIP_DOTS),
+                \RecursiveIteratorIterator::CHILD_FIRST,
+            );
+            foreach ($iterator as $file) {
+                if (!$file instanceof \SplFileInfo) {
+                    continue;
+                }
+                if ($file->isFile() && $file->getMTime() < $threshold) {
+                    @unlink($file->getPathname());
+                } elseif ($file->isDir()) {
+                    @rmdir($file->getPathname());
+                }
+            }
         } catch (\Throwable) {
         }
     }
@@ -559,6 +654,22 @@ final class RawMailImporter
     {
         $name = $connector->getDomain() ?: (string) $connector->getId();
 
-        return preg_replace('/[^a-zA-Z0-9@._-]/', '_', $name) ?? 'unknown_connector';
+        return self::normalizeDumpKey($name);
+    }
+
+    /**
+     * Normalizes a connector dump key to a single safe directory name: only
+     * [A-Za-z0-9@._-] are kept, leading/trailing dots are trimmed, ".", ".."
+     * and empty values fall back to "unknown_connector", max. 120 characters.
+     */
+    public static function normalizeDumpKey(string $name): string
+    {
+        $safe = preg_replace('/[^a-zA-Z0-9@._-]/', '_', $name) ?? '';
+        $safe = trim($safe, '.');
+        if ('' === $safe || '.' === $safe || '..' === $safe) {
+            return 'unknown_connector';
+        }
+
+        return substr($safe, 0, 120);
     }
 }

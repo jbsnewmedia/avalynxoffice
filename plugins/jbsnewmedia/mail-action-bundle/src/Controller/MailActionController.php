@@ -35,8 +35,8 @@ use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 final class MailActionController extends AbstractController
@@ -58,6 +58,11 @@ final class MailActionController extends AbstractController
     #[Route(path: '/email/{id}/read', name: 'mail_email_read', requirements: ['id' => '[0-9a-fA-F\-]{36}'], methods: ['POST'])]
     public function setRead(string $id, Request $request): JsonResponse
     {
+        $tokenRaw = $request->request->get('_token') ?? $request->headers->get('X-CSRF-Token');
+        $token = is_scalar($tokenRaw) ? (string) $tokenRaw : null;
+        if (null === $token || !$this->isCsrfTokenValid('mail_favorite', $token)) {
+            return new JsonResponse(['success' => false, 'error' => $this->translator->trans('common.invalid_token')], Response::HTTP_FORBIDDEN);
+        }
         $this->licenseEnforcement->assertCanPerform(LicenseOperation::MAIL_MODIFY);
         $email = $this->emailRepository->find($id);
         if (!$email instanceof Email) {

@@ -34,6 +34,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 class MailController extends AbstractController
 {
     private const int DEFAULT_LIMIT = 10;
+    private const int MAX_LIMIT = 100;
 
     public function __construct(
         private readonly TranslatorInterface $translator,
@@ -231,6 +232,12 @@ class MailController extends AbstractController
     #[Route(path: '/email/{id}/favorite', name: 'mail_email_favorite', requirements: ['id' => '[0-9a-fA-F\-]{36}'], methods: ['POST'])]
     public function setFavorite(string $id, Request $request): JsonResponse
     {
+        $tokenRaw = $request->request->get('_token') ?? $request->headers->get('X-CSRF-Token');
+        $token = is_scalar($tokenRaw) ? (string) $tokenRaw : null;
+        if (null === $token || !$this->isCsrfTokenValid('mail_favorite', $token)) {
+            return new JsonResponse(['success' => false, 'error' => $this->translator->trans('common.invalid_token')], Response::HTTP_FORBIDDEN);
+        }
+
         $this->licenseEnforcement->assertCanPerform(LicenseOperation::MAIL_MODIFY);
         $email = $this->emailRepo->find($id);
         if (!$email) {
@@ -259,6 +266,7 @@ class MailController extends AbstractController
         if ($limit <= 0) {
             $limit = self::DEFAULT_LIMIT;
         }
+        $limit = min($limit, self::MAX_LIMIT);
         if ($offset < 0) {
             $offset = 0;
         }

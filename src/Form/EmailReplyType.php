@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace AvalynxOffice\Form;
 
 use AvalynxOffice\Entity\Email;
+use AvalynxOffice\Service\Mail\AttachmentStorage;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
@@ -21,16 +22,24 @@ use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
+use Symfony\Component\Validator\Constraints\All;
+use Symfony\Component\Validator\Constraints\File;
 
 /**
  * @extends AbstractType<Email>
  */
 class EmailReplyType extends AbstractType
 {
+    public function __construct(
+        private readonly AttachmentStorage $attachmentStorage,
+    ) {
+    }
+
     #[\Override]
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $senderChoices = is_array($options['sender_choices'] ?? null) ? $options['sender_choices'] : [];
+        $maxAttachmentBytes = max(1, $this->attachmentStorage->getMaxBytes());
 
         $builder
             ->add('from', ChoiceType::class, [
@@ -87,6 +96,11 @@ class EmailReplyType extends AbstractType
                 'mapped' => false,
                 'required' => false,
                 'multiple' => true,
+                'constraints' => [
+                    new All([
+                        new File(maxSize: $maxAttachmentBytes),
+                    ]),
+                ],
             ])
             ->add('send', SubmitType::class, [
                 'label' => 'email.send_now',

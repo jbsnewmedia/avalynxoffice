@@ -19,8 +19,8 @@ use AvalynxOffice\Tests\Support\RefreshDatabaseTrait;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
-use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\HttpFoundation\UriSigner;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 #[\PHPUnit\Framework\Attributes\Group('integration')]
 #[\PHPUnit\Framework\Attributes\Group('functional')]
@@ -150,7 +150,209 @@ final class ProfileControllerTest extends WebTestCase
         self::assertInstanceOf(User::class, $refreshed);
         $addresses = $refreshed->getRecoveryAddresses();
         self::assertCount(1, $addresses);
-        self::assertSame('backup@example.com', $addresses->first()?->getEmail());
+        $address = $addresses->first();
+        self::assertInstanceOf(RecoveryAddress::class, $address);
+        self::assertSame('backup@example.com', $address->getEmail());
+
+        // Double opt-in: the address starts unverified with a pending token
+        // and the confirmation link is mailed to the new address.
+        self::assertFalse($address->isVerified());
+        self::assertSame([], $refreshed->getVerifiedRecoveryAddresses());
+        self::assertIsString($address->getVerificationTokenHash());
+        self::assertSame(64, strlen($address->getVerificationTokenHash()));
+        self::assertGreaterThan(new \DateTimeImmutable('+23 hours'), $address->getVerificationExpiresAt());
+
+        self::assertEmailCount(1);
+        $email = self::getMailerMessage();
+        self::assertNotNull($email);
+        self::assertEmailAddressContains($email, 'To', 'backup@example.com');
+        self::assertEmailTextBodyContains($email, 'http://localhost/profile/recovery/verify/'.($address->getId()?->toRfc4122() ?? '').'/');
+        self::assertEmailTextBodyContains($email, 'user@example.com');
+        // The mail must not leak the stored hash.
+        self::assertEmailTextBodyNotContains($email, $address->getVerificationTokenHash());
+    }
+
+    public function testRecoveryAddIsRateLimitedPerIp(): void
+    {
+        $this->client->disableReboot();
+        $this->client->loginUser($this->user);
+
+        // The "password_reset" limiter allows 5 attempts per 15 minutes. Every
+        // syntactically valid attempt counts, even once the per-user address
+        // limit (MAX_RECOVERY_ADDRESSES) rejects further additions.
+        for ($attempt = 0; $attempt < 5; ++$attempt) {
+            $token = $this->setCsrfToken('add_recovery');
+            $this->client->request('POST', '/profile/recovery/add', ['_token' => $token, 'email' => sprintf('backup%d@example.com', $attempt)]);
+            if ($attempt < UserService::MAX_RECOVERY_ADDRESSES) {
+                self::assertResponseIsSuccessful();
+                // Services (incl. the mailer logger) are reset between requests.
+                self::assertEmailCount(1);
+            } else {
+                self::assertResponseStatusCodeSame(422);
+                self::assertEmailCount(0);
+            }
+        }
+
+        $token = $this->setCsrfToken('add_recovery');
+        $this->client->request('POST', '/profile/recovery/add', ['_token' => $token, 'email' => 'backup-blocked@example.com']);
+
+        self::assertResponseStatusCodeSame(429);
+        self::assertEmailCount(0);
+        $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertFalse($data['success']);
+        self::assertSame('Too many requests. Please try again in a few minutes.', $data['message']);
+
+        $this->em->clear();
+        $refreshed = $this->em->find(User::class, $this->user->getId());
+        self::assertInstanceOf(User::class, $refreshed);
+        self::assertCount(UserService::MAX_RECOVERY_ADDRESSES, $refreshed->getRecoveryAddresses());
+    }
+
+    public function testRecoveryPageShowsVerificationStatusAndResendButton(): void
+    {
+        $this->createRecoveryAddress($this->user, 'confirmed@example.com');
+        [$pending] = $this->createPendingRecoveryAddress($this->user, 'pending@example.com');
+
+        $this->client->loginUser($this->user);
+        $this->client->request('GET', '/profile/recovery');
+
+        self::assertResponseIsSuccessful();
+        $content = (string) $this->client->getResponse()->getContent();
+        self::assertStringContainsString('Verified', $content);
+        self::assertStringContainsString('Unverified', $content);
+        self::assertStringContainsString('/profile/recovery/resend/'.($pending->getId()?->toRfc4122() ?? ''), $content);
+        self::assertSame(1, substr_count($content, '/profile/recovery/resend/'));
+    }
+
+    public function testRecoveryVerifyWithValidTokenMarksAddressVerified(): void
+    {
+        [$address, $token] = $this->createPendingRecoveryAddress($this->user, 'pending@example.com');
+
+        // The link works without being logged in.
+        $this->client->request('GET', $this->verifyPath($address, $token));
+
+        self::assertResponseRedirects('/login');
+        $this->em->clear();
+        $refreshed = $this->em->find(RecoveryAddress::class, $address->getId());
+        self::assertInstanceOf(RecoveryAddress::class, $refreshed);
+        self::assertTrue($refreshed->isVerified());
+        self::assertNull($refreshed->getVerificationTokenHash());
+        self::assertNull($refreshed->getVerificationExpiresAt());
+
+        // The link is single-use.
+        $this->client->request('GET', $this->verifyPath($address, $token));
+        self::assertResponseRedirects('/login');
+        $this->client->followRedirect();
+        self::assertStringContainsString('invalid or has expired', (string) $this->client->getResponse()->getContent());
+    }
+
+    public function testRecoveryVerifyRedirectsLoggedInUserToRecoveryPage(): void
+    {
+        [$address, $token] = $this->createPendingRecoveryAddress($this->user, 'pending@example.com');
+
+        $this->client->loginUser($this->user);
+        $this->client->request('GET', $this->verifyPath($address, $token));
+
+        self::assertResponseRedirects('/profile/recovery');
+        $this->client->followRedirect();
+        self::assertStringContainsString('Recovery address verified.', (string) $this->client->getResponse()->getContent());
+    }
+
+    public function testRecoveryVerifyRejectsWrongToken(): void
+    {
+        [$address, $token] = $this->createPendingRecoveryAddress($this->user, 'pending@example.com');
+
+        $this->client->request('GET', $this->verifyPath($address, strrev($token)));
+
+        self::assertResponseRedirects('/login');
+        $this->client->followRedirect();
+        self::assertStringContainsString('invalid or has expired', (string) $this->client->getResponse()->getContent());
+        $this->em->clear();
+        $refreshed = $this->em->find(RecoveryAddress::class, $address->getId());
+        self::assertInstanceOf(RecoveryAddress::class, $refreshed);
+        self::assertFalse($refreshed->isVerified());
+        self::assertNotNull($refreshed->getVerificationTokenHash());
+    }
+
+    public function testRecoveryVerifyRejectsExpiredToken(): void
+    {
+        [$address, $token] = $this->createPendingRecoveryAddress($this->user, 'pending@example.com');
+        $address->setVerificationExpiresAt(new \DateTimeImmutable('-1 minute'));
+        $this->em->flush();
+
+        $this->client->request('GET', $this->verifyPath($address, $token));
+
+        self::assertResponseRedirects('/login');
+        $this->em->clear();
+        $refreshed = $this->em->find(RecoveryAddress::class, $address->getId());
+        self::assertInstanceOf(RecoveryAddress::class, $refreshed);
+        self::assertFalse($refreshed->isVerified());
+    }
+
+    /**
+     * Unknown ids (valid or malformed) answer exactly like a wrong token.
+     */
+    public function testRecoveryVerifyAnswersNeutrallyForUnknownAddress(): void
+    {
+        $this->client->request('GET', '/profile/recovery/verify/00000000-0000-7000-8000-000000000000/some-token');
+        self::assertResponseRedirects('/login');
+
+        $this->client->request('GET', '/profile/recovery/verify/not-a-uuid/some-token');
+        self::assertResponseRedirects('/login');
+        $this->client->followRedirect();
+        self::assertStringContainsString('invalid or has expired', (string) $this->client->getResponse()->getContent());
+    }
+
+    public function testRecoveryResendSendsFreshVerificationMail(): void
+    {
+        [$address, $token] = $this->createPendingRecoveryAddress($this->user, 'pending@example.com');
+        $previousHash = $address->getVerificationTokenHash();
+        $csrf = $this->setCsrfToken('resend_recovery_'.$address->getId());
+
+        $this->client->loginUser($this->user);
+        $this->client->request('POST', '/profile/recovery/resend/'.($address->getId()?->toRfc4122() ?? ''), ['_token' => $csrf]);
+
+        self::assertResponseRedirects('/profile/recovery');
+        self::assertEmailCount(1);
+        $email = self::getMailerMessage();
+        self::assertNotNull($email);
+        self::assertEmailAddressContains($email, 'To', 'pending@example.com');
+        self::assertEmailTextBodyContains($email, '/profile/recovery/verify/'.($address->getId()?->toRfc4122() ?? '').'/');
+
+        // The previous token has been superseded.
+        $this->em->clear();
+        $refreshed = $this->em->find(RecoveryAddress::class, $address->getId());
+        self::assertInstanceOf(RecoveryAddress::class, $refreshed);
+        self::assertFalse($refreshed->isVerified());
+        self::assertNotSame($previousHash, $refreshed->getVerificationTokenHash());
+        self::assertNotSame(hash('sha256', $token), $refreshed->getVerificationTokenHash());
+    }
+
+    public function testRecoveryResendRejectsInvalidCsrfToken(): void
+    {
+        [$address] = $this->createPendingRecoveryAddress($this->user, 'pending@example.com');
+        $previousHash = $address->getVerificationTokenHash();
+
+        $this->client->loginUser($this->user);
+        $this->client->request('POST', '/profile/recovery/resend/'.($address->getId()?->toRfc4122() ?? ''), ['_token' => 'invalid']);
+
+        self::assertResponseRedirects('/profile/recovery');
+        self::assertEmailCount(0);
+        $this->em->clear();
+        $refreshed = $this->em->find(RecoveryAddress::class, $address->getId());
+        self::assertInstanceOf(RecoveryAddress::class, $refreshed);
+        self::assertSame($previousHash, $refreshed->getVerificationTokenHash());
+    }
+
+    public function testRecoveryResendReturnsNotFoundForForeignAddress(): void
+    {
+        [$address] = $this->createPendingRecoveryAddress($this->admin, 'admin-pending@example.com');
+        $csrf = $this->setCsrfToken('resend_recovery_'.$address->getId());
+
+        $this->client->loginUser($this->user);
+        $this->client->request('POST', '/profile/recovery/resend/'.($address->getId()?->toRfc4122() ?? ''), ['_token' => $csrf]);
+
+        self::assertResponseStatusCodeSame(404);
     }
 
     public function testRecoveryAddRejectsDuplicate(): void
@@ -296,6 +498,10 @@ final class ProfileControllerTest extends WebTestCase
         $this->client->request('POST', '/profile/password-reset', ['_token' => $token, 'email' => 'user@example.com']);
 
         self::assertResponseIsSuccessful();
+        self::assertEmailCount(1);
+        $email = self::getMailerMessage();
+        self::assertNotNull($email);
+        self::assertEmailAddressContains($email, 'To', 'backup@example.com');
         $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
         self::assertTrue($data['success']);
         self::assertSame('/profile/password-reset', $data['redirect']);
@@ -304,6 +510,38 @@ final class ProfileControllerTest extends WebTestCase
         $content = (string) $this->client->getResponse()->getContent();
         self::assertStringContainsString('If recovery addresses are registered', $content);
         self::assertStringContainsString('Back to sign in', $content);
+    }
+
+    /**
+     * An unconfirmed address must never receive a reset link - the answer
+     * stays the generic one so nothing about the account leaks.
+     */
+    public function testPasswordResetSendIgnoresUnverifiedRecoveryAddress(): void
+    {
+        $this->createPendingRecoveryAddress($this->user, 'pending@example.com');
+        $token = $this->setCsrfToken('password_reset_request');
+        $this->client->request('POST', '/profile/password-reset', ['_token' => $token, 'email' => 'user@example.com']);
+
+        self::assertResponseIsSuccessful();
+        self::assertEmailCount(0);
+        $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertTrue($data['success']);
+        self::assertSame('/profile/password-reset', $data['redirect']);
+    }
+
+    public function testPasswordResetSendOnlyTargetsVerifiedRecoveryAddresses(): void
+    {
+        $this->createRecoveryAddress($this->user, 'confirmed@example.com');
+        $this->createPendingRecoveryAddress($this->user, 'pending@example.com');
+        $token = $this->setCsrfToken('password_reset_request');
+        $this->client->request('POST', '/profile/password-reset', ['_token' => $token, 'email' => 'user@example.com']);
+
+        self::assertResponseIsSuccessful();
+        self::assertEmailCount(1);
+        $email = self::getMailerMessage();
+        self::assertNotNull($email);
+        self::assertEmailAddressContains($email, 'To', 'confirmed@example.com');
+        self::assertEmailAddressNotContains($email, 'To', 'pending@example.com');
     }
 
     public function testPasswordResetExecuteRejectsInvalidSignature(): void
@@ -588,14 +826,48 @@ final class ProfileControllerTest extends WebTestCase
         );
     }
 
+    /**
+     * Attaches a confirmed recovery address directly (bypassing the double
+     * opt-in) so no verification mail interferes with mailer assertions.
+     *
+     * @param non-empty-string $email
+     */
     private function createRecoveryAddress(User $owner, string $email): RecoveryAddress
     {
-        $service = static::getContainer()->get(UserService::class);
-        $address = $service->addRecoveryAddress($owner, $email);
+        $address = new RecoveryAddress();
+        $address->setEmail($email);
+        $address->setVerifiedAt(new \DateTimeImmutable('-1 day'));
+        $owner->addRecoveryAddress($address);
         $this->em->flush();
         $this->em->refresh($owner);
 
         return $address;
+    }
+
+    /**
+     * Attaches an unverified recovery address with a pending verification
+     * token and returns the address together with the plain token.
+     *
+     * @param non-empty-string $email
+     *
+     * @return array{RecoveryAddress, string}
+     */
+    private function createPendingRecoveryAddress(User $owner, string $email): array
+    {
+        $service = static::getContainer()->get(UserService::class);
+        $address = new RecoveryAddress();
+        $address->setEmail($email);
+        $owner->addRecoveryAddress($address);
+        $token = $service->issueVerification($address);
+        $this->em->flush();
+        $this->em->refresh($owner);
+
+        return [$address, $token];
+    }
+
+    private function verifyPath(RecoveryAddress $address, string $token): string
+    {
+        return '/profile/recovery/verify/'.($address->getId()?->toRfc4122() ?? '').'/'.$token;
     }
 
     private function setCsrfToken(string $tokenId): string

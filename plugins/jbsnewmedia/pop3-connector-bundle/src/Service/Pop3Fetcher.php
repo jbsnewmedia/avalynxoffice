@@ -39,6 +39,9 @@ class Pop3Fetcher
 {
     private ?OutputInterface $output = null;
     private ?string $errorLogPath = null;
+    private readonly string $mailDumpDir;
+    /** @var array<string, true> */
+    private array $prunedDumpKeys = [];
 
     public function __construct(
         private readonly EntityManagerInterface $em,
@@ -48,7 +51,10 @@ class Pop3Fetcher
         private readonly Pop3StorageFactory $pop3StorageFactory,
         private readonly MailRoutingService $mailRoutingService,
         private readonly ConnectorConfigRepository $connectorConfigRepository,
+        ?string $mailDumpDir = null,
+        private readonly int $mailDumpRetentionDays = 14,
     ) {
+        $this->mailDumpDir = rtrim(null !== $mailDumpDir && '' !== $mailDumpDir ? $mailDumpDir : sys_get_temp_dir().'/avalynxoffice/mail_dumps', '/');
     }
 
     public function setOutput(?OutputInterface $output): self
@@ -109,11 +115,12 @@ class Pop3Fetcher
         }
         try {
             $date = new \DateTimeImmutable();
-            $dir = 'mail_dumps/'.$connectorKey.'/'.$date->format('Y/m/d').'/error';
+            $this->pruneOldDumps($connectorKey);
+            $dir = $this->dumpDir($connectorKey, $date, 'error');
             if (!is_dir($dir)) {
                 @mkdir($dir, 0775, true);
             }
-            $filename = str_replace([':', '/'], '_', $uidl ?? (string) $num).'.eml';
+            $filename = self::dumpFileName($uidl ?? (string) $num);
             $fullContent = "X-Mail-Fetch-Status: error\nX-Mail-Fetch-Error: ".str_replace(["\r", "\n"], ' ', $errorReason)."\nX-Mail-Fetch-Date: ".date('c')."\nX-Mail-Fetch-UIDL: ".($uidl ?? 'unknown')."\nX-Mail-Fetch-Num: ".$num."\n\n".$raw;
             file_put_contents($dir.'/'.$filename, $fullContent);
             $this->log(sprintf('Raw-Mail als error abgelegt: %s/%s', $dir, $filename), 'comment');
@@ -255,11 +262,26 @@ class Pop3Fetcher
 
             return ['imported' => 0, 'skipped' => 0, 'errors' => 0];
         }
+        try {
+            $host = SmtpMailerFactory::validateHost($host);
+        } catch (\InvalidArgumentException) {
+            $this->log(sprintf('Invalid POP3 host "%s".', $host), 'error');
+
+            return ['imported' => 0, 'skipped' => 0, 'errors' => 0];
+        }
         $port = self::intValue($config, 'pop3Port');
-        $security = strtolower(self::stringValue($config, 'pop3Security'));
+        if (0 !== $port && ($port < 1 || $port > 65535)) {
+            $this->log(sprintf('Invalid POP3 port %d.', $port), 'error');
+
+            return ['imported' => 0, 'skipped' => 0, 'errors' => 0];
+        }
+        $security = strtolower(trim(self::stringValue($config, 'pop3Security')));
+        if ('' === $security || 'none' === $security) {
+            $this->log('POP3 connection without encryption (security not set) — credentials are transmitted in plain text.', 'comment');
+        }
         $delete = $request->deleteAfter ?? self::boolValue($config, 'pop3DeleteAfterFetch', true);
         $fetchFrom = $connector->getFetchFrom();
-        $this->log(sprintf('Verbinde mit %s:%d (Sicherheit: %s) ...', $host, $port ?: 110, '' !== $security ? $security : 'keine'));
+        $this->log(sprintf('Verbinde mit %s:%d (Sicherheit: %s) ...', $host, $port ?: ('ssl' === $security ? 995 : 110), '' !== $security ? $security : 'keine'));
         $storageConfig = [
             'host' => $host,
             'user' => $username,
@@ -838,7 +860,7 @@ class Pop3Fetcher
 
     private function storeAttachmentPart(StorageMessage $part, Email $email, string $contentType): void
     {
-        $filename = $this->detectFileName($part) ?? 'attachment.bin';
+        $filename = self::normalizeAttachmentFilename($this->detectFileName($part));
         $data = $this->getPartContent($part, true);
         $att = new Attachment();
         $att->setName($filename);
@@ -883,6 +905,99 @@ class Pop3Fetcher
     }
 
     /**
+     * Normalizes an attachment file name: path components and control characters
+     * are removed, the length is limited to 255 bytes, empty names fall back to
+     * "attachment.bin".
+     */
+    public static function normalizeAttachmentFilename(?string $filename): string
+    {
+        if (null === $filename) {
+            return 'attachment.bin';
+        }
+        $name = str_replace('\\', '/', $filename);
+        $name = basename($name);
+        $name = preg_replace('/[\x00-\x1F\x7F]/u', '', $name) ?? '';
+        if (!mb_check_encoding($name, 'UTF-8')) {
+            $name = preg_replace('/[\x00-\x1F\x7F]/', '', $name) ?? '';
+        }
+        $name = trim($name, " .\t");
+        if ('' === $name || '.' === $name || '..' === $name) {
+            return 'attachment.bin';
+        }
+        if (strlen($name) > 255) {
+            $ext = '';
+            $dot = strrpos($name, '.');
+            if (false !== $dot && strlen($name) - $dot <= 16) {
+                $ext = substr($name, $dot);
+                $name = substr($name, 0, $dot);
+            }
+            $name = mb_strcut($name, 0, 255 - strlen($ext)).$ext;
+        }
+
+        return $name;
+    }
+
+    /**
+     * Builds a safe dump file name from a UIDL/import key: only [A-Za-z0-9._-]
+     * are kept and the length is capped at 120 characters (plus ".eml").
+     */
+    public static function dumpFileName(string $key): string
+    {
+        $safe = preg_replace('/[^A-Za-z0-9._-]/', '_', $key) ?? '';
+        $safe = trim($safe, '.');
+        if ('' === $safe) {
+            $safe = 'unknown';
+        }
+
+        return substr($safe, 0, 120).'.eml';
+    }
+
+    private function dumpDir(string $connectorKey, \DateTimeInterface $date, string $status): string
+    {
+        return $this->mailDumpDir.'/'.$connectorKey.'/'.$date->format('Y/m/d').'/'.$status;
+    }
+
+    /**
+     * Deletes dump files older than the configured retention (in days) below the
+     * connector's dump directory. Runs at most once per connector key per instance.
+     */
+    private function pruneOldDumps(string $connectorKey): void
+    {
+        if (isset($this->prunedDumpKeys[$connectorKey]) || $this->mailDumpRetentionDays <= 0) {
+            return;
+        }
+        $this->prunedDumpKeys[$connectorKey] = true;
+        $base = $this->mailDumpDir.'/'.$connectorKey;
+        if (!is_dir($base)) {
+            return;
+        }
+        $realBase = realpath($base);
+        $realRoot = realpath($this->mailDumpDir);
+        if (false === $realBase || false === $realRoot || !str_starts_with($realBase, rtrim($realRoot, '/').'/')) {
+            return;
+        }
+        $threshold = time() - $this->mailDumpRetentionDays * 86400;
+        try {
+            $iterator = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($base, \FilesystemIterator::SKIP_DOTS),
+                \RecursiveIteratorIterator::CHILD_FIRST,
+            );
+            foreach ($iterator as $file) {
+                if (!$file instanceof \SplFileInfo) {
+                    continue;
+                }
+                if ($file->isFile() && $file->getMTime() < $threshold) {
+                    @unlink($file->getPathname());
+                } elseif ($file->isDir()) {
+                    @rmdir($file->getPathname());
+                }
+            }
+        } catch (\Throwable $e) {
+            $this->log('Error pruning old mail dumps: '.$e->getMessage(), 'comment');
+        }
+    }
+
+    /**
      * Content-ID of an inline image part (referenced by the HTML body via
      * "cid:<content id>"), without the angle brackets.
      */
@@ -912,15 +1027,31 @@ class Pop3Fetcher
     {
         $name = $connector->getDomain() ?: $pop3Username ?: (string) $connector->getId();
 
-        return preg_replace('/[^a-zA-Z0-9@._-]/', '_', $name) ?? 'unknown_connector';
+        return self::normalizeDumpKey($name);
+    }
+
+    /**
+     * Normalizes a connector dump key to a single safe directory name: only
+     * [A-Za-z0-9@._-] are kept, leading/trailing dots are trimmed, ".", ".."
+     * and empty values fall back to "unknown_connector", max. 120 characters.
+     */
+    public static function normalizeDumpKey(string $name): string
+    {
+        $safe = preg_replace('/[^a-zA-Z0-9@._-]/', '_', $name) ?? '';
+        $safe = trim($safe, '.');
+        if ('' === $safe || '.' === $safe || '..' === $safe) {
+            return 'unknown_connector';
+        }
+
+        return substr($safe, 0, 120);
     }
 
     private function removePendingDump(string $connectorKey, string $importKey, ?\DateTimeImmutable $date = null): void
     {
         try {
             $date ??= new \DateTimeImmutable();
-            $dir = 'mail_dumps/'.$connectorKey.'/'.$date->format('Y/m/d').'/pending';
-            $pendingFile = $dir.'/'.str_replace([':', '/'], '_', $importKey).'.eml';
+            $dir = $this->dumpDir($connectorKey, $date, 'pending');
+            $pendingFile = $dir.'/'.self::dumpFileName($importKey);
             if (file_exists($pendingFile)) {
                 @unlink($pendingFile);
             }
@@ -932,16 +1063,17 @@ class Pop3Fetcher
     {
         try {
             $date = $email?->getReceivedAt() ?? $this->extractDateFromMessage($msg) ?? new \DateTimeImmutable();
-            $dir = 'mail_dumps/'.$connectorKey.'/'.$date->format('Y/m/d').'/'.$status;
+            $this->pruneOldDumps($connectorKey);
+            $dir = $this->dumpDir($connectorKey, $date, $status);
             if (!is_dir($dir)) {
                 @mkdir($dir, 0775, true);
             }
             if ($email?->getContentHash()) {
-                $filename = $email->getContentHash().'.eml';
+                $filename = self::dumpFileName($email->getContentHash());
             } elseif ($email?->getId()) {
-                $filename = (string) $email->getId().'.eml';
+                $filename = self::dumpFileName((string) $email->getId());
             } else {
-                $filename = str_replace([':', '/'], '_', (string) $importKey).'.eml';
+                $filename = self::dumpFileName((string) $importKey);
             }
             $rawContent = $msg->getHeaders()->toString()."\n\n".$msg->getContent();
             if ('error' === $status && $errorReason) {

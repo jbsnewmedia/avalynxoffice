@@ -70,6 +70,12 @@ final class UserAdminController extends AbstractController
     #[Route(path: '/admin/users/data', name: 'admin_users_data', methods: ['POST'])]
     public function data(Request $request): JsonResponse
     {
+        $tokenRaw = $request->request->get('_token') ?? $request->headers->get('X-CSRF-Token');
+        $token = is_scalar($tokenRaw) ? (string) $tokenRaw : null;
+        if (null === $token || !$this->isCsrfTokenValid('datatable', $token)) {
+            return new JsonResponse(['success' => false, 'error' => $this->translator->trans('common.invalid_token')], Response::HTTP_FORBIDDEN);
+        }
+
         $search = trim((string) $request->request->get('search', ''));
         $page = max(1, (int) $request->request->get('page', 1));
         $perPage = (int) $request->request->get('perpage', self::PER_PAGE_CHOICES[0]);

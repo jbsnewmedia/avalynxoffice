@@ -2,14 +2,19 @@
 
 declare(strict_types=1);
 
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
+
 namespace AvalynxOffice\Tests\Controller;
 
+use AvalynxOffice\Entity\Account;
 use AvalynxOffice\Entity\Attachment;
 use AvalynxOffice\Entity\Email;
 use AvalynxOffice\Entity\EmailAttachmentLink;
 use AvalynxOffice\Entity\EmailFolder;
 use AvalynxOffice\Entity\Folder;
-use AvalynxOffice\Entity\Account;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Service\Mail\AttachmentStorage;
 use AvalynxOffice\Tests\Support\RefreshDatabaseTrait;
@@ -55,14 +60,18 @@ final class MailControllerCoverageTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSelectorExists('a[href="/mail/compose"]');
 
-        $this->client->request('GET', sprintf('/mails/%s/%s/%s', $accountId, $folderId, $emailId));
+        $crawler = $this->client->request('GET', sprintf('/mails/%s/%s/%s', $accountId, $folderId, $emailId));
         self::assertResponseIsSuccessful();
 
-        $this->client->request('POST', sprintf('/email/%s/favorite', $emailId), ['favorite' => '1']);
+        // The favorite toggle sends the CSRF token rendered on the mail list.
+        $favoriteToken = $crawler->filter('.email-list-container')->attr('data-mail-token');
+        self::assertNotEmpty($favoriteToken);
+
+        $this->client->request('POST', sprintf('/email/%s/favorite', $emailId), ['favorite' => '1', '_token' => $favoriteToken]);
         self::assertResponseIsSuccessful();
         self::assertJsonStringEqualsJsonString('{"success":true,"favorite":true}', (string) $this->client->getResponse()->getContent());
 
-        $this->client->request('POST', sprintf('/email/%s/favorite', $emailId), ['favorite' => '0']);
+        $this->client->request('POST', sprintf('/email/%s/favorite', $emailId), ['favorite' => '0', '_token' => $favoriteToken]);
         self::assertResponseIsSuccessful();
         self::assertJsonStringEqualsJsonString('{"success":true,"favorite":false}', (string) $this->client->getResponse()->getContent());
 
@@ -86,8 +95,31 @@ final class MailControllerCoverageTest extends WebTestCase
         $this->client->request('GET', sprintf('/email/%s', $this->email->getId()));
         self::assertResponseStatusCodeSame(403);
 
-        $this->client->request('POST', sprintf('/email/%s/favorite', $this->email->getId()), ['favorite' => '1']);
+        $this->client->request('POST', sprintf('/email/%s/favorite', $this->email->getId()), ['favorite' => '1', '_token' => $this->setCsrfToken('mail_favorite')]);
         self::assertResponseStatusCodeSame(403);
+    }
+
+    public function testFavoriteRejectsMissingOrInvalidCsrfToken(): void
+    {
+        $this->loginAdmin();
+        $emailId = (string) $this->email->getId();
+
+        $this->client->request('POST', sprintf('/email/%s/favorite', $emailId), ['favorite' => '1']);
+        self::assertResponseStatusCodeSame(403);
+        self::assertStringContainsString('"success":false', (string) $this->client->getResponse()->getContent());
+
+        $this->client->request('POST', sprintf('/email/%s/favorite', $emailId), ['favorite' => '1', '_token' => 'invalid']);
+        self::assertResponseStatusCodeSame(403);
+
+        $this->entityManager->clear();
+        $reloaded = $this->entityManager->find(Email::class, $emailId);
+        self::assertNotNull($reloaded);
+        self::assertFalse($reloaded->isFavorite());
+
+        // The token may alternatively be sent as X-CSRF-Token header.
+        $this->client->request('POST', sprintf('/email/%s/favorite', $emailId), ['favorite' => '1'], [], ['HTTP_X_CSRF_TOKEN' => $this->setCsrfToken('mail_favorite')]);
+        self::assertResponseIsSuccessful();
+        self::assertJsonStringEqualsJsonString('{"success":true,"favorite":true}', (string) $this->client->getResponse()->getContent());
     }
 
     public function testGuestUserIsDeniedAccessToForeignAccountFolder(): void
@@ -235,7 +267,7 @@ final class MailControllerCoverageTest extends WebTestCase
         $this->client->request('GET', sprintf('/email/%s/attachment/%s', $emailId, $brokenAttachmentId));
         self::assertResponseStatusCodeSame(404);
 
-        $this->client->request('POST', sprintf('/email/%s/favorite', $missingUuid), ['favorite' => '1']);
+        $this->client->request('POST', sprintf('/email/%s/favorite', $missingUuid), ['favorite' => '1', '_token' => $this->setCsrfToken('mail_favorite')]);
         self::assertResponseStatusCodeSame(404);
         self::assertStringContainsString('"success":false', (string) $this->client->getResponse()->getContent());
 
@@ -275,6 +307,21 @@ final class MailControllerCoverageTest extends WebTestCase
         $this->entityManager->flush();
 
         $this->client->loginUser($guest);
+    }
+
+    /**
+     * Stores a CSRF token directly in the client session and returns it.
+     * The value is then accepted for the given token id.
+     */
+    private function setCsrfToken(string $tokenId): string
+    {
+        $this->client->request('GET', '/mails');
+        $session = $this->client->getRequest()->getSession();
+        $value = 'test-csrf-token-'.bin2hex(random_bytes(8));
+        $session->set('_csrf/'.$tokenId, $value);
+        $session->save();
+
+        return $value;
     }
 
     /**

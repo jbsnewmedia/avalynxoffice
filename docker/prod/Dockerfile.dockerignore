@@ -1,6 +1,18 @@
+# Build context exclusions for the production image (docker/prod/Dockerfile).
+# Keep in sync with /.dockerignore (this file wins when the build is started
+# with -f docker/prod/Dockerfile). Intended differences to /.dockerignore
+# (dev image): vendor-bin and the QA configuration (phpunit*.xml.dist,
+# rector.php, .php-cs-fixer.dist.php, phpstan-global.neon) are excluded here.
+#
+# Required by the build: bin/, config/, migrations/, plugins/, public/, src/,
+# templates/, translations/, assets/, composer.json/.lock, symfony.lock, .env,
+# docker/prod/ (entrypoint, grant script, eas-grants.sql).
 .git
 .github
+.gitattributes
+.editorconfig
 .idea
+.clinerules
 .phpunit.cache
 .php-cs-fixer.cache
 var
@@ -10,9 +22,26 @@ node_modules
 mail_dumps
 data
 tests
+doc
 docs
 docker/postgres
+docker/web
+docker/*.sh
+docker/*.bat
 office-backup-*
+# Developer tooling and local deployment helpers.
+Dockerfile.dev
+docker-compose.yml
+deploy-*.sh
+update.sh
+core.sh
+rector.php
+.php-cs-fixer.dist.php
+phpunit*.xml.dist
+phpstan-global.neon
+TODO
+# Screenshots in the repository root (assets/png is still included).
+*.png
 # Local secrets: only the committed .env (defaults) belongs into the image.
 .env.local
 .env.*.local

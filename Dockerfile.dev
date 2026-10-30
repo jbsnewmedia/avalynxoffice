@@ -30,7 +30,9 @@ RUN COMPOSER_MEMORY_LIMIT=-1 composer install --optimize-autoloader --no-interac
 
 # Same bootstrap as production (see docker/prod/Dockerfile).
 COPY docker/prod/office-entrypoint.sh /usr/local/bin/office-entrypoint
-RUN chmod +x /usr/local/bin/office-entrypoint
+COPY docker/prod/office-grant-eas.sh /usr/local/bin/office-grant-eas
+COPY docker/prod/eas-grants.sql /usr/local/lib/avalynxoffice/eas-grants.sql
+RUN chmod +x /usr/local/bin/office-entrypoint /usr/local/bin/office-grant-eas
 
 ENTRYPOINT ["/usr/local/bin/office-entrypoint"]
 CMD ["supervisord"]

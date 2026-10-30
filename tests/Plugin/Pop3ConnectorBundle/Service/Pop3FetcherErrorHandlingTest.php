@@ -24,7 +24,7 @@ final class Pop3FetcherErrorHandlingTest extends TestCase
 {
     private string $tempDir;
 
-    private string $cwd;
+    private string $dumpDir;
 
     private OutputInterface $output;
 
@@ -35,10 +35,9 @@ final class Pop3FetcherErrorHandlingTest extends TestCase
         Pop3FetcherTestFunctionOverrides::$forceInvalidMbConvertEncoding = false;
         Pop3FetcherTestFunctionOverrides::$forceMbDetectEncodingFailure = false;
 
-        $this->tempDir = (getcwd() ?: sys_get_temp_dir()).'/pop3-error-handling-'.bin2hex(random_bytes(4));
+        $this->tempDir = sys_get_temp_dir().'/pop3-error-handling-'.bin2hex(random_bytes(4));
         self::assertTrue(mkdir($this->tempDir, 0777, true) || is_dir($this->tempDir));
-        $this->cwd = getcwd() ?: sys_get_temp_dir();
-        chdir($this->tempDir);
+        $this->dumpDir = $this->tempDir.'/mail_dumps';
 
         $this->output = $this->createStub(OutputInterface::class);
         $this->fetcher = $this->createFetcher();
@@ -47,7 +46,6 @@ final class Pop3FetcherErrorHandlingTest extends TestCase
 
     protected function tearDown(): void
     {
-        chdir($this->cwd);
         $this->removeDirectory($this->tempDir);
         Pop3FetcherTestFunctionOverrides::$forceInvalidMbConvertEncoding = false;
         Pop3FetcherTestFunctionOverrides::$forceMbDetectEncodingFailure = false;
@@ -278,7 +276,7 @@ final class Pop3FetcherErrorHandlingTest extends TestCase
         $factory = $this->createStub(Pop3StorageFactory::class);
         $factory->method('create')->willReturn($storage);
 
-        $fetcher = new Pop3Fetcher($entityManager, $emailRepository, $folderManager, $this->createStub(AttachmentStorage::class), $factory, $this->createRouting($account ?? null), $this->createStub(ConnectorConfigRepository::class));
+        $fetcher = new Pop3Fetcher($entityManager, $emailRepository, $folderManager, $this->createStub(AttachmentStorage::class), $factory, $this->createRouting($account ?? null), $this->createStub(ConnectorConfigRepository::class), $this->dumpDir);
         $fetcher->setOutput($this->output);
 
         self::assertSame(['imported' => 1, 'skipped' => 0, 'errors' => 0], $fetcher->fetch($connector, self::config(), self::request()));
@@ -314,7 +312,7 @@ final class Pop3FetcherErrorHandlingTest extends TestCase
         $factory = $this->createStub(Pop3StorageFactory::class);
         $factory->method('create')->willReturn($storage);
 
-        $fetcher = new Pop3Fetcher($entityManager, $emailRepository, $folderManager, $this->createStub(AttachmentStorage::class), $factory, $this->createRouting($account ?? null), $this->createStub(ConnectorConfigRepository::class));
+        $fetcher = new Pop3Fetcher($entityManager, $emailRepository, $folderManager, $this->createStub(AttachmentStorage::class), $factory, $this->createRouting($account ?? null), $this->createStub(ConnectorConfigRepository::class), $this->dumpDir);
         $fetcher->setOutput($this->output);
         $fetcher->setErrorLogPath($errorLogPath);
 
@@ -350,7 +348,7 @@ final class Pop3FetcherErrorHandlingTest extends TestCase
         $factory = $this->createStub(Pop3StorageFactory::class);
         $factory->method('create')->willReturn($storage);
 
-        $fetcher = new Pop3Fetcher($entityManager, $this->createStub(EmailRepository::class), $folderManager, $this->createStub(AttachmentStorage::class), $factory, $this->createRouting($account ?? null), $this->createStub(ConnectorConfigRepository::class));
+        $fetcher = new Pop3Fetcher($entityManager, $this->createStub(EmailRepository::class), $folderManager, $this->createStub(AttachmentStorage::class), $factory, $this->createRouting($account ?? null), $this->createStub(ConnectorConfigRepository::class), $this->dumpDir);
         $fetcher->setOutput($this->output);
 
         self::assertSame(['imported' => 0, 'skipped' => 0, 'errors' => 1], $fetcher->fetch($connector, self::config(), self::request()));
@@ -413,6 +411,7 @@ final class Pop3FetcherErrorHandlingTest extends TestCase
             $this->createStub(Pop3StorageFactory::class),
             $this->createStub(MailRoutingService::class),
             $this->createStub(ConnectorConfigRepository::class),
+            $this->dumpDir,
         );
     }
 

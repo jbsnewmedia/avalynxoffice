@@ -2,10 +2,18 @@
 
 declare(strict_types=1);
 
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
+
 namespace AvalynxOffice\Tests\Plugin\MailActionBundle\Service;
 
+use AvalynxOffice\Entity\Account;
+use AvalynxOffice\Entity\AccountAlias;
 use AvalynxOffice\Entity\Address;
 use AvalynxOffice\Entity\Body;
+use AvalynxOffice\Entity\Connector;
 use AvalynxOffice\Entity\Email;
 use AvalynxOffice\Entity\EmailAddressLink;
 use AvalynxOffice\Entity\EmailAttachmentLink;
@@ -15,9 +23,6 @@ use AvalynxOffice\Entity\Enum\BodyContentType;
 use AvalynxOffice\Entity\Enum\EmailAddressType;
 use AvalynxOffice\Entity\Folder;
 use AvalynxOffice\Entity\FolderAccount;
-use AvalynxOffice\Entity\Account;
-use AvalynxOffice\Entity\AccountAlias;
-use AvalynxOffice\Entity\Connector;
 use AvalynxOffice\Repository\AccountRepository;
 use AvalynxOffice\Service\Mail\AttachmentStorage;
 use AvalynxOffice\Service\Mail\FolderManager;
@@ -26,6 +31,7 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
 use JBSNewMedia\MailActionBundle\Service\MailDraftService;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Contracts\Translation\TranslatorInterface;
@@ -58,7 +64,6 @@ final class MailDraftServiceTest extends TestCase
             ->with(['email' => 'primary@example.com'])
             ->willReturn($address);
 
-
         $entityManager
             ->expects(self::once())
             ->method('getRepository')
@@ -87,7 +92,6 @@ final class MailDraftServiceTest extends TestCase
         $folderManager = $this->createStub(FolderManager::class);
         $attachmentStorage = $this->createStub(AttachmentStorage::class);
         $translator = $this->createStub(TranslatorInterface::class);
-
 
         $entityManager
             ->expects(self::never())
@@ -775,6 +779,40 @@ final class MailDraftServiceTest extends TestCase
         } finally {
             restore_error_handler();
         }
+    }
+
+    #[DataProvider('attachmentNameProvider')]
+    public function testNormalizeAttachmentNameStripsUnsafeCharacters(string $clientName, string $expected): void
+    {
+        $service = new MailDraftService(
+            $this->createStub(EntityManagerInterface::class),
+            $this->createStub(AccountRepository::class),
+            $this->createStub(FolderManager::class),
+            $this->createStub(AttachmentStorage::class),
+            $this->createTranslatorStub(),
+            new AllowAllLicenseEnforcement(),
+        );
+
+        $normalize = new \ReflectionMethod(MailDraftService::class, 'normalizeAttachmentName');
+
+        self::assertSame($expected, $normalize->invoke($service, $clientName, 'php1a2b.tmp'));
+    }
+
+    /**
+     * @return iterable<string, array{0: string, 1: string}>
+     */
+    public static function attachmentNameProvider(): iterable
+    {
+        yield 'plain name is kept' => ['report.pdf', 'report.pdf'];
+        yield 'unicode is kept' => ['Bericht Ü.pdf', 'Bericht Ü.pdf'];
+        yield 'control characters are removed' => ["re\x00po\x1Frt\x7F.pdf\r\n", 'report.pdf'];
+        yield 'path separators are replaced' => ['../../etc/passwd', '_.._etc_passwd'];
+        yield 'backslashes are replaced' => ['C:\\Users\\me\\file.txt', 'C:_Users_me_file.txt'];
+        yield 'surrounding whitespace and dots are trimmed' => ['  .hidden.txt. ', 'hidden.txt'];
+        yield 'empty name falls back to server file name' => ['', 'php1a2b.tmp'];
+        yield 'only control characters fall back to server file name' => ["\x01\x02", 'php1a2b.tmp'];
+        yield 'only separators fall back to server file name' => ['///', 'php1a2b.tmp'];
+        yield 'name is capped at 255 characters' => [str_repeat('a', 300).'.pdf', str_repeat('a', 255)];
     }
 
     private function createTranslatorStub(): TranslatorInterface

@@ -78,6 +78,32 @@ final class Pop3ConnectorSettingsTypeTest extends TestCase
         self::assertSame('', $view['pop3Password']->vars['value']);
     }
 
+    public function testNewConfigDefaultsSecurityToSsl(): void
+    {
+        $form = $this->factory->create(Pop3ConnectorSettingsType::class, []);
+
+        $view = $form->createView();
+
+        self::assertSame('ssl', $view['pop3Security']->vars['value']);
+        self::assertSame('ssl', $view['smtpSecurity']->vars['value']);
+        self::assertSame('ssl', $form->getData()['pop3Security']);
+        self::assertSame('ssl', $form->getData()['smtpSecurity']);
+    }
+
+    public function testStoredConfigWithoutSecurityKeepsExplicitChoice(): void
+    {
+        $form = $this->factory->create(Pop3ConnectorSettingsType::class, [
+            'pop3Host' => 'mail.example.com',
+            'pop3Security' => null,
+            'smtpSecurity' => '',
+        ]);
+
+        $view = $form->createView();
+
+        self::assertSame('', $view['pop3Security']->vars['value']);
+        self::assertSame('', $view['smtpSecurity']->vars['value']);
+    }
+
     public function testNullDataIsIgnoredByTheDefaultListener(): void
     {
         $form = $this->factory->create(Pop3ConnectorSettingsType::class, null);

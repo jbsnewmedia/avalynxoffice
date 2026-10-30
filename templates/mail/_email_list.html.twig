@@ -11,7 +11,7 @@
         </div>
     </div>
 </div>
-<div class="email-list-container" data-account-id="{{ activeAccount ? activeAccount.id : 'all' }}" data-current-folder-id="{{ activeFolder ? activeFolder.id : '' }}" data-folder-id="{{ activeFolder ? activeFolder.id : (allMails|default(false) ? 'all' : '') }}" data-total="{{ totalEmails is defined ? totalEmails : (emails|length) }}" data-offset="{{ offset is defined ? offset : (emails|length) }}" data-limit="{{ limit is defined ? limit : 10 }}">
+<div class="email-list-container" data-mail-token="{{ csrf_token('mail_favorite') }}" data-account-id="{{ activeAccount ? activeAccount.id : 'all' }}" data-current-folder-id="{{ activeFolder ? activeFolder.id : '' }}" data-folder-id="{{ activeFolder ? activeFolder.id : (allMails|default(false) ? 'all' : '') }}" data-total="{{ totalEmails is defined ? totalEmails : (emails|length) }}" data-offset="{{ offset is defined ? offset : (emails|length) }}" data-limit="{{ limit is defined ? limit : 10 }}">
     {% if emails is not empty %}
         {% include 'mail/_email_items.html.twig' with { emails: emails, activeEmail: activeEmail, activeAccount: activeAccount, activeFolder: activeFolder } %}
     {% else %}

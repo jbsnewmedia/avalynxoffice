@@ -36,7 +36,7 @@ class DataController extends AbstractController
     }
 
     #[Route(path: '/data/address-suggestions', name: 'data_address_suggestions')]
-    public function addressSuggestions(Request $request, AddressRepository $addressRepository): JsonResponse
+    public function addressSuggestions(Request $request, AddressRepository $addressRepository, UserAccountProvider $accountProvider): JsonResponse
     {
         $user = $this->getUser();
         if (!$user instanceof User) {
@@ -49,7 +49,7 @@ class DataController extends AbstractController
                 'key' => $address->getEmail(),
                 'value' => $this->formatAddressLabel($address),
             ],
-            $addressRepository->findForAutocomplete($search)
+            $addressRepository->findForAutocomplete($search, $accountProvider->forUser($user))
         );
 
         return new JsonResponse($suggestions);

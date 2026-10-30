@@ -2,30 +2,34 @@
 
 declare(strict_types=1);
 
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
+
 namespace AvalynxOffice\Tests\Plugin\Pop3ConnectorBundle\Service;
 
+use AvalynxOffice\Entity\Account;
 use AvalynxOffice\Entity\Address;
+use AvalynxOffice\Entity\Connector;
 use AvalynxOffice\Entity\Email;
 use AvalynxOffice\Entity\Enum\EmailAddressType;
 use AvalynxOffice\Entity\Folder;
-use AvalynxOffice\Entity\Account;
-use AvalynxOffice\Entity\Connector;
+use AvalynxOffice\Plugin\Contract\ConnectorFetchRequest;
 use AvalynxOffice\Repository\ConnectorConfigRepository;
 use AvalynxOffice\Repository\EmailRepository;
 use AvalynxOffice\Service\Mail\AttachmentStorage;
 use AvalynxOffice\Service\Mail\FolderManager;
-use AvalynxOffice\Plugin\Contract\ConnectorFetchRequest;
-use JBSNewMedia\Pop3ConnectorBundle\Service\Pop3Fetcher;
-use AvalynxOffice\Tests\Plugin\Pop3ConnectorBundle\Service\Pop3FetcherTestFunctionOverrides;
 use AvalynxOffice\Service\Mail\MailRoutingService;
-use JBSNewMedia\Pop3ConnectorBundle\Service\Pop3StorageFactory;
 use Doctrine\ORM\EntityManagerInterface;
+use JBSNewMedia\Pop3ConnectorBundle\Service\Pop3Fetcher;
+use JBSNewMedia\Pop3ConnectorBundle\Service\Pop3StorageFactory;
 use Laminas\Mail\Header\HeaderInterface;
 use Laminas\Mail\Headers;
 use Laminas\Mail\Storage\Message as StorageMessage;
+use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Uid\Uuid;
-use PHPUnit\Framework\TestCase;
 
 final class Pop3FetcherHelperTest extends TestCase
 {
@@ -46,7 +50,6 @@ final class Pop3FetcherHelperTest extends TestCase
             $this->createStub(ConnectorConfigRepository::class),
         );
     }
-
 
     public function testSetOutputReturnsSameFetcherAndWritesLogMessages(): void
     {
@@ -181,44 +184,302 @@ final class Pop3FetcherHelperTest extends TestCase
             'body'
         );
 
-        $tempDir = (getcwd() ?: __DIR__).'/var/pop3-fetcher-helper-'.bin2hex(random_bytes(4));
-        self::assertTrue(mkdir($tempDir, 0777, true) || is_dir($tempDir));
-        $cwd = getcwd();
+        $tempDir = sys_get_temp_dir().'/pop3-fetcher-helper-'.bin2hex(random_bytes(4));
+        $dumpDir = $tempDir.'/mail_dumps';
+        $fetcher = $this->createFetcherWithDumpDir($dumpDir);
 
         try {
-            chdir($tempDir);
-
-            $this->callPrivateMethod('dumpOriginalMessage', [$message, 'example.com', null, 'account:uid-1', 'pending']);
-            self::assertFileExists($tempDir.'/mail_dumps/example.com/2024/01/02/pending/account_uid-1.eml');
+            $this->callPrivateMethodOn($fetcher, 'dumpOriginalMessage', [$message, 'example.com', null, 'account:uid-1', 'pending']);
+            self::assertFileExists($dumpDir.'/example.com/2024/01/02/pending/account_uid-1.eml');
             self::assertInstanceOf(\DateTimeImmutable::class, $this->callPrivateMethod('extractDateFromMessage', [$message]));
 
-            $this->callPrivateMethod('dumpOriginalMessage', [$message, 'example.com', $email, 'account:uid-1', 'success']);
+            $this->callPrivateMethodOn($fetcher, 'dumpOriginalMessage', [$message, 'example.com', $email, 'account:uid-1', 'success']);
 
-            self::assertFileDoesNotExist($tempDir.'/mail_dumps/example.com/2024/01/02/pending/account_uid-1.eml');
-            self::assertFileExists($tempDir.'/mail_dumps/example.com/2024/01/02/success/hash123.eml');
+            self::assertFileDoesNotExist($dumpDir.'/example.com/2024/01/02/pending/account_uid-1.eml');
+            self::assertFileExists($dumpDir.'/example.com/2024/01/02/success/hash123.eml');
             self::assertSame('example.com', $this->callPrivateMethod('getConnectorDumpKey', [$connector, 'support']));
 
             $emailWithoutHash = (new Email())
                 ->setId(Uuid::v7())
                 ->setReceivedAt(new \DateTimeImmutable('2024-01-02 03:04:05'));
-            $this->callPrivateMethod('dumpOriginalMessage', [$message, 'example.com', null, 'account:uid-2', 'pending']);
-            $this->callPrivateMethod('dumpOriginalMessage', [$message, 'example.com', $emailWithoutHash, 'account:uid-2', 'success']);
-            self::assertFileExists($tempDir.'/mail_dumps/example.com/2024/01/02/success/'.$emailWithoutHash->getId().'.eml');
-            self::assertFileDoesNotExist($tempDir.'/mail_dumps/example.com/2024/01/02/pending/account_uid-2.eml');
+            $this->callPrivateMethodOn($fetcher, 'dumpOriginalMessage', [$message, 'example.com', null, 'account:uid-2', 'pending']);
+            $this->callPrivateMethodOn($fetcher, 'dumpOriginalMessage', [$message, 'example.com', $emailWithoutHash, 'account:uid-2', 'success']);
+            self::assertFileExists($dumpDir.'/example.com/2024/01/02/success/'.$emailWithoutHash->getId().'.eml');
+            self::assertFileDoesNotExist($dumpDir.'/example.com/2024/01/02/pending/account_uid-2.eml');
 
-            $invalidDateMessage = $this->createMessageStub("Date: invalid", 'body', 'invalid-date');
+            // Nothing may be written relative to the working directory.
+            self::assertDirectoryDoesNotExist((getcwd() ?: __DIR__).'/mail_dumps/example.com/2024/01/02');
+
+            $invalidDateMessage = $this->createMessageStub('Date: invalid', 'body', 'invalid-date');
             self::assertNull($this->callPrivateMethod('extractDateFromMessage', [$invalidDateMessage]));
 
             $withoutDateMessage = $this->createMessageStub('', 'body', null);
             self::assertNull($this->callPrivateMethod('extractDateFromMessage', [$withoutDateMessage]));
         } finally {
-            if (false !== $cwd) {
-                chdir($cwd);
-            }
             $this->removeDirectory($tempDir);
         }
     }
 
+    public function testDumpFileNameOnlyKeepsSafeCharactersAndLimitsLength(): void
+    {
+        self::assertSame('account_uid-1.eml', Pop3Fetcher::dumpFileName('account:uid-1'));
+        self::assertSame('_.._.._etc_passwd.eml', Pop3Fetcher::dumpFileName('/../../etc/passwd'));
+        self::assertSame('_.._escape.eml', Pop3Fetcher::dumpFileName('../../escape'));
+        self::assertSame('a_b_c.eml', Pop3Fetcher::dumpFileName("a\0b\nc"));
+        self::assertSame('unknown.eml', Pop3Fetcher::dumpFileName('...'));
+        self::assertSame('unknown.eml', Pop3Fetcher::dumpFileName(''));
+
+        $long = Pop3Fetcher::dumpFileName(str_repeat('x', 300));
+        self::assertSame(str_repeat('x', 120).'.eml', $long);
+    }
+
+    public function testDumpUsesSanitizedFileNameForTraversalLikeImportKeys(): void
+    {
+        $tempDir = sys_get_temp_dir().'/pop3-fetcher-helper-'.bin2hex(random_bytes(4));
+        $dumpDir = $tempDir.'/mail_dumps';
+        $fetcher = $this->createFetcherWithDumpDir($dumpDir);
+        $message = $this->createMessageStub("Date: Tue, 02 Jan 2024 03:04:05 +0000\nSubject: Test", 'body');
+
+        try {
+            $this->callPrivateMethodOn($fetcher, 'dumpOriginalMessage', [$message, 'example.com', null, '../../escape', 'pending']);
+
+            self::assertFileExists($dumpDir.'/example.com/2024/01/02/pending/_.._escape.eml');
+            self::assertFileDoesNotExist($dumpDir.'/example.com/escape.eml');
+            self::assertFileDoesNotExist($dumpDir.'/escape.eml');
+        } finally {
+            $this->removeDirectory($tempDir);
+        }
+    }
+
+    public function testOldDumpsArePrunedOnceWhenWritingANewDump(): void
+    {
+        $tempDir = sys_get_temp_dir().'/pop3-fetcher-helper-'.bin2hex(random_bytes(4));
+        $dumpDir = $tempDir.'/mail_dumps';
+        $fetcher = $this->createFetcherWithDumpDir($dumpDir, 14);
+        $message = $this->createMessageStub("Date: Tue, 02 Jan 2024 03:04:05 +0000\nSubject: Test", 'body');
+
+        $oldDir = $dumpDir.'/example.com/2023/01/01/success';
+        $recentDir = $dumpDir.'/example.com/2024/01/01/success';
+        $otherConnectorDir = $dumpDir.'/other.com/2023/01/01/success';
+        foreach ([$oldDir, $recentDir, $otherConnectorDir] as $dir) {
+            self::assertTrue(mkdir($dir, 0777, true) || is_dir($dir));
+        }
+        file_put_contents($oldDir.'/old.eml', 'old');
+        touch($oldDir.'/old.eml', time() - 30 * 86400);
+        file_put_contents($recentDir.'/recent.eml', 'recent');
+        touch($recentDir.'/recent.eml', time() - 2 * 86400);
+        file_put_contents($otherConnectorDir.'/other.eml', 'other');
+        touch($otherConnectorDir.'/other.eml', time() - 30 * 86400);
+
+        try {
+            $this->callPrivateMethodOn($fetcher, 'dumpOriginalMessage', [$message, 'example.com', null, 'account:uid-1', 'pending']);
+
+            self::assertFileDoesNotExist($oldDir.'/old.eml');
+            self::assertDirectoryDoesNotExist($dumpDir.'/example.com/2023');
+            self::assertFileExists($recentDir.'/recent.eml');
+            self::assertFileExists($otherConnectorDir.'/other.eml');
+            self::assertFileExists($dumpDir.'/example.com/2024/01/02/pending/account_uid-1.eml');
+
+            // Pruning runs only once per connector and instance: a file that
+            // becomes old afterwards survives further dumps in the same run.
+            file_put_contents($recentDir.'/late.eml', 'late');
+            touch($recentDir.'/late.eml', time() - 30 * 86400);
+            $this->callPrivateMethodOn($fetcher, 'dumpOriginalMessage', [$message, 'example.com', null, 'account:uid-2', 'pending']);
+            self::assertFileExists($recentDir.'/late.eml');
+        } finally {
+            $this->removeDirectory($tempDir);
+        }
+    }
+
+    public function testNormalizeDumpKeyNeverYieldsPathSegments(): void
+    {
+        self::assertSame('unknown_connector', Pop3Fetcher::normalizeDumpKey(''));
+        self::assertSame('unknown_connector', Pop3Fetcher::normalizeDumpKey('.'));
+        self::assertSame('unknown_connector', Pop3Fetcher::normalizeDumpKey('..'));
+        self::assertSame('unknown_connector', Pop3Fetcher::normalizeDumpKey('...'));
+        self::assertSame('example.com', Pop3Fetcher::normalizeDumpKey('.example.com.'));
+        self::assertSame('_.._etc', Pop3Fetcher::normalizeDumpKey('../../etc'));
+        self::assertSame('_.._escape', Pop3Fetcher::normalizeDumpKey('..\\..\\escape'));
+        self::assertSame('user@example.com', Pop3Fetcher::normalizeDumpKey('user@example.com'));
+        self::assertSame(str_repeat('x', 120), Pop3Fetcher::normalizeDumpKey(str_repeat('x', 300)));
+    }
+
+    public function testConnectorDumpKeyFallsBackForTraversalLikeDomainAndUsername(): void
+    {
+        self::assertSame('unknown_connector', $this->callPrivateMethod('getConnectorDumpKey', [(new Connector())->setDomain('..'), 'ignored']));
+        self::assertSame('unknown_connector', $this->callPrivateMethod('getConnectorDumpKey', [(new Connector())->setDomain(''), '..']));
+        self::assertSame('_', $this->callPrivateMethod('getConnectorDumpKey', [(new Connector())->setDomain(''), '../..']));
+        self::assertSame('_.._etc', $this->callPrivateMethod('getConnectorDumpKey', [(new Connector())->setDomain(''), '../../etc']));
+        self::assertSame('example.com', $this->callPrivateMethod('getConnectorDumpKey', [(new Connector())->setDomain('example.com'), 'user']));
+        self::assertSame('user@example.com', $this->callPrivateMethod('getConnectorDumpKey', [(new Connector())->setDomain(''), 'user@example.com']));
+    }
+
+    public function testPruningNeverLeavesTheDumpRoot(): void
+    {
+        $tempDir = sys_get_temp_dir().'/pop3-fetcher-helper-'.bin2hex(random_bytes(4));
+        $dumpDir = $tempDir.'/mail_dumps';
+        $outsideDir = $tempDir.'/outside/2000/01/01/success';
+        self::assertTrue(mkdir($dumpDir, 0777, true) || is_dir($dumpDir));
+        self::assertTrue(mkdir($outsideDir, 0777, true) || is_dir($outsideDir));
+        $outsideFile = $outsideDir.'/old.eml';
+        file_put_contents($outsideFile, 'old');
+        touch($outsideFile, time() - 30 * 86400);
+        $link = $dumpDir.'/linked';
+        self::assertTrue(symlink($tempDir.'/outside', $link));
+
+        $fetcher = $this->createFetcherWithDumpDir($dumpDir, 14);
+
+        try {
+            $this->callPrivateMethodOn($fetcher, 'pruneOldDumps', ['linked']);
+            self::assertFileExists($outsideFile);
+
+            $this->callPrivateMethodOn($fetcher, 'pruneOldDumps', ['../outside']);
+            self::assertFileExists($outsideFile);
+        } finally {
+            unlink($link);
+            $this->removeDirectory($tempDir);
+        }
+    }
+
+    public function testRetentionOfZeroDisablesPruning(): void
+    {
+        $tempDir = sys_get_temp_dir().'/pop3-fetcher-helper-'.bin2hex(random_bytes(4));
+        $dumpDir = $tempDir.'/mail_dumps';
+        $fetcher = $this->createFetcherWithDumpDir($dumpDir, 0);
+        $message = $this->createMessageStub("Date: Tue, 02 Jan 2024 03:04:05 +0000\nSubject: Test", 'body');
+        $oldDir = $dumpDir.'/example.com/2023/01/01/success';
+        self::assertTrue(mkdir($oldDir, 0777, true) || is_dir($oldDir));
+        file_put_contents($oldDir.'/old.eml', 'old');
+        touch($oldDir.'/old.eml', time() - 365 * 86400);
+
+        try {
+            $this->callPrivateMethodOn($fetcher, 'dumpOriginalMessage', [$message, 'example.com', null, 'account:uid-1', 'pending']);
+
+            self::assertFileExists($oldDir.'/old.eml');
+        } finally {
+            $this->removeDirectory($tempDir);
+        }
+    }
+
+    public function testNormalizeAttachmentFilenameStripsPathsControlCharactersAndLimitsLength(): void
+    {
+        self::assertSame('attachment.bin', Pop3Fetcher::normalizeAttachmentFilename(null));
+        self::assertSame('attachment.bin', Pop3Fetcher::normalizeAttachmentFilename(''));
+        self::assertSame('attachment.bin', Pop3Fetcher::normalizeAttachmentFilename('..'));
+        self::assertSame('attachment.bin', Pop3Fetcher::normalizeAttachmentFilename("\x00\x01 . "));
+        self::assertSame('passwd', Pop3Fetcher::normalizeAttachmentFilename('../../etc/passwd'));
+        self::assertSame('evil.exe', Pop3Fetcher::normalizeAttachmentFilename('C:\\Windows\\evil.exe'));
+        self::assertSame('reportfinal.pdf', Pop3Fetcher::normalizeAttachmentFilename("report\r\nfinal.pdf\x7f"));
+        self::assertSame('Angebot Müller.pdf', Pop3Fetcher::normalizeAttachmentFilename('Angebot Müller.pdf'));
+
+        $long = Pop3Fetcher::normalizeAttachmentFilename(str_repeat('a', 300).'.pdf');
+        self::assertSame(255, strlen($long));
+        self::assertStringEndsWith('.pdf', $long);
+
+        $longNoExt = Pop3Fetcher::normalizeAttachmentFilename(str_repeat('ü', 200));
+        self::assertLessThanOrEqual(255, strlen($longNoExt));
+        self::assertTrue(mb_check_encoding($longNoExt, 'UTF-8'));
+    }
+
+    public function testStoreAttachmentPartUsesNormalizedFileName(): void
+    {
+        $attachmentStorage = $this->createStub(AttachmentStorage::class);
+        $attachmentStorage->method('store')->willReturn('ab/cd/file');
+        $entityManager = $this->createStub(EntityManagerInterface::class);
+
+        $fetcher = new Pop3Fetcher(
+            $entityManager,
+            $this->createStub(EmailRepository::class),
+            $this->createStub(FolderManager::class),
+            $attachmentStorage,
+            $this->createStub(Pop3StorageFactory::class),
+            $this->createStub(MailRoutingService::class),
+            $this->createStub(ConnectorConfigRepository::class),
+        );
+        $email = new Email();
+        $part = $this->createPartStub('payload', 'application/octet-stream', '', "attachment; filename=\"../../evil\x01.bin\"");
+
+        $this->callPrivateMethodOn($fetcher, 'storeAttachmentPart', [$part, $email, 'application/octet-stream']);
+
+        $attachments = $email->getEmailAttachments();
+        self::assertCount(1, $attachments);
+        self::assertSame('evil.bin', $attachments->first()->getAttachment()->getName());
+    }
+
+    public function testFetchRejectsInvalidHostWithoutConnecting(): void
+    {
+        $storageFactory = $this->createMock(Pop3StorageFactory::class);
+        $storageFactory->expects(self::never())->method('create');
+        $output = $this->createMock(OutputInterface::class);
+        $output->expects(self::once())->method('writeln')->with(self::stringContains('Invalid POP3 host'));
+
+        $fetcher = new Pop3Fetcher(
+            $this->createStub(EntityManagerInterface::class),
+            $this->createStub(EmailRepository::class),
+            $this->createStub(FolderManager::class),
+            $this->createStub(AttachmentStorage::class),
+            $storageFactory,
+            $this->createStub(MailRoutingService::class),
+            $this->createStub(ConnectorConfigRepository::class),
+        );
+        $fetcher->setOutput($output);
+
+        $result = $fetcher->fetch(new Connector(), [
+            'pop3Host' => 'pop.example.com/../x?y',
+            'pop3Username' => 'user',
+            'pop3Password' => 'secret',
+        ], self::request());
+
+        self::assertSame(['imported' => 0, 'skipped' => 0, 'errors' => 0], $result);
+    }
+
+    public function testFetchWarnsWhenNoEncryptionIsConfigured(): void
+    {
+        $storageFactory = $this->createStub(Pop3StorageFactory::class);
+        $storageFactory->method('create')->willThrowException(new \RuntimeException('no server'));
+        $messages = [];
+        $output = $this->createStub(OutputInterface::class);
+        $output->method('writeln')->willReturnCallback(static function (string $line) use (&$messages): void {
+            $messages[] = $line;
+        });
+
+        $fetcher = new Pop3Fetcher(
+            $this->createStub(EntityManagerInterface::class),
+            $this->createStub(EmailRepository::class),
+            $this->createStub(FolderManager::class),
+            $this->createStub(AttachmentStorage::class),
+            $storageFactory,
+            $this->createStub(MailRoutingService::class),
+            $this->createStub(ConnectorConfigRepository::class),
+        );
+        $fetcher->setOutput($output);
+
+        $fetcher->fetch((new Connector())->setDomain('example.com'), [
+            'pop3Host' => 'pop.example.com',
+            'pop3Username' => 'user',
+            'pop3Password' => 'secret',
+            'pop3Security' => '',
+        ], self::request());
+
+        $joined = implode("\n", $messages);
+        self::assertStringContainsString('without encryption', $joined);
+        self::assertStringContainsString('pop.example.com:110', $joined);
+    }
+
+    private function createFetcherWithDumpDir(string $dumpDir, int $retentionDays = 14): Pop3Fetcher
+    {
+        return new Pop3Fetcher(
+            $this->createStub(EntityManagerInterface::class),
+            $this->createStub(EmailRepository::class),
+            $this->createStub(FolderManager::class),
+            $this->createStub(AttachmentStorage::class),
+            $this->createStub(Pop3StorageFactory::class),
+            $this->createStub(MailRoutingService::class),
+            $this->createStub(ConnectorConfigRepository::class),
+            $dumpDir,
+            $retentionDays,
+        );
+    }
 
     public function testDumpAndRemovePendingSwallowFilesystemAndConnectorFailures(): void
     {
@@ -345,7 +606,6 @@ final class Pop3FetcherHelperTest extends TestCase
         self::assertSame($folder, $email->getEmailFolders()->first()?->getFolder());
     }
 
-
     public function testParseAddressesSkipsEmptyPartsAndLinkAddressIgnoresEmptyEmail(): void
     {
         self::assertSame(
@@ -421,7 +681,7 @@ final class Pop3FetcherHelperTest extends TestCase
         self::assertStringContainsString('Plain', $textBody);
         self::assertStringContainsString('--- MESSAGE/DELIVERY-STATUS ---', $textBody);
         self::assertStringContainsString('Status', $textBody);
-        self::assertStringContainsString("<p>Html</p>", $htmlBody);
+        self::assertStringContainsString('<p>Html</p>', $htmlBody);
         self::assertCount(1, $email->getEmailAttachments());
         self::assertCount(2, $persisted);
     }
@@ -479,6 +739,7 @@ final class Pop3FetcherHelperTest extends TestCase
 
         return $request;
     }
+
     private function callPrivateMethod(string $methodName, array $args): mixed
     {
         return $this->callPrivateMethodOn($this->fetcher, $methodName, $args);
@@ -498,7 +759,7 @@ final class Pop3FetcherHelperTest extends TestCase
         $headers = $this->createStub(Headers::class);
         $part->method('getContent')->willReturn($content);
         $part->method('getHeaders')->willReturn($headers);
-        $part->method('getHeader')->willReturnCallback(function (string $name) use ($contentType, $transferEncoding, $contentDisposition): ?HeaderInterface {
+        $part->method('getHeader')->willReturnCallback(function (string $name) use ($contentType, $contentDisposition): ?HeaderInterface {
             $value = match ($name) {
                 'content-type' => $contentType,
                 'content-disposition' => $contentDisposition,
@@ -542,7 +803,6 @@ final class Pop3FetcherHelperTest extends TestCase
 
         return $part;
     }
-
 
     private function createMessageStub(string $headerString, string $content, ?string $dateHeader = 'Tue, 02 Jan 2024 03:04:05 +0000'): StorageMessage
     {

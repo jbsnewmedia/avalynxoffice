@@ -21,6 +21,7 @@ use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Validator\Constraints\NotBlank;
+use Symfony\Component\Validator\Constraints\Regex;
 
 /**
  * Base form of a connector (name, domain, default account and the chosen
@@ -49,7 +50,12 @@ class ConnectorType extends AbstractType
                 'attr' => ['class' => 'form-control'],
                 'help' => 'connector.domain_help',
                 'empty_data' => '',
-                'constraints' => [new NotBlank()],
+                'constraints' => [
+                    new NotBlank(),
+                    // Hostname labels only (no leading/trailing dots, no "..", no path characters):
+                    // the domain is used as a directory name for mail dumps.
+                    new Regex(pattern: '/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$/i'),
+                ],
             ])
             ->add('plugin', ChoiceType::class, [
                 'label' => 'connector.plugin',

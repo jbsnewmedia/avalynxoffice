@@ -2,11 +2,19 @@
 
 declare(strict_types=1);
 
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
+
 namespace AvalynxOffice\Tests\Plugin\MailActionBundle\Controller;
 
+use AvalynxOffice\Entity\Account;
+use AvalynxOffice\Entity\AccountAlias;
 use AvalynxOffice\Entity\Address;
 use AvalynxOffice\Entity\Attachment;
 use AvalynxOffice\Entity\Body;
+use AvalynxOffice\Entity\Connector;
 use AvalynxOffice\Entity\Email;
 use AvalynxOffice\Entity\EmailAddressLink;
 use AvalynxOffice\Entity\EmailAttachmentLink;
@@ -15,9 +23,6 @@ use AvalynxOffice\Entity\EmailFolder;
 use AvalynxOffice\Entity\Enum\BodyContentType;
 use AvalynxOffice\Entity\Enum\EmailAddressType;
 use AvalynxOffice\Entity\Folder;
-use AvalynxOffice\Entity\Account;
-use AvalynxOffice\Entity\AccountAlias;
-use AvalynxOffice\Entity\Connector;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Repository\AccountRepository;
 use AvalynxOffice\Repository\EmailFolderRepository;
@@ -27,6 +32,7 @@ use AvalynxOffice\Service\Mail\AttachmentStorage;
 use AvalynxOffice\Service\Mail\FolderManager;
 use AvalynxOffice\Service\Mail\MailService;
 use AvalynxOffice\Service\Mail\UserAccountProvider;
+use AvalynxOffice\Tests\Support\AllowAllLicenseEnforcement;
 use AvalynxOffice\Tests\Support\RefreshDatabaseTrait;
 use Doctrine\ORM\EntityManagerInterface;
 use JBSNewMedia\MailActionBundle\Controller\MailActionController;
@@ -43,11 +49,10 @@ use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Session\Session;
 use Symfony\Component\HttpFoundation\Session\Storage\MockArraySessionStorage;
-use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
-use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
-use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
-use AvalynxOffice\Tests\Support\AllowAllLicenseEnforcement;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
+use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
+use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 
 #[Group('integration')]
 final class MailActionControllerTest extends KernelTestCase
@@ -156,7 +161,19 @@ final class MailActionControllerTest extends KernelTestCase
         [$user, $email, $sourceFolder] = $this->createFixtureData('one');
         $this->setCurrentUserRequest();
 
-        $setReadResponse = $this->controller->setRead((string) $email->getId(), Request::create('/', 'POST', ['read' => '1']));
+        // Without a CSRF token the read toggle is rejected and nothing changes.
+        $noTokenResponse = $this->controller->setRead((string) $email->getId(), Request::create('/', 'POST', ['read' => '1']));
+        self::assertSame(Response::HTTP_FORBIDDEN, $noTokenResponse->getStatusCode());
+        self::assertFalse(json_decode($noTokenResponse->getContent(), true, 512, JSON_THROW_ON_ERROR)['success']);
+        self::assertFalse($email->isRead());
+
+        $invalidTokenReadResponse = $this->controller->setRead((string) $email->getId(), Request::create('/', 'POST', ['read' => '1', '_token' => 'invalid']));
+        self::assertSame(Response::HTTP_FORBIDDEN, $invalidTokenReadResponse->getStatusCode());
+
+        // The token is accepted from the X-CSRF-Token header as well.
+        $headerTokenRequest = Request::create('/', 'POST', ['read' => '1']);
+        $headerTokenRequest->headers->set('X-CSRF-Token', $this->csrfToken('mail_favorite'));
+        $setReadResponse = $this->controller->setRead((string) $email->getId(), $headerTokenRequest);
         self::assertSame(Response::HTTP_OK, $setReadResponse->getStatusCode());
         $setReadData = json_decode($setReadResponse->getContent(), true, 512, JSON_THROW_ON_ERROR);
         self::assertTrue($setReadData['success']);
@@ -188,7 +205,7 @@ final class MailActionControllerTest extends KernelTestCase
         [, $email] = $this->createFixtureData('errors');
         $this->setCurrentUserRequest();
 
-        $missingEmailResponse = $this->controller->setRead('00000000-0000-0000-0000-000000000000', Request::create('/', 'POST'));
+        $missingEmailResponse = $this->controller->setRead('00000000-0000-0000-0000-000000000000', Request::create('/', 'POST', ['_token' => $this->csrfToken('mail_favorite')]));
         self::assertSame(Response::HTTP_NOT_FOUND, $missingEmailResponse->getStatusCode());
 
         $missingMoveEmailResponse = $this->controller->moveEmail('00000000-0000-0000-0000-000000000000', Request::create('/', 'POST'));

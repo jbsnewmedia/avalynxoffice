@@ -26,12 +26,23 @@ class AddressRepository extends ServiceEntityRepository
     }
 
     /**
+     * Addresses for the recipient autocomplete, restricted to the ones
+     * linked to at least one of the given accounts.
+     *
+     * @param list<Account> $accounts
+     *
      * @return list<Address>
      */
-    public function findForAutocomplete(string $search, int $limit = 10): array
+    public function findForAutocomplete(string $search, array $accounts, int $limit = 10): array
     {
+        if ([] === $accounts) {
+            return [];
+        }
+
         $normalizedSearch = mb_strtolower(trim($search));
         $queryBuilder = $this->createQueryBuilder('address')
+            ->andWhere('EXISTS (SELECT 1 FROM '.AccountAddress::class.' link WHERE link.address = address AND link.account IN (:accounts))')
+            ->setParameter('accounts', $accounts)
             ->orderBy('address.email', 'ASC')
             ->setMaxResults(max(1, min($limit, 25)));
 

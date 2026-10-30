@@ -45,6 +45,13 @@ class Pop3ConnectorSettingsType extends AbstractType
                 // The fetch progress counter is technical bookkeeping and
                 // must not be edited in the form, but has to survive it.
                 $data += ['server_total' => 0];
+                // New connectors default to encrypted connections; stored
+                // configs keep their explicit choice (including "none").
+                foreach (['pop3Security', 'smtpSecurity'] as $securityField) {
+                    if (!array_key_exists($securityField, $data)) {
+                        $data[$securityField] = 'ssl';
+                    }
+                }
                 $event->setData($data);
             })
             ->add('server_total', HiddenType::class, [

@@ -26,6 +26,7 @@
                     <div id="admin-accounts-datatable"
                         data-avalynxdatatable
                         data-api-url="{{ path('account_data') }}"
+                        data-csrf-token="{{ csrf_token('datatable') }}"
                         data-per-page="10"
                         data-label-show="{{ 'admin.datatable.show'|trans }}"
                         data-label-entries="{{ 'admin.datatable.entries'|trans }}"

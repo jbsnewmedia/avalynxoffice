@@ -1,6 +1,20 @@
+# Build context exclusions for the development image (Dockerfile.dev).
+# Keep in sync with docker/prod/Dockerfile.dockerignore (used for
+# docker/prod/Dockerfile). The only intended differences: the dev image keeps
+# the composer-bin tool definitions (vendor-bin/*/composer.json) and the QA
+# configuration (phpunit*.xml.dist, rector.php, .php-cs-fixer.dist.php,
+# phpstan-global.neon) because `composer bin all install` and the QA tooling
+# run inside the dev container.
+#
+# Required by the build: bin/, config/, migrations/, plugins/, public/, src/,
+# templates/, translations/, assets/, composer.json/.lock, symfony.lock, .env,
+# docker/prod/ (entrypoint, grant script, eas-grants.sql).
 .git
 .github
+.gitattributes
+.editorconfig
 .idea
+.clinerules
 .phpunit.cache
 .php-cs-fixer.cache
 var
@@ -10,8 +24,22 @@ node_modules
 mail_dumps
 data
 tests
+doc
+docs
 docker/postgres
+docker/web
+docker/*.sh
+docker/*.bat
 office-backup-*
+# Developer tooling and local deployment helpers.
+Dockerfile.dev
+docker-compose.yml
+deploy-*.sh
+update.sh
+core.sh
+TODO
+# Screenshots in the repository root (assets/png is still included).
+*.png
 # Local secrets: only the committed .env (defaults) belongs into the image.
 .env.local
 .env.*.local
@@ -20,4 +48,3 @@ office-backup-*
 .env.local.php
 *.md
 !README.md
-!plugins/jbsnewmedia/exchange-connector-bundle/lib/vendor

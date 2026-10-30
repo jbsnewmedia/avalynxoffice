@@ -102,7 +102,7 @@ final readonly class ThemeService
         $themed = $this->replacePrimaryColor($scss, $primaryColor);
 
         $themeDir = $this->projectDir.'/var/theme';
-        if (!is_dir($themeDir) && !@mkdir($themeDir, 0777, true) && !is_dir($themeDir)) {
+        if (!is_dir($themeDir) && !@mkdir($themeDir, 0775, true) && !is_dir($themeDir)) {
             throw new \RuntimeException('Failed to create theme directory '.$themeDir.'.');
         }
         $inputPath = $themeDir.'/bootstrap.scss';

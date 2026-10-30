@@ -2,18 +2,23 @@
 
 declare(strict_types=1);
 
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
+
 namespace AvalynxOffice\Tests\Controller;
 
+use AvalynxOffice\Entity\Account;
+use AvalynxOffice\Entity\AccountAddress;
 use AvalynxOffice\Entity\Address;
 use AvalynxOffice\Entity\Attachment;
 use AvalynxOffice\Entity\CalendarEvent;
+use AvalynxOffice\Entity\Connector;
 use AvalynxOffice\Entity\Email;
 use AvalynxOffice\Entity\EmailAttachmentLink;
 use AvalynxOffice\Entity\EmailFolder;
 use AvalynxOffice\Entity\Folder;
-use AvalynxOffice\Entity\Account;
-use AvalynxOffice\Entity\AccountAddress;
-use AvalynxOffice\Entity\Connector;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Licensing\Service\LicenseManager;
 use AvalynxOffice\Service\Mail\AttachmentStorage;
@@ -188,7 +193,8 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
     public function testReadToggleIsBlockedAndChangesNothing(): void
     {
         $this->client->loginUser($this->admin);
-        $this->client->request('POST', '/email/'.$this->email->getId().'/read', ['read' => '1'], [], [
+        $token = $this->setCsrfToken('mail_favorite');
+        $this->client->request('POST', '/email/'.$this->email->getId().'/read', ['read' => '1', '_token' => $token], [], [
             'HTTP_X-Requested-With' => 'XMLHttpRequest',
         ]);
 
@@ -215,7 +221,8 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
     public function testFavoriteIsBlocked(): void
     {
         $this->client->loginUser($this->admin);
-        $this->client->request('POST', '/email/'.$this->email->getId().'/favorite', ['favorite' => '1'], [], [
+        $token = $this->setCsrfToken('mail_favorite');
+        $this->client->request('POST', '/email/'.$this->email->getId().'/favorite', ['favorite' => '1', '_token' => $token], [], [
             'HTTP_X-Requested-With' => 'XMLHttpRequest',
         ]);
 
@@ -346,7 +353,7 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
 
         $this->client->request('POST', '/admin/license/keys', [
             '_token' => $token,
-            'license_keys' => "not-a-valid-key",
+            'license_keys' => 'not-a-valid-key',
         ]);
 
         self::assertResponseRedirects('/admin/license');
@@ -463,7 +470,7 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
     public function testUserTableDisablesDeleteWhileReadOnly(): void
     {
         $this->client->loginUser($this->admin);
-        $this->client->request('POST', '/admin/users/data');
+        $this->client->request('POST', '/admin/users/data', ['_token' => $this->setCsrfToken('datatable')]);
 
         self::assertResponseIsSuccessful();
         $payload = $this->json();
@@ -502,7 +509,7 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
             ."Message-ID: <import-1@example.com>\r\n"
             ."Content-Type: text/plain; charset=UTF-8\r\n"
             ."\r\n"
-            ."Imported body";
+            .'Imported body';
 
         $storage = $this->createMock(\Laminas\Mail\Storage\Pop3::class);
         $storage->method('getUniqueId')->willReturn([1 => 'uid-import-1']);
@@ -520,7 +527,7 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
             $this->em,
             static::getContainer()->get(\AvalynxOffice\Repository\EmailRepository::class),
             static::getContainer()->get(FolderManager::class),
-            static::getContainer()->get(\AvalynxOffice\Service\Mail\AttachmentStorage::class),
+            static::getContainer()->get(AttachmentStorage::class),
             $factory,
             static::getContainer()->get(\AvalynxOffice\Service\Mail\MailRoutingService::class),
             static::getContainer()->get(\AvalynxOffice\Repository\ConnectorConfigRepository::class),
@@ -580,7 +587,8 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
     public function testNonXmlRequestsReceiveHtmlForbiddenPage(): void
     {
         $this->client->loginUser($this->admin);
-        $this->client->request('POST', '/email/'.$this->email->getId().'/read', ['read' => '1']);
+        $token = $this->setCsrfToken('mail_favorite');
+        $this->client->request('POST', '/email/'.$this->email->getId().'/read', ['read' => '1', '_token' => $token]);
 
         self::assertResponseStatusCodeSame(403);
         $content = (string) $this->client->getResponse()->getContent();

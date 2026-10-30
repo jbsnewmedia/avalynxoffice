@@ -436,7 +436,8 @@ final readonly class MailDraftService
         return mb_substr($preview, 0, 500);
     }
 
-    private function parseAddressList(string $value): array    {
+    private function parseAddressList(string $value): array
+    {
         $emails = preg_split('/[,;\r\n]+/', $value) ?: [];
         $normalized = [];
         $seen = [];
@@ -514,7 +515,7 @@ final readonly class MailDraftService
             }
 
             $attachment = new Attachment();
-            $attachment->setName('' !== trim($uploadedAttachment->getClientOriginalName()) ? $uploadedAttachment->getClientOriginalName() : $uploadedAttachment->getFilename());
+            $attachment->setName($this->normalizeAttachmentName($uploadedAttachment->getClientOriginalName(), $uploadedAttachment->getFilename()));
             $attachment->setSize(strlen($payload));
             $attachment->setMimeType(($uploadedAttachment->getMimeType() ?: $uploadedAttachment->getClientMimeType()) ?: 'application/octet-stream');
             $attachment->setSha1(sha1($payload));
@@ -527,5 +528,27 @@ final readonly class MailDraftService
             $email->addEmailAttachment($link);
             $this->entityManager->persist($link);
         }
+    }
+
+    /**
+     * Reduce a client-supplied file name to printable characters without control
+     * characters or path separators and cap it at 255 characters; fall back to
+     * the server-side file name when nothing usable remains.
+     */
+    private function normalizeAttachmentName(string $clientName, string $fallback): string
+    {
+        $name = preg_replace('/[\x00-\x1F\x7F]/u', '', $clientName) ?? '';
+        $name = str_replace(['/', '\\'], '_', $name);
+        $name = trim($name, " \t.");
+
+        if ('' === $name || '' === trim($name, '_')) {
+            $name = basename($fallback);
+        }
+
+        if ('' === $name) {
+            $name = 'attachment';
+        }
+
+        return mb_substr($name, 0, 255);
     }
 }

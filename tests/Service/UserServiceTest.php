@@ -2,6 +2,11 @@
 
 declare(strict_types=1);
 
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
+
 namespace AvalynxOffice\Tests\Service;
 
 use AvalynxOffice\Entity\RecoveryAddress;
@@ -174,49 +179,203 @@ final class UserServiceTest extends TestCase
         return $repository;
     }
 
-    #[\PHPUnit\Framework\Attributes\Group('unit')]
+    /**
+     * @return \Closure(RecoveryAddress, string): string
+     */
+    private static function verifyUrlFor(): \Closure
+    {
+        return static fn (RecoveryAddress $address, string $token): string => 'https://office.example/profile/recovery/verify/'.($address->getId()?->toRfc4122() ?? '').'/'.$token;
+    }
+
+    private static function createOwner(): User
+    {
+        $user = new User();
+        $user->setEmail('owner@example.com');
+
+        return $user;
+    }
+
+    /**
+     * Attaches an already verified recovery address directly (bypassing the
+     * double opt-in) so tests of the recovery flows do not trigger the
+     * verification mail.
+     *
+     * @param non-empty-string $email
+     */
+    private static function attachVerifiedAddress(User $user, string $email): RecoveryAddress
+    {
+        $address = new RecoveryAddress();
+        $address->setEmail($email);
+        $address->setVerifiedAt(new \DateTimeImmutable());
+        $user->addRecoveryAddress($address);
+
+        return $address;
+    }
+
+    #[Group('unit')]
     public function testAddRecoveryAddressRegistersLowercasedAddress(): void
     {
         $service = $this->createRecoveryService($this->createRecoveryRepository(), $this->createStub(MailerInterface::class));
-        $user = new User();
+        $user = self::createOwner();
 
-        $address = $service->addRecoveryAddress($user, 'Recovery@Example.COM');
+        $address = $service->addRecoveryAddress($user, 'Recovery@Example.COM', self::verifyUrlFor());
 
         self::assertSame('recovery@example.com', $address->getEmail());
         self::assertSame($user, $address->getUser());
         self::assertCount(1, $user->getRecoveryAddresses());
     }
 
-    #[\PHPUnit\Framework\Attributes\Group('unit')]
+    #[Group('unit')]
+    public function testAddRecoveryAddressStartsUnverifiedAndSendsVerificationMail(): void
+    {
+        $sent = [];
+        $systemMailer = $this->createMock(MailerInterface::class);
+        $systemMailer->expects($this->once())->method('send')->willReturnCallback(
+            static function (\Symfony\Component\Mime\RawMessage $message) use (&$sent): void {
+                $sent[] = $message;
+            },
+        );
+        $service = $this->createRecoveryService($this->createRecoveryRepository(), $systemMailer);
+        $user = new User();
+        $user->setEmail('owner@example.com');
+
+        $address = $service->addRecoveryAddress($user, 'recovery@example.com', self::verifyUrlFor());
+
+        self::assertFalse($address->isVerified());
+        self::assertNull($address->getVerifiedAt());
+        self::assertSame([], $user->getVerifiedRecoveryAddresses());
+        $hash = $address->getVerificationTokenHash();
+        self::assertIsString($hash);
+        self::assertSame(64, strlen($hash));
+        $expiresAt = $address->getVerificationExpiresAt();
+        self::assertInstanceOf(\DateTimeImmutable::class, $expiresAt);
+        self::assertGreaterThan(new \DateTimeImmutable('+23 hours'), $expiresAt);
+        self::assertLessThan(new \DateTimeImmutable('+25 hours'), $expiresAt);
+
+        self::assertCount(1, $sent);
+        $message = $sent[0];
+        self::assertInstanceOf(Email::class, $message);
+        self::assertSame(['recovery@example.com'], array_map(
+            static fn (Address $recipient): string => $recipient->getAddress(),
+            $message->getTo(),
+        ));
+        $body = (string) $message->getTextBody();
+        self::assertStringContainsString('owner@example.com', $body);
+        preg_match('#https://office\.example/profile/recovery/verify/[^/\s]+/([^\s]+)#', $body, $matches);
+        self::assertNotEmpty($matches, $body);
+
+        // The mail carries the plain token, the entity only its SHA-256 hash.
+        $token = $matches[1];
+        self::assertGreaterThanOrEqual(43, strlen($token));
+        self::assertMatchesRegularExpression('/^[A-Za-z0-9_-]+$/', $token);
+        self::assertStringNotContainsString($token, $hash);
+        self::assertSame(hash('sha256', $token), $hash);
+    }
+
+    #[Group('unit')]
+    public function testVerifyRecoveryAddressAcceptsValidTokenOnce(): void
+    {
+        $service = $this->createRecoveryService($this->createRecoveryRepository(), $this->createStub(MailerInterface::class));
+        $address = new RecoveryAddress();
+        $address->setEmail('recovery@example.com');
+        $token = $service->issueVerification($address);
+
+        self::assertTrue($service->verifyRecoveryAddress($address, $token));
+        self::assertTrue($address->isVerified());
+        self::assertNull($address->getVerificationTokenHash());
+        self::assertNull($address->getVerificationExpiresAt());
+
+        // A second use of the same link is rejected.
+        self::assertFalse($service->verifyRecoveryAddress($address, $token));
+    }
+
+    #[Group('unit')]
+    public function testVerifyRecoveryAddressRejectsWrongToken(): void
+    {
+        $service = $this->createRecoveryService($this->createRecoveryRepository(), $this->createStub(MailerInterface::class));
+        $address = new RecoveryAddress();
+        $address->setEmail('recovery@example.com');
+        $token = $service->issueVerification($address);
+
+        self::assertFalse($service->verifyRecoveryAddress($address, ''));
+        self::assertFalse($service->verifyRecoveryAddress($address, 'wrong-token'));
+        self::assertFalse($service->verifyRecoveryAddress($address, $token.'x'));
+        self::assertFalse($address->isVerified());
+        self::assertNotNull($address->getVerificationTokenHash());
+    }
+
+    #[Group('unit')]
+    public function testVerifyRecoveryAddressRejectsExpiredToken(): void
+    {
+        $service = $this->createRecoveryService($this->createRecoveryRepository(), $this->createStub(MailerInterface::class));
+        $address = new RecoveryAddress();
+        $address->setEmail('recovery@example.com');
+        $token = $service->issueVerification($address);
+        $address->setVerificationExpiresAt(new \DateTimeImmutable('-1 second'));
+
+        self::assertFalse($service->verifyRecoveryAddress($address, $token));
+        self::assertFalse($address->isVerified());
+    }
+
+    #[Group('unit')]
+    public function testVerifyRecoveryAddressRejectsWithoutPendingToken(): void
+    {
+        $service = $this->createRecoveryService($this->createRecoveryRepository(), $this->createStub(MailerInterface::class));
+        $address = new RecoveryAddress();
+        $address->setEmail('recovery@example.com');
+
+        self::assertFalse($service->verifyRecoveryAddress($address, 'anything'));
+    }
+
+    #[Group('unit')]
+    public function testSendVerificationMailSupersedesPendingTokenAndRejectsVerifiedAddress(): void
+    {
+        $systemMailer = $this->createMock(MailerInterface::class);
+        $systemMailer->expects($this->once())->method('send');
+        $service = $this->createRecoveryService($this->createRecoveryRepository(), $systemMailer);
+        $address = new RecoveryAddress();
+        $address->setEmail('recovery@example.com');
+        $firstToken = $service->issueVerification($address);
+
+        $service->sendVerificationMail($address, self::verifyUrlFor());
+
+        self::assertFalse($service->verifyRecoveryAddress($address, $firstToken));
+
+        $address->setVerifiedAt(new \DateTimeImmutable());
+        $this->expectException(\DomainException::class);
+        $service->sendVerificationMail($address, self::verifyUrlFor());
+    }
+
+    #[Group('unit')]
     public function testAddRecoveryAddressRejectsSecondAddressWhenLimitReached(): void
     {
         $service = $this->createRecoveryService($this->createRecoveryRepository(), $this->createStub(MailerInterface::class));
-        $user = new User();
-        $service->addRecoveryAddress($user, 'first@example.com');
-        $service->addRecoveryAddress($user, 'second@example.com');
+        $user = self::createOwner();
+        $service->addRecoveryAddress($user, 'first@example.com', self::verifyUrlFor());
+        $service->addRecoveryAddress($user, 'second@example.com', self::verifyUrlFor());
 
         $this->expectException(\DomainException::class);
         $this->expectExceptionMessage('A user may register at most 2 recovery addresses.');
-        $service->addRecoveryAddress($user, 'third@example.com');
+        $service->addRecoveryAddress($user, 'third@example.com', self::verifyUrlFor());
     }
 
-    #[\PHPUnit\Framework\Attributes\Group('unit')]
+    #[Group('unit')]
     public function testAddRecoveryAddressRejectsDuplicateForSameUser(): void
     {
         $service = $this->createRecoveryService($this->createRecoveryRepository(), $this->createStub(MailerInterface::class));
-        $user = new User();
-        $service->addRecoveryAddress($user, 'first@example.com');
+        $user = self::createOwner();
+        $service->addRecoveryAddress($user, 'first@example.com', self::verifyUrlFor());
 
         $this->expectException(\DomainException::class);
         $this->expectExceptionMessage('This recovery address is already registered for the user.');
-        $service->addRecoveryAddress($user, 'FIRST@example.com');
+        $service->addRecoveryAddress($user, 'FIRST@example.com', self::verifyUrlFor());
     }
 
     /**
      * The message must not reveal that the address belongs to another
      * account (enumeration).
      */
-    #[\PHPUnit\Framework\Attributes\Group('unit')]
+    #[Group('unit')]
     public function testAddRecoveryAddressRejectsAddressUsedByOtherUserWithNeutralMessage(): void
     {
         $other = new RecoveryAddress();
@@ -224,7 +383,7 @@ final class UserServiceTest extends TestCase
         $service = $this->createRecoveryService($this->createRecoveryRepository([$other]), $this->createStub(MailerInterface::class));
 
         try {
-            $service->addRecoveryAddress(new User(), 'taken@example.com');
+            $service->addRecoveryAddress(self::createOwner(), 'taken@example.com', self::verifyUrlFor());
             self::fail('Expected a DomainException.');
         } catch (\DomainException $exception) {
             self::assertSame('This recovery address cannot be registered.', $exception->getMessage());
@@ -232,12 +391,12 @@ final class UserServiceTest extends TestCase
         }
     }
 
-    #[\PHPUnit\Framework\Attributes\Group('unit')]
+    #[Group('unit')]
     public function testRemoveRecoveryAddressDetachesFromUser(): void
     {
         $service = $this->createRecoveryService($this->createRecoveryRepository(), $this->createStub(MailerInterface::class));
-        $user = new User();
-        $address = $service->addRecoveryAddress($user, 'first@example.com');
+        $user = self::createOwner();
+        $address = $service->addRecoveryAddress($user, 'first@example.com', self::verifyUrlFor());
 
         $service->removeRecoveryAddress($user, $address);
 
@@ -245,7 +404,7 @@ final class UserServiceTest extends TestCase
         self::assertNull($address->getUser());
     }
 
-    #[\PHPUnit\Framework\Attributes\Group('unit')]
+    #[Group('unit')]
     public function testSendToRecoveryAddressesSkipsWithoutAddresses(): void
     {
         $systemMailer = $this->createMock(MailerInterface::class);
@@ -255,7 +414,34 @@ final class UserServiceTest extends TestCase
         $service->sendToRecoveryAddresses(new User(), 'Subject', 'Body');
     }
 
-    #[\PHPUnit\Framework\Attributes\Group('unit')]
+    #[Group('unit')]
+    public function testSendToRecoveryAddressesSkipsUnverifiedAddresses(): void
+    {
+        $sent = [];
+        $systemMailer = $this->createMock(MailerInterface::class);
+        $systemMailer->method('send')->willReturnCallback(
+            static function (\Symfony\Component\Mime\RawMessage $message) use (&$sent): void {
+                $sent[] = $message;
+            },
+        );
+        $service = $this->createRecoveryService($this->createRecoveryRepository(), $systemMailer);
+        $user = self::createOwner();
+        self::attachVerifiedAddress($user, 'verified@example.com');
+        $service->addRecoveryAddress($user, 'pending@example.com', self::verifyUrlFor());
+        $sent = [];
+
+        $service->sendToRecoveryAddresses($user, 'Subject', 'Body');
+
+        self::assertCount(1, $sent);
+        $message = $sent[0];
+        self::assertInstanceOf(Email::class, $message);
+        self::assertSame(['verified@example.com'], array_map(
+            static fn (Address $recipient): string => $recipient->getAddress(),
+            $message->getTo(),
+        ));
+    }
+
+    #[Group('unit')]
     public function testSendToRecoveryAddressesSendsOneMailToAllAddresses(): void
     {
         $sent = [];
@@ -267,8 +453,8 @@ final class UserServiceTest extends TestCase
         );
         $service = $this->createRecoveryService($this->createRecoveryRepository(), $systemMailer);
         $user = new User();
-        $service->addRecoveryAddress($user, 'one@example.com');
-        $service->addRecoveryAddress($user, 'two@example.com');
+        self::attachVerifiedAddress($user, 'one@example.com');
+        self::attachVerifiedAddress($user, 'two@example.com');
 
         $service->sendToRecoveryAddresses($user, 'Subject', 'Body');
 
@@ -283,7 +469,7 @@ final class UserServiceTest extends TestCase
         ));
     }
 
-    #[\PHPUnit\Framework\Attributes\Group('unit')]
+    #[Group('unit')]
     public function testRequestPasswordResetDoesNothingForUnknownUser(): void
     {
         $systemMailer = $this->createMock(MailerInterface::class);
@@ -293,7 +479,7 @@ final class UserServiceTest extends TestCase
         $service->requestPasswordReset('unknown@example.com', static fn (User $candidate): string => 'https://office.example/reset/'.($candidate->getId()?->toRfc4122() ?? ''));
     }
 
-    #[\PHPUnit\Framework\Attributes\Group('unit')]
+    #[Group('unit')]
     public function testRequestPasswordResetDoesNothingWithoutAddresses(): void
     {
         $systemMailer = $this->createMock(MailerInterface::class);
@@ -303,7 +489,35 @@ final class UserServiceTest extends TestCase
         $service->requestPasswordReset('known@example.com', static fn (User $candidate): string => 'https://office.example/reset/'.($candidate->getId()?->toRfc4122() ?? ''));
     }
 
-    #[\PHPUnit\Framework\Attributes\Group('unit')]
+    /**
+     * An address whose ownership was never confirmed must not receive
+     * reset links - otherwise anybody could register a foreign mailbox and
+     * route the victim's reset mail there.
+     */
+    #[Group('unit')]
+    public function testRequestPasswordResetIgnoresUnverifiedAddresses(): void
+    {
+        $sent = [];
+        $systemMailer = $this->createMock(MailerInterface::class);
+        $systemMailer->method('send')->willReturnCallback(
+            static function (\Symfony\Component\Mime\RawMessage $message) use (&$sent): void {
+                $sent[] = $message;
+            },
+        );
+        $user = new User();
+        $user->setEmail('known@example.com');
+        $user->setPassword('current-hash');
+        $service = $this->createRecoveryService($this->createRecoveryRepository(), $systemMailer, ['user' => $user]);
+        $service->addRecoveryAddress($user, 'pending@example.com', self::verifyUrlFor());
+        self::assertCount(1, $sent, 'only the verification mail was sent');
+        $sent = [];
+
+        $service->requestPasswordReset('known@example.com', static fn (User $candidate): string => 'https://office.example/reset/'.($candidate->getId()?->toRfc4122() ?? ''));
+
+        self::assertSame([], $sent);
+    }
+
+    #[Group('unit')]
     public function testRequestPasswordResetSendsSignedLinkToAllAddresses(): void
     {
         $sent = [];
@@ -317,7 +531,7 @@ final class UserServiceTest extends TestCase
         $user->setEmail('known@example.com');
         $user->setPassword('current-hash');
         $service = $this->createRecoveryService($this->createRecoveryRepository(), $systemMailer, ['user' => $user]);
-        $service->addRecoveryAddress($user, 'one@example.com');
+        self::attachVerifiedAddress($user, 'one@example.com');
 
         $service->requestPasswordReset('KNOWN@example.com', static fn (User $candidate): string => 'https://office.example/profile/password-reset/execute/'.($candidate->getId()?->toRfc4122() ?? ''));
 
@@ -336,7 +550,7 @@ final class UserServiceTest extends TestCase
         self::assertTrue(new UriSigner('unit-test-secret')->check($link));
     }
 
-    #[\PHPUnit\Framework\Attributes\Group('unit')]
+    #[Group('unit')]
     public function testPasswordResetFingerprintChangesWithThePassword(): void
     {
         $service = $this->createRecoveryService($this->createRecoveryRepository(), $this->createStub(MailerInterface::class));
@@ -355,7 +569,7 @@ final class UserServiceTest extends TestCase
         self::assertFalse($service->isResetFingerprintValid($user, $before));
     }
 
-    #[\PHPUnit\Framework\Attributes\Group('unit')]
+    #[Group('unit')]
     public function testWithResetFingerprintAppendsQueryParameter(): void
     {
         $service = $this->createRecoveryService($this->createRecoveryRepository(), $this->createStub(MailerInterface::class));
@@ -367,7 +581,7 @@ final class UserServiceTest extends TestCase
         self::assertSame('https://office.example/reset?a=1&v='.$fingerprint, $service->withResetFingerprint('https://office.example/reset?a=1', $user));
     }
 
-    #[\PHPUnit\Framework\Attributes\Group('unit')]
+    #[Group('unit')]
     public function testResetPasswordHashesAndStoresPassword(): void
     {
         $service = $this->createRecoveryService($this->createRecoveryRepository(), $this->createStub(MailerInterface::class));

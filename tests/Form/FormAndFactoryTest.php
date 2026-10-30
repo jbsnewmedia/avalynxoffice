@@ -2,28 +2,36 @@
 
 declare(strict_types=1);
 
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
+
 namespace AvalynxOffice\Tests\Form;
 
+use AvalynxOffice\Entity\Account;
 use AvalynxOffice\Entity\Address;
 use AvalynxOffice\Entity\Attachment;
 use AvalynxOffice\Entity\Body;
+use AvalynxOffice\Entity\Connector;
 use AvalynxOffice\Entity\Email;
 use AvalynxOffice\Entity\Folder;
-use AvalynxOffice\Entity\Account;
-use AvalynxOffice\Entity\Connector;
+use AvalynxOffice\Factory\AccountFactory;
 use AvalynxOffice\Factory\AddressFactory;
 use AvalynxOffice\Factory\AttachmentFactory;
 use AvalynxOffice\Factory\BodyFactory;
 use AvalynxOffice\Factory\EmailFactory;
 use AvalynxOffice\Factory\FolderFactory;
-use AvalynxOffice\Factory\AccountFactory;
-use AvalynxOffice\Form\EmailReplyType;
-use AvalynxOffice\Form\ConnectorType;
 use AvalynxOffice\Form\AccountType;
+use AvalynxOffice\Form\ConnectorType;
+use AvalynxOffice\Form\EmailReplyType;
+use AvalynxOffice\Service\Mail\AttachmentStorage;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
+use Symfony\Component\Validator\Constraints\All;
+use Symfony\Component\Validator\Constraints\File;
 
 final class FormAndFactoryTest extends TestCase
 {
@@ -32,12 +40,19 @@ final class FormAndFactoryTest extends TestCase
         $addedFields = [];
         $builder = $this->createBuilderSpy($addedFields);
 
-        (new EmailReplyType())->buildForm($builder, []);
+        $this->createEmailReplyType(4_096)->buildForm($builder, []);
 
         self::assertSame(['from', 'to', 'cc', 'bcc', 'replyTo', 'subject', 'content', 'scheduleLater', 'scheduledAt', 'retainedAttachmentIds', 'attachments', 'send', 'saveDraft'], array_column($addedFields, 0));
 
+        $attachmentOptions = $addedFields[10][2];
+        self::assertCount(1, $attachmentOptions['constraints']);
+        self::assertInstanceOf(All::class, $attachmentOptions['constraints'][0]);
+        self::assertCount(1, $attachmentOptions['constraints'][0]->constraints);
+        self::assertInstanceOf(File::class, $attachmentOptions['constraints'][0]->constraints[0]);
+        self::assertSame(4_096, $attachmentOptions['constraints'][0]->constraints[0]->maxSize);
+
         $resolver = new OptionsResolver();
-        (new EmailReplyType())->configureOptions($resolver);
+        $this->createEmailReplyType(4_096)->configureOptions($resolver);
 
         self::assertSame(Email::class, $resolver->resolve()['data_class']);
         self::assertSame([], $resolver->resolve()['sender_choices']);
@@ -113,6 +128,14 @@ final class FormAndFactoryTest extends TestCase
         self::assertSame('hello-world', AttachmentFactory::slugifyBaseName('Hello World'));
         self::assertSame('file', AttachmentFactory::slugifyBaseName('!!!'));
         self::assertSame('file', AttachmentFactory::slugifyBaseName(''));
+    }
+
+    private function createEmailReplyType(int $maxBytes): EmailReplyType
+    {
+        $storage = $this->createStub(AttachmentStorage::class);
+        $storage->method('getMaxBytes')->willReturn($maxBytes);
+
+        return new EmailReplyType($storage);
     }
 
     /**

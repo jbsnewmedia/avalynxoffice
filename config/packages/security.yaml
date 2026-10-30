@@ -36,6 +36,7 @@ security:
         - { path: ^/(login|logout)$, roles: PUBLIC_ACCESS }
         - { path: ^/(impressum|datenschutz|agb)$, roles: PUBLIC_ACCESS }
         - { path: ^/profile/password-reset, roles: PUBLIC_ACCESS }
+        - { path: ^/profile/recovery/verify/, roles: PUBLIC_ACCESS }
         - { path: ^/locale, roles: PUBLIC_ACCESS }
         - { path: ^/(css|js|images|build|assets), roles: PUBLIC_ACCESS }
         - { path: ^/(_(profiler|wdt)), roles: PUBLIC_ACCESS }

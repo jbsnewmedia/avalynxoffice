@@ -2,6 +2,11 @@
 
 declare(strict_types=1);
 
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
+
 namespace AvalynxOffice\Tests\Controller;
 
 use AvalynxOffice\Controller\DataController;
@@ -16,9 +21,9 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ServiceLocator;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
+use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 
 final class DataControllerTest extends TestCase
 {
@@ -45,24 +50,29 @@ final class DataControllerTest extends TestCase
         self::assertJsonStringEqualsJsonString('{"accounts":[{"id":1}]}', (string) $response->getContent());
     }
 
-    public function testAddressSuggestionsFormatsNamedAndUnnamedAddresses(): void
+    public function testAddressSuggestionsFormatsNamedAndUnnamedAddressesScopedToUserAccounts(): void
     {
+        $account = (new Account())->setName('Personal')->setEmail('user@example.com');
+        $user = new User();
+        $user->addAccount($account);
+
         $controller = new DataController();
         $controller->setContainer(new ServiceLocator([
-            'security.token_storage' => fn (): TokenStorageInterface => $this->createTokenStorage(new User()),
+            'security.token_storage' => fn (): TokenStorageInterface => $this->createTokenStorage($user),
         ]));
 
         $request = Request::create('/data/address-suggestions?search=sup');
         $repository = $this->createMock(AddressRepository::class);
         $repository->expects(self::once())
             ->method('findForAutocomplete')
-            ->with('sup')
+            ->with('sup', [$account])
             ->willReturn([
                 (new Address())->setEmail('named@example.com')->setName('Named User'),
                 (new Address())->setEmail('plain@example.com'),
             ]);
+        $accountProvider = new UserAccountProvider($this->createStub(AccountRepository::class));
 
-        $response = $controller->addressSuggestions($request, $repository);
+        $response = $controller->addressSuggestions($request, $repository, $accountProvider);
 
         self::assertJsonStringEqualsJsonString(
             '[{"key":"named@example.com","value":"Named User <named@example.com>"},{"key":"plain@example.com","value":"plain@example.com"}]',
@@ -79,7 +89,11 @@ final class DataControllerTest extends TestCase
 
         $this->expectException(AccessDeniedException::class);
 
-        $controller->addressSuggestions(Request::create('/data/address-suggestions'), $this->createStub(AddressRepository::class));
+        $controller->addressSuggestions(
+            Request::create('/data/address-suggestions'),
+            $this->createStub(AddressRepository::class),
+            new UserAccountProvider($this->createStub(AccountRepository::class)),
+        );
     }
 
     private function createTokenStorage(?object $user): TokenStorageInterface

@@ -45,6 +45,12 @@ final readonly class UserService
     /** Validity of a signed reset link (ISO 8601 duration: 30 minutes). */
     public const string RESET_LINK_TTL = 'PT30M';
 
+    /** Validity of a recovery address verification link (ISO 8601 duration: 24 hours). */
+    public const string RECOVERY_VERIFICATION_TTL = 'PT24H';
+
+    /** Number of random bytes of a recovery address verification token. */
+    private const int RECOVERY_VERIFICATION_TOKEN_BYTES = 32;
+
     public function __construct(
         private UserRepository $userRepository,
         private RecoveryAddressRepository $recoveryAddressRepository,
@@ -111,11 +117,15 @@ final readonly class UserService
      * exclusively to receive account-recovery messages. At most
      * {@see self::MAX_RECOVERY_ADDRESSES} addresses may be registered.
      *
-     * @param non-empty-string $email
+     * The address starts unverified: a verification token is issued and a
+     * confirmation mail is sent to the new address (double opt-in).
+     *
+     * @param non-empty-string                          $email
+     * @param \Closure(RecoveryAddress, string): string $verifyUrlFor builds the absolute verification URL for the address and plain token
      *
      * @throws \DomainException when the limit is reached or the address already exists
      */
-    public function addRecoveryAddress(User $user, string $email): RecoveryAddress
+    public function addRecoveryAddress(User $user, string $email, \Closure $verifyUrlFor): RecoveryAddress
     {
         $normalized = strtolower($email);
 
@@ -139,7 +149,85 @@ final readonly class UserService
         $address->setEmail($normalized);
         $user->addRecoveryAddress($address);
 
+        $this->sendVerificationMail($address, $verifyUrlFor);
+
         return $address;
+    }
+
+    /**
+     * Issues a fresh verification token for an unverified recovery address
+     * and mails the confirmation link to it. Only the SHA-256 hash of the
+     * token is stored; a previously pending token is superseded.
+     *
+     * @param \Closure(RecoveryAddress, string): string $verifyUrlFor builds the absolute verification URL for the address and plain token
+     *
+     * @throws \DomainException when the address is already verified
+     */
+    public function sendVerificationMail(RecoveryAddress $address, \Closure $verifyUrlFor): void
+    {
+        if ($address->isVerified()) {
+            throw new \DomainException('This recovery address is already verified.');
+        }
+
+        $token = $this->issueVerification($address);
+        $verifyUrl = $verifyUrlFor($address, $token);
+        $owner = $address->getUser()?->getEmail() ?? '';
+
+        $message = new Email()
+            ->from($this->systemMailerFromAddress)
+            ->to(new Address($address->getEmail()))
+            ->subject('Confirm your recovery address')
+            ->text(sprintf('Hello,'."\n\n".'this email address was registered as a recovery address for the account %s. Please confirm that you own this address by opening the following link:'."\n\n".'%s'."\n\n".'This link is valid for 24 hours. If you did not request this, you can ignore this message.', $owner, $verifyUrl));
+
+        $this->systemMailer->send($message);
+    }
+
+    /**
+     * Generates a URL-safe random token, stores its hash and expiry on the
+     * address and returns the plain token (to be sent to the owner only).
+     *
+     * @return non-empty-string
+     */
+    public function issueVerification(RecoveryAddress $address): string
+    {
+        $token = rtrim(strtr(base64_encode(random_bytes(self::RECOVERY_VERIFICATION_TOKEN_BYTES)), '+/', '-_'), '=');
+        \assert('' !== $token);
+
+        $address
+            ->setVerificationTokenHash(hash('sha256', $token))
+            ->setVerificationExpiresAt(new \DateTimeImmutable()->add(new \DateInterval(self::RECOVERY_VERIFICATION_TTL)));
+
+        return $token;
+    }
+
+    /**
+     * Confirms ownership of a recovery address. Returns false (without any
+     * detail) when no token is pending, the token does not match or it has
+     * expired. On success the token is dropped and the address is marked
+     * as verified.
+     */
+    public function verifyRecoveryAddress(RecoveryAddress $address, string $token): bool
+    {
+        $storedHash = $address->getVerificationTokenHash();
+        $expiresAt = $address->getVerificationExpiresAt();
+
+        if ($address->isVerified() || null === $storedHash || null === $expiresAt || '' === $token) {
+            return false;
+        }
+
+        if ($expiresAt < new \DateTimeImmutable()) {
+            return false;
+        }
+
+        if (!hash_equals($storedHash, hash('sha256', $token))) {
+            return false;
+        }
+
+        $address
+            ->clearVerification()
+            ->setVerifiedAt(new \DateTimeImmutable());
+
+        return true;
     }
 
     /**
@@ -151,9 +239,10 @@ final readonly class UserService
     }
 
     /**
-     * Sends the given message to every registered recovery address of the
+     * Sends the given message to every verified recovery address of the
      * user simultaneously. All addresses are attached to one mail as
      * explicit recipients, so they receive the identical message together.
+     * Unverified addresses are skipped.
      *
      * @param non-empty-string $subject
      * @param non-empty-string $body
@@ -161,7 +250,7 @@ final readonly class UserService
     public function sendToRecoveryAddresses(User $user, string $subject, string $body): void
     {
         $recipients = [];
-        foreach ($user->getRecoveryAddresses() as $recoveryAddress) {
+        foreach ($user->getVerifiedRecoveryAddresses() as $recoveryAddress) {
             $recipients[] = new Address($recoveryAddress->getEmail());
         }
 
@@ -180,8 +269,8 @@ final readonly class UserService
 
     /**
      * Generates a signed password reset link and sends it to the user's
-     * recovery addresses. Unknown users and users without recovery
-     * addresses are silently ignored to prevent account enumeration.
+     * verified recovery addresses. Unknown users and users without verified
+     * recovery addresses are silently ignored to prevent account enumeration.
      *
      * The link is bound to the current password via
      * {@see self::passwordResetFingerprint()}: once the password changed the
@@ -194,7 +283,7 @@ final readonly class UserService
     {
         $user = $this->userRepository->findOneBy(['email' => strtolower($email)]);
 
-        if (null === $user || [] === $user->getRecoveryAddresses()->toArray()) {
+        if (null === $user || [] === $user->getVerifiedRecoveryAddresses()) {
             return;
         }
 

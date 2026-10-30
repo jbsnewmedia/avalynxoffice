@@ -2,6 +2,11 @@
 
 declare(strict_types=1);
 
+/*
+ * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
+ * Licensed under the AvalynxOffice Public License (APL) version 1.0.
+ */
+
 namespace AvalynxOffice\Tests\Controller;
 
 use AvalynxOffice\Entity\User;
@@ -60,6 +65,7 @@ final class UserAdminControllerTest extends WebTestCase
         $content = (string) $this->client->getResponse()->getContent();
         self::assertStringContainsString('id="adminNavDropdown"', $content);
         self::assertStringContainsString('data-avalynxdatatable', $content);
+        self::assertStringContainsString('data-csrf-token="', $content);
         self::assertStringContainsString($this->generateUrl('admin_users_data'), $content);
         self::assertStringContainsString($this->generateUrl('admin_users_new'), $content);
         // The user rows live behind the datatable JSON endpoint, not in the
@@ -73,6 +79,30 @@ final class UserAdminControllerTest extends WebTestCase
         $this->client->request('POST', '/admin/users/data');
 
         self::assertResponseStatusCodeSame(403);
+    }
+
+    public function testDataRejectsMissingOrInvalidCsrfToken(): void
+    {
+        $this->client->loginUser($this->admin);
+
+        $this->client->request('POST', '/admin/users/data');
+        self::assertResponseStatusCodeSame(403);
+        $payload = $this->json();
+        self::assertFalse($payload['success']);
+        self::assertArrayNotHasKey('data', $payload);
+
+        $this->client->request('POST', '/admin/users/data', ['_token' => 'invalid']);
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    public function testDataAcceptsCsrfTokenViaHeader(): void
+    {
+        $this->client->loginUser($this->admin);
+        $token = $this->setCsrfToken('datatable');
+
+        $this->client->request('POST', '/admin/users/data', [], [], ['HTTP_X_CSRF_TOKEN' => $token]);
+        self::assertResponseIsSuccessful();
+        self::assertSame(2, $this->json()['count']['total']);
     }
 
     public function testDataReturnsAllUsersSortedByEmail(): void
@@ -623,6 +653,7 @@ final class UserAdminControllerTest extends WebTestCase
      */
     private function fetchData(array $params = []): array
     {
+        $params += ['_token' => $this->setCsrfToken('datatable')];
         $this->client->request('POST', '/admin/users/data', $params);
 
         self::assertResponseIsSuccessful();

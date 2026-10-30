@@ -20,12 +20,23 @@ RUN composer install --no-dev --optimize-autoloader --no-interaction --no-progre
     # build it here from the bundled plugins (keeps the committed active flags).
     && php bin/console app:plugin:manifest --no-interaction \
     && rm -rf var/cache \
-    && chown -R application:application /app
+    # The code stays root-owned (read-only for the web server user). Only the
+    # runtime-writable directories belong to the application user: var/
+    # (cache, logs, sessions, themed SCSS), data/ (attachments, persistent
+    # volume) and assets/css (ThemeService writes the compiled Bootstrap CSS).
+    # The base image ships /app owned by application, hence the explicit
+    # (non-recursive) chown of the directory itself.
+    && chown root:root /app \
+    && mkdir -p var data assets/css \
+    && chown -R application:application var data assets/css
 
-# Container bootstrap: wait for the database, run the bundled migrations and
-# create the env-defined administrator (OFFICE_ADMIN_EMAIL/OFFICE_ADMIN_PASSWORD).
+# Container bootstrap: wait for the database, run the bundled migrations,
+# apply the EAS role grants and create the env-defined administrator
+# (OFFICE_ADMIN_EMAIL/OFFICE_ADMIN_PASSWORD or *_FILE).
 COPY docker/prod/office-entrypoint.sh /usr/local/bin/office-entrypoint
-RUN chmod +x /usr/local/bin/office-entrypoint
+COPY docker/prod/office-grant-eas.sh /usr/local/bin/office-grant-eas
+COPY docker/prod/eas-grants.sql /usr/local/lib/avalynxoffice/eas-grants.sql
+RUN chmod +x /usr/local/bin/office-entrypoint /usr/local/bin/office-grant-eas
 
 ENTRYPOINT ["/usr/local/bin/office-entrypoint"]
 CMD ["supervisord"]

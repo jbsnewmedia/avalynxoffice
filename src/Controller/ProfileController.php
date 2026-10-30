@@ -28,6 +28,7 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Uid\Uuid;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 class ProfileController extends AbstractController
@@ -85,6 +86,11 @@ class ProfileController extends AbstractController
         ]);
     }
 
+    /**
+     * Adds a recovery address and sends the verification mail. Shares the
+     * per-IP password reset limiter so the endpoint cannot be abused to flood
+     * a third-party mailbox.
+     */
     #[Route('/profile/recovery/add', name: 'app_profile_recovery_add', methods: ['POST'])]
     public function addRecoveryAddress(Request $request): JsonResponse
     {
@@ -113,8 +119,12 @@ class ProfileController extends AbstractController
             ]);
         }
 
+        if (!$this->consumeResetAttempt($request)) {
+            return $this->tooManyRequests();
+        }
+
         try {
-            $this->userService->addRecoveryAddress($user, $email);
+            $this->userService->addRecoveryAddress($user, $email, $this->recoveryVerifyUrlBuilder());
             $this->entityManager->flush();
             $this->addFlash('success', 'profile.recovery.added');
         } catch (\DomainException) {
@@ -124,6 +134,74 @@ class ProfileController extends AbstractController
         }
 
         return AvalynxFormResponse::success($this->generateUrl('app_profile_recovery'));
+    }
+
+    /**
+     * Re-sends the confirmation mail for an unverified recovery address.
+     * Shares the per-IP password reset limiter so the endpoint cannot be
+     * abused to flood a third-party mailbox.
+     */
+    #[Route('/profile/recovery/resend/{id}', name: 'app_profile_recovery_resend', methods: ['POST'])]
+    public function resendRecoveryVerification(string $id, Request $request): Response
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+
+        $recoveryAddress = $this->entityManager->find(RecoveryAddress::class, $id);
+
+        if (!$recoveryAddress instanceof RecoveryAddress || $recoveryAddress->getUser()?->getId() !== $user->getId()) {
+            throw $this->createNotFoundException('Recovery address not found.');
+        }
+
+        $tokenRaw = $request->request->get('_token');
+        $token = is_scalar($tokenRaw) ? (string) $tokenRaw : null;
+
+        if (null === $token || !$this->isCsrfTokenValid('resend_recovery_'.$recoveryAddress->getId(), $token)) {
+            $this->addFlash('danger', 'profile.recovery.invalid_token');
+
+            return new RedirectResponse($this->generateUrl('app_profile_recovery'));
+        }
+
+        if (!$this->consumeResetAttempt($request)) {
+            $this->addFlash('danger', 'password.reset.too_many_requests');
+
+            return new RedirectResponse($this->generateUrl('app_profile_recovery'));
+        }
+
+        if ($recoveryAddress->isVerified()) {
+            $this->addFlash('info', 'profile.recovery.already_verified');
+
+            return new RedirectResponse($this->generateUrl('app_profile_recovery'));
+        }
+
+        $this->userService->sendVerificationMail($recoveryAddress, $this->recoveryVerifyUrlBuilder());
+        $this->entityManager->flush();
+        $this->addFlash('success', 'profile.recovery.verification_sent');
+
+        return new RedirectResponse($this->generateUrl('app_profile_recovery'));
+    }
+
+    /**
+     * Confirms ownership of a recovery address via the mailed link. The
+     * endpoint is public because the owner is not necessarily logged in.
+     * Every failure (unknown address, wrong or expired token) yields the
+     * same neutral message.
+     */
+    #[Route('/profile/recovery/verify/{id}/{token}', name: 'app_profile_recovery_verify', methods: ['GET'])]
+    public function verifyRecoveryAddress(string $id, string $token): Response
+    {
+        $target = $this->getUser() instanceof User ? 'app_profile_recovery' : 'app_login';
+
+        $recoveryAddress = Uuid::isValid($id) ? $this->entityManager->find(RecoveryAddress::class, $id) : null;
+
+        if ($recoveryAddress instanceof RecoveryAddress && $this->userService->verifyRecoveryAddress($recoveryAddress, $token)) {
+            $this->entityManager->flush();
+            $this->addFlash('success', 'profile.recovery.verify_success');
+        } else {
+            $this->addFlash('danger', 'profile.recovery.verify_failed');
+        }
+
+        return new RedirectResponse($this->generateUrl($target));
     }
 
     #[Route('/profile/recovery/remove/{id}', name: 'app_profile_recovery_remove', methods: ['POST'])]
@@ -393,6 +471,18 @@ class ProfileController extends AbstractController
             'userId' => $userId,
             'submitUrl' => $submitUrl,
         ]);
+    }
+
+    /**
+     * @return \Closure(RecoveryAddress, string): string
+     */
+    private function recoveryVerifyUrlBuilder(): \Closure
+    {
+        return fn (RecoveryAddress $address, string $token): string => $this->generateUrl(
+            'app_profile_recovery_verify',
+            ['id' => $address->getId()?->toRfc4122() ?? '', 'token' => $token],
+            UrlGeneratorInterface::ABSOLUTE_URL,
+        );
     }
 
     private function isResetFingerprintValid(Request $request, User $user): bool

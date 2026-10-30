@@ -5,6 +5,7 @@
  * [data-avalynxdatatable]. Configuration comes from data attributes:
  *
  *   data-api-url                  endpoint that returns the datatable JSON
+ *   data-csrf-token               CSRF token sent as `_token` with every request
  *   data-per-page                 initial page size (default: 10)
  *   data-label-show / -entries / -search / -previous / -next
  *   data-label-showing            template with %start% %end% %total%
@@ -86,8 +87,14 @@
 
         const dataset = element.dataset;
 
+        const apiParams = {};
+        if (dataset.csrfToken) {
+            apiParams._token = dataset.csrfToken;
+        }
+
         new AvalynxDataTable(element.id, {
             apiUrl: dataset.apiUrl || '',
+            apiParams: apiParams,
             perPage: parseInt(dataset.perPage, 10) || 10
         }, {
             showLabel: dataset.labelShow || 'Show',

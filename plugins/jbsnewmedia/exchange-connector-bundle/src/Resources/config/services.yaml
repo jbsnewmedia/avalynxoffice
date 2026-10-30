@@ -11,3 +11,8 @@ services:
 
     JBSNewMedia\ExchangeConnectorBundle\Plugin\ExchangeConnectorPlugin:
         tags: ['avalynxoffice.connector_plugin']
+
+    JBSNewMedia\ExchangeConnectorBundle\Service\RawMailImporter:
+        arguments:
+            $mailDumpDir: '%app.mail_dump_dir%'
+            $mailDumpRetentionDays: '%app.mail_dump_retention_days%'

@@ -7,6 +7,13 @@ parameters:
     # GeoIP lookups of login IPs call the external ip-api.com service over
     # plain HTTP (the free tier offers no HTTPS) and are therefore opt-in.
     env(AVALYNXOFFICE_GEOIP_ENABLED): 'false'
+    # Raw mail dumps (success/pending/error copies written by the connector
+    # plugins) live below var/ by default; files older than the retention
+    # (days, 0 disables pruning) are removed when a new dump is written.
+    env(AVALYNXOFFICE_MAIL_DUMP_DIR): '%kernel.project_dir%/var/mail_dumps'
+    env(AVALYNXOFFICE_MAIL_DUMP_RETENTION_DAYS): '14'
+    app.mail_dump_dir: '%env(resolve:AVALYNXOFFICE_MAIL_DUMP_DIR)%'
+    app.mail_dump_retention_days: '%env(int:AVALYNXOFFICE_MAIL_DUMP_RETENTION_DAYS)%'
 
 services:
     # default configuration for services in *this* file
