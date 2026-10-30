@@ -155,6 +155,19 @@ class PluginManifestService
 
         $discoveredPluginPaths = [];
         foreach (glob($this->projectDir.'/plugins/*/*/composer.json') ?: [] as $composerFile) {
+            // Same inclusion rule as discoverPlugins(): only plugin directories
+            // with a string-valued extra.symfony.bundle belong to the manifest.
+            // Others (e.g. composer.json files using the map-shaped Flex
+            // registration format) are skipped there and must not make the
+            // stored manifest look stale here - otherwise every boot would try
+            // to rewrite plugins/plugins.json, which fails in the read-only
+            // production image.
+            $composer = $this->decodeComposerFile($composerFile);
+            $bundleClass = $this->getNestedString($composer, 'extra', 'symfony', 'bundle');
+            if (!is_string($bundleClass) || '' === $bundleClass) {
+                continue;
+            }
+
             $composerMtime = filemtime($composerFile);
             if (false === $composerMtime || $composerMtime > $manifestMtime) {
                 return false;

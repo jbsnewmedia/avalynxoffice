@@ -218,9 +218,7 @@ JSON);
         $invalidFormatService = new TestablePluginManifestService(
             $this->projectDir,
             isManifestFresh: static fn (): bool => true,
-            readJsonFile: static function (): array {
-                return ['plugins' => 'invalid'];
-            },
+            readJsonFile: static fn(): array => ['plugins' => 'invalid'],
         );
 
         $this->expectException(\RuntimeException::class);
@@ -259,6 +257,45 @@ JSON);
 
         file_put_contents($service->getManifestPath(), '{"plugins":"invalid"}');
         self::assertNull($readManifestFile->invoke($service));
+    }
+
+    public function testManifestStaysFreshWithPluginsExcludedFromDiscovery(): void
+    {
+        // A plugin using the map-shaped Flex registration format is skipped by
+        // discoverPlugins(); it must not make a stored manifest look stale -
+        // otherwise every boot rewrites plugins/plugins.json and the production
+        // image (read-only /app) fails its bootstrap.
+        $excludedDir = $this->projectDir.'/plugins/acme/legacy-bundle';
+        mkdir($excludedDir, 0777, true);
+        file_put_contents($excludedDir.'/composer.json', <<<'JSON'
+{
+    "name": "acme/legacy-bundle",
+    "autoload": {
+        "psr-4": {
+            "Acme\\LegacyBundle\\": "src/"
+        }
+    },
+    "extra": {
+        "symfony": {
+            "bundle": {
+                "Acme\\LegacyBundle\\LegacyBundle": ["all"]
+            }
+        }
+    }
+}
+JSON);
+
+        $service = new PluginManifestService($this->projectDir);
+        $manifest = [
+            'plugins' => [
+                ['path' => 'plugins/acme/demo-bundle'],
+                ['path' => 'plugins/acme/view-bundle'],
+            ],
+        ];
+        file_put_contents($service->getManifestPath(), json_encode($manifest, JSON_THROW_ON_ERROR));
+
+        $isManifestFresh = new \ReflectionMethod(PluginManifestService::class, 'isManifestFresh');
+        self::assertTrue($isManifestFresh->invoke($service));
     }
 
     public function testPrivateComposerAndPathHelpersCoverEdgeCases(): void
