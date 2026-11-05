@@ -13,6 +13,7 @@ use AvalynxOffice\Entity\User;
 use AvalynxOffice\Form\UserAdminType;
 use AvalynxOffice\Licensing\Service\LicenseEnforcementInterface;
 use AvalynxOffice\Service\Idn\IdnService;
+use AvalynxOffice\Service\UserDateTimeFormatter;
 use AvalynxOffice\Service\UserService;
 use AvalynxOffice\Util\AvalynxFormResponse;
 use AvalynxOffice\Util\FormInvalidMapper;
@@ -58,6 +59,7 @@ final class UserAdminController extends AbstractController
         private readonly CsrfTokenManagerInterface $csrfTokenManager,
         private readonly TranslatorInterface $translator,
         private readonly IdnService $idnService,
+        private readonly UserDateTimeFormatter $userDateTimeFormatter,
     ) {
     }
 
@@ -98,13 +100,16 @@ final class UserAdminController extends AbstractController
 
         $rows = [];
         foreach ($users as $user) {
+            $lastAuthAt = $user->getLastAuthAt();
             $rows[] = [
                 'data' => [
                     'id' => $user->getId()?->toRfc4122(),
                     'email' => htmlspecialchars($this->idnService->toUnicode($user->getEmail()), ENT_QUOTES, 'UTF-8'),
                     'roles' => $this->renderRoles($user),
                     'active' => $this->renderState($user),
-                    'lastAuthAt' => $user->getLastAuthAt()?->format('Y-m-d H:i') ?? '<span class="text-body-secondary">—</span>',
+                    'lastAuthAt' => null !== $lastAuthAt
+                        ? $this->userDateTimeFormatter->format($lastAuthAt)
+                        : '<span class="text-body-secondary">—</span>',
                     'options' => $this->renderOptions($user, $currentUser, $readOnly),
                 ],
                 'class' => $user->isActive() ? '' : 'table-secondary',
