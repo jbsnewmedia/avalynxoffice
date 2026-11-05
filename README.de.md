@@ -42,7 +42,7 @@ lizenziert (`LICENSE`, `LICENSING.md`):
   über `app:license:release-mail` freigegeben.
 - **Produktiv-Image**: wartet auf die Datenbank, führt die mitgelieferten
   Migrationen aus und legt den env-definierten Administrator an (siehe unten).
-- **Qualitäts-Gates**: PHPStan (Level max), ECS, Rector, PHPUnit-Suite (1213 Tests)
+- **Qualitäts-Gates**: PHPStan (Level max), ECS, Rector, PHPUnit-Suite
   abgesichert durch einen GitHub-Actions-Workflow mit PostgreSQL- und MariaDB-Services.
 
 ## Voraussetzungen

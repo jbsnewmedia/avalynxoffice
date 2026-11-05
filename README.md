@@ -40,7 +40,7 @@ version 1.0** (`LICENSE`, `LICENSING.md`):
   outgoing mail is held (`license_hold`) and released via `app:license:release-mail`.
 - **Production image**: waits for the database, runs the bundled migrations and
   creates the env-defined administrator on start-up (see below).
-- **Quality gates**: PHPStan (level max), ECS, Rector, PHPUnit suite (1213 tests)
+- **Quality gates**: PHPStan (level max), ECS, Rector, PHPUnit suite
   enforced by a GitHub Actions workflow with PostgreSQL and MariaDB services.
 
 ## Requirements
