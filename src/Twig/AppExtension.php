@@ -12,6 +12,7 @@ namespace AvalynxOffice\Twig;
 use AvalynxOffice\Entity\Address;
 use AvalynxOffice\Entity\CalendarEvent;
 use AvalynxOffice\Entity\Email;
+use AvalynxOffice\Util\LocaleSort;
 use Psr\Container\ContainerInterface;
 use Symfony\Component\DependencyInjection\ServiceLocator;
 use Symfony\Contracts\Translation\TranslatorInterface;
@@ -38,6 +39,7 @@ class AppExtension extends AbstractExtension
         return [
             new TwigFilter('bytes_to_human', $this->bytesToHuman(...)),
             new TwigFilter('role_label', $this->roleLabel(...)),
+            new TwigFilter('sort_roles', $this->sortRoles(...)),
         ];
     }
 
@@ -146,6 +148,29 @@ class AppExtension extends AbstractExtension
         $translated = $this->translator->trans($key);
 
         return $translated === $key ? $role : $translated;
+    }
+
+    /**
+     * Sorts role names alphabetically by their translated label ("a-z in the
+     * current language"), so role badges render in the same order everywhere.
+     *
+     * @param list<string> $roles
+     *
+     * @return list<string>
+     */
+    public function sortRoles(array $roles): array
+    {
+        /** @var list<array{role: string, label: string}> $pairs */
+        $pairs = [];
+        foreach ($roles as $role) {
+            \assert(is_string($role));
+            $pairs[] = ['role' => $role, 'label' => $this->roleLabel($role)];
+        }
+
+        $locale = $this->translator?->getLocale();
+        usort($pairs, static fn (array $a, array $b): int => LocaleSort::compare($a['label'], $b['label'], $locale));
+
+        return array_column($pairs, 'role');
     }
 
     public function bytesToHuman(?int $bytes, int $decimals = 1): string

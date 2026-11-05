@@ -81,9 +81,10 @@ class AppExtensionTest extends TestCase
     public function testGetFilters(): void
     {
         $filters = $this->extension->getFilters();
-        $this->assertCount(2, $filters);
+        $this->assertCount(3, $filters);
         $this->assertEquals('bytes_to_human', $filters[0]->getName());
         $this->assertEquals('role_label', $filters[1]->getName());
+        $this->assertEquals('sort_roles', $filters[2]->getName());
     }
 
     public function testGetFunctions(): void

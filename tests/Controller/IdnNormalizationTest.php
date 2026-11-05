@@ -126,6 +126,7 @@ final class IdnNormalizationTest extends WebTestCase
         $user = new User();
         $user->setEmail('jbo@xn--bstoff-bua.de');
         $user->setPassword('test-password');
+        $user->setRoles(['ROLE_USER', 'ROLE_ADMIN']);
         $this->em->persist($user);
         $this->em->flush();
 
@@ -137,6 +138,37 @@ final class IdnNormalizationTest extends WebTestCase
         self::assertIsArray($payload);
         $emails = array_column(array_column($payload['data'], 'data'), 'email');
         self::assertContains('jbo@bästoff.de', $emails);
+
+        // Role badges are sorted a-z by their translated label (the test
+        // client runs in the default English locale).
+        $emails = array_column(array_column($payload['data'], 'data'), 'email');
+        $targetEmail = array_search('jbo@bästoff.de', $emails, true);
+        self::assertNotFalse($targetEmail);
+        $rolesRow = $payload['data'][$targetEmail]['data']['roles'];
+        self::assertStringContainsString('Administrator', $rolesRow);
+        self::assertStringContainsString('User', $rolesRow);
+        self::assertLessThan(
+            mb_strpos($rolesRow, 'User'),
+            mb_strpos($rolesRow, 'Administrator'),
+            'The Administrator badge must come before the User badge (a-z).',
+        );
+    }
+
+    public function testProfileAccountPageDisplaysDecodedEmail(): void
+    {
+        $user = new User();
+        $user->setEmail('jbo@xn--bstoff-bua.de');
+        $user->setPassword('test-password');
+        $this->em->persist($user);
+        $this->em->flush();
+
+        $this->client->loginUser($user);
+        $this->client->request('GET', '/profile/account');
+
+        self::assertResponseIsSuccessful();
+        $content = (string) $this->client->getResponse()->getContent();
+        self::assertStringContainsString('jbo@bästoff.de', $content);
+        self::assertStringNotContainsString('xn--bstoff-bua.de', $content);
     }
 
     /**

@@ -17,6 +17,7 @@ use AvalynxOffice\Service\UserDateTimeFormatter;
 use AvalynxOffice\Service\UserService;
 use AvalynxOffice\Util\AvalynxFormResponse;
 use AvalynxOffice\Util\FormInvalidMapper;
+use AvalynxOffice\Util\LocaleSort;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormError;
@@ -429,9 +430,16 @@ final class UserAdminController extends AbstractController
 
     private function renderRoles(User $user): string
     {
-        $badges = [];
+        $labels = [];
         foreach ($user->getRoles() as $role) {
-            $badges[] = '<span class="badge bg-secondary-subtle text-body">'.htmlspecialchars($this->roleLabel($role), ENT_QUOTES, 'UTF-8').'</span>';
+            $labels[$role] = $this->roleLabel($role);
+        }
+        $locale = $this->translator->getLocale();
+        usort($labels, static fn (string $a, string $b): int => LocaleSort::compare($a, $b, $locale));
+
+        $badges = [];
+        foreach ($labels as $label) {
+            $badges[] = '<span class="badge bg-secondary-subtle text-body">'.htmlspecialchars($label, ENT_QUOTES, 'UTF-8').'</span>';
         }
 
         return implode(' ', $badges);
