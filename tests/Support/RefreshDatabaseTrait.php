@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AvalynxOffice\Tests\Support;
 
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Platforms\AbstractMySQLPlatform;
 use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
@@ -12,7 +13,7 @@ use Doctrine\ORM\Tools\SchemaTool;
 /**
  * Resets the database to a clean state between tests.
  *
- * On PostgreSQL the schema is only rebuilt when it no longer matches the
+ * On every platform the schema is only rebuilt when it no longer matches the
  * entity metadata: the first run stores a fingerprint of the generated DDL in
  * a dedicated table and every later run just truncates all tables. A rebuild
  * happens when a table is missing or the fingerprint is stale (entity changes
@@ -45,33 +46,28 @@ trait RefreshDatabaseTrait
     protected function refreshDatabase(EntityManagerInterface $entityManager): void
     {
         $connection = $entityManager->getConnection();
-
-        if (!$connection->getDatabasePlatform() instanceof PostgreSQLPlatform) {
-            $tool = new SchemaTool($entityManager);
-            $classes = $entityManager->getMetadataFactory()->getAllMetadata();
-
-            $tool->dropSchema($classes);
-            $tool->createSchema($classes);
-
-            return;
-        }
+        $mariadb = $connection->getDatabasePlatform() instanceof AbstractMySQLPlatform;
 
         // Session-scoped durability relaxation: the test database is wiped on
         // every run, so commits do not need to wait for a WAL flush. The
-        // setting stays local to this connection and is never global.
-        $connection->executeStatement('SET synchronous_commit = OFF');
+        // setting stays local to this connection and is never global. MariaDB
+        // has no session-scoped equivalent - its test stack (see
+        // docker-compose.mariadb.yml) relaxes the durability server-side.
+        if (! $mariadb) {
+            $connection->executeStatement('SET synchronous_commit = OFF');
+        }
 
-        $tables = self::getPublicTableNames($connection);
+        $tables = self::getTableNames($connection, $mariadb);
 
         if (array_diff(self::getExpectedTableNames($entityManager), $tables) !== []
             || self::getStoredSchemaHash($connection, $tables) !== self::getSchemaHash($entityManager)
         ) {
-            self::rebuildSchema($entityManager, $tables);
+            self::rebuildSchema($entityManager, $tables, $mariadb);
 
             return;
         }
 
-        self::truncateAllTables($connection, $tables);
+        self::truncateAllTables($connection, $tables, $mariadb);
     }
 
     /**
@@ -95,10 +91,14 @@ trait RefreshDatabaseTrait
     }
 
     /**
-     * @return list<non-empty-string>
+     * @return list<string>
      */
-    private static function getPublicTableNames(Connection $connection): array
+    private static function getTableNames(Connection $connection, bool $mariadb): array
     {
+        if ($mariadb) {
+            return array_map('strval', $connection->createSchemaManager()->listTableNames());
+        }
+
         $names = $connection->fetchFirstColumn(
             "SELECT tablename FROM pg_tables WHERE schemaname = 'public'",
         );
@@ -133,9 +133,9 @@ trait RefreshDatabaseTrait
     }
 
     /**
-     * @param list<non-empty-string> $tables
+     * @param list<string> $tables
      */
-    private static function truncateAllTables(Connection $connection, array $tables): void
+    private static function truncateAllTables(Connection $connection, array $tables, bool $mariadb): void
     {
         $targets = array_diff($tables, self::PRESERVED_TABLES);
 
@@ -148,22 +148,48 @@ trait RefreshDatabaseTrait
             array_values($targets),
         );
 
+        if ($mariadb) {
+            // MariaDB has no multi-table TRUNCATE; with the foreign key
+            // checks disabled every truncate also resets the auto-increment
+            // counters, which is the RESTART IDENTITY equivalent.
+            $connection->executeStatement('SET FOREIGN_KEY_CHECKS = 0');
+            try {
+                foreach ($quoted as $table) {
+                    $connection->executeStatement('TRUNCATE TABLE ' . $table);
+                }
+            } finally {
+                $connection->executeStatement('SET FOREIGN_KEY_CHECKS = 1');
+            }
+
+            return;
+        }
+
         // RESTART IDENTITY restores the sequence state a fresh schema would
         // have; CASCADE resolves the foreign key dependencies between tables.
         $connection->executeStatement('TRUNCATE TABLE ' . implode(', ', $quoted) . ' RESTART IDENTITY CASCADE');
     }
 
     /**
-     * @param list<non-empty-string> $tables
+     * @param list<string> $tables
      */
-    private static function rebuildSchema(EntityManagerInterface $entityManager, array $tables): void
+    private static function rebuildSchema(EntityManagerInterface $entityManager, array $tables, bool $mariadb): void
     {
         $connection = $entityManager->getConnection();
-        $connection->executeStatement('CREATE SCHEMA IF NOT EXISTS public');
-        $connection->executeStatement('SET search_path TO public');
+        $platform = $connection->getDatabasePlatform();
 
-        foreach (array_diff($tables, self::PRESERVED_TABLES) as $table) {
-            $connection->executeStatement('DROP TABLE IF EXISTS ' . $connection->getDatabasePlatform()->quoteIdentifier($table) . ' CASCADE');
+        if (! $mariadb) {
+            $connection->executeStatement('CREATE SCHEMA IF NOT EXISTS public');
+            $connection->executeStatement('SET search_path TO public');
+
+            foreach (array_diff($tables, self::PRESERVED_TABLES) as $table) {
+                $connection->executeStatement('DROP TABLE IF EXISTS ' . $platform->quoteIdentifier($table) . ' CASCADE');
+            }
+        } else {
+            $connection->executeStatement('SET FOREIGN_KEY_CHECKS = 0');
+            foreach (array_diff($tables, self::PRESERVED_TABLES) as $table) {
+                $connection->executeStatement('DROP TABLE IF EXISTS ' . $platform->quoteIdentifier($table));
+            }
+            $connection->executeStatement('SET FOREIGN_KEY_CHECKS = 1');
         }
 
         $tool = new SchemaTool($entityManager);
@@ -172,10 +198,15 @@ trait RefreshDatabaseTrait
         // The doctrine remember-me token table is not an entity and is
         // therefore not part of the schema tool metadata.
         $connection->executeStatement('DROP TABLE IF EXISTS rememberme_token');
-        $connection->executeStatement("CREATE TABLE rememberme_token (series VARCHAR(88) NOT NULL, value VARCHAR(88) NOT NULL, lastUsed TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL, class VARCHAR(100) DEFAULT '' NOT NULL, username VARCHAR(200) NOT NULL, PRIMARY KEY(series))");
-        $connection->executeStatement('CREATE INDEX idx_rememberme_token_username ON rememberme_token (username)');
 
-        $hashTable = $connection->getDatabasePlatform()->quoteIdentifier(self::SCHEMA_HASH_TABLE);
+        if ($mariadb) {
+            $connection->executeStatement("CREATE TABLE rememberme_token (series VARCHAR(88) NOT NULL, value VARCHAR(88) NOT NULL, lastUsed DATETIME NOT NULL, class VARCHAR(100) DEFAULT '' NOT NULL, username VARCHAR(200) NOT NULL, INDEX idx_rememberme_token_username (username), PRIMARY KEY(series)) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+        } else {
+            $connection->executeStatement("CREATE TABLE rememberme_token (series VARCHAR(88) NOT NULL, value VARCHAR(88) NOT NULL, lastUsed TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL, class VARCHAR(100) DEFAULT '' NOT NULL, username VARCHAR(200) NOT NULL, PRIMARY KEY(series))");
+            $connection->executeStatement('CREATE INDEX idx_rememberme_token_username ON rememberme_token (username)');
+        }
+
+        $hashTable = $platform->quoteIdentifier(self::SCHEMA_HASH_TABLE);
         $connection->executeStatement('DROP TABLE IF EXISTS ' . $hashTable);
         $connection->executeStatement('CREATE TABLE ' . $hashTable . ' (id INTEGER NOT NULL PRIMARY KEY, hash VARCHAR(32) NOT NULL)');
         $connection->executeStatement('INSERT INTO ' . $hashTable . ' (id, hash) VALUES (1, ?)', [self::getSchemaHash($entityManager)]);

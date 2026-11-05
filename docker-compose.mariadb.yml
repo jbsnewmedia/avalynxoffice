@@ -1,0 +1,33 @@
+# Standalone MariaDB test stack for the MySQL/MariaDB platform variant
+# (e.g. shared hosting). The main docker-compose.yml stays PostgreSQL-only;
+# this stack lives in its own compose project ("avalynxoffice-mariadb") so it
+# never interferes with the PostgreSQL dev stack.
+#
+#   ./mariadb.sh up            start
+#   ./mariadb.sh down          stop & remove
+#   ./mariadb.sh reset         down -> drop volume -> up (fresh database)
+#   ./mariadb.sh test          run the test suite against MariaDB
+#
+# Connection (from the host): 127.0.0.1:3307, user root.
+services:
+    mariadb:
+        image: mariadb:10.6
+        # Test-stack durability relaxation (the test database is wiped on
+        # every run): no fsync-on-commit, no doublewrite, generous buffer
+        # pool. This is what makes DDL-heavy schema rebuilds as fast as on
+        # PostgreSQL. Production settings are unaffected.
+        command:
+            - --innodb_flush_log_at_trx_commit=0
+            - --innodb_flush_method=O_DIRECT_NO_FSYNC
+            - --innodb_doublewrite=0
+            - --innodb_buffer_pool_size=512M
+        environment:
+            MARIADB_DATABASE: my_database
+            MARIADB_ROOT_PASSWORD: my_root_password
+        ports:
+            - "${MARIADB_PORT:-3307}:3306"
+        volumes:
+            - mariadb-data:/var/lib/mysql
+
+volumes:
+    mariadb-data:

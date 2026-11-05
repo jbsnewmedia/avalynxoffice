@@ -1,6 +1,11 @@
 doctrine:
     dbal:
         url: '%env(resolve:DATABASE_URL)%'
+        types:
+            # Portable RFC-9562 strings on every platform (see the class):
+            # the Symfony bridge's BINARY(16) storage on MariaDB/MySQL breaks
+            # queries that bind UUIDs without an explicit DBAL type.
+            uuid: AvalynxOffice\Db\Type\UuidType
 
         # IMPORTANT: You MUST configure your server version,
         # either here or in the DATABASE_URL env var (see .env file)
@@ -13,6 +18,7 @@ doctrine:
         naming_strategy: doctrine.orm.naming_strategy.underscore_number_aware
         identity_generation_preferences:
             Doctrine\DBAL\Platforms\PostgreSQLPlatform: identity
+            Doctrine\DBAL\Platforms\AbstractMySQLPlatform: identity
         auto_mapping: true
         mappings:
             App:

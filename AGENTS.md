@@ -69,7 +69,10 @@ Notes:
   (truncate-based; the schema is only rebuilt when it no longer matches the
   entity metadata — the fingerprint lives in the `_test_schema_hash` table).
   System tables (`doctrine_migration_versions`, `messenger_messages`) survive
-  the reset, so the migration tracking normally stays intact.
+  the reset, so the migration tracking normally stays intact. The same
+  fast path works on PostgreSQL and MariaDB; MariaDB additionally relies on
+  the test stack's relaxed durability settings
+  (docker-compose.mariadb.yml).
 - `composer test-parallel` runs the suite in 8 parallel workers
   (`PARATEST_PROCESSES=N` to change): each worker gets its own database
   (`my_database_t<token>`) and its own kernel cache directory, so the dev

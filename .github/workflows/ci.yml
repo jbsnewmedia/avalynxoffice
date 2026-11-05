@@ -59,3 +59,49 @@ jobs:
 
             -   name: PHPUnit
                 run: vendor-bin/phpunit/vendor/bin/phpunit --configuration=phpunit-no-coverage.xml.dist
+
+    # The same suite against MariaDB (10.6 matches the shared-hosting
+    # variant): validates migrations, schema and queries on both platforms.
+    mariadb:
+        runs-on: ubuntu-24.04
+
+        services:
+            mariadb:
+                image: mariadb:10.6
+                env:
+                    MARIADB_DATABASE: my_database
+                    MARIADB_USER: my_user
+                    MARIADB_PASSWORD: my_password
+                    MARIADB_ROOT_PASSWORD: my_root_password
+                ports:
+                    - 3306:3306
+                # Test-only durability relaxation: makes schema rebuilds as
+                # fast as on PostgreSQL.
+                options: >-
+                    --health-cmd "healthcheck.sh --connect --innodb_initialized"
+                    --health-interval 10s
+                    --health-timeout 5s
+                    --health-retries 10
+                    --command "--innodb_flush_log_at_trx_commit=0 --innodb_flush_method=O_DIRECT_NO_FSYNC --innodb_doublewrite=0 --innodb_buffer_pool_size=512M"
+
+        env:
+            DATABASE_URL: mysql://my_user:my_password@127.0.0.1:3306/my_database?serverVersion=10.6.23-MariaDB&charset=utf8mb4
+
+        steps:
+            -   uses: actions/checkout@v6
+
+            -   name: Setup PHP
+                uses: shivammathur/setup-php@v2
+                with:
+                    php-version: '8.5'
+                    extensions: sodium, pdo_mysql
+                    coverage: none
+
+            -   name: Install dependencies
+                run: composer install --no-interaction --no-progress
+
+            -   name: Install tooling
+                run: composer bin phpunit install --no-interaction --no-progress
+
+            -   name: PHPUnit
+                run: vendor-bin/phpunit/vendor/bin/phpunit --configuration=phpunit-no-coverage.xml.dist
