@@ -78,7 +78,10 @@ class AddressRepository extends ServiceEntityRepository
             ->andWhere('address.isContact = true')
             ->andWhere('EXISTS (SELECT 1 FROM '.AccountAddress::class.' link WHERE link.address = address AND link.account IN (:accounts))')
             ->setParameter('accounts', $accounts)
-            ->orderBy('address.lastname', 'ASC')
+            // Contacts without a last name sort last on every platform:
+            // PostgreSQL defaults to NULLS LAST, MariaDB/MySQL to NULLS FIRST.
+            ->orderBy('CASE WHEN address.lastname IS NULL THEN 1 ELSE 0 END', 'ASC')
+            ->addOrderBy('address.lastname', 'ASC')
             ->addOrderBy('address.firstname', 'ASC')
             ->addOrderBy('address.name', 'ASC')
             ->addOrderBy('address.email', 'ASC');

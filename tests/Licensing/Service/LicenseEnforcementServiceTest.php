@@ -65,6 +65,13 @@ final class LicenseEnforcementServiceTest extends KernelTestCase
 
     public function testConcurrentActivationsAreSerializedByLicenseStateRowLock(): void
     {
+        if ($this->em->getConnection()->getDatabasePlatform() instanceof \Doctrine\DBAL\Platforms\AbstractMySQLPlatform) {
+            // SET LOCAL lock_timeout is PostgreSQL-specific; MariaDB/MySQL
+            // serialize through InnoDB row locking without a session-local
+            // timeout variable.
+            self::markTestSkipped('lock_timeout is PostgreSQL-specific.');
+        }
+
         $this->createStateRow();
 
         $params = $this->em->getConnection()->getParams();

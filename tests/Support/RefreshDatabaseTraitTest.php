@@ -6,6 +6,7 @@ namespace AvalynxOffice\Tests\Support;
 
 use AvalynxOffice\Entity\AppSetting;
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Platforms\AbstractMySQLPlatform;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\Group;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -34,6 +35,13 @@ final class RefreshDatabaseTraitTest extends KernelTestCase
 
     public function testRefreshRelaxesCommitDurabilityOnTheTestConnection(): void
     {
+        if ($this->connection->getDatabasePlatform() instanceof AbstractMySQLPlatform) {
+            // synchronous_commit is PostgreSQL-specific; the MariaDB test
+            // stack (docker-compose.mariadb.yml) relaxes durability
+            // server-side instead of on the session.
+            self::markTestSkipped('synchronous_commit is PostgreSQL-specific.');
+        }
+
         $this->refreshDatabase($this->entityManager);
 
         self::assertSame('off', (string) $this->connection->fetchOne('SHOW synchronous_commit'));
@@ -57,23 +65,24 @@ final class RefreshDatabaseTraitTest extends KernelTestCase
             0,
             $this->connection->fetchOne("SELECT count(*) FROM app_setting WHERE setting_key = 'refresh-db-test-key'"),
         );
-        self::assertSame(
-            'app_setting',
-            (string) $this->connection->fetchOne("SELECT to_regclass('public.app_setting')"),
-        );
+        self::assertTrue($this->tableExists('app_setting'));
     }
 
     public function testRefreshRebuildsTheSchemaWhenATableIsMissing(): void
     {
         $this->refreshDatabase($this->entityManager);
-        $this->connection->executeStatement('DROP TABLE app_setting');
+
+        if ($this->connection->getDatabasePlatform() instanceof AbstractMySQLPlatform) {
+            $this->connection->executeStatement('SET FOREIGN_KEY_CHECKS = 0');
+            $this->connection->executeStatement('DROP TABLE app_setting');
+            $this->connection->executeStatement('SET FOREIGN_KEY_CHECKS = 1');
+        } else {
+            $this->connection->executeStatement('DROP TABLE app_setting');
+        }
 
         $this->refreshDatabase($this->entityManager);
 
-        self::assertSame(
-            'app_setting',
-            (string) $this->connection->fetchOne("SELECT to_regclass('public.app_setting')"),
-        );
+        self::assertTrue($this->tableExists('app_setting'));
         self::assertSame(0, $this->connection->fetchOne('SELECT count(*) FROM app_setting'));
     }
 
@@ -89,7 +98,7 @@ final class RefreshDatabaseTraitTest extends KernelTestCase
 
         self::assertSame(self::getSchemaHash($this->entityManager), self::getStoredSchemaHash(
             $this->connection,
-            self::getPublicTableNames($this->connection),
+            self::getTableNames($this->connection, $this->isMariaDb()),
         ));
         self::assertSame(
             0,
@@ -101,9 +110,9 @@ final class RefreshDatabaseTraitTest extends KernelTestCase
     {
         $this->refreshDatabase($this->entityManager);
 
-        $tableExisted = $this->connection->fetchOne("SELECT to_regclass('public.doctrine_migration_versions')") !== null;
+        $tableExisted = $this->tableExists('doctrine_migration_versions');
 
-        $this->connection->executeStatement('CREATE TABLE IF NOT EXISTS doctrine_migration_versions (version VARCHAR(255) NOT NULL, executed_at TIMESTAMP(0) WITHOUT TIME ZONE DEFAULT NULL, execution_time INTEGER DEFAULT NULL, PRIMARY KEY (version))');
+        $this->connection->executeStatement('CREATE TABLE IF NOT EXISTS doctrine_migration_versions (version VARCHAR(255) NOT NULL, PRIMARY KEY (version))');
         $this->connection->executeStatement("INSERT INTO doctrine_migration_versions (version) VALUES ('refresh-db-test-version')");
 
         $this->refreshDatabase($this->entityManager);
@@ -118,5 +127,15 @@ final class RefreshDatabaseTraitTest extends KernelTestCase
         } else {
             $this->connection->executeStatement('DROP TABLE doctrine_migration_versions');
         }
+    }
+
+    private function isMariaDb(): bool
+    {
+        return $this->connection->getDatabasePlatform() instanceof AbstractMySQLPlatform;
+    }
+
+    private function tableExists(string $table): bool
+    {
+        return in_array($table, $this->connection->createSchemaManager()->listTableNames(), true);
     }
 }

@@ -37,7 +37,10 @@ class SyncRun
     #[ORM\Column(type: Types::STRING, length: 16)]
     private string $status = self::STATUS_RUNNING;
 
-    #[ORM\Column(type: Types::STRING, length: 16)]
+    // "`trigger`" (backticks in the name) marks the column as quoted: TRIGGER
+    // is a reserved word on MariaDB/MySQL, and the quote strategy emits
+    // backticks there and double quotes on PostgreSQL.
+    #[ORM\Column(name: '`trigger`', type: Types::STRING, length: 16)]
     private string $trigger = self::TRIGGER_MANUAL;
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]

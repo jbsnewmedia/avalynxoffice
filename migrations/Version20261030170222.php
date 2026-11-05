@@ -2,13 +2,9 @@
 
 declare(strict_types=1);
 
-/*
- * Copyright (C) 2026 JBS New Media GmbH <https://jbs-newmedia.com>
- * Licensed under the AvalynxOffice Public License (APL) version 1.0.
- */
-
 namespace DoctrineMigrations;
 
+use Doctrine\DBAL\Platforms\AbstractMySQLPlatform;
 use Doctrine\DBAL\Schema\Schema;
 use Doctrine\Migrations\AbstractMigration;
 
@@ -24,15 +20,47 @@ final class Version20261030170222 extends AbstractMigration
 
     public function up(Schema $schema): void
     {
-        $this->addSql('ALTER TABLE app_recovery_address ADD verified_at TIMESTAMP(0) WITHOUT TIME ZONE DEFAULT NULL');
-        $this->addSql('ALTER TABLE app_recovery_address ADD verification_token_hash VARCHAR(64) DEFAULT NULL');
-        $this->addSql('ALTER TABLE app_recovery_address ADD verification_expires_at TIMESTAMP(0) WITHOUT TIME ZONE DEFAULT NULL');
+        foreach ($this->statements(
+            [
+                'ALTER TABLE app_recovery_address ADD verified_at TIMESTAMP(0) WITHOUT TIME ZONE DEFAULT NULL',
+                'ALTER TABLE app_recovery_address ADD verification_token_hash VARCHAR(64) DEFAULT NULL',
+                'ALTER TABLE app_recovery_address ADD verification_expires_at TIMESTAMP(0) WITHOUT TIME ZONE DEFAULT NULL',
+            ],
+            [
+                'ALTER TABLE app_recovery_address ADD verified_at DATETIME DEFAULT NULL',
+                'ALTER TABLE app_recovery_address ADD verification_token_hash VARCHAR(64) DEFAULT NULL',
+                'ALTER TABLE app_recovery_address ADD verification_expires_at DATETIME DEFAULT NULL',
+            ],
+        ) as $sql) {
+            $this->addSql($sql);
+        }
     }
 
     public function down(Schema $schema): void
     {
-        $this->addSql('ALTER TABLE app_recovery_address DROP verified_at');
-        $this->addSql('ALTER TABLE app_recovery_address DROP verification_token_hash');
-        $this->addSql('ALTER TABLE app_recovery_address DROP verification_expires_at');
+        foreach ($this->statements(
+            [
+                'ALTER TABLE app_recovery_address DROP verified_at',
+                'ALTER TABLE app_recovery_address DROP verification_token_hash',
+                'ALTER TABLE app_recovery_address DROP verification_expires_at',
+            ],
+            [
+                'ALTER TABLE app_recovery_address DROP verified_at',
+                'ALTER TABLE app_recovery_address DROP verification_token_hash',
+                'ALTER TABLE app_recovery_address DROP verification_expires_at',
+            ],
+        ) as $sql) {
+            $this->addSql($sql);
+        }
+    }
+
+    /**
+     * @param list<string> $postgresql
+     * @param list<string> $mariadb
+     * @return list<string>
+     */
+    private function statements(array $postgresql, array $mariadb): array
+    {
+        return $this->platform instanceof AbstractMySQLPlatform ? $mariadb : $postgresql;
     }
 }
