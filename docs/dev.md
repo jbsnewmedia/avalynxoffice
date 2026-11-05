@@ -77,7 +77,7 @@ bin/console doctrine:fixtures:load --no-interaction
 - **Passwort:** `admin`
 - **Rolle:** `ROLE_ADMIN`
 
-Zusätzlich werden ca. 1000 Test-E-Mails, diverse Postfächer und Ordner generiert.
+Zusätzlich werden zahlreiche Test-E-Mails, diverse Postfächer und Ordner generiert.
 
 ### Datenbank initialisieren (Migrationen & Fixtures)
 Um die Datenbank komplett neu aufzusetzen (Migrationen + Fixtures), kann folgender Befehl genutzt werden:
