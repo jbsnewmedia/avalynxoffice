@@ -144,6 +144,13 @@ section; kept as pointer so greps still find it.)
   freshly populate the data the test needs.
 - No test may assume that fixture data from a previous test or from a manually prepared database is still available.
 
+## Commits — always ask first
+
+Before **every** `git commit` — in any repository, for any change (code,
+docs, workflows, configuration) — present the intended commit (files and
+commit message) and **ask the user for approval first**. Never commit
+without an explicit OK from the user.
+
 ## Tags and releases — maintainer only
 
 **Agents must never create, push, or delete git tags or GitHub releases —
