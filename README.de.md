@@ -42,8 +42,8 @@ lizenziert (`LICENSE`, `LICENSING.md`):
   über `app:license:release-mail` freigegeben.
 - **Produktiv-Image**: wartet auf die Datenbank, führt die mitgelieferten
   Migrationen aus und legt den env-definierten Administrator an (siehe unten).
-- **Qualitäts-Gates**: PHPStan (Level max), ECS, Rector, PHPUnit-Suite (649 Tests)
-  abgesichert durch einen GitHub-Actions-Workflow mit PostgreSQL-Service.
+- **Qualitäts-Gates**: PHPStan (Level max), ECS, Rector, PHPUnit-Suite (1213 Tests)
+  abgesichert durch einen GitHub-Actions-Workflow mit PostgreSQL- und MariaDB-Services.
 
 ## Voraussetzungen
 
@@ -84,7 +84,7 @@ bringt einen eigenen Startablauf mit:
 
 | Variable | Bedeutung |
 |---|---|
-| `DATABASE_URL` | PostgreSQL-Verbindung (zwingend) |
+| `DATABASE_URL` | Datenbankverbindung (zwingend) — PostgreSQL oder MariaDB/MySQL |
 | `APP_SECRET` | Symfony-App-Secret, zwingend (z. B. `openssl rand -hex 16`) |
 | `OFFICE_ADMIN_EMAIL` | E-Mail des Administrators, der beim Start angelegt wird (optional) |
 | `OFFICE_ADMIN_PASSWORD` | Passwort des Administrators (optional, nur zusammen mit der E-Mail) |

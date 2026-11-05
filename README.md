@@ -40,8 +40,8 @@ version 1.0** (`LICENSE`, `LICENSING.md`):
   outgoing mail is held (`license_hold`) and released via `app:license:release-mail`.
 - **Production image**: waits for the database, runs the bundled migrations and
   creates the env-defined administrator on start-up (see below).
-- **Quality gates**: PHPStan (level max), ECS, Rector, PHPUnit suite (649 tests)
-  enforced by a GitHub Actions workflow with a PostgreSQL service.
+- **Quality gates**: PHPStan (level max), ECS, Rector, PHPUnit suite (1213 tests)
+  enforced by a GitHub Actions workflow with PostgreSQL and MariaDB services.
 
 ## Requirements
 
@@ -80,7 +80,7 @@ ships its own start-up sequence:
 
 | Variable | Meaning |
 |---|---|
-| `DATABASE_URL` | PostgreSQL connection (required) |
+| `DATABASE_URL` | Database connection (required) — PostgreSQL or MariaDB/MySQL |
 | `APP_SECRET` | Symfony app secret, required (e.g. `openssl rand -hex 16`) |
 | `OFFICE_ADMIN_EMAIL` | Email of the administrator created on start-up (optional) |
 | `OFFICE_ADMIN_PASSWORD` | Administrator password (optional, only together with the email) |
