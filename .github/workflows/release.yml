@@ -45,6 +45,12 @@ jobs:
                     coverage: none
 
             -   name: Install dependencies
+                env:
+                    # The post-install scripts (cache:clear) boot the kernel:
+                    # prod keeps the dev-only profiler bundle out of the way
+                    # even though --no-dev removed it from vendor.
+                    APP_ENV: prod
+                    APP_SECRET: release-build-placeholder
                 run: composer install --no-dev --prefer-dist --no-interaction --no-progress
 
             -   name: Build runtime artifacts

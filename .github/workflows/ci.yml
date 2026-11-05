@@ -75,14 +75,11 @@ jobs:
                     MARIADB_ROOT_PASSWORD: my_root_password
                 ports:
                     - 3306:3306
-                # Test-only durability relaxation: makes schema rebuilds as
-                # fast as on PostgreSQL.
                 options: >-
                     --health-cmd "healthcheck.sh --connect --innodb_initialized"
                     --health-interval 10s
                     --health-timeout 5s
                     --health-retries 10
-                    --command "--innodb_flush_log_at_trx_commit=0 --innodb_flush_method=O_DIRECT_NO_FSYNC --innodb_doublewrite=0 --innodb_buffer_pool_size=512M"
 
         env:
             DATABASE_URL: mysql://my_user:my_password@127.0.0.1:3306/my_database?serverVersion=10.6.23-MariaDB&charset=utf8mb4
