@@ -17,6 +17,7 @@ use AvalynxOffice\Repository\ConnectorRepository;
 use AvalynxOffice\Service\ConnectorConfigService;
 use AvalynxOffice\Service\ConnectorPluginRegistry;
 use AvalynxOffice\Service\ConnectorService;
+use AvalynxOffice\Service\Idn\IdnService;
 use AvalynxOffice\Util\AvalynxFormResponse;
 use AvalynxOffice\Util\FormInvalidMapper;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -58,6 +59,7 @@ class ConnectorAdminController extends AbstractController
         private readonly CsrfTokenManagerInterface $csrfTokenManager,
         private readonly ConnectorRepository $connectorRepository,
         private readonly ConnectorPluginRegistry $pluginRegistry,
+        private readonly IdnService $idnService,
     ) {
     }
 
@@ -97,7 +99,7 @@ class ConnectorAdminController extends AbstractController
                 'data' => [
                     'id' => $connector->getId()?->toRfc4122(),
                     'name' => htmlspecialchars($connector->getName(), ENT_QUOTES, 'UTF-8'),
-                    'domain' => htmlspecialchars($connector->getDomain(), ENT_QUOTES, 'UTF-8').$this->renderPluginLine($connector),
+                    'domain' => htmlspecialchars($this->idnService->toUnicode($connector->getDomain()), ENT_QUOTES, 'UTF-8').$this->renderPluginLine($connector),
                     'defaultAccount' => $this->renderDefaultAccount($connector),
                     'input' => $this->renderConfiguredBadge($this->pluginRegistry->isInputConfigured($connector)),
                     'output' => $this->renderConfiguredBadge($this->pluginRegistry->isOutputConfigured($connector)),

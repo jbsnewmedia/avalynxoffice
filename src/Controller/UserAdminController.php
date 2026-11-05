@@ -12,6 +12,7 @@ namespace AvalynxOffice\Controller;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Form\UserAdminType;
 use AvalynxOffice\Licensing\Service\LicenseEnforcementInterface;
+use AvalynxOffice\Service\Idn\IdnService;
 use AvalynxOffice\Service\UserService;
 use AvalynxOffice\Util\AvalynxFormResponse;
 use AvalynxOffice\Util\FormInvalidMapper;
@@ -56,6 +57,7 @@ final class UserAdminController extends AbstractController
         private readonly UserService $userService,
         private readonly CsrfTokenManagerInterface $csrfTokenManager,
         private readonly TranslatorInterface $translator,
+        private readonly IdnService $idnService,
     ) {
     }
 
@@ -99,7 +101,7 @@ final class UserAdminController extends AbstractController
             $rows[] = [
                 'data' => [
                     'id' => $user->getId()?->toRfc4122(),
-                    'email' => htmlspecialchars($user->getEmail(), ENT_QUOTES, 'UTF-8'),
+                    'email' => htmlspecialchars($this->idnService->toUnicode($user->getEmail()), ENT_QUOTES, 'UTF-8'),
                     'roles' => $this->renderRoles($user),
                     'active' => $this->renderState($user),
                     'lastAuthAt' => $user->getLastAuthAt()?->format('Y-m-d H:i') ?? '<span class="text-body-secondary">—</span>',

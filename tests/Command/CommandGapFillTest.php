@@ -157,7 +157,7 @@ final class CommandGapFillTest extends TestCase
 
         $registry = $this->pluginRegistry();
 
-        $missing = new CommandTester(new MailFetchCommand($connectorRepository, $registry));
+        $missing = new CommandTester(new MailFetchCommand($connectorRepository, $registry, new \AvalynxOffice\Service\Idn\IdnService()));
         self::assertSame(Command::FAILURE, $missing->execute(['--connector' => 'missing@example.com']));
         self::assertStringContainsString('Connector not found', $missing->getDisplay());
 
@@ -166,7 +166,7 @@ final class CommandGapFillTest extends TestCase
             ->method('findBy')
             ->willReturn([]);
 
-        $empty = new CommandTester(new MailFetchCommand($emptyRepository, $registry));
+        $empty = new CommandTester(new MailFetchCommand($emptyRepository, $registry, new \AvalynxOffice\Service\Idn\IdnService()));
         self::assertSame(Command::SUCCESS, $empty->execute([]));
         self::assertStringContainsString('Keine Connectoren vorhanden.', $empty->getDisplay());
     }
@@ -186,7 +186,7 @@ final class CommandGapFillTest extends TestCase
         $plugin->fetchResult = ['imported' => 0, 'skipped' => 0, 'errors' => 0];
 
         $logPath = sys_get_temp_dir().'/mail-fetch-log-'.bin2hex(random_bytes(4)).'/nested/fetch-errors.log';
-        $tester = new CommandTester(new MailFetchCommand($connectorRepository, $this->pluginRegistry($plugin)));
+        $tester = new CommandTester(new MailFetchCommand($connectorRepository, $this->pluginRegistry($plugin), new \AvalynxOffice\Service\Idn\IdnService()));
         self::assertSame(Command::SUCCESS, $tester->execute(['--error-log' => $logPath]));
 
         self::assertCount(1, $plugin->fetchCalls);
@@ -209,7 +209,7 @@ final class CommandGapFillTest extends TestCase
             ->with(['domain' => 'fallback@example.com'])
             ->willReturn(null);
 
-        $tester = new CommandTester(new MailFetchCommand($connectorRepository, $this->pluginRegistry()));
+        $tester = new CommandTester(new MailFetchCommand($connectorRepository, $this->pluginRegistry(), new \AvalynxOffice\Service\Idn\IdnService()));
         self::assertSame(Command::FAILURE, $tester->execute(['--connector' => 'fallback@example.com']));
         self::assertStringContainsString('Connector not found', $tester->getDisplay());
     }
@@ -228,7 +228,7 @@ final class CommandGapFillTest extends TestCase
         $plugin = new FakeConnectorPlugin(inputConfigured: true);
         $plugin->fetchResult = ['imported' => 3, 'skipped' => 1, 'errors' => 1];
 
-        $tester = new CommandTester(new MailFetchCommand($connectorRepository, $this->pluginRegistry($plugin)));
+        $tester = new CommandTester(new MailFetchCommand($connectorRepository, $this->pluginRegistry($plugin), new \AvalynxOffice\Service\Idn\IdnService()));
         self::assertSame(Command::FAILURE, $tester->execute([
             '--limit' => '2',
             '--oldest' => true,
@@ -250,7 +250,7 @@ final class CommandGapFillTest extends TestCase
             ->method('findBy')
             ->willReturn([]);
 
-        $tester = new CommandTester(new MailFetchCommand($connectorRepository, $this->pluginRegistry()));
+        $tester = new CommandTester(new MailFetchCommand($connectorRepository, $this->pluginRegistry(), new \AvalynxOffice\Service\Idn\IdnService()));
         self::assertSame(Command::SUCCESS, $tester->execute([]));
         self::assertStringContainsString('Keine Connectoren vorhanden.', $tester->getDisplay());
     }
@@ -677,7 +677,7 @@ final class CommandGapFillTest extends TestCase
         $plugin = new FakeConnectorPlugin(inputConfigured: true);
         $plugin->fetchResult = ['imported' => 2, 'skipped' => 0, 'errors' => 0];
 
-        $tester = new CommandTester(new MailFetchCommand($connectorRepository, $this->pluginRegistry($plugin)));
+        $tester = new CommandTester(new MailFetchCommand($connectorRepository, $this->pluginRegistry($plugin), new \AvalynxOffice\Service\Idn\IdnService()));
         self::assertSame(Command::SUCCESS, $tester->execute(['--connector' => 'account-id']));
         self::assertStringContainsString('Total: imported=2', $tester->getDisplay());
     }
@@ -1052,7 +1052,7 @@ final class CommandGapFillTest extends TestCase
 
         $registry = $this->pluginRegistry(new FakeConnectorPlugin('idle', input: true, inputConfigured: false));
 
-        $tester = new CommandTester(new MailFetchCommand($connectorRepository, $registry));
+        $tester = new CommandTester(new MailFetchCommand($connectorRepository, $registry, new \AvalynxOffice\Service\Idn\IdnService()));
 
         self::assertSame(Command::SUCCESS, $tester->execute([]));
         self::assertStringContainsString('Kein Eingangs-Plugin konfiguriert.', $tester->getDisplay());

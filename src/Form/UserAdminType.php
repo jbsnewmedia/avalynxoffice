@@ -10,6 +10,8 @@ declare(strict_types=1);
 namespace AvalynxOffice\Form;
 
 use AvalynxOffice\Entity\User;
+use AvalynxOffice\Form\DataTransformer\IdnToAsciiTransformer;
+use AvalynxOffice\Service\Idn\IdnService;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\EmailType;
@@ -29,6 +31,11 @@ use Symfony\Component\Validator\Constraints\NotBlank;
  */
 class UserAdminType extends AbstractType
 {
+    public function __construct(
+        private readonly IdnService $idnService,
+    ) {
+    }
+
     #[\Override]
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
@@ -72,6 +79,11 @@ class UserAdminType extends AbstractType
                 'label' => 'common.save',
                 'attr' => ['class' => 'btn btn-primary'],
             ]);
+
+        // IDN input ("jbo@bästoff.de") is normalized to punycode before the
+        // controller stores it — same canonical form the login provider
+        // matches against. The form view shows the stored value decoded.
+        $builder->get('email')->addViewTransformer(new IdnToAsciiTransformer($this->idnService));
     }
 
     #[\Override]

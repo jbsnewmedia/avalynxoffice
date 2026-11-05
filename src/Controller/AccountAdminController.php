@@ -20,6 +20,7 @@ use AvalynxOffice\Licensing\Service\LicenseOperation;
 use AvalynxOffice\Repository\AccountRepository;
 use AvalynxOffice\Repository\ConnectorRepository;
 use AvalynxOffice\Service\AccountService;
+use AvalynxOffice\Service\Idn\IdnService;
 use AvalynxOffice\Util\AvalynxFormResponse;
 use AvalynxOffice\Util\FormInvalidMapper;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -60,6 +61,7 @@ class AccountAdminController extends AbstractController
         private readonly LicenseEnforcementInterface $licenseEnforcement,
         private readonly CsrfTokenManagerInterface $csrfTokenManager,
         private readonly AccountRepository $accountRepository,
+        private readonly IdnService $idnService,
     ) {
     }
 
@@ -375,7 +377,7 @@ class AccountAdminController extends AbstractController
         $badges = [];
         foreach ($aliases as $alias) {
             \assert($alias instanceof AccountAlias);
-            $label = htmlspecialchars($alias->getLocalPart().'@'.$alias->getConnector()?->getDomain(), ENT_QUOTES, 'UTF-8');
+            $label = htmlspecialchars($this->idnService->toUnicode($alias->getLocalPart().'@'.$alias->getConnector()?->getDomain()), ENT_QUOTES, 'UTF-8');
             $badges[] = '<span class="badge bg-secondary-subtle text-body">'.$label.'</span>';
         }
 
@@ -496,7 +498,7 @@ class AccountAdminController extends AbstractController
         foreach ($connectorRepository->findBy([], ['name' => 'ASC']) as $connector) {
             $options[] = [
                 'value' => (string) $connector->getId(),
-                'label' => sprintf('%s (%s)', $connector->getName(), $connector->getDomain()),
+                'label' => sprintf('%s (%s)', $connector->getName(), $this->idnService->toUnicode($connector->getDomain())),
             ];
         }
 
