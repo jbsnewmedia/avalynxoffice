@@ -1,0 +1,64 @@
+{# Generic error page (fallback for every HTTP error without a dedicated
+   template). Guests get the guest layout with the JBS footer, logged-in
+   users the user-area layout. error404.html.twig / error500.html.twig
+   override it and provide error_icon / error_title / error_message. #}
+{% extends 'base.html.twig' %}
+{# For non-matching routes the firewall never runs (RouterListener fires
+   first), so app.user stays null even for signed-in users. The session
+   holds the security token under the firewall name as a fallback. #}
+{% set is_logged_in = app.user is not none or (app.session is not none and app.session.get('_security_main') is not none) %}
+{% set error_back_route = is_logged_in ? 'mail_index' : 'app_login' %}
+{% set error_back_label = is_logged_in ? 'error.back_to_app'|trans : 'error.back_to_login'|trans %}
+{% block title %}{{ 'error.title'|trans }} - {{ 'app.title'|trans }}{% endblock %}
+{% block flashes %}{% endblock %}
+{% block stylesheets %}
+    {% include '_assets.html.twig' with { mode: is_logged_in ? 'user' : 'guest' } %}
+    {{ parent() }}
+{% endblock %}
+{% block body %}
+{% if is_logged_in %}
+<div class="d-flex flex-column min-vh-100">
+    {% include '_navbar.html.twig' with { showMailToggles: false, forceUserControls: true } %}
+    <main class="flex-grow-1 py-4">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-12 col-md-8 col-lg-6 col-xl-5">
+                    {% include '_error_card.html.twig' with {
+                        code: status_code,
+                        icon: error_icon|default('fa-triangle-exclamation'),
+                        title: error_title|default('error.generic.title'|trans),
+                        message: error_message|default('error.generic.message'|trans),
+                        back_route: error_back_route,
+                        back_label: error_back_label,
+                    } %}
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+{% else %}
+<div class="d-flex flex-column guest-shell">
+    {% include '_navbar.html.twig' with { showMailToggles: false } %}
+    <section class="py-5 flex-grow-1 d-flex guest-scroll">
+        <div class="container my-auto">
+            <div class="row justify-content-center">
+                <div class="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-5">
+                    {% include '_error_card.html.twig' with {
+                        code: status_code,
+                        icon: error_icon|default('fa-triangle-exclamation'),
+                        title: error_title|default('error.generic.title'|trans),
+                        message: error_message|default('error.generic.message'|trans),
+                        back_route: error_back_route,
+                        back_label: error_back_label,
+                    } %}
+                </div>
+            </div>
+        </div>
+    </section>
+    {% include '_guest_footer.html.twig' %}
+</div>
+{% endif %}
+{% endblock %}
+{% block javascripts %}
+    {{ parent() }}
+{% endblock %}

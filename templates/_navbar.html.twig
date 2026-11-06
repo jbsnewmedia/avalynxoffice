@@ -5,11 +5,15 @@
     userMenuActive (bool) — whether the user menu (right) is highlighted as active
     leftToggle (array) — mobile toggle config {target, icon, label}; defaults to the accounts offcanvas
     midToggle (array) — mobile toggle config {target, icon, label}; defaults to the email list offcanvas
+    forceUserControls (bool) — show the user menu even when app.user is null (error pages on
+                               non-matching routes, where the firewall never ran)
 #}
 {% set showMailToggles = showMailToggles|default(false) %}
 {% set showMidToggle = showMidToggle|default(true) %}
 {% set activeModule = activeModule|default('') %}
 {% set userMenuActive = userMenuActive|default(false) %}
+{% set forceUserControls = forceUserControls|default(false) %}
+{% set showUserControls = app.user ? true : forceUserControls %}
 {# The right dropdown belongs to the profile, settings and admin areas: on
    those pages the menu button is highlighted as active and the matching
    section is highlighted inside the dropdown (which stays closed). #}
@@ -39,7 +43,7 @@
                 <span class="brandmark bg-white border border-white" style="width:44px;height:44px;" aria-hidden="true"><img style="width:80%;height:80%;" src="/assets/svg/app-logo.svg" alt="AvalynxOffice Logo"/></span>
                 <span class="fw-semibold">{{ 'app.title_short'|trans }}</span>
             </a>
-            {% if app.user %}
+            {% if showUserControls %}
                 <ul class="navbar-nav flex-row ms-3 me-auto gap-1" aria-label="{{ 'nav.modules'|trans }}">
                     {% for module, config in modules %}
                         <li class="nav-item">
@@ -55,7 +59,7 @@
                 </ul>
             {% endif %}
             <div class="d-flex ms-auto align-items-center gap-1" style="position: relative; z-index: 1060;">
-                {% if not app.user %}
+                {% if not showUserControls %}
                     {# Guests have no user menu: keep dark mode and language up here. #}
                     <button class="btn btn-light btn-navbar" type="button" id="darkModeToggle" aria-label="{{ 'nav.toggle_dark_mode'|trans }}" title="{{ 'nav.toggle_dark_mode'|trans }}">
                         <i class="fa-solid fa-moon" aria-hidden="true"></i>
@@ -96,7 +100,7 @@
                             </ul>
                         </div>
                 {% endif %}
-                {% if app.user %}
+                {% if showUserControls %}
                     <div class="dropdown">
                         <button class="btn btn-light btn-navbar {{ userMenuActive or userMenuSection != '' ? 'active' : '' }}" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ 'nav.open_user_menu'|trans }}" title="{{ 'nav.open_user_menu'|trans }}" {% if userMenuActive or userMenuSection != '' %}aria-current="page"{% endif %}>
                             <i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i>
@@ -104,7 +108,7 @@
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
                             <li><a class="dropdown-item d-flex align-items-center {{ userMenuSection == 'profile' ? 'active' : '' }}" {% if userMenuSection == 'profile' %}aria-current="true"{% endif %} href="{{ path('app_profile') }}" aria-label="{{ 'nav.open_profile'|trans }}"><i class="fa-solid fa-user me-2" aria-hidden="true"></i>{{ 'nav.profile'|trans }}</a></li>
                             <li><a class="dropdown-item d-flex align-items-center {{ userMenuSection == 'settings' ? 'active' : '' }}" {% if userMenuSection == 'settings' %}aria-current="true"{% endif %} href="{{ path('app_settings') }}" aria-label="{{ 'nav.open_settings'|trans }}"><i class="fa-solid fa-gear me-2" aria-hidden="true"></i>{{ 'nav.settings'|trans }}</a></li>
-                            {% if is_granted('ROLE_ADMIN') %}
+                            {% if app.user and is_granted('ROLE_ADMIN') %}
                                 <li><a class="dropdown-item d-flex align-items-center {{ userMenuSection == 'admin' ? 'active' : '' }}" {% if userMenuSection == 'admin' %}aria-current="true"{% endif %} href="{{ path('app_admin') }}" aria-label="{{ 'nav.administrator'|trans }}"><i class="fa-solid fa-user-shield me-2" aria-hidden="true"></i>{{ 'nav.administrator'|trans }}</a></li>
                             {% endif %}
                             <li><hr class="dropdown-divider" aria-hidden="true"></li>

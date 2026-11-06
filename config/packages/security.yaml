@@ -9,7 +9,7 @@ security:
             pattern: ^/(_(profiler|wdt)|css|images|js)/
             security: false
         main:
-            lazy: true
+            lazy: false
             provider: app_user_provider
             user_checker: AvalynxOffice\Security\UserChecker
             form_login:

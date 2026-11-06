@@ -1,0 +1,19 @@
+{# Params:
+    code (int) — HTTP status code shown big
+    icon (string) — FontAwesome icon class
+    title (string) — already translated title
+    message (string) — already translated message
+    back_route (string) — route name of the back button
+    back_label (string) — already translated back button label
+#}
+<div class="card shadow-sm text-center">
+    <div class="card-body p-4 p-md-5">
+        <i class="fa-solid {{ icon }} fa-3x text-secondary mb-4" aria-hidden="true"></i>
+        <div class="display-6 fw-semibold mb-2">{{ code }}</div>
+        <h1 class="h5 mb-2">{{ title }}</h1>
+        <p class="text-body-secondary mb-4">{{ message }}</p>
+        <a class="btn btn-primary px-4" href="{{ path(back_route) }}" aria-label="{{ back_label }}">
+            <i class="fa-solid fa-arrow-left me-2" aria-hidden="true"></i>{{ back_label }}
+        </a>
+    </div>
+</div>
