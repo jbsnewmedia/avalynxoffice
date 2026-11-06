@@ -76,77 +76,7 @@
         </div>
     </div>
 </section>
-<footer class="py-4 bg-body-tertiary border-top mt-auto">
-    <div class="container d-flex flex-wrap justify-content-between align-items-center gap-2">
-        <span class="text-body-secondary small">© {{ "now"|date("Y") }} - <img src="assets/svg/jbsnewmedia-symbol.svg" class="footer-logo">  <strong>JBS</strong> New Media GmbH</span>
-        <ul class="nav small">
-            <li class="nav-item"><a class="nav-link text-body-secondary" href="#" data-bs-toggle="modal" data-bs-target="#impressumModal">{{ 'login.impressum'|trans }}</a></li>
-            <li class="nav-item"><a class="nav-link text-body-secondary" href="#" data-bs-toggle="modal" data-bs-target="#datenschutzModal">{{ 'login.datenschutz'|trans }}</a></li>
-            <li class="nav-item"><a class="nav-link text-body-secondary" href="#" data-bs-toggle="modal" data-bs-target="#agbModal">{{ 'login.agb'|trans }}</a></li>
-        </ul>
-    </div>
-</footer>
-<!-- Modals -->
-<div class="modal fade" id="impressumModal" tabindex="-1" aria-labelledby="impressumModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="impressumModalLabel">{{ 'login.impressum'|trans }}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ 'common.close'|trans }}"></button>
-            </div>
-            <div class="modal-body">
-                {% if legal_pages.impressum is not empty %}
-                    {{ legal_pages.impressum|sanitize_html('legal') }}
-                {% else %}
-                    {{ 'login.legal_placeholder'|trans }}
-                {% endif %}
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ 'common.close'|trans }}</button>
-            </div>
-        </div>
-    </div>
-</div>
-<div class="modal fade" id="datenschutzModal" tabindex="-1" aria-labelledby="datenschutzModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="datenschutzModalLabel">{{ 'login.datenschutz'|trans }}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ 'common.close'|trans }}"></button>
-            </div>
-            <div class="modal-body">
-                {% if legal_pages.datenschutz is not empty %}
-                    {{ legal_pages.datenschutz|sanitize_html('legal') }}
-                {% else %}
-                    {{ 'login.legal_placeholder'|trans }}
-                {% endif %}
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ 'common.close'|trans }}</button>
-            </div>
-        </div>
-    </div>
-</div>
-<div class="modal fade" id="agbModal" tabindex="-1" aria-labelledby="agbModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="agbModalLabel">{{ 'login.agb'|trans }}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ 'common.close'|trans }}"></button>
-            </div>
-            <div class="modal-body">
-                {% if legal_pages.agb is not empty %}
-                    {{ legal_pages.agb|sanitize_html('legal') }}
-                {% else %}
-                    {{ 'login.legal_placeholder'|trans }}
-                {% endif %}
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ 'common.close'|trans }}</button>
-            </div>
-        </div>
-    </div>
-</div>
+{% include '_guest_footer.html.twig' %}
 </div>
 {% endblock %}
 {% block javascripts %}

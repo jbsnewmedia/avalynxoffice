@@ -167,7 +167,9 @@ final class LegalControllerTest extends WebTestCase
 
     /**
      * Defense in depth: even content that bypassed the save path (e.g. a
-     * direct database write) is sanitized again when rendered.
+     * direct database write) is sanitized again when rendered. The login
+     * page no longer embeds legal content itself; it links to the public
+     * page, and neither may leak the stored script.
      */
     public function testPublicPageSanitizesStoredContentOnRender(): void
     {
@@ -185,7 +187,7 @@ final class LegalControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         $content = (string) $this->client->getResponse()->getContent();
-        self::assertStringContainsString('<p>Safe</p>', $content);
+        self::assertStringContainsString('href="/impressum"', $content);
         self::assertStringNotContainsString('alert("stored")', $content);
     }
 

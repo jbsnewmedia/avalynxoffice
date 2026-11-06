@@ -560,10 +560,9 @@ login.sign_in_with_google: "Sign in with Google"
 login.sign_in_with_github: "Sign in with GitHub"
 login.no_account: "No account yet?"
 login.register: "Register now"
-login.impressum: "Legal Notice"
-login.datenschutz: "Privacy Policy"
-login.agb: "Terms of Service"
-login.legal_placeholder: "Legal information will be provided here soon."
+guest.impressum: "Legal Notice"
+guest.datenschutz: "Privacy Policy"
+guest.agb: "Terms of Service"
 
 # License & Usage (Licensing)
 license.menu: "License & Usage"

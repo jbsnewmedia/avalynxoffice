@@ -1,0 +1,10 @@
+<footer class="py-4 bg-body-tertiary border-top mt-auto">
+    <div class="container d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <span class="text-body-secondary small">© {{ "now"|date("Y") }} - <img src="{{ path('app_assets_jbsnewmedia_symbol_svg') }}" class="footer-logo" alt="JBS New Media GmbH"> <strong>JBS</strong> New Media GmbH</span>
+        <ul class="nav small">
+            <li class="nav-item"><a class="nav-link text-body-secondary" href="{{ path('app_legal_impressum') }}">{{ 'guest.impressum'|trans }}</a></li>
+            <li class="nav-item"><a class="nav-link text-body-secondary" href="{{ path('app_legal_privacy') }}">{{ 'guest.datenschutz'|trans }}</a></li>
+            <li class="nav-item"><a class="nav-link text-body-secondary" href="{{ path('app_legal_terms') }}">{{ 'guest.agb'|trans }}</a></li>
+        </ul>
+    </div>
+</footer>

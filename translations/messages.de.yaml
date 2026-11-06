@@ -545,10 +545,9 @@ login.sign_in_with_google: "Mit Google anmelden"
 login.sign_in_with_github: "Mit GitHub anmelden"
 login.no_account: "Noch kein Konto?"
 login.register: "Jetzt registrieren"
-login.impressum: "Impressum"
-login.datenschutz: "Datenschutz"
-login.agb: "AGB"
-login.legal_placeholder: "Hier stehen bald die rechtlichen Informationen."
+guest.impressum: "Impressum"
+guest.datenschutz: "Datenschutz"
+guest.agb: "AGB"
 
 # Lizenz & Nutzung (Licensing)
 license.menu: "Lizenz & Nutzung"
