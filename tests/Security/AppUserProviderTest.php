@@ -17,6 +17,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\Group;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Security\Core\Exception\UserNotFoundException;
+use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
  * The login provider matches the identifier the user typed against the
@@ -87,5 +88,43 @@ final class AppUserProviderTest extends KernelTestCase
     {
         self::assertTrue($this->provider->supportsClass(User::class));
         self::assertFalse($this->provider->supportsClass(\stdClass::class));
+    }
+
+    public function testRefreshUserRejectsForeignUserInterfaceImplementations(): void
+    {
+        $foreignUser = new class implements UserInterface
+        {
+            #[\Override]
+            public function getRoles(): array
+            {
+                return ['ROLE_USER'];
+            }
+
+            public function eraseCredentials(): void
+            {
+            }
+
+            #[\Override]
+            public function getUserIdentifier(): string
+            {
+                return 'foreign@example.com';
+            }
+        };
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('not supported');
+
+        $this->provider->refreshUser($foreignUser);
+    }
+
+    public function testRefreshUserThrowsWhenTheUserNoLongerExists(): void
+    {
+        $gone = new User();
+        $gone->setEmail('deleted@example.com');
+
+        $this->expectException(UserNotFoundException::class);
+        $this->expectExceptionMessage('no longer exists');
+
+        $this->provider->refreshUser($gone);
     }
 }

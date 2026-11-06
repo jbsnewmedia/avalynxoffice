@@ -70,4 +70,12 @@ final class IdnServiceTest extends TestCase
         // form validators can render their own messages.
         self::assertSame('kein@domain!', (new IdnService())->toAscii('kein@domain!'));
     }
+
+    public function testValuesWithUnconvertibleDomainPartAreKeptUnchanged(): void
+    {
+        // idn_to_ascii()/idn_to_utf8() return false for a bare ".." domain;
+        // the service then keeps the whole value unchanged.
+        self::assertSame('foo@..', (new IdnService())->toAscii('foo@..'));
+        self::assertSame('bar@..', (new IdnService())->toUnicode('bar@..'));
+    }
 }

@@ -65,4 +65,24 @@ final class AppPasswordServiceTest extends TestCase
         $this->expectException(\RuntimeException::class);
         $service->create($user, 'Phone');
     }
+
+    public function testCreateRejectsTooLongLabel(): void
+    {
+        $user = new User()->setEmail('user@example.com');
+        $service = new AppPasswordService($this->createStub(EntityManagerInterface::class), $this->createStub(UserAppPasswordRepository::class));
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Label is too long.');
+        $service->create($user, str_repeat('a', AppPasswordService::MAX_LABEL_LENGTH + 1));
+    }
+
+    public function testRevokeAllDelegatesToTheRepository(): void
+    {
+        $user = new User()->setEmail('user@example.com');
+        $repository = $this->createMock(UserAppPasswordRepository::class);
+        $repository->expects(self::once())->method('revokeAll')->with($user)->willReturn(3);
+        $service = new AppPasswordService($this->createStub(EntityManagerInterface::class), $repository);
+
+        self::assertSame(3, $service->revokeAll($user));
+    }
 }

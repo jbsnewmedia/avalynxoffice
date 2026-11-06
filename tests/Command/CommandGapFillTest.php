@@ -10,6 +10,7 @@ use AvalynxOffice\Command\AccountAddCommand;
 use AvalynxOffice\Command\MailClearCommand;
 use AvalynxOffice\Command\MailFetchCommand;
 use AvalynxOffice\Command\MailSendCommand;
+use AvalynxOffice\Command\PluginManifestCommand;
 use AvalynxOffice\Command\PurgeCssCommand;
 use AvalynxOffice\Entity\Address;
 use AvalynxOffice\Entity\Attachment;
@@ -31,6 +32,7 @@ use AvalynxOffice\Service\Mail\AttachmentStorage;
 use AvalynxOffice\Service\Mail\FolderManager;
 use AvalynxOffice\Repository\ConnectorConfigRepository;
 use AvalynxOffice\Service\ConnectorPluginRegistry;
+use AvalynxOffice\Service\PluginManifestService;
 use AvalynxOffice\Service\Security\SecretCrypto;
 use AvalynxOffice\Tests\Support\FakeConnectorPlugin;
 use AvalynxOffice\Tests\Support\AllowAllLicenseEnforcement;
@@ -55,6 +57,19 @@ use Symfony\Component\Mailer\Transport\NullTransport;
 
 final class CommandGapFillTest extends TestCase
 {
+    public function testPluginManifestCommandWritesManifestAndReportsPath(): void
+    {
+        $service = $this->createMock(PluginManifestService::class);
+        $service->method('refreshManifest')->willReturn(['plugins' => ['mail-action', 'contacts']]);
+        $service->method('getManifestPath')->willReturn('/tmp/plugins/plugins.json');
+
+        $command = new PluginManifestCommand($service);
+        $tester = new CommandTester($command);
+
+        self::assertSame(Command::SUCCESS, $tester->execute([]));
+        self::assertStringContainsString('Wrote /tmp/plugins/plugins.json with 2 plugin(s).', $tester->getDisplay());
+    }
+
     public function testListCssClassesCommandSupportsGroupedJsonAndPlainOutput(): void
     {
         $collector = $this->createMock(CssClassCollector::class);

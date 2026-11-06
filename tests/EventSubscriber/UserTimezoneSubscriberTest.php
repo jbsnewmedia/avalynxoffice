@@ -11,6 +11,7 @@ use PHPUnit\Framework\Attributes\Group;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Event\ControllerEvent;
+use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
 use Symfony\Component\HttpKernel\KernelInterface;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
@@ -127,5 +128,14 @@ final class UserTimezoneSubscriberTest extends KernelTestCase
         $core = $this->twig->getExtension(CoreExtension::class);
         \assert($core instanceof CoreExtension);
         self::assertSame('UTC', $core->getTimezone()->getName());
+    }
+
+    public function testSubscriptionIsRegistered(): void
+    {
+        $events = UserTimezoneSubscriber::getSubscribedEvents();
+
+        self::assertSame([
+            KernelEvents::CONTROLLER => ['onKernelController', 0],
+        ], $events);
     }
 }

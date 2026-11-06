@@ -42,4 +42,12 @@ final class LocaleSortTest extends TestCase
 
         self::assertSame(['Administrator', 'Änderung', 'Benutzer'], $labels);
     }
+
+    public function testCompareFallsBackToNaturalCaseInsensitiveOrderWithoutACollator(): void
+    {
+        // Deployments without ext-intl cannot create a collator; the fallback
+        // keeps a case-insensitive natural order.
+        self::assertSame(1, LocaleSort::compare('benutzer10', 'Benutzer2', 'de', static fn (): ?\Collator => null));
+        self::assertSame(-1, LocaleSort::compare('Benutzer2', 'benutzer10', 'de', static fn (): ?\Collator => null));
+    }
 }

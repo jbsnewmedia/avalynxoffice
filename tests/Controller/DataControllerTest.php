@@ -96,6 +96,21 @@ final class DataControllerTest extends TestCase
         );
     }
 
+    public function testAllRequiresAuthenticatedUser(): void
+    {
+        $controller = new DataController();
+        $controller->setContainer(new ServiceLocator([
+            'security.token_storage' => fn (): TokenStorageInterface => $this->createTokenStorage(null),
+        ]));
+
+        $this->expectException(AccessDeniedException::class);
+
+        $controller->all(
+            $this->createStub(DataService::class),
+            new UserAccountProvider($this->createStub(AccountRepository::class)),
+        );
+    }
+
     private function createTokenStorage(?object $user): TokenStorageInterface
     {
         $token = $this->createStub(TokenInterface::class);

@@ -16,9 +16,17 @@ namespace AvalynxOffice\Util;
  */
 final class LocaleSort
 {
-    public static function compare(string $a, string $b, ?string $locale = null): int
+    /**
+     * The optional collator factory seam lets tests simulate deployments
+     * without ext-intl (where no collator can be created).
+     *
+     * @param (\Closure(?string): (?\Collator))|null $collatorFactory
+     */
+    public static function compare(string $a, string $b, ?string $locale = null, ?\Closure $collatorFactory = null): int
     {
-        $collator = class_exists(\Collator::class) ? \Collator::create($locale ?? \Locale::getDefault()) : null;
+        $factory = $collatorFactory ?? (static fn (?string $locale): ?\Collator => class_exists(\Collator::class) ? \Collator::create($locale ?? \Locale::getDefault()) : null);
+
+        $collator = $factory($locale);
         if (null === $collator) {
             return strnatcasecmp($a, $b);
         }

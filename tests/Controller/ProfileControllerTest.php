@@ -289,6 +289,49 @@ final class ProfileControllerTest extends WebTestCase
         self::assertFalse($refreshed->isVerified());
     }
 
+    public function testRecoveryResendTellsAlreadyVerifiedAddresses(): void
+    {
+        [$address] = $this->createPendingRecoveryAddress($this->user, 'pending@example.com');
+        $address->setVerifiedAt(new \DateTimeImmutable());
+        $this->em->flush();
+
+        $this->client->loginUser($this->user);
+        $id = (string) $address->getId();
+        $token = $this->setCsrfToken('resend_recovery_'.$id);
+        $this->client->request('POST', '/profile/recovery/resend/'.$id, ['_token' => $token]);
+
+        self::assertResponseRedirects('/profile/recovery');
+        $this->client->followRedirect();
+        self::assertStringContainsString('already', (string) $this->client->getResponse()->getContent());
+    }
+
+    public function testRecoveryResendIsRateLimitedPerIp(): void
+    {
+        [$address] = $this->createPendingRecoveryAddress($this->user, 'pending@example.com');
+
+        // The in-memory limiter storage lives as long as the kernel: without
+        // disabling the reboot the client would start a fresh kernel (and a
+        // fresh limiter) for every request.
+        $this->client->disableReboot();
+
+        $this->client->loginUser($this->user);
+        $id = (string) $address->getId();
+
+        // Five attempts are accepted (limit of the shared per-IP limiter).
+        for ($attempt = 0; $attempt < 5; $attempt++) {
+            $token = $this->setCsrfToken('resend_recovery_'.$id);
+            $this->client->request('POST', '/profile/recovery/resend/'.$id, ['_token' => $token]);
+            self::assertResponseRedirects('/profile/recovery');
+        }
+
+        // The sixth attempt must be rejected by the rate limiter.
+        $token = $this->setCsrfToken('resend_recovery_'.$id);
+        $this->client->request('POST', '/profile/recovery/resend/'.$id, ['_token' => $token]);
+        self::assertResponseRedirects('/profile/recovery');
+        $this->client->followRedirect();
+        self::assertStringContainsString('Too many requests', (string) $this->client->getResponse()->getContent());
+    }
+
     /**
      * Unknown ids (valid or malformed) answer exactly like a wrong token.
      */

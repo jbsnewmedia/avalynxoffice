@@ -278,6 +278,42 @@ final class MailControllerCoverageTest extends WebTestCase
         self::assertResponseIsSuccessful();
     }
 
+    public function testFolderMoreDeniesForeignFoldersAndMismatchedAccountScopes(): void
+    {
+        // A regular user owning two accounts: the seeded account (with the
+        // folder) and a second account without it.
+        $owner = (new User())
+            ->setEmail('owner@example.com')
+            ->setPassword('secret');
+        $secondAccount = (new Account())->setName('Second')->setEmail('second@example.com');
+        $secondFolder = (new Folder())->setName('Second Folder');
+        $secondAccount->addFolder($secondFolder);
+        $owner->addAccount($this->account);
+        $owner->addAccount($secondAccount);
+        $this->entityManager->persist($owner);
+        $this->entityManager->persist($secondAccount);
+        $this->entityManager->persist($secondFolder);
+        $this->entityManager->flush();
+
+        // A folder of an account unknown to the user is rejected.
+        $foreignAccount = (new Account())->setName('Foreign')->setEmail('foreign@example.com');
+        $foreignFolder = (new Folder())->setName('Foreign Folder');
+        $foreignAccount->addFolder($foreignFolder);
+        $this->entityManager->persist($foreignAccount);
+        $this->entityManager->persist($foreignFolder);
+        $this->entityManager->flush();
+
+        $this->client->loginUser($owner);
+
+        $this->client->request('GET', sprintf('/folder/%s/more', (string) $foreignFolder->getId()));
+        self::assertResponseStatusCodeSame(403);
+
+        // Known folder, but the selected account scope does not contain it:
+        // also rejected.
+        $this->client->request('GET', sprintf('/folder/%s/more?accountId=%s', (string) $this->folder->getId(), (string) $secondAccount->getId()));
+        self::assertResponseStatusCodeSame(403);
+    }
+
     public function testGuestIsDeniedAccessToEmailWithoutAccount(): void
     {
         $orphanEmail = (new Email())

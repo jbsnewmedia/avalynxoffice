@@ -114,7 +114,21 @@ final class MailActionControllerTest extends KernelTestCase
         $this->requestStack = $container->get('request_stack');
         $csrfTokenManager = $this->csrfTokenManager;
         $tokenStorage = $this->tokenStorage;
-        $this->controller->setContainer(new ServiceLocator([
+        $this->controller->setContainer($this->actionControllerServiceLocator());
+        $this->setCurrentUserRequest();
+    }
+
+    /**
+     * The service locator Symfony's AbstractController resolves lazily
+     * referenced services from (router, twig, form.factory, request_stack,
+     * security.token_storage, security.csrf.token_manager).
+     */
+    private function actionControllerServiceLocator(): ServiceLocator
+    {
+        $tokenStorage = $this->tokenStorage;
+        $csrfTokenManager = $this->csrfTokenManager;
+
+        return new ServiceLocator([
             'router' => static fn (): UrlGeneratorInterface => new class implements UrlGeneratorInterface {
                 public function generate(string $name, array $parameters = [], int $referenceType = UrlGeneratorInterface::ABSOLUTE_PATH): string
                 {
@@ -145,13 +159,43 @@ final class MailActionControllerTest extends KernelTestCase
             'request_stack' => static fn () => static::getContainer()->get('request_stack'),
             'security.token_storage' => static fn (): TokenStorageInterface => $tokenStorage,
             'security.csrf.token_manager' => static fn () => $csrfTokenManager,
-        ]));
-        $this->setCurrentUserRequest();
+        ]);
     }
 
     private function csrfToken(string $id): string
     {
         return $this->csrfTokenManager->getToken($id)->getValue();
+    }
+
+    /**
+     * A controller wired like setUp() but serving the given email from a
+     * stubbed repository — for defensive branches that need an email which
+     * cannot exist as a persisted Doctrine entity.
+     */
+    private function controllerWithEmailRepositoryReturning(Email $email): MailActionController
+    {
+        $container = static::getContainer();
+        $emailRepository = $this->createStub(\AvalynxOffice\Repository\EmailRepository::class);
+        $emailRepository->method('find')->willReturn($email);
+
+        $translator = $container->get('translator');
+        $folderManager = $container->get(FolderManager::class);
+
+        $controller = new MailActionController(
+            $translator,
+            $emailRepository,
+            $container->get(FolderRepository::class),
+            $container->get(MailService::class),
+            new EmailActionService($this->entityManager, $container->get(EmailFolderRepository::class)),
+            new MailDraftService($this->entityManager, $folderManager, $this->createStub(AttachmentStorage::class), $translator, new AllowAllLicenseEnforcement()),
+            $folderManager,
+            new AllowAllLicenseEnforcement(),
+            $container->get(UserAccountProvider::class),
+            $this->tokenStorage,
+        );
+        $controller->setContainer($this->actionControllerServiceLocator());
+
+        return $controller;
     }
 
     public function testSetReadAndMoveEmailUpdateFolderCounts(): void
@@ -902,6 +946,227 @@ final class MailActionControllerTest extends KernelTestCase
 
         self::assertSame(Response::HTTP_FOUND, $response?->getStatusCode());
         self::assertSame('/mails', (string) $response?->headers->get('Location'));
+    }
+
+    public function testMoveEmailThrowsNotFoundForMissingEmailOnGet(): void
+    {
+        $this->setCurrentUserRequest();
+
+        $missingId = '00000000-0000-0000-0000-000000000000';
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\NotFoundHttpException::class);
+        $this->controller->moveEmail($missingId, Request::create('/email/'.$missingId.'/move', 'GET'));
+    }
+
+    public function testMoveEmailPostReturnsJsonNotFoundForMissingEmail(): void
+    {
+        $this->setCurrentUserRequest();
+
+        $missingId = '00000000-0000-0000-0000-000000000000';
+        $response = $this->controller->moveEmail($missingId, Request::create('/email/'.$missingId.'/move', 'POST'));
+
+        self::assertSame(Response::HTTP_NOT_FOUND, $response->getStatusCode());
+        self::assertStringContainsString('"success":false', (string) $response->getContent());
+    }
+
+    public function testMoveEmailGetRedirectsNonAjaxRequestsToTheMailList(): void
+    {
+        [$user, $email, $sourceFolder, $targetFolder] = $this->createFixtureData('move-get');
+        $this->setCurrentUserRequest();
+
+        $response = $this->controller->moveEmail((string) $email->getId(), Request::create('/email/'.$email->getId().'/move', 'GET'));
+
+        self::assertSame(Response::HTTP_FOUND, $response->getStatusCode());
+        self::assertSame('/mails', $response->getTargetUrl());
+    }
+
+    public function testMoveSkipsFolderRelationsWithoutFolder(): void
+    {
+        [$user, $email, $sourceFolder, $targetFolder] = $this->createFixtureData('move-broken');
+        $this->setCurrentUserRequest();
+
+        // Defensive branch: a folder relation without a folder is skipped
+        // instead of aborting the move.
+        $orphanLink = (new EmailFolder())
+            ->setEmail($email)
+            ->setFolder(null);
+        $email->addEmailFolder($orphanLink);
+
+        $resolveLeftFolderIds = new \ReflectionMethod(MailActionController::class, 'resolveLeftFolderIds');
+        $left = $resolveLeftFolderIds->invoke($this->controller, $email, $targetFolder);
+
+        self::assertSame([(string) $sourceFolder->getId()], $left);
+    }
+
+    public function testDeleteThrowsNotFoundForMissingEmail(): void
+    {
+        $this->setCurrentUserRequest();
+
+        $missingId = '00000000-0000-0000-0000-000000000000';
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\NotFoundHttpException::class);
+        $this->controller->delete($missingId, Request::create('/mail/delete/'.$missingId, 'POST'));
+    }
+
+    public function testDeleteRejectsInvalidCsrfTokenAndKeepsTheEmail(): void
+    {
+        [$user, $email, $sourceFolder, $targetFolder] = $this->createFixtureData('delete-csrf');
+        $this->setCurrentUserRequest();
+
+        $response = $this->controller->delete((string) $email->getId(), Request::create('/mail/delete/'.$email->getId(), 'POST', ['_token' => 'invalid']));
+
+        self::assertSame(Response::HTTP_FOUND, $response->getStatusCode());
+        self::assertSame('/mails', $response->getTargetUrl());
+
+        $this->entityManager->clear();
+        self::assertNotNull($this->entityManager->find(Email::class, $email->getId()), 'The email must survive a rejected delete');
+    }
+
+    public function testDeleteReportsEmailsThatLoseTheirAccountMidFlight(): void
+    {
+        // Defensive branch: the email passes the accessibility check with an
+        // account, but reports "no account" on the follow-up read. The email
+        // is served by a stubbed repository so it never hits the database.
+        [$user, $realEmail] = $this->createFixtureData('delete-vanishing');
+        $email = new class extends Email {
+            private int $accountReads = 0;
+
+            #[\Override]
+            public function getAccount(): ?Account
+            {
+                $this->accountReads++;
+
+                return 1 === $this->accountReads ? parent::getAccount() : null;
+            }
+        };
+        $email->setSubject('Vanishing account')->setPreviewBody('No account later');
+        $email->setAccount($realEmail->getAccount());
+        $this->setCurrentUserRequest($user);
+        $controller = $this->controllerWithEmailRepositoryReturning($email);
+
+        $id = '00000000-0000-0000-0000-000000000000';
+        $response = $controller->delete($id, Request::create('/mail/delete/'.$id, 'POST', [
+            '_token' => $this->csrfToken('delete_email_'.$id),
+        ]));
+
+        self::assertSame(Response::HTTP_FOUND, $response->getStatusCode());
+        self::assertSame('/mails', $response->getTargetUrl());
+    }
+
+    public function testDeleteRedirectsToSafeRefererAfterSuccess(): void
+    {
+        [$user, $email, $sourceFolder, $targetFolder] = $this->createFixtureData('delete-referer');
+        $this->setCurrentUserRequest();
+
+        $request = Request::create('/mail/delete/'.$email->getId(), 'POST', [
+            '_token' => $this->csrfToken('delete_email_'.$email->getId()),
+        ]);
+        $request->headers->set('Referer', 'http://localhost/mail?folder=open#list');
+
+        $response = $this->controller->delete((string) $email->getId(), $request);
+
+        self::assertSame(Response::HTTP_FOUND, $response->getStatusCode());
+        self::assertSame('/mail?folder=open#list', $response->getTargetUrl());
+    }
+
+    public function testDeleteIgnoresForeignAndUnsafeReferers(): void
+    {
+        [$user, $email, $sourceFolder, $targetFolder] = $this->createFixtureData('delete-referer-bad');
+        $this->setCurrentUserRequest();
+
+        $foreignRequest = Request::create('/mail/delete/'.$email->getId(), 'POST', [
+            '_token' => $this->csrfToken('delete_email_'.$email->getId()),
+        ]);
+        $foreignRequest->headers->set('Referer', 'http://evil.example.com/mail');
+
+        $foreignResponse = $this->controller->delete((string) $email->getId(), $foreignRequest);
+        self::assertSame(Response::HTTP_FOUND, $foreignResponse->getStatusCode());
+        self::assertSame('/mails', $foreignResponse->getTargetUrl());
+
+        $unsafeRequest = Request::create('/mail/delete/'.$email->getId(), 'POST', [
+            '_token' => $this->csrfToken('delete_email_'.$email->getId()),
+        ]);
+        $unsafeRequest->headers->set('Referer', 'http://localhost//evil');
+
+        $unsafeResponse = $this->controller->delete((string) $email->getId(), $unsafeRequest);
+        self::assertSame(Response::HTTP_FOUND, $unsafeResponse->getStatusCode());
+        self::assertSame('/mails', $unsafeResponse->getTargetUrl());
+    }
+
+    public function testMarkSpamReturnsBadRequestForEmailsThatLoseTheirAccountMidFlight(): void
+    {
+        // Defensive branch: the email passes the accessibility check with an
+        // account, but reports "no account" on the follow-up read. The email
+        // is served by a stubbed repository so it never hits the database.
+        [$user, $realEmail] = $this->createFixtureData('spam-vanishing');
+        $email = new class extends Email {
+            private int $accountReads = 0;
+
+            #[\Override]
+            public function getAccount(): ?Account
+            {
+                $this->accountReads++;
+
+                return 1 === $this->accountReads ? parent::getAccount() : null;
+            }
+        };
+        $email->setSubject('Vanishing account')->setPreviewBody('No account later');
+        $email->setAccount($realEmail->getAccount());
+        $this->setCurrentUserRequest($user);
+        $controller = $this->controllerWithEmailRepositoryReturning($email);
+
+        $id = '00000000-0000-0000-0000-000000000000';
+        $response = $controller->markSpam($id, Request::create('/', 'POST', [
+            '_token' => $this->csrfToken('spam_email_'.$id),
+        ]));
+
+        self::assertSame(Response::HTTP_BAD_REQUEST, $response->getStatusCode());
+        self::assertStringContainsString('"success":false', (string) $response->getContent());
+    }
+
+    public function testAjaxAndFolderAccessGuardsRejectForeignRequests(): void
+    {
+        [$user, $email, $sourceFolder, $targetFolder] = $this->createFixtureData('guards');
+        $this->setCurrentUserRequest();
+
+        $assertAjax = new \ReflectionMethod(MailActionController::class, 'assertAjaxActionRequest');
+
+        try {
+            $assertAjax->invoke($this->controller, Request::create('/', 'POST'), 'some_action');
+            self::fail('Non-AJAX requests must be rejected.');
+        } catch (AccessDeniedException) {
+            self::assertTrue(true);
+        }
+
+        $ajaxRequest = Request::create('/', 'POST', ['_token' => 'invalid']);
+        $ajaxRequest->headers->set('X-Requested-With', 'XMLHttpRequest');
+        try {
+            $assertAjax->invoke($this->controller, $ajaxRequest, 'some_action');
+            self::fail('Invalid CSRF tokens must be rejected.');
+        } catch (AccessDeniedException $exception) {
+            self::assertStringContainsString('token', $exception->getMessage());
+        }
+
+        $assertFolder = new \ReflectionMethod(MailActionController::class, 'assertFolderAccessible');
+        try {
+            $assertFolder->invoke($this->controller, $sourceFolder, null);
+            self::fail('Folders without an expected account must be rejected.');
+        } catch (AccessDeniedException) {
+            self::assertTrue(true);
+        }
+
+        // The session user is not the owner of a foreign account's folder.
+        $foreignAccount = (new Account())->setName('Foreign')->setEmail('foreign@example.com');
+        $foreignFolder = (new Folder())->setName('Foreign Inbox');
+        $foreignAccount->addFolder($foreignFolder);
+        $this->entityManager->persist($foreignAccount);
+        $this->entityManager->persist($foreignFolder);
+        $this->entityManager->flush();
+
+        try {
+            $assertFolder->invoke($this->controller, $foreignFolder, $foreignAccount);
+            self::fail('Folders of foreign accounts must be rejected.');
+        } catch (AccessDeniedException) {
+            self::assertTrue(true);
+        }
     }
 
     /**

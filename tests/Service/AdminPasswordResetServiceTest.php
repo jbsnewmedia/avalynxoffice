@@ -181,6 +181,50 @@ final class AdminPasswordResetServiceTest extends TestCase
     }
 
     #[Group('unit')]
+    public function testAnonymousStartUserRequestIgnoresRequestsThatNoLongerAwaitTheUser(): void
+    {
+        $user = new User();
+        $user->setEmail('user@example.com');
+
+        // A released request whose release window has expired is no longer
+        // awaiting the user, so an anonymous caller gets a fresh request.
+        $openRequest = new PasswordResetRequest();
+        $openRequest->setUser($user);
+        $openRequest->setStatus(PasswordResetRequest::STATUS_RELEASED);
+        $openRequest->setExpiresAt(new \DateTimeImmutable('-1 minute'));
+        $openRequest->setCreatedAt(new \DateTimeImmutable('-1 minute'));
+
+        $persisted = [];
+        $resetRepository = $this->createStub(PasswordResetRequestRepository::class);
+        $resetRepository->method('findActiveByUser')->willReturn([$openRequest]);
+        $resetRepository->method('findByToken')->willReturnCallback(
+            static function (string $token) use (&$persisted): ?PasswordResetRequest {
+                foreach ($persisted as $candidate) {
+                    \assert($candidate instanceof PasswordResetRequest);
+                    if ($candidate->getTokenHash() === hash('sha256', $token)) {
+                        return $candidate;
+                    }
+                }
+
+                return null;
+            },
+        );
+
+        $entityManager = $this->createStub(EntityManagerInterface::class);
+        $entityManager->method('persist')->willReturnCallback(
+            static function (PasswordResetRequest $request) use (&$persisted): void {
+                $persisted[] = $request;
+            },
+        );
+
+        $service = $this->createService($resetRepository, null, $entityManager);
+        $result = $service->startUserRequest($user, '127.0.0.1', anonymous: true);
+
+        self::assertNotNull($result['request']);
+        self::assertNotSame($openRequest, $result['request']);
+    }
+
+    #[Group('unit')]
     public function testGenerateDecoyCodeLooksLikeARealCodeWithoutRequest(): void
     {
         $service = $this->createService();

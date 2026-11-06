@@ -164,4 +164,22 @@ final class GeoIpLookupServiceTest extends TestCase
 
         self::assertSame(['city' => 'Mainz', 'country' => 'Germany'], $service->lookup('81.2.69.160'));
     }
+
+    public function testLookupDegradesToUnknownWhenFetchGeoThrows(): void
+    {
+        $service = new class extends GeoIpLookupService {
+            public function __construct()
+            {
+                parent::__construct(null, true);
+            }
+
+            #[\Override]
+            protected function fetchGeo(string $ip): ?array
+            {
+                throw new \RuntimeException('lookup exploded');
+            }
+        };
+
+        self::assertSame(['city' => null, 'country' => null], $service->lookup('81.2.69.160'));
+    }
 }

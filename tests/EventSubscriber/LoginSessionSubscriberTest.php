@@ -14,9 +14,11 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Session\Session;
 use Symfony\Component\HttpFoundation\Session\Storage\MockArraySessionStorage;
+use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Http\Event\LogoutEvent;
+use Symfony\Component\Security\Http\SecurityEvents;
 
 final class LoginSessionSubscriberTest extends TestCase
 {
@@ -100,5 +102,19 @@ final class LoginSessionSubscriberTest extends TestCase
         $this->createSubscriber()->onLogout($event);
 
         self::expectNotToPerformAssertions();
+    }
+
+    public function testSubscriptionIsRegistered(): void
+    {
+        $events = LoginSessionSubscriber::getSubscribedEvents();
+
+        self::assertSame([
+            // Runs after LoginRememberMeSubscriber so the remember-me flag
+            // of this attempt is already stored in the session.
+            SecurityEvents::INTERACTIVE_LOGIN => ['onInteractiveLogin', -10],
+            KernelEvents::REQUEST => ['onKernelRequest', 0],
+            KernelEvents::RESPONSE => ['onKernelResponse', 0],
+            LogoutEvent::class => 'onLogout',
+        ], $events);
     }
 }

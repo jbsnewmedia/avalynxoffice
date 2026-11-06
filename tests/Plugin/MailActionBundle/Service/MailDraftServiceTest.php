@@ -525,6 +525,12 @@ final class MailDraftServiceTest extends TestCase
 
         self::assertNull($resolveAccount->invoke($service, $emailWithMissingFolder));
 
+        // Attachment names that survive no usable characters fall back to the
+        // server-side name and ultimately to a fixed default.
+        $normalizeAttachmentName = new \ReflectionMethod(MailDraftService::class, 'normalizeAttachmentName');
+        self::assertSame('original report.pdf', $normalizeAttachmentName->invoke($service, " \t..\x00/..", 'original report.pdf'));
+        self::assertSame('attachment', $normalizeAttachmentName->invoke($service, '__', ''));
+
         $alias = (new Address())->setEmail('alias@example.com')->setName('Alias');
         $account = (new Account())
             ->setName('Primary')

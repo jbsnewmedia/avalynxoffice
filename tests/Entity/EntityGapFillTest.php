@@ -26,6 +26,7 @@ use AvalynxOffice\Entity\PasswordResetRequest;
 use AvalynxOffice\Entity\RecoveryAddress;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Entity\UserAccount;
+use AvalynxOffice\Entity\UserAppPassword;
 use AvalynxOffice\Entity\UserLoginSession;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Uid\Uuid;
@@ -312,5 +313,24 @@ final class EntityGapFillTest extends TestCase
         $session->setUserAgent('Mozilla/5.0 (Windows NT 10.0) Chrome/121.0');
 
         self::assertSame('Mozilla/5.0 (Windows NT 10.0) Chrome/121.0', $session->getUserAgent());
+    }
+
+    public function testUserAppPasswordTracksLastUsedAndRevocation(): void
+    {
+        $row = new UserAppPassword();
+
+        self::assertNull($row->getLastUsedAt());
+        self::assertNull($row->getRevokedAt());
+
+        $lastUsed = new \DateTimeImmutable('2026-01-15 08:30:00');
+        self::assertSame($row, $row->setLastUsedAt($lastUsed));
+        self::assertSame($lastUsed, $row->getLastUsedAt());
+
+        $revoked = new \DateTimeImmutable('2026-02-01 19:45:00');
+        self::assertSame($row, $row->setRevokedAt($revoked));
+        self::assertSame($revoked, $row->getRevokedAt());
+
+        self::assertSame($row, $row->setLastUsedAt(null));
+        self::assertNull($row->getLastUsedAt());
     }
 }

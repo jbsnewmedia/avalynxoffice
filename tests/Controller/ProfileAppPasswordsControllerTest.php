@@ -137,4 +137,30 @@ final class ProfileAppPasswordsControllerTest extends WebTestCase
         self::assertResponseRedirects('/profile/app-passwords');
         self::assertCount(0, $repository->findActiveByUser($this->user));
     }
+
+    public function testCreateAnswersWithJsonFailureWhenTheLimitIsReached(): void
+    {
+        $service = static::getContainer()->get(AppPasswordService::class);
+        \assert($service instanceof AppPasswordService);
+        for ($index = 0; $index < AppPasswordService::MAX_ACTIVE; $index++) {
+            $service->create($this->user, 'Password '.$index);
+        }
+
+        // The page shows the limit hint instead of the form, so the token is
+        // seeded into the session directly (same trick as setCsrfToken()).
+        $this->client->request('GET', '/profile/app-passwords');
+        $session = $this->client->getRequest()->getSession();
+        $csrf = 'test-csrf-token-'.bin2hex(random_bytes(8));
+        $session->set('_csrf/app_password_create', $csrf);
+        $session->save();
+
+        $this->client->request('POST', '/profile/app-passwords', ['_token' => $csrf, 'label' => 'One more']);
+        self::assertResponseStatusCodeSame(403);
+
+        $payload = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertFalse($payload['success']);
+        self::assertArrayHasKey('message', $payload);
+        self::assertArrayNotHasKey('invalid', $payload);
+        self::assertCount(AppPasswordService::MAX_ACTIVE, $service->activeFor($this->user));
+    }
 }

@@ -226,6 +226,18 @@ final class UserServiceTest extends TestCase
     }
 
     #[Group('unit')]
+    public function testAddRecoveryAddressRejectsEmptyAddress(): void
+    {
+        $service = $this->createRecoveryService($this->createRecoveryRepository(), $this->createStub(MailerInterface::class));
+        $user = self::createOwner();
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('must not be empty');
+
+        $service->addRecoveryAddress($user, '', self::verifyUrlFor());
+    }
+
+    #[Group('unit')]
     public function testAddRecoveryAddressStartsUnverifiedAndSendsVerificationMail(): void
     {
         $sent = [];
