@@ -64,14 +64,14 @@ usedSeats    = count(active users with last_auth_at >= now - 30 days)
 | `READ_ONLY` | grace period expired; user-initiated writes blocked, e-mail reception and reading continue |
 
 The grace period persists in the database (`license_state`) and survives
-restarts. See `docs/licensing.md` for the complete technical documentation.
+restarts. See `doc/licensing.md` for the complete technical documentation.
 
 ## Links
 
 - License text (APL 1.0, German and English): `LICENSE`
 - Commercial licensing: `COMMERCIAL-LICENSE.md`
 - Legal notices / third-party components: `NOTICE.md`
-- Technical documentation: `docs/licensing.md`
+- Technical documentation: `doc/licensing.md` (German: `doc/licensing.de.md`)
 - Issuance tool (issuer side only): `bin/license-tool`
 
 ---

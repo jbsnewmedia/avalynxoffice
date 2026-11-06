@@ -25,7 +25,6 @@ mail_dumps
 data
 tests
 doc
-docs
 docker/postgres
 docker/web
 docker/*.sh
