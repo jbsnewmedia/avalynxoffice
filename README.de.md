@@ -19,7 +19,7 @@ lizenziert (`LICENSE`, `LICENSING.md`):
   (`COMMERCIAL-LICENSE.md`).
 - Lizenzschlüssel werden über die Administrationsoberfläche (*Lizenz & Nutzung*)
   oder per ENV (`AVALYNXOFFICE_LICENSE_KEYS`, `AVALYNXOFFICE_LICENSE_FILE`) konfiguriert;
-  die technische Dokumentation steht in `docs/licensing.md`.
+  die technische Dokumentation steht in [`doc/licensing.de.md`](doc/licensing.de.md).
 - Exchange ActiveSync (iOS/Android/Outlook-Sync) ist ein **separates, optional
   installierbares Projekt** ([avalynxofficeeas](https://github.com/jbsnewmedia/avalynxofficeeas),
   AGPL-3.0) und kein Bestandteil dieses Repositories.
@@ -191,7 +191,7 @@ Empfohlene Reihenfolge: **Abruf** → **UI** → **Versand** → **Antwort** →
 - `src/Service/Mail/`: POP3-Abruf (`Pop3Fetcher`), Ordnerverwaltung (`FolderManager`), SMTP-Factory, Attachment-Speicher
 - `src/Licensing/`: Lizenzsystem (Key-Validierung, Active Seats, Kulanzfrist, Read-Only-Durchsetzung)
 - `src/Plugin/` + `plugins/jbsnewmedia/`: Plugin-Loading und First-Party-Bundles
-- `docs/`: technische Dokumentation (z. B. `docs/licensing.md`)
+- [`doc/`](doc/): technische Dokumentation ([`doc/dev.de.md`](doc/dev.de.md), [`doc/licensing.de.md`](doc/licensing.de.md))
 - `docker/`: `docker/web` = Dev-Stack, `docker/prod` = Produktiv-Image, `docker/postgres` = Datenbank
 
 ## Attachment-Speicher

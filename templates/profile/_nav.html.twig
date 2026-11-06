@@ -10,7 +10,7 @@
 } %}
 {% set profileNavCurrent = profileNavItems[active]|default(profileNavItems.overview) %}
 <div class="dropdown mb-4">
-    <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="profileNavDropdown" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ 'profile.nav.switch'|trans }}" title="{{ 'profile.nav.switch'|trans }}">
+    <button class="btn btn-secondary dropdown-toggle" type="button" id="profileNavDropdown" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ 'profile.nav.switch'|trans }}" title="{{ 'profile.nav.switch'|trans }}">
         <i class="fa-solid {{ profileNavCurrent.icon }} me-2" aria-hidden="true"></i>{{ profileNavCurrent.label|trans }}
     </button>
     <ul class="dropdown-menu" aria-labelledby="profileNavDropdown">

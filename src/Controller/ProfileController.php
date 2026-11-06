@@ -13,6 +13,7 @@ use AvalynxOffice\Entity\RecoveryAddress;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Repository\UserRepository;
 use AvalynxOffice\Service\AdminPasswordResetService;
+use AvalynxOffice\Service\Idn\IdnService;
 use AvalynxOffice\Service\Login\LoginSessionService;
 use AvalynxOffice\Service\UserService;
 use AvalynxOffice\Util\AvalynxFormResponse;
@@ -55,6 +56,7 @@ class ProfileController extends AbstractController
         private readonly AdminPasswordResetService $adminPasswordResetService,
         private readonly LoginSessionService $loginSessionService,
         private readonly RateLimiterFactoryInterface $passwordResetLimiter,
+        private readonly IdnService $idnService,
     ) {
     }
 
@@ -299,7 +301,7 @@ class ProfileController extends AbstractController
                 ]);
             }
 
-            $candidate = $this->userRepository->findOneBy(['email' => strtolower($email)]);
+            $candidate = $this->userRepository->findOneBy(['email' => $this->idnService->toAscii(strtolower($email))]);
 
             if (null !== $candidate && $candidate->isActive()) {
                 $target = $candidate;

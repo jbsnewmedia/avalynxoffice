@@ -9,7 +9,7 @@
 } %}
 {% set settingsNavCurrent = settingsNavItems[active]|default(settingsNavItems.overview) %}
 <div class="dropdown mb-4">
-    <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="settingsNavDropdown" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ 'settings.nav.switch'|trans }}" title="{{ 'settings.nav.switch'|trans }}">
+    <button class="btn btn-secondary dropdown-toggle" type="button" id="settingsNavDropdown" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ 'settings.nav.switch'|trans }}" title="{{ 'settings.nav.switch'|trans }}">
         <i class="fa-solid {{ settingsNavCurrent.icon }} me-2" aria-hidden="true"></i>{{ settingsNavCurrent.label|trans }}
     </button>
     <ul class="dropdown-menu" aria-labelledby="settingsNavDropdown">

@@ -11,6 +11,8 @@ namespace AvalynxOffice\Form;
 
 use AvalynxOffice\Entity\Account;
 use AvalynxOffice\Entity\User;
+use AvalynxOffice\Form\DataTransformer\IdnToAsciiTransformer;
+use AvalynxOffice\Service\Idn\IdnService;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\EmailType;
@@ -27,6 +29,11 @@ use Symfony\Component\Validator\Constraints\NotBlank;
  */
 class AccountType extends AbstractType
 {
+    public function __construct(
+        private readonly IdnService $idnService = new IdnService(),
+    ) {
+    }
+
     #[\Override]
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
@@ -87,6 +94,10 @@ class AccountType extends AbstractType
                 'attr' => ['class' => 'btn btn-primary'],
             ])
         ;
+
+        // IDN domains are normalized to punycode so the stored account
+        // address matches mail routing and the connector domain form.
+        $builder->get('email')->addViewTransformer(new IdnToAsciiTransformer($this->idnService));
     }
 
     #[\Override]

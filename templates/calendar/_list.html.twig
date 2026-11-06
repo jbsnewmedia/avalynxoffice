@@ -8,7 +8,7 @@
         <div class="input-group search-group">
             <input type="search" class="form-control" id="calendar-search-input" name="q" value="{{ search }}" placeholder="{{ 'search.placeholder'|trans }}" aria-label="{{ 'calendar.search'|trans }}">
             {% if search is not empty %}
-                <a class="btn btn-outline-secondary" type="button" href="{{ calendarBasePath }}" aria-label="{{ 'search.clear'|trans }}" title="{{ 'search.clear'|trans }}">
+                <a class="btn btn-secondary" type="button" href="{{ calendarBasePath }}" aria-label="{{ 'search.clear'|trans }}" title="{{ 'search.clear'|trans }}">
                     <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                 </a>
             {% endif %}

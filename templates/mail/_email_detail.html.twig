@@ -98,7 +98,7 @@
                     <div class="min-w-0">
                         {% for link in toLinks %}
                             {% set displayName = link.address.name ?: link.address.email %}
-                            <div class="text-truncate" title="{{ displayName }}{% if link.address.email and link.address.email != displayName %} &lt;{{ link.address.email }}&gt;{% endif %}">{{ displayName }}{% if link.address.email and link.address.email != displayName %} &lt;{{ link.address.email }}&gt;{% endif %}</div>
+                            <div class="text-truncate" title="{{ displayName }}{% if link.address.email and link.address.email != displayName %} &lt;{{ link.address.email|idn_to_utf8 }}&gt;{% endif %}">{{ displayName }}{% if link.address.email and link.address.email != displayName %} &lt;{{ link.address.email|idn_to_utf8 }}&gt;{% endif %}</div>
                         {% else %}
                             <span>–</span>
                         {% endfor %}
@@ -126,7 +126,7 @@
                     <span class="email-meta-value">
                         {% if toLinks|length > 0 %}
                             {% for link in toLinks %}
-                                {{ link.address.name ?: link.address.email }} &lt;{{ link.address.email }}&gt;{{ not loop.last ? ', ' : '' }}
+                                {{ link.address.name ?: link.address.email|idn_to_utf8 }} &lt;{{ link.address.email|idn_to_utf8 }}&gt;{{ not loop.last ? ', ' : '' }}
                             {% endfor %}
                         {% else %}
                             <span class="text-body-secondary">–</span>
@@ -136,7 +136,7 @@
                         <span class="email-meta-label">{{ 'email.cc'|trans }}</span>
                         <span class="email-meta-value">
                             {% for link in ccLinks %}
-                                {{ link.address.name ?: link.address.email }} &lt;{{ link.address.email }}&gt;{{ not loop.last ? ', ' : '' }}
+                                {{ link.address.name ?: link.address.email|idn_to_utf8 }} &lt;{{ link.address.email|idn_to_utf8 }}&gt;{{ not loop.last ? ', ' : '' }}
                             {% endfor %}
                         </span>
                     {% endif %}
@@ -144,7 +144,7 @@
                         <span class="email-meta-label">{{ 'email.bcc'|trans }}</span>
                         <span class="email-meta-value">
                             {% for link in bccLinks %}
-                                {{ link.address.name ?: link.address.email }} &lt;{{ link.address.email }}&gt;{{ not loop.last ? ', ' : '' }}
+                                {{ link.address.name ?: link.address.email|idn_to_utf8 }} &lt;{{ link.address.email|idn_to_utf8 }}&gt;{{ not loop.last ? ', ' : '' }}
                             {% endfor %}
                         </span>
                     {% endif %}
@@ -152,7 +152,7 @@
                         <span class="email-meta-label">{{ 'email.reply_to'|trans }}</span>
                         <span class="email-meta-value">
                             {% for link in replyToLinks %}
-                                {{ link.address.name ?: link.address.email }} &lt;{{ link.address.email }}&gt;{{ not loop.last ? ', ' : '' }}
+                                {{ link.address.name ?: link.address.email|idn_to_utf8 }} &lt;{{ link.address.email|idn_to_utf8 }}&gt;{{ not loop.last ? ', ' : '' }}
                             {% endfor %}
                         </span>
                     {% endif %}
@@ -183,7 +183,7 @@
                 <div class="email-external-content-notice d-flex flex-wrap align-items-center gap-2 px-3 px-md-4 py-2 border-bottom bg-body-tertiary small">
                     <i class="fa-solid fa-shield-halved text-body-secondary" aria-hidden="true"></i>
                     <span class="text-body-secondary flex-grow-1">{{ 'email.external_content_blocked'|trans }}</span>
-                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                    <button type="button" class="btn btn-sm btn-secondary"
                             data-action="load-external-content"
                             data-csp-strict="{{ cspStrict }}"
                             data-csp-relaxed="{{ cspRelaxed }}">{{ 'email.load_external_content'|trans }}</button>

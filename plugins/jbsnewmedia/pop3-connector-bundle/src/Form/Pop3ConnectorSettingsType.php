@@ -117,6 +117,25 @@ class Pop3ConnectorSettingsType extends AbstractType
             ])
         ;
 
+        // IDN hosts are normalized to punycode: the stream clients can only
+        // resolve ASCII host names.
+        $builder->addEventListener(FormEvents::PRE_SUBMIT, static function (PreSubmitEvent $event): void {
+            $data = $event->getData();
+            if (!is_array($data)) {
+                return;
+            }
+            foreach (['pop3Host', 'smtpHost'] as $hostField) {
+                $host = $data[$hostField] ?? null;
+                if (is_string($host) && '' !== trim($host) && function_exists('idn_to_ascii')) {
+                    $ascii = idn_to_ascii(trim($host), IDNA_DEFAULT, INTL_IDNA_VARIANT_UTS46);
+                    if (is_string($ascii) && '' !== $ascii) {
+                        $data[$hostField] = $ascii;
+                    }
+                }
+            }
+            $event->setData($data);
+        });
+
         // Empty password fields keep the stored password.
         foreach (['pop3Password', 'smtpPassword'] as $passwordField) {
             $builder->get($passwordField)->addEventListener(FormEvents::PRE_SUBMIT, static function (PreSubmitEvent $event): void {

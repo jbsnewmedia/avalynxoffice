@@ -9,7 +9,7 @@
             {% if day.isToday %}{{ 'calendar.today'|trans }}{% endif %}
         </span>
         <a href="{{ path('calendar_new_modal', {date: day.date|date('Y-m-d')}) }}"
-           class="action-btn-modal btn btn-sm btn-outline-primary {{ license_manager.isReadOnly ? 'disabled' }}" {{ license_manager.isReadOnly ? 'aria-disabled="true"' }}
+           class="action-btn-modal btn btn-sm btn-primary {{ license_manager.isReadOnly ? 'disabled' }}" {{ license_manager.isReadOnly ? 'aria-disabled="true"' }}
            data-title="{{ 'calendar.new'|trans }}"
            aria-label="{{ 'calendar.new_on'|trans({'%date%': day.date|user_datetime('date')}) }}">
             <i class="fa-solid fa-plus me-1" aria-hidden="true"></i>{{ 'calendar.new'|trans }}

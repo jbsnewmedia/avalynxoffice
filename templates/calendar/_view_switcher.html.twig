@@ -6,7 +6,7 @@
 {% set viewIcons = {day: 'fa-calendar-day', week: 'fa-calendar-week', month: 'fa-calendar-days', list: 'fa-list-ul'} %}
 {% set small = small|default(false) %}
 <div class="dropdown calendar-view-switcher-dropdown">
-    <button class="btn btn-outline-secondary{% if small %} btn-sm{% endif %} dropdown-toggle d-flex align-items-center" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ 'calendar.view_switcher_aria'|trans }}" title="{{ 'calendar.view_switcher_aria'|trans }}">
+    <button class="btn btn-secondary{% if small %} btn-sm{% endif %} dropdown-toggle d-flex align-items-center" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ 'calendar.view_switcher_aria'|trans }}" title="{{ 'calendar.view_switcher_aria'|trans }}">
         <i class="fa-solid {{ viewIcons[view] }} me-2" aria-hidden="true"></i>
         <span>{{ ('calendar.view.' ~ view)|trans }}</span>
     </button>

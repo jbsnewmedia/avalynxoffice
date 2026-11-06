@@ -11,6 +11,7 @@ namespace AvalynxOffice\Command;
 
 use AvalynxOffice\Entity\Account;
 use AvalynxOffice\Entity\User;
+use AvalynxOffice\Service\Idn\IdnService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -28,6 +29,7 @@ class AccountAddCommand extends Command
 {
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
+        private readonly IdnService $idnService = new IdnService(),
     ) {
         parent::__construct();
     }
@@ -47,7 +49,8 @@ class AccountAddCommand extends Command
     {
         $io = new SymfonyStyle($input, $output);
         $emailArg = $input->getArgument('email');
-        $email = is_string($emailArg) ? strtolower(trim($emailArg)) : '';
+        // IDN domains are normalized to the stored punycode form.
+        $email = is_string($emailArg) ? $this->idnService->toAscii(strtolower(trim($emailArg))) : '';
         $nameOpt = $input->getOption('name');
         $name = is_string($nameOpt) && '' !== trim($nameOpt) ? trim((string) $nameOpt) : $email;
 
@@ -63,7 +66,7 @@ class AccountAddCommand extends Command
 
         $userOpt = $input->getOption('user');
         if (is_string($userOpt) && '' !== trim($userOpt)) {
-            $user = $this->entityManager->getRepository(User::class)->findOneBy(['email' => strtolower(trim($userOpt))]);
+            $user = $this->entityManager->getRepository(User::class)->findOneBy(['email' => $this->idnService->toAscii(strtolower(trim($userOpt)))]);
             if (!$user instanceof User) {
                 $io->error(sprintf('User not found: %s', $userOpt));
 

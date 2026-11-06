@@ -65,7 +65,7 @@
                                 <tbody>
                                     {% for request in requests %}
                                         <tr>
-                                            <td>{{ request.user.email }}</td>
+                                            <td>{{ request.user.email|idn_to_utf8 }}</td>
                                             <td><span class="badge bg-secondary">{{ request.status }}</span></td>
                                             <td>{{ request.expiresAt|user_datetime('short') }}</td>
                                             <td class="text-end">

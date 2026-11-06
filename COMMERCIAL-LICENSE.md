@@ -52,7 +52,7 @@ remain unaffected; only the additional seats of the expired commercial key
 cease. Contractually, an expired subscription triggers a duty to reduce the
 number of Active Seats or to renew, with a separately agreed remedy. The
 technical implementation follows the product policy documented in
-`docs/licensing.md`.
+`doc/licensing.md`.
 
 ## How to order
 
