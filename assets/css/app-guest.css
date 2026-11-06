@@ -1,5 +1,10 @@
-body {
+.guest-shell {
+    height: 100vh;
+    height: 100dvh;
+}
+.guest-scroll {
     overflow-y: scroll;
+    min-height: 0;
 }
 .brandmark {
     width: 60px;

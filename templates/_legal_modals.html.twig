@@ -1,0 +1,28 @@
+{# The three legal modals (Impressum / Datenschutz / AGB). Included for
+   guests via _guest_footer.html.twig and for logged-in users via
+   base.html.twig. Content is loaded through the legal_pages() Twig
+   function and sanitized again on render. #}
+{% set legal_contents = legal_pages() %}
+{% for page in ['impressum', 'datenschutz', 'agb'] %}
+    {% set modal_id = page ~ 'Modal' %}
+    <div class="modal fade" id="{{ modal_id }}" tabindex="-1" aria-labelledby="{{ modal_id }}Label" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="{{ modal_id }}Label">{{ ('legal.' ~ page)|trans }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ 'common.close'|trans }}"></button>
+                </div>
+                <div class="modal-body">
+                    {% if legal_contents[page] is not empty %}
+                        {{ legal_contents[page]|sanitize_html('legal') }}
+                    {% else %}
+                        {{ 'legal.placeholder'|trans }}
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ 'common.close'|trans }}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endfor %}

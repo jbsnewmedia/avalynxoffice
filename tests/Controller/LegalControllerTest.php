@@ -167,67 +167,105 @@ final class LegalControllerTest extends WebTestCase
 
     /**
      * Defense in depth: even content that bypassed the save path (e.g. a
-     * direct database write) is sanitized again when rendered. The login
-     * page no longer embeds legal content itself; it links to the public
-     * page, and neither may leak the stored script.
+     * direct database write) is sanitized again when rendered — guests see
+     * the legal content in the login page's modals.
      */
-    public function testPublicPageSanitizesStoredContentOnRender(): void
+    public function testLoginModalSanitizesStoredContentOnRender(): void
     {
         $settings = static::getContainer()->get(\AvalynxOffice\Repository\AppSettingRepository::class);
         $settings->setValue('legal_page_impressum', '<p>Safe</p><script>alert("stored")</script>');
-
-        $this->client->request('GET', '/impressum');
-
-        self::assertResponseIsSuccessful();
-        $content = (string) $this->client->getResponse()->getContent();
-        self::assertStringContainsString('<p>Safe</p>', $content);
-        self::assertStringNotContainsString('alert("stored")', $content);
 
         $this->client->request('GET', '/login');
 
         self::assertResponseIsSuccessful();
         $content = (string) $this->client->getResponse()->getContent();
-        self::assertStringContainsString('href="/impressum"', $content);
+        self::assertStringContainsString('<p>Safe</p>', $content);
         self::assertStringNotContainsString('alert("stored")', $content);
     }
 
-    public function testPublicImpressumRendersStoredContentForGuests(): void
+    public function testLoginModalsRenderStoredContentForGuests(): void
+    {
+        $this->legalService()->setContent(LegalContentService::PAGE_IMPRINT, '<p>JBS New Media GmbH</p>');
+        $this->legalService()->setContent(LegalContentService::PAGE_PRIVACY, '<p>Datenschutz</p>');
+        $this->legalService()->setContent(LegalContentService::PAGE_TERMS, '<p>AGB Text</p>');
+
+        $this->client->request('GET', '/login');
+
+        self::assertResponseIsSuccessful();
+        $content = (string) $this->client->getResponse()->getContent();
+        self::assertStringContainsString('data-bs-target="#impressumModal"', $content);
+        self::assertStringContainsString('data-bs-target="#datenschutzModal"', $content);
+        self::assertStringContainsString('data-bs-target="#agbModal"', $content);
+        self::assertStringContainsString('<p>JBS New Media GmbH</p>', $content);
+        self::assertStringContainsString('<p>Datenschutz</p>', $content);
+        self::assertStringContainsString('<p>AGB Text</p>', $content);
+    }
+
+    public function testLoginModalShowsPlaceholderWithoutContent(): void
+    {
+        $this->client->request('GET', '/login');
+
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('Legal information will be provided here soon.', (string) $this->client->getResponse()->getContent());
+    }
+
+    public function testStandaloneLegalPagesAreGoneForGuests(): void
+    {
+        // The routes no longer exist: a 404 before any access control.
+        foreach (['/impressum', '/datenschutz', '/agb'] as $route) {
+            $this->client->request('GET', $route);
+            self::assertResponseStatusCodeSame(404);
+        }
+    }
+
+    public function testLegalOverviewRequiresLogin(): void
+    {
+        $this->client->request('GET', '/legal');
+
+        self::assertResponseRedirects('/login');
+    }
+
+    public function testLegalOverviewRendersForUserWithoutModals(): void
+    {
+        $this->client->loginUser($this->user);
+        $this->client->request('GET', '/legal');
+
+        self::assertResponseIsSuccessful();
+        $content = (string) $this->client->getResponse()->getContent();
+        self::assertStringContainsString('id="legalNavDropdown"', $content);
+        self::assertStringContainsString('href="/legal/impressum"', $content);
+        // Users get real pages, no legal modals.
+        self::assertStringNotContainsString('data-bs-target="#impressumModal"', $content);
+    }
+
+    public function testLegalPageRendersStoredContentForUser(): void
     {
         $this->legalService()->setContent(LegalContentService::PAGE_IMPRINT, '<p>JBS New Media GmbH</p>');
 
-        $this->client->request('GET', '/impressum');
+        $this->client->loginUser($this->user);
+        $this->client->request('GET', '/legal/impressum');
 
         self::assertResponseIsSuccessful();
         $content = (string) $this->client->getResponse()->getContent();
         self::assertStringContainsString('<p>JBS New Media GmbH</p>', $content);
+        self::assertStringContainsString('id="legalNavDropdown"', $content);
     }
 
-    public function testPublicPrivacyRendersStoredContentForGuests(): void
+    public function testLegalPageShowsPlaceholderWithoutContent(): void
     {
-        $this->legalService()->setContent(LegalContentService::PAGE_PRIVACY, '<p>Datenschutz</p>');
-
-        $this->client->request('GET', '/datenschutz');
+        $this->client->loginUser($this->user);
+        $this->client->request('GET', '/legal/datenschutz');
 
         self::assertResponseIsSuccessful();
-        self::assertStringContainsString('<p>Datenschutz</p>', (string) $this->client->getResponse()->getContent());
+        self::assertStringContainsString('Legal information will be provided here soon.', (string) $this->client->getResponse()->getContent());
     }
 
-    public function testPublicTermsRendersStoredContentForGuests(): void
+    public function testLegalPageRejectsUnknownPage(): void
     {
-        $this->legalService()->setContent(LegalContentService::PAGE_TERMS, '<p>AGB Text</p>');
+        $this->client->loginUser($this->user);
+        $this->client->request('GET', '/legal/unknown');
 
-        $this->client->request('GET', '/agb');
-
-        self::assertResponseIsSuccessful();
-        self::assertStringContainsString('<p>AGB Text</p>', (string) $this->client->getResponse()->getContent());
-    }
-
-    public function testPublicPagesShowFallbackWithoutContent(): void
-    {
-        $this->client->request('GET', '/impressum');
-
-        self::assertResponseIsSuccessful();
-        self::assertStringContainsString('This page is currently not available.', (string) $this->client->getResponse()->getContent());
+        self::assertResponseStatusCodeSame(404);
     }
 
     private function seedUsers(): void

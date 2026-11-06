@@ -1,10 +1,16 @@
+{# Guest footer: (c) JBS New Media GmbH with the legal links opening the
+   shared legal modals (guests have no standalone legal pages). #}
 <footer class="py-4 bg-body-tertiary border-top mt-auto">
     <div class="container d-flex flex-wrap justify-content-between align-items-center gap-2">
         <span class="text-body-secondary small">© {{ "now"|date("Y") }} - <img src="{{ path('app_assets_jbsnewmedia_symbol_svg') }}" class="footer-logo" alt="JBS New Media GmbH"> <strong>JBS</strong> New Media GmbH</span>
         <ul class="nav small">
-            <li class="nav-item"><a class="nav-link text-body-secondary" href="{{ path('app_legal_impressum') }}">{{ 'guest.impressum'|trans }}</a></li>
-            <li class="nav-item"><a class="nav-link text-body-secondary" href="{{ path('app_legal_privacy') }}">{{ 'guest.datenschutz'|trans }}</a></li>
-            <li class="nav-item"><a class="nav-link text-body-secondary" href="{{ path('app_legal_terms') }}">{{ 'guest.agb'|trans }}</a></li>
+            <li class="nav-item"><a class="nav-link text-body-secondary" href="#" data-bs-toggle="modal" data-bs-target="#impressumModal">{{ 'legal.impressum'|trans }}</a></li>
+            <li class="nav-item"><a class="nav-link text-body-secondary" href="#" data-bs-toggle="modal" data-bs-target="#datenschutzModal">{{ 'legal.datenschutz'|trans }}</a></li>
+            <li class="nav-item"><a class="nav-link text-body-secondary" href="#" data-bs-toggle="modal" data-bs-target="#agbModal">{{ 'legal.agb'|trans }}</a></li>
         </ul>
     </div>
 </footer>
+{% if not app.user %}
+    {# Logged-in visitors get the modals from base.html.twig instead. #}
+    {% include '_legal_modals.html.twig' %}
+{% endif %}

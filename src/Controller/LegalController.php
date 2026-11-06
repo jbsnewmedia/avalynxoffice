@@ -74,30 +74,20 @@ class LegalController extends AbstractController
         return AvalynxFormResponse::success($this->generateUrl('app_settings_legal'));
     }
 
-    #[Route('/impressum', name: 'app_legal_impressum')]
-    public function impressum(): Response
+    #[Route('/legal', name: 'app_legal')]
+    public function index(): Response
     {
-        return $this->renderPage(LegalContentService::PAGE_IMPRINT);
+        return $this->render('legal/index.html.twig');
     }
 
-    #[Route('/datenschutz', name: 'app_legal_privacy')]
-    public function privacy(): Response
+    #[Route('/legal/{page}', name: 'app_legal_page')]
+    public function page(string $page): Response
     {
-        return $this->renderPage(LegalContentService::PAGE_PRIVACY);
-    }
+        if (!in_array($page, LegalContentService::PAGES, true)) {
+            throw new NotFoundHttpException('Legal page not found.');
+        }
 
-    #[Route('/agb', name: 'app_legal_terms')]
-    public function terms(): Response
-    {
-        return $this->renderPage(LegalContentService::PAGE_TERMS);
-    }
-
-    /**
-     * @param non-empty-string $page
-     */
-    private function renderPage(string $page): Response
-    {
-        return $this->render('legal/page.html.twig', [
+        return $this->render('legal/show.html.twig', [
             'page' => $page,
             'content' => $this->legalContentService->getContent($page),
         ]);

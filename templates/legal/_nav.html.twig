@@ -1,0 +1,31 @@
+{# Params:
+    active (string) — currently active legal section: 'overview'|'impressum'|'datenschutz'|'agb'
+#}
+{% set legalNavItems = {
+    'overview': {route: 'app_legal', params: {}, icon: 'fa-scale-balanced', label: 'legal.nav.overview'},
+    'impressum': {route: 'app_legal_page', params: {page: 'impressum'}, icon: 'fa-file-contract', label: 'legal.impressum'},
+    'datenschutz': {route: 'app_legal_page', params: {page: 'datenschutz'}, icon: 'fa-shield-halved', label: 'legal.datenschutz'},
+    'agb': {route: 'app_legal_page', params: {page: 'agb'}, icon: 'fa-file-signature', label: 'legal.agb'},
+} %}
+{% set legalNavCurrent = legalNavItems[active]|default(legalNavItems.overview) %}
+<div class="dropdown mb-4">
+    <button class="btn btn-secondary dropdown-toggle" type="button" id="legalNavDropdown" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ 'legal.nav.switch'|trans }}" title="{{ 'legal.nav.switch'|trans }}">
+        <i class="fa-solid {{ legalNavCurrent.icon }} me-2" aria-hidden="true"></i>{{ legalNavCurrent.label|trans }}
+    </button>
+    <ul class="dropdown-menu" aria-labelledby="legalNavDropdown">
+        <li><hr class="dropdown-divider" aria-hidden="true"></li>
+        {% for key, item in legalNavItems %}
+            <li>
+                {% if key == active %}
+                    <a class="dropdown-item active d-flex align-items-center" href="{{ path(item.route, item.params) }}" aria-current="true">
+                        <i class="fa-solid {{ item.icon }} me-2" aria-hidden="true"></i>{{ item.label|trans }} ✓
+                    </a>
+                {% else %}
+                    <a class="dropdown-item d-flex align-items-center" href="{{ path(item.route, item.params) }}">
+                        <i class="fa-solid {{ item.icon }} me-2" aria-hidden="true"></i>{{ item.label|trans }}
+                    </a>
+                {% endif %}
+            </li>
+        {% endfor %}
+    </ul>
+</div>
