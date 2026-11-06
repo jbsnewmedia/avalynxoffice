@@ -30,21 +30,11 @@
         {% endblock %}
     </head>
     <body>
-        {% block flashes %}
-            {% set flashMessages = app.flashes %}
-            {% if flashMessages|length > 0 %}
-                <div class="container-fluid px-4 pt-3">
-                    {% for label, messages in flashMessages %}
-                        {% for message in messages %}
-                            <div class="alert alert-{{ label }} alert-dismissible fade show" role="alert">
-                                {{ message|trans }}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="{{ 'common.close'|trans }}"></button>
-                            </div>
-                        {% endfor %}
-                    {% endfor %}
-                </div>
-            {% endif %}
-        {% endblock %}
+        {# Flash messages are rendered per page inside the module content
+           area via templates/_flashes.html.twig — never above the navbar.
+           Pages override this (empty) block only to keep the contract
+           explicit; the default renders nothing. #}
+        {% block flashes %}{% endblock %}
         {% block body %}{% endblock %}
         <div class="modal fade" id="actionModal" tabindex="-1" aria-labelledby="actionModalLabel" aria-hidden="true" data-form-load-error="{{ 'js.form_load_error'|trans }}" data-default-dismiss-label="{{ 'common.cancel'|trans }}">
             <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">

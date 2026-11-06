@@ -1,5 +1,6 @@
 {% extends 'base.html.twig' %}
 {% block title %}{{ 'nav.profile'|trans }} - {{ 'app.title'|trans }}{% endblock %}
+{% block flashes %}{% endblock %}
 {% block stylesheets %}
     {% include '_assets.html.twig' with { mode: 'user' } %}
     {{ parent() }}
@@ -10,6 +11,7 @@
     <main class="flex-grow-1 py-4">
         <div class="container">
             {% include 'profile/_nav.html.twig' with { active: 'overview' } %}
+            {% include '_flashes.html.twig' %}
 
             <h1 class="h3 mb-2">{{ 'nav.profile'|trans }}</h1>
             <p class="text-body-secondary mb-0">{{ 'profile.dashboard.description'|trans }}</p>

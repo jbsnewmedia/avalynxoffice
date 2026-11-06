@@ -4,6 +4,7 @@
     {{ parent() }}
 {% endblock %}
 {% block title %}{{ 'calendar.title'|trans }} - {{ 'app.title'|trans }}{% endblock %}
+{% block flashes %}{% endblock %}
 {% block body %}
 {% set isListView = 'list' == view %}
 <div class="calendar-page d-flex flex-column">
@@ -14,6 +15,7 @@
     leftToggle: {target: '#calendarGroupOffcanvas', icon: 'fa-calendar-days', label: 'nav.show_calendar_groups'},
     midToggle: {target: '#calendarListOffcanvas', icon: 'fa-list', label: 'nav.show_calendar_list'},
 } %}
+{% include '_flashes.html.twig' %}
 <div class="offcanvas offcanvas-start" tabindex="-1" id="calendarGroupOffcanvas" aria-labelledby="calendarGroupOffcanvasLabel" role="dialog" aria-modal="true">
     <div class="offcanvas-header text-bg-primary">
         <h5 class="offcanvas-title" id="calendarGroupOffcanvasLabel">{{ 'offcanvas.calendar_groups'|trans }}</h5>

@@ -11,7 +11,7 @@
     <main class="flex-grow-1 py-4">
         <div class="container">
             {% include 'admin/_nav.html.twig' with { active: 'connectors' } %}
-            {% include 'connector/_flashes.html.twig' %}
+            {% include '_flashes.html.twig' %}
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h1 class="h3 mb-0">{{ 'connector.settings_title'|trans }}: {{ connector.name }}</h1>
                 <a href="{{ path('connector_index') }}" class="btn btn-secondary">

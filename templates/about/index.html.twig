@@ -1,5 +1,6 @@
 {% extends 'base.html.twig' %}
 {% block title %}{{ 'nav.about'|trans }} - {{ 'app.title'|trans }}{% endblock %}
+{% block flashes %}{% endblock %}
 {% block stylesheets %}
     {% include '_assets.html.twig' with { mode: 'user' } %}
     {{ parent() }}
@@ -9,6 +10,7 @@
     {% include '_navbar.html.twig' with { showMailToggles: false } %}
     <main class="flex-grow-1 py-4">
         <div class="container">
+            {% include '_flashes.html.twig' %}
             {% include 'about/_content.html.twig' %}
         </div>
     </main>

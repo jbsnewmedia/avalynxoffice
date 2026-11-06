@@ -1,12 +1,4 @@
-{% set savedMessages = app.flashes('success') %}
 <p class="text-body-secondary">{{ 'legal.admin.help'|trans }}</p>
-
-{% if savedMessages|length > 0 %}
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-        <i class="fa-solid fa-circle-check me-2" aria-hidden="true"></i>{{ savedMessages|first|trans }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="{{ 'common.close'|trans }}"></button>
-    </div>
-{% endif %}
 
 <form id="legal-form" method="post" action="{{ path('app_settings_legal_save') }}" data-legal-form="1" data-avalynxform="1">
     <input type="hidden" name="_token" value="{{ csrf_token('save_legal') }}">

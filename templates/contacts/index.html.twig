@@ -4,6 +4,7 @@
     {{ parent() }}
 {% endblock %}
 {% block title %}{{ 'contact.title'|trans }} - {{ 'app.title'|trans }}{% endblock %}
+{% block flashes %}{% endblock %}
 {% block body %}
 {% include '_navbar.html.twig' with {
     showMailToggles: true,
@@ -43,6 +44,7 @@
     </div>
 </div>
 <div class="container-fluid">
+    {% include '_flashes.html.twig' %}
     <div class="row">
         <aside class="col-xxl-2 d-none d-xxl-block mail-body-height overflow-auto bg-body shadow-sm p-0 border-end">
             {% embed '_account_filter.html.twig' with { accounts: accounts, activeAccount: activeAccount, activeAccountId: activeAccountId, optionRoute: 'contact_group', optionParams: {groupId: activeGroup}, allLabel: 'account.all'|trans } %}

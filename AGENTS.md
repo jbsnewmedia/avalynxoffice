@@ -114,14 +114,17 @@ above the navbar or outside the module content:
    (`.invalid-feedback`). Never put field errors into a flash alert.
 2. **Success / saved / info / warning / danger messages (flashes) → inside
    the module content area**, below the module nav and above/inside the
-   module content — never at the top of the page. `base.html.twig` renders
-   the `flashes` block above the navbar; **every page that extends
-   `base.html.twig` MUST therefore silence it with
+   module content — never at the top of the page. The ONLY flash renderer
+   is the shared partial `templates/_flashes.html.twig`; `base.html.twig`
+   renders the (empty) `flashes` block by default and nothing else.
+   **Every page that extends `base.html.twig` MUST silence the block with
    `{% block flashes %}{% endblock %}`** and render the alerts itself
-   inside the content via `{% include 'connector/_flashes.html.twig' %}`
-   (that partial is the shared, module-independent include despite its
-   location). Applies to EVERY page — settings pages, profile pages, mail
-   pages, admin pages — not only admin modules.
+   inside the content via `{% include '_flashes.html.twig' %}`.
+   Applies to EVERY page — settings pages, profile pages, mail pages,
+   admin pages — not only admin modules. Layout-specific wrapper
+   positioning is allowed as long as the same partial is used (e.g. the
+   mail flash overlay). Error pages silence the block without the
+   include (they have no flash-capable content area).
 3. Reference implementations: `templates/connector/settings.html.twig`,
    `templates/admin/system.html.twig`, `templates/legal/admin.html.twig`.
    Before building a new page, copy the skeleton of one of these.
