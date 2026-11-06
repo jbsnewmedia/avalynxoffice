@@ -20,13 +20,13 @@
                     {% set currentLocale = app.request.locale ?? app.request.getLocale() %}
                     <p class="text-body-secondary">{{ 'settings.language_help'|trans }}</p>
                     <div class="btn-group" role="group" aria-label="{{ 'settings.language'|trans }}">
-                        <button type="button" class="btn btn-outline-primary d-flex align-items-center {% if currentLocale starts with 'de' %}active{% endif %}"
+                        <button type="button" class="btn btn-primary d-flex align-items-center {% if currentLocale starts with 'de' %}active{% endif %}"
                                 data-locale-value="de" aria-pressed="{{ currentLocale starts with 'de' ? 'true' : 'false' }}"
                                 data-locale-url="{{ path('app_set_locale', {_locale: 'de'}) }}">
                             <span class="fi fi-de me-2" aria-hidden="true"></span>
                             <span>{{ 'settings.language_name.de'|trans }}</span>
                         </button>
-                        <button type="button" class="btn btn-outline-primary d-flex align-items-center {% if currentLocale starts with 'en' %}active{% endif %}"
+                        <button type="button" class="btn btn-primary d-flex align-items-center {% if currentLocale starts with 'en' %}active{% endif %}"
                                 data-locale-value="en" aria-pressed="{{ currentLocale starts with 'en' ? 'true' : 'false' }}"
                                 data-locale-url="{{ path('app_set_locale', {_locale: 'en'}) }}">
                             <span class="fi fi-gb me-2" aria-hidden="true"></span>

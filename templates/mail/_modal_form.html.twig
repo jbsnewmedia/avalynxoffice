@@ -130,7 +130,7 @@
                                     <h6 class="mb-0">{{ 'email.attachments'|trans }}</h6>
                                     <small class="text-body-secondary">{{ 'email.attachments_help'|trans }}</small>
                                 </div>
-                                <button type="button" class="btn btn-sm btn-outline-secondary" data-compose-attachments-choose="1">
+                                <button type="button" class="btn btn-sm btn-secondary" data-compose-attachments-choose="1">
                                     <i class="fa-solid fa-paperclip me-1" aria-hidden="true"></i>
                                     {{ 'email.add_attachments'|trans }}
                                 </button>
@@ -151,7 +151,7 @@
                                                 <small class="text-body-secondary">{{ attachment.size|bytes_to_human }}</small>
                                             </div>
                                             <button type="button"
-                                                    class="btn btn-sm btn-outline-danger"
+                                                    class="btn btn-sm btn-danger"
                                                     data-remove-existing-attachment="{{ attachment.id }}"
                                                     aria-label="{{ 'email.remove_attachment'|trans }}: {{ attachment.name }}">
                                                 <i class="fa-solid fa-xmark" aria-hidden="true"></i>

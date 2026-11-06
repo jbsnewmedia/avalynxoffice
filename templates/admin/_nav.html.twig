@@ -13,7 +13,7 @@
 } %}
 {% set adminNavCurrent = adminNavItems[active]|default(adminNavItems.dashboard) %}
 <div class="dropdown mb-4">
-    <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="adminNavDropdown" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ 'admin.nav.switch'|trans }}" title="{{ 'admin.nav.switch'|trans }}">
+    <button class="btn btn-secondary dropdown-toggle" type="button" id="adminNavDropdown" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ 'admin.nav.switch'|trans }}" title="{{ 'admin.nav.switch'|trans }}">
         <i class="fa-solid {{ adminNavCurrent.icon }} me-2" aria-hidden="true"></i>{{ adminNavCurrent.label|trans }}
     </button>
     <ul class="dropdown-menu" aria-labelledby="adminNavDropdown">

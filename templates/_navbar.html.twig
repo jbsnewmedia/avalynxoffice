@@ -26,11 +26,11 @@
     <nav class="navbar navbar-expand-xxl bg-primary" data-bs-theme="dark">
         <div class="container-fluid">
             {% if showMailToggles %}
-                <button class="btn btn-outline-light btn-navbar me-2 d-xxl-none" type="button" data-bs-toggle="offcanvas" data-bs-target="{{ leftToggle.target }}" aria-label="{{ leftToggle.label|trans }}" title="{{ leftToggle.label|trans }}">
+                <button class="btn btn-light btn-navbar me-2 d-xxl-none" type="button" data-bs-toggle="offcanvas" data-bs-target="{{ leftToggle.target }}" aria-label="{{ leftToggle.label|trans }}" title="{{ leftToggle.label|trans }}">
                     <i class="fa-solid {{ leftToggle.icon }}" aria-hidden="true"></i>
                 </button>
                 {% if showMidToggle %}
-                    <button class="btn btn-outline-light btn-navbar me-2 d-xxl-none" type="button" data-bs-toggle="offcanvas" data-bs-target="{{ midToggle.target }}" aria-label="{{ midToggle.label|trans }}" title="{{ midToggle.label|trans }}">
+                    <button class="btn btn-light btn-navbar me-2 d-xxl-none" type="button" data-bs-toggle="offcanvas" data-bs-target="{{ midToggle.target }}" aria-label="{{ midToggle.label|trans }}" title="{{ midToggle.label|trans }}">
                         <i class="fa-solid {{ midToggle.icon }}" aria-hidden="true"></i>
                     </button>
                 {% endif %}
@@ -57,7 +57,7 @@
             <div class="d-flex ms-auto align-items-center gap-1" style="position: relative; z-index: 1060;">
                 {% if not app.user %}
                     {# Guests have no user menu: keep dark mode and language up here. #}
-                    <button class="btn btn-outline-light btn-navbar" type="button" id="darkModeToggle" aria-label="{{ 'nav.toggle_dark_mode'|trans }}" title="{{ 'nav.toggle_dark_mode'|trans }}">
+                    <button class="btn btn-light btn-navbar" type="button" id="darkModeToggle" aria-label="{{ 'nav.toggle_dark_mode'|trans }}" title="{{ 'nav.toggle_dark_mode'|trans }}">
                         <i class="fa-solid fa-moon" aria-hidden="true"></i>
                     </button>
                     {% set currentUrl = app.request.uri %}
@@ -66,7 +66,7 @@
                         {% set lang2 = (currentLocale|default('en'))[:2] %}
                         {% set flagMap = {'de':'de','en':'gb'} %}
                         {% set currentFlag = flagMap[lang2]|default('gb') %}
-                        <button class="btn btn-outline-light btn-navbar dropdown-toggle" type="button" id="langDropdown" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ 'nav.change_language'|trans }}" title="{{ 'nav.change_language'|trans }}">
+                        <button class="btn btn-light btn-navbar dropdown-toggle" type="button" id="langDropdown" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ 'nav.change_language'|trans }}" title="{{ 'nav.change_language'|trans }}">
                             <span class="fi fi-{{ currentFlag }}" aria-hidden="true"></span>
                             <span class="visually-hidden">{{ 'nav.change_language'|trans }}</span>
                         </button>
@@ -98,7 +98,7 @@
                 {% endif %}
                 {% if app.user %}
                     <div class="dropdown">
-                        <button class="btn btn-outline-light btn-navbar {{ userMenuActive or userMenuSection != '' ? 'active' : '' }}" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ 'nav.open_user_menu'|trans }}" title="{{ 'nav.open_user_menu'|trans }}" {% if userMenuActive or userMenuSection != '' %}aria-current="page"{% endif %}>
+                        <button class="btn btn-light btn-navbar {{ userMenuActive or userMenuSection != '' ? 'active' : '' }}" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ 'nav.open_user_menu'|trans }}" title="{{ 'nav.open_user_menu'|trans }}" {% if userMenuActive or userMenuSection != '' %}aria-current="page"{% endif %}>
                             <i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">

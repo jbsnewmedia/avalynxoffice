@@ -10,9 +10,9 @@
     {% include 'calendar/_view_switcher.html.twig' with { view: view, viewLinks: viewLinks, small: true } %}
     {% if navigation %}
         <div class="btn-group" role="group" aria-label="{{ 'calendar.period_nav_aria'|trans }}">
-            <a href="{{ navigation.prev }}" class="btn btn-sm btn-outline-secondary" aria-label="{{ 'calendar.prev_period_aria'|trans }}" title="{{ 'calendar.prev_period'|trans }}"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></a>
-            <a href="{{ navigation.today }}" class="btn btn-sm btn-outline-secondary" aria-label="{{ 'calendar.today_aria'|trans }}" title="{{ 'calendar.today'|trans }}">{{ 'calendar.today'|trans }}</a>
-            <a href="{{ navigation.next }}" class="btn btn-sm btn-outline-secondary" aria-label="{{ 'calendar.next_period_aria'|trans }}" title="{{ 'calendar.next_period'|trans }}"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></a>
+            <a href="{{ navigation.prev }}" class="btn btn-sm btn-secondary" aria-label="{{ 'calendar.prev_period_aria'|trans }}" title="{{ 'calendar.prev_period'|trans }}"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></a>
+            <a href="{{ navigation.today }}" class="btn btn-sm btn-secondary" aria-label="{{ 'calendar.today_aria'|trans }}" title="{{ 'calendar.today'|trans }}">{{ 'calendar.today'|trans }}</a>
+            <a href="{{ navigation.next }}" class="btn btn-sm btn-secondary" aria-label="{{ 'calendar.next_period_aria'|trans }}" title="{{ 'calendar.next_period'|trans }}"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></a>
         </div>
     {% endif %}
     <span class="calendar-toolbar-title fs-5 fw-semibold ms-1">
