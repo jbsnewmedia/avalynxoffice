@@ -144,7 +144,7 @@ Das Projekt enthält einige maßgeschneiderte Befehle für die Mail-Verarbeitung
 
 ## 6a. Lizenzsystem
 
-Die technische Dokumentation steht in `docs/licensing.md`; die rechtlichen
+Die technische Dokumentation steht in [`licensing.de.md`](licensing.de.md); die rechtlichen
 Texte in `LICENSE`, `LICENSING.md` und `COMMERCIAL-LICENSE.md`.
 
 - **Status prüfen:** Administrationsoberfläche `/admin/license` (Rolle

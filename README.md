@@ -18,7 +18,7 @@ version 1.0** (`LICENSE`, `LICENSING.md`):
   (`COMMERCIAL-LICENSE.md`).
 - License keys are configured in the admin area (*License & Usage*) or via ENV
   (`AVALYNXOFFICE_LICENSE_KEYS`, `AVALYNXOFFICE_LICENSE_FILE`); technical
-  documentation lives in `docs/licensing.md`.
+  documentation lives in [`doc/licensing.md`](doc/licensing.md).
 - Exchange ActiveSync (iOS/Android/Outlook sync) is a **separate, optionally
   installable project** ([avalynxofficeeas](https://github.com/jbsnewmedia/avalynxofficeeas),
   AGPL-3.0) and not part of this repository.
@@ -186,7 +186,7 @@ Recommended order: **fetch** → **UI** → **send** → **reply** → `--delete
 - `src/Service/Mail/`: POP3 fetch (`Pop3Fetcher`), folder management (`FolderManager`), SMTP factory, attachment storage
 - `src/Licensing/`: license system (key validation, Active Seat accounting, grace period, read-only enforcement)
 - `src/Plugin/` + `plugins/jbsnewmedia/`: plugin loading and first-party bundles
-- `docs/`: technical documentation (e.g. `docs/licensing.md`)
+- `doc/`: technical documentation ([`doc/dev.md`](doc/dev.md), [`doc/licensing.md`](doc/licensing.md))
 - `docker/`: `docker/web` = dev stack, `docker/prod` = production image, `docker/postgres` = database
 
 ## Attachment storage
