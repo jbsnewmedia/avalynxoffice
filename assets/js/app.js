@@ -607,7 +607,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     defaultSelections,
                     onChange: (keys) => syncStorage(Array.isArray(keys) ? keys : [])
                 }, {
-                    placeholder: autocompleteInput.dataset.placeholder || 'Search…',
+                    placeholder: autocompleteInput.dataset.placeholder || '',
                     noResults: autocompleteInput.dataset.noResults || 'No results found',
                     clearTitle: autocompleteInput.dataset.clearTitle || 'Clear selection',
                     removeTitle: autocompleteInput.dataset.removeTitle || 'Remove'
@@ -1118,6 +1118,23 @@ document.addEventListener('DOMContentLoaded', function () {
                 modalLoader.classList.add('d-none');
                 modalContent.innerHTML = '<div class="alert alert-danger m-4">' + formLoadErrorText + '</div>';
             });
+        });
+    })();
+    (function(){
+        // Flash alerts marked with data-flash-auto-dismiss close themselves
+        // after the given delay (success/info only; danger/warning stay).
+        document.querySelectorAll('[data-flash-auto-dismiss]').forEach(function (alertEl) {
+            window.setTimeout(function () {
+                if (window.bootstrap && window.bootstrap.Alert) {
+                    window.bootstrap.Alert.getOrCreateInstance(alertEl).close();
+
+                    return;
+                }
+                alertEl.classList.remove('show');
+                alertEl.addEventListener('transitionend', function () {
+                    alertEl.remove();
+                }, { once: true });
+            }, parseInt(alertEl.dataset.flashAutoDismiss, 10) || 5000);
         });
     })();
     (function(){

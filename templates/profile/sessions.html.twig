@@ -19,7 +19,7 @@
                 <div class="d-flex justify-content-end mb-3">
                     <form method="post" action="{{ path('app_profile_sessions_revoke_others') }}">
                         <input type="hidden" name="_token" value="{{ csrf_token('session_revoke_others') }}">
-                        <button type="submit" class="btn btn-danger" aria-label="{{ 'profile.sessions.revoke_others'|trans }}">
+                        <button type="submit" class="btn btn-danger confirm-action" data-confirm="{{ 'profile.sessions.confirm_revoke_others'|trans }}" aria-label="{{ 'profile.sessions.revoke_others'|trans }}">
                             <i class="fa-solid fa-user-slash me-2" aria-hidden="true"></i>{{ 'profile.sessions.revoke_others'|trans }}
                         </button>
                     </form>
@@ -77,8 +77,8 @@
                                         {% else %}
                                             <form method="post" action="{{ path('app_profile_sessions_revoke', {id: session.id}) }}" class="d-inline">
                                                 <input type="hidden" name="_token" value="{{ csrf_token('session_revoke_' ~ session.id) }}">
-                                                <button type="submit" class="btn btn-sm btn-danger" aria-label="{{ 'profile.sessions.revoke'|trans }}" title="{{ 'profile.sessions.revoke'|trans }}">
-                                                    <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                                                <button type="submit" class="btn btn-sm btn-danger confirm-action" data-confirm="{{ 'profile.sessions.confirm_revoke'|trans }}" aria-label="{{ 'profile.sessions.revoke'|trans }}" title="{{ 'profile.sessions.revoke'|trans }}">
+                                                    <i class="fa-solid fa-trash" aria-hidden="true"></i>
                                                 </button>
                                             </form>
                                         {% endif %}

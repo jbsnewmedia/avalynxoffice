@@ -200,9 +200,9 @@ final class UserAdminController extends AbstractController
             $this->entityManager->flush();
         });
 
-        return AvalynxFormResponse::success($this->generateUrl('license_admin_users'), [
-            'message' => $this->translator->trans('admin.users.created'),
-        ]);
+        $this->addFlash('success', 'admin.users.created');
+
+        return AvalynxFormResponse::success($this->generateUrl('license_admin_users'));
     }
 
     #[Route(path: '/admin/users/{id}/edit', name: 'admin_users_edit', methods: ['GET'], requirements: ['id' => '[0-9a-fA-F\-]{36}'])]
@@ -320,9 +320,9 @@ final class UserAdminController extends AbstractController
             $this->entityManager->flush();
         });
 
-        return AvalynxFormResponse::success($this->generateUrl('license_admin_users'), [
-            'message' => $this->translator->trans('admin.users.updated'),
-        ]);
+        $this->addFlash('success', 'admin.users.updated');
+
+        return AvalynxFormResponse::success($this->generateUrl('license_admin_users'));
     }
 
     #[Route(path: '/admin/users/{id}/delete', name: 'admin_users_delete', methods: ['POST'], requirements: ['id' => '[0-9a-fA-F\-]{36}'])]

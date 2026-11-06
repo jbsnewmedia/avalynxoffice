@@ -89,19 +89,128 @@ Notes:
   (`php bin/console doctrine:migrations:version --all --add --no-interaction`),
   otherwise the container bootstrap entrypoint fails on the next restart.
 
-## Form validation
+## Form validation — inline only, never native popups (HARD RULE)
 
-- Forms validate **inline only** — no native browser validation popups.
-- On forms submitted via `data-avalynxform`, never rely on native blocking
-    attributes (`pattern`, `required`, `type="email"`, ...): the browser
-    balloon would prevent the submit event from ever firing. Add
-    `novalidate` to the form instead.
-- The server is the single source of truth: validate there and answer with
-    `AvalynxFormResponse::invalid(['field' => message])`. AvalynxForm then
-    renders the message inline (`is-invalid` class + `.invalid-feedback`).
-- Templates must ship an (empty) `.invalid-feedback` element next to the
-    field (wrap field + feedback in a `.form-group` container), otherwise
-    AvalynxForm has nowhere to render the inline message.
+Native browser validation balloons ("Bitte füllen Sie dieses Feld aus",
+pattern/type popups) are forbidden. **Every form validates inline at the
+inputs.** A full-project audit (2026-11-06) found the recurring failure
+mode: plain `<form>`s with `required` but without `novalidate` — the
+browser blocks the submit with a balloon before server or AvalynxForm
+ever see the data.
+
+### The one rule that covers everything
+
+**Every `<form>` that contains any user-input element (`input`,
+`select`, `textarea`) MUST carry `novalidate`.** Keep `required`,
+`pattern`, `maxlength`, `type="email"` in the markup (semantics, mobile
+keyboards, a11y) — but they must never block natively. Button-only
+forms (one submit button, no fields: revoke, delete, resend) cannot pop
+a balloon and may omit it.
+
+Quick audit (must print nothing but button-only forms):
+
+    grep -rn "<form" templates/ | grep -v novalidate
+    # check each hit for inputs with required/pattern/type=email
+
+### Variant A (default): AJAX form via AvalynxForm
+
+Template skeleton (copy from `templates/profile/recovery.html.twig` or
+`templates/profile/app_passwords.html.twig`):
+
+    <form action="..." method="post"
+          class="needs-validation" novalidate data-avalynxform="1">
+        <input type="hidden" name="_token" value="{{ csrf_token('...') }}">
+        <div class="form-group">
+            <label for="field" class="form-label visually-hidden">…</label>
+            <input id="field" name="field" class="form-control" required />
+            <div class="invalid-feedback" aria-live="polite"></div>
+        </div>
+        <button type="submit" class="btn btn-primary">…</button>
+    </form>
+
+- `data-avalynxform="1"` hands the form to `avalynx-form-init.js`
+  (fetch submit, inline rendering, client-side redirect following).
+- Every field ships an (empty) `.invalid-feedback` inside a
+  `.form-group` wrapper — otherwise the inline message has nowhere to
+  render.
+- The controller is the single source of truth and answers with
+  `AvalynxFormResponse` (JSON):
+    - **Field errors** → `AvalynxFormResponse::invalid(['field' => $msg])`
+      (HTTP 422; AvalynxForm renders `is-invalid` +
+      `.invalid-feedback` directly at the input). NEVER return field
+      errors as redirect+flash.
+    - **Form-level problems** (invalid CSRF token, rate limit, state
+      like "limit reached") → `AvalynxFormResponse::failure($msg)`
+      (AvalynxAlert).
+    - **Success** → `AvalynxFormResponse::success($this->generateUrl(...))`;
+      AvalynxForm follows the redirect client-side and the target page
+      renders the flash via `_flashes.html.twig`.
+- End-to-end reference implementations:
+  `templates/profile/recovery.html.twig` +
+  `ProfileController::addRecoveryAddress()`, and
+  `templates/profile/app_passwords.html.twig` +
+  `ProfileAppPasswordsController::create()`.
+
+### Variant B: classic POST form (only when AJAX is impossible)
+
+E.g. the login form (`templates/security/login.html.twig`): also
+`novalidate`; validation happens server-side and errors are rendered
+inline in the re-rendered template (`is-invalid` +
+`.invalid-feedback` or the security error slot inside the content
+area). Redirect+flash is for outcomes (saved, deleted, revoked) —
+never for field validation errors.
+
+### Checklist for every new or changed form
+
+1. Form has `novalidate` whenever it contains an input.
+2. AJAX form? → `data-avalynxform="1"` + `.form-group` + empty
+   `.invalid-feedback` next to every field.
+3. Controller validates server-side; field errors go through
+   `AvalynxFormResponse::invalid()`, never redirect+flash.
+4. Success path redirects (or `success($url)`); the target page shows
+   the flash in-content (`_flashes.html.twig`).
+5. The test suite covers the invalid path and asserts the JSON
+   `invalid` map (see `ProfileControllerTest::testRecoveryAddRequiresEmail`).
+
+## Form styling — placeholders everywhere, confirms on destructive actions
+
+**Placeholders: meaningful, translated, everywhere.** Every
+hand-written text-like `<input>`/`<textarea>` (`text`, `search`,
+`email`, `password`, `number`, `tel`, `url`, `textarea`) carries a
+`placeholder="{{ '<key>'|trans }}"` with a helpful example or hint
+("Suchen…", "name@example.com", "Mindestens 8 Zeichen"). Users need the
+hint to understand the field — never ship an empty `placeholder=""`.
+The visible label stays the source of truth; the placeholder is an
+example, not a label replacement. Exemptions: `hidden`, `checkbox`,
+`radio`, `file`, `submit`, `color` inputs, readonly value displays, and
+selects (their empty-choice placeholder is functional, e.g. the compose
+"From" selector). JS-built fields follow the same rule via
+`data-*`-placeholder attributes; the `|| ''` fallbacks in
+`assets/js/app.js` stay empty so a missing attribute can never produce
+an unexplained field.
+
+**Confirms on destructive actions.** Every delete/remove/revoke-style
+action gets a confirmation dialog: `class="... confirm-action"` +
+`data-confirm="{{ '<key>'|trans }}"` on the submit button (shared modal
+in `app.js`; reference implementations: profile recovery, app
+passwords, sessions, connector delete, license key delete). Translation
+key pattern: `<module>.confirm_<action>` in `messages.de.yaml` +
+`messages.en.yaml`. Read-only actions (e.g. "resend confirmation")
+never get a confirm.
+
+**Modal success feedback: flash after close, never a toast inside the
+open modal.** For `data-avalynxform` submissions that redirect:
+`$this->addFlash('success', '<key>')` +
+`AvalynxFormResponse::success($this->generateUrl(...))` — the redirect
+closes/reloads and the target page renders the flash in-content
+(reference: recovery, admin users create/update, admin system save).
+NEVER pass the `'message' => ...` extra on success responses: the
+onSuccess toast fires while the modal is still open, which reads as
+"alert first, modal closes afterwards". (`failure()` responses keep the
+toast — those must stay visible in place.) Success/info flashes
+auto-dismiss after 5 s via `data-flash-auto-dismiss` in
+`_flashes.html.twig` + the closer in `app.js`; danger/warning flashes
+stay until dismissed.
 
 ## Feedback placement (HARD RULE — never violate this)
 

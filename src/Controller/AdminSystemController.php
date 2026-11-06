@@ -97,9 +97,9 @@ final class AdminSystemController extends AbstractController
             'calendarLimit' => $calendarLimit,
         ]);
 
-        return AvalynxFormResponse::success($this->generateUrl('app_admin_system'), [
-            'message' => $this->translator->trans('admin.system.saved'),
-        ]);
+        $this->addFlash('success', 'admin.system.saved');
+
+        return AvalynxFormResponse::success($this->generateUrl('app_admin_system'));
     }
 
     /**

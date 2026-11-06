@@ -58,9 +58,12 @@ final class ProfileAppPasswordsControllerTest extends WebTestCase
         $csrf = $crawler->filter('form[action="/profile/app-passwords"] input[name="_token"]')->attr('value');
 
         $this->client->request('POST', '/profile/app-passwords', ['_token' => $csrf, 'label' => 'iPhone']);
-        self::assertResponseRedirects('/profile/app-passwords');
+        self::assertResponseIsSuccessful();
+        $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertTrue($data['success']);
+        self::assertSame('/profile/app-passwords', $data['redirect']);
 
-        $crawler = $this->client->followRedirect();
+        $crawler = $this->client->request('GET', '/profile/app-passwords');
         self::assertResponseIsSuccessful();
         $plain = $crawler->filter('#newAppPassword')->attr('value');
         self::assertMatchesRegularExpression('/^[a-z2-9]{5}(-[a-z2-9]{5}){3}$/', (string) $plain);
@@ -84,12 +87,17 @@ final class ProfileAppPasswordsControllerTest extends WebTestCase
     public function testCreateRejectsInvalidCsrfTokenAndEmptyLabel(): void
     {
         $this->client->request('POST', '/profile/app-passwords', ['_token' => 'invalid', 'label' => 'x']);
-        self::assertResponseRedirects('/profile/app-passwords');
+        self::assertResponseStatusCodeSame(403);
+        $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertFalse($data['success']);
 
         $crawler = $this->client->request('GET', '/profile/app-passwords');
         $csrf = $crawler->filter('form[action="/profile/app-passwords"] input[name="_token"]')->attr('value');
         $this->client->request('POST', '/profile/app-passwords', ['_token' => $csrf, 'label' => '   ']);
-        self::assertResponseRedirects('/profile/app-passwords');
+        self::assertResponseStatusCodeSame(422);
+        $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertFalse($data['success']);
+        self::assertArrayHasKey('label', $data['invalid']);
 
         $repository = static::getContainer()->get(UserAppPasswordRepository::class);
         self::assertCount(0, $repository->findActiveByUser($this->user));

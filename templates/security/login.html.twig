@@ -28,13 +28,13 @@
                         <form method="post" action="{{ path('app_login') }}" class="needs-validation" novalidate>
                             <div class="mb-3">
                                 <label for="inputEmail" class="form-label">{{ 'login.email'|trans }}</label>
-                                <input type="email" class="form-control" id="inputEmail" name="_username" value="{{ last_username }}" autocomplete="username" required autofocus />
+                                <input type="email" class="form-control" id="inputEmail" name="_username" value="{{ last_username }}" autocomplete="username" required autofocus placeholder="{{ 'common.email_placeholder'|trans }}" />
                                 <div class="invalid-feedback">{{ 'login.email_invalid'|trans }}</div>
                             </div>
                             <div class="mb-3">
                                 <label for="inputPassword" class="form-label">{{ 'login.password'|trans }}</label>
                                 <div class="input-group" id="passwordGroup">
-                                    <input type="password" class="form-control" id="inputPassword" name="_password" autocomplete="current-password" required />
+                                    <input type="password" class="form-control" id="inputPassword" name="_password" autocomplete="current-password" required placeholder="{{ 'login.password_placeholder'|trans }}" />
                                     <button class="btn btn-secondary" type="button" id="togglePassword" aria-label="{{ 'login.show_password'|trans }}" data-label-show="{{ 'login.show_password'|trans }}" data-label-hide="{{ 'login.hide_password'|trans }}">
                                         <i class="fa-solid fa-eye" aria-hidden="true"></i>
                                     </button>

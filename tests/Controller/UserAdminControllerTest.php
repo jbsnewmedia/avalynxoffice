@@ -336,7 +336,7 @@ final class UserAdminControllerTest extends WebTestCase
         $payload = $this->json();
         self::assertTrue($payload['success']);
         self::assertSame('/admin/users', $payload['redirect']);
-        self::assertSame('User was created.', $payload['message']);
+        self::assertArrayNotHasKey('message', $payload);
 
         $created = $this->em->getRepository(User::class)->findOneBy(['email' => 'new@example.com']);
         self::assertInstanceOf(User::class, $created);
@@ -448,7 +448,7 @@ final class UserAdminControllerTest extends WebTestCase
         $payload = $this->json();
         self::assertTrue($payload['success']);
         self::assertSame('/admin/users', $payload['redirect']);
-        self::assertSame('User was saved.', $payload['message']);
+        self::assertArrayNotHasKey('message', $payload);
 
         $this->em->clear();
         $updated = $this->em->find(User::class, $this->user->getId());
