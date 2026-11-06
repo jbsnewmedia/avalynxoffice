@@ -2,7 +2,7 @@
     active (string) — currently active profile section: 'overview'|'account'|'sessions'|'app_passwords'|'recovery'
 #}
 {% set profileNavItems = {
-    'overview': {route: 'app_profile', icon: 'fa-sliders', label: 'profile.nav.overview'},
+    'overview': {route: 'app_profile', icon: 'fa-gauge-high', label: 'profile.nav.overview'},
     'account': {route: 'app_profile_account', icon: 'fa-user', label: 'profile.nav.account'},
     'sessions': {route: 'app_profile_sessions', icon: 'fa-display', label: 'profile.nav.sessions'},
     'app_passwords': {route: 'app_profile_app_passwords', icon: 'fa-key', label: 'profile.nav.app_passwords'},
@@ -14,7 +14,6 @@
         <i class="fa-solid {{ profileNavCurrent.icon }} me-2" aria-hidden="true"></i>{{ profileNavCurrent.label|trans }}
     </button>
     <ul class="dropdown-menu" aria-labelledby="profileNavDropdown">
-        <li><hr class="dropdown-divider" aria-hidden="true"></li>
         {% for key, item in profileNavItems %}
             <li>
                 {% if key == active %}
@@ -27,6 +26,9 @@
                     </a>
                 {% endif %}
             </li>
+            {% if key == 'overview' %}
+                <li><hr class="dropdown-divider" aria-hidden="true"></li>
+            {% endif %}
         {% endfor %}
     </ul>
 </div>

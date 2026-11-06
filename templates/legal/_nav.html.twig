@@ -2,7 +2,7 @@
     active (string) — currently active legal section: 'overview'|'impressum'|'datenschutz'|'agb'
 #}
 {% set legalNavItems = {
-    'overview': {route: 'app_legal', params: {}, icon: 'fa-scale-balanced', label: 'legal.nav.overview'},
+    'overview': {route: 'app_legal', params: {}, icon: 'fa-gauge-high', label: 'legal.nav.overview'},
     'impressum': {route: 'app_legal_page', params: {page: 'impressum'}, icon: 'fa-file-contract', label: 'legal.impressum'},
     'datenschutz': {route: 'app_legal_page', params: {page: 'datenschutz'}, icon: 'fa-shield-halved', label: 'legal.datenschutz'},
     'agb': {route: 'app_legal_page', params: {page: 'agb'}, icon: 'fa-file-signature', label: 'legal.agb'},
@@ -13,7 +13,6 @@
         <i class="fa-solid {{ legalNavCurrent.icon }} me-2" aria-hidden="true"></i>{{ legalNavCurrent.label|trans }}
     </button>
     <ul class="dropdown-menu" aria-labelledby="legalNavDropdown">
-        <li><hr class="dropdown-divider" aria-hidden="true"></li>
         {% for key, item in legalNavItems %}
             <li>
                 {% if key == active %}
@@ -26,6 +25,9 @@
                     </a>
                 {% endif %}
             </li>
+            {% if key == 'overview' %}
+                <li><hr class="dropdown-divider" aria-hidden="true"></li>
+            {% endif %}
         {% endfor %}
     </ul>
 </div>

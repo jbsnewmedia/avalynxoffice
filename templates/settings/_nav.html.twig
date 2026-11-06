@@ -2,7 +2,7 @@
     active (string) — currently active settings section: 'overview'|'language'|'design'
 #}
 {% set settingsNavItems = {
-    'overview': {route: 'app_settings', icon: 'fa-sliders', label: 'settings.nav.overview'},
+    'overview': {route: 'app_settings', icon: 'fa-gauge-high', label: 'settings.nav.overview'},
     'language': {route: 'app_settings_language', icon: 'fa-language', label: 'settings.nav.language'},
     'design': {route: 'app_settings_design', icon: 'fa-palette', label: 'settings.nav.design'},
     'time': {route: 'app_settings_time', icon: 'fa-clock', label: 'settings.nav.time'},
@@ -13,7 +13,6 @@
         <i class="fa-solid {{ settingsNavCurrent.icon }} me-2" aria-hidden="true"></i>{{ settingsNavCurrent.label|trans }}
     </button>
     <ul class="dropdown-menu" aria-labelledby="settingsNavDropdown">
-        <li><hr class="dropdown-divider" aria-hidden="true"></li>
         {% for key, item in settingsNavItems %}
             <li>
                 {% if key == active %}
@@ -26,6 +25,9 @@
                     </a>
                 {% endif %}
             </li>
+            {% if key == 'overview' %}
+                <li><hr class="dropdown-divider" aria-hidden="true"></li>
+            {% endif %}
         {% endfor %}
     </ul>
 </div>
