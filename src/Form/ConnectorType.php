@@ -11,7 +11,9 @@ namespace AvalynxOffice\Form;
 
 use AvalynxOffice\Entity\Account;
 use AvalynxOffice\Entity\Connector;
+use AvalynxOffice\Form\DataTransformer\IdnToAsciiTransformer;
 use AvalynxOffice\Repository\AccountRepository;
+use AvalynxOffice\Service\Idn\IdnService;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
@@ -32,6 +34,11 @@ use Symfony\Component\Validator\Constraints\Regex;
  */
 class ConnectorType extends AbstractType
 {
+    public function __construct(
+        private readonly IdnService $idnService,
+    ) {
+    }
+
     #[\Override]
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
@@ -80,7 +87,7 @@ class ConnectorType extends AbstractType
                 'label' => 'connector.default_account',
                 'label_attr' => ['class' => 'form-label'],
                 'class' => Account::class,
-                'choice_label' => static fn (Account $account): string => sprintf('%s (%s)', $account->getName(), $account->getEmail()),
+                'choice_label' => fn (Account $account): string => sprintf('%s (%s)', $account->getName(), $this->idnService->toUnicode($account->getEmail())),
                 'query_builder' => static fn (AccountRepository $repository) => $repository->createQueryBuilder('a')->orderBy('a.name', 'ASC'),
                 'placeholder' => 'connector.no_default_account',
                 'required' => false,
@@ -92,6 +99,11 @@ class ConnectorType extends AbstractType
                 'attr' => ['class' => 'btn btn-primary'],
             ])
         ;
+
+        // IDN input ("bästoff.de") is stored as punycode ("xn--bstoff-bua.de"):
+        // the ASCII-only regex above and the mail-dump directory name both rely
+        // on it. The form view shows the stored value decoded.
+        $builder->get('domain')->addViewTransformer(new IdnToAsciiTransformer($this->idnService));
     }
 
     #[\Override]

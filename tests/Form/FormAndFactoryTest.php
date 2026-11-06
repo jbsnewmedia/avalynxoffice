@@ -91,7 +91,8 @@ final class FormAndFactoryTest extends TestCase
         $addedFields = [];
         $builder = $this->createBuilderSpy($addedFields);
 
-        (new ConnectorType())->buildForm($builder, []);
+        $connectorType = new ConnectorType(new \AvalynxOffice\Service\Idn\IdnService());
+        $connectorType->buildForm($builder, []);
 
         self::assertSame([
             'name',
@@ -103,7 +104,7 @@ final class FormAndFactoryTest extends TestCase
         ], array_column($addedFields, 0));
 
         $resolver = new OptionsResolver();
-        (new ConnectorType())->configureOptions($resolver);
+        $connectorType->configureOptions($resolver);
 
         $resolved = $resolver->resolve();
         self::assertSame(Connector::class, $resolved['data_class']);

@@ -3,9 +3,7 @@ security:
         Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface: 'auto'
     providers:
         app_user_provider:
-            entity:
-                class: AvalynxOffice\Entity\User
-                property: email
+            id: AvalynxOffice\Security\AppUserProvider
     firewalls:
         dev:
             pattern: ^/(_(profiler|wdt)|css|images|js)/

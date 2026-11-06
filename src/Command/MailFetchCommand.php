@@ -13,6 +13,7 @@ use AvalynxOffice\Entity\Connector;
 use AvalynxOffice\Plugin\Contract\ConnectorFetchRequest;
 use AvalynxOffice\Repository\ConnectorRepository;
 use AvalynxOffice\Service\ConnectorPluginRegistry;
+use AvalynxOffice\Service\Idn\IdnService;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -28,6 +29,7 @@ class MailFetchCommand extends Command
     public function __construct(
         private readonly ConnectorRepository $connectorRepo,
         private readonly ConnectorPluginRegistry $pluginRegistry,
+        private readonly IdnService $idnService,
     ) {
         parent::__construct();
     }
@@ -96,7 +98,7 @@ class MailFetchCommand extends Command
         $totalSkipped = 0;
         $totalErrors = 0;
         foreach ($connectors as $connector) {
-            $label = sprintf('%s (%s)', $connector->getName(), $connector->getDomain());
+            $label = sprintf('%s (%s)', $connector->getName(), $this->idnService->toUnicode($connector->getDomain()));
             $fetchers = $this->pluginRegistry->getFetchers($connector);
             if ([] === $fetchers) {
                 $output->writeln(sprintf('<comment>[%s]</comment> Kein Eingangs-Plugin konfiguriert.', $label));

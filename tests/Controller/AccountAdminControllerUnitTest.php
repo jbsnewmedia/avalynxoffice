@@ -18,7 +18,7 @@ final class AccountAdminControllerUnitTest extends TestCase
         $translator = $this->createStub(TranslatorInterface::class);
         $csrfTokenManager = $this->createStub(CsrfTokenManagerInterface::class);
 
-        return new AccountAdminController($translator, new AllowAllLicenseEnforcement(), $csrfTokenManager, $this->createStub(\AvalynxOffice\Repository\AccountRepository::class));
+        return new AccountAdminController($translator, new AllowAllLicenseEnforcement(), $csrfTokenManager, $this->createStub(\AvalynxOffice\Repository\AccountRepository::class), new \AvalynxOffice\Service\Idn\IdnService());
     }
 
     /**

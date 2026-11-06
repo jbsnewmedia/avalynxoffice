@@ -201,7 +201,7 @@ final class UserAdminControllerTest extends WebTestCase
         self::assertArrayHasKey('id', $row);
         self::assertStringContainsString('>User<', $row['roles']);
         self::assertStringContainsString('fa-check', $row['active']);
-        self::assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/', $row['lastAuthAt']);
+        self::assertMatchesRegularExpression('/^\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}$/', $row['lastAuthAt']);
         self::assertStringContainsString($this->generateUrl('admin_users_edit', ['id' => $row['id']]), $row['options']);
         self::assertStringContainsString($this->generateUrl('admin_users_delete', ['id' => $row['id']]), $row['options']);
         self::assertStringContainsString('confirm-action', $row['options']);
@@ -225,6 +225,28 @@ final class UserAdminControllerTest extends WebTestCase
         $this->em->flush();
         $data = $this->fetchData(['search' => 'user@']);
         self::assertStringContainsString('text-body-secondary', $data['data'][0]['data']['lastAuthAt']);
+    }
+
+    public function testDataRendersLastAuthWithFormatAndTimezonePreferences(): void
+    {
+        // The viewing admin configured the ISO format and Europe/Berlin: the
+        // date column must render exactly like the user_datetime filter does.
+        $this->em->clear();
+        $admin = $this->em->find(User::class, $this->admin->getId());
+        \assert($admin instanceof User);
+        $admin->setTimeFormat('iso');
+        $admin->setTimezone('Europe/Berlin');
+
+        $user = $this->em->find(User::class, $this->user->getId());
+        \assert($user instanceof User);
+        $user->setLastAuthAt(new \DateTimeImmutable('2026-06-15 10:00:00', new \DateTimeZone('UTC')));
+        $this->em->flush();
+
+        $this->client->loginUser($admin);
+        $data = $this->fetchData(['search' => 'user@']);
+
+        // 10:00 UTC is 12:00 in Europe/Berlin (UTC+2, summer time).
+        self::assertSame('2026-06-15 12:00:00', $data['data'][0]['data']['lastAuthAt']);
     }
 
     public function testNewModalRequiresXmlHttpRequest(): void

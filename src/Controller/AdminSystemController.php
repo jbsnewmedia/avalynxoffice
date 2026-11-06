@@ -14,6 +14,7 @@ use AvalynxOffice\Form\SyncSettingsType;
 use AvalynxOffice\Repository\ConnectorRepository;
 use AvalynxOffice\Repository\SyncRunRepository;
 use AvalynxOffice\Service\ConnectorPluginRegistry;
+use AvalynxOffice\Service\Idn\IdnService;
 use AvalynxOffice\Service\Sync\SyncSettingsService;
 use AvalynxOffice\Util\AvalynxFormResponse;
 use AvalynxOffice\Util\FormInvalidMapper;
@@ -40,6 +41,7 @@ final class AdminSystemController extends AbstractController
         private readonly SyncSettingsService $syncSettings,
         private readonly SyncRunRepository $syncRunRepository,
         private readonly TranslatorInterface $translator,
+        private readonly IdnService $idnService,
     ) {
     }
 
@@ -129,7 +131,7 @@ final class AdminSystemController extends AbstractController
             $plugin = null !== $pluginKey ? $pluginRegistry->get($pluginKey) : null;
             $connectors[] = [
                 'name' => $connector->getName(),
-                'domain' => $connector->getDomain(),
+                'domain' => $this->idnService->toUnicode($connector->getDomain()),
                 'settingsUrl' => $this->generateUrl('connector_settings', ['id' => $connector->getId()]),
                 'plugin' => null !== $plugin ? $this->translator->trans($plugin->getName()) : $pluginKey,
                 'inputConfigured' => $pluginRegistry->isInputConfigured($connector),
