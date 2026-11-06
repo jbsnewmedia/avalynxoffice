@@ -13,6 +13,7 @@ use AvalynxOffice\Entity\PasswordResetRequest;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Repository\PasswordResetRequestRepository;
 use AvalynxOffice\Repository\UserRepository;
+use AvalynxOffice\Service\Idn\IdnService;
 use AvalynxOffice\Service\Login\LoginSessionService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
@@ -60,6 +61,7 @@ final readonly class AdminPasswordResetService
         private EntityManagerInterface $entityManager,
         private UserPasswordHasherInterface $passwordHasher,
         private ?LoginSessionService $loginSessionService = null,
+        private IdnService $idnService = new IdnService(),
     ) {
     }
 
@@ -85,7 +87,7 @@ final readonly class AdminPasswordResetService
         int $claimTtl = PasswordResetRequest::CLAIM_TTL_SECONDS,
         int $releaseTtl = PasswordResetRequest::RELEASE_TTL_SECONDS,
     ): array {
-        $user = $this->userRepository->findOneBy(['email' => strtolower($email)]);
+        $user = $this->userRepository->findOneBy(['email' => $this->idnService->toAscii(strtolower($email))]);
 
         if (null === $user || !$user->isActive()) {
             throw new \DomainException('No active user with this email address.');

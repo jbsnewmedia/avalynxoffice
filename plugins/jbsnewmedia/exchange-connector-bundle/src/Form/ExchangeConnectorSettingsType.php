@@ -61,6 +61,22 @@ class ExchangeConnectorSettingsType extends AbstractType
                 'required' => false,
                 'help' => 'connector.exchange_host_help',
             ])
+            ->addEventListener(FormEvents::PRE_SUBMIT, static function (PreSubmitEvent $event): void {
+                // IDN hosts are normalized to punycode: the EWS connection
+                // (stream client) can only resolve ASCII host names.
+                $data = $event->getData();
+                if (!is_array($data)) {
+                    return;
+                }
+                $host = $data['ewsHost'] ?? null;
+                if (is_string($host) && '' !== trim($host) && function_exists('idn_to_ascii')) {
+                    $ascii = idn_to_ascii(trim($host), IDNA_DEFAULT, INTL_IDNA_VARIANT_UTS46);
+                    if (is_string($ascii) && '' !== $ascii) {
+                        $data['ewsHost'] = $ascii;
+                    }
+                }
+                $event->setData($data);
+            })
             ->add('ewsUsername', TextType::class, [
                 'label' => 'connector.exchange_username',
                 'required' => false,

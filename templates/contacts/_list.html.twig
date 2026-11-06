@@ -8,7 +8,7 @@
         <div class="input-group search-group">
             <input type="search" class="form-control" id="contact-search-input" name="q" value="{{ search }}" placeholder="{{ 'search.placeholder'|trans }}" aria-label="{{ 'contact.search'|trans }}">
             {% if search is not empty %}
-                <a class="btn btn-outline-secondary" type="button" href="{{ contactBasePath }}" aria-label="{{ 'search.clear'|trans }}" title="{{ 'search.clear'|trans }}">
+                <a class="btn btn-secondary" type="button" href="{{ contactBasePath }}" aria-label="{{ 'search.clear'|trans }}" title="{{ 'search.clear'|trans }}">
                     <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                 </a>
             {% endif %}
@@ -41,7 +41,7 @@
                         <span class="d-block fw-semibold text-truncate">{{ contact.displayName }}</span>
                         <span class="d-block small text-body-secondary text-truncate">
                             {% if contact.email != fallbackEmail %}
-                                <i class="fa-solid fa-envelope me-1" aria-hidden="true"></i>{{ contact.email }}
+                                <i class="fa-solid fa-envelope me-1" aria-hidden="true"></i>{{ contact.email|idn_to_utf8 }}
                             {% endif %}
                             {% if contact.company is not empty %}
                                 {% if contact.email != fallbackEmail %}<span class="mx-1" aria-hidden="true">&middot;</span>{% endif %}<i class="fa-solid fa-building me-1" aria-hidden="true"></i>{{ contact.company }}

@@ -13,6 +13,7 @@ use AvalynxOffice\Entity\RecoveryAddress;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Repository\RecoveryAddressRepository;
 use AvalynxOffice\Repository\UserRepository;
+use AvalynxOffice\Service\Idn\IdnService;
 use Symfony\Component\HttpFoundation\UriSigner;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Mime\Address;
@@ -58,6 +59,7 @@ final readonly class UserService
         private string $systemMailerFromAddress,
         private UriSigner $uriSigner,
         private UserPasswordHasherInterface $passwordHasher,
+        private IdnService $idnService = new IdnService(),
     ) {
     }
 
@@ -127,7 +129,13 @@ final readonly class UserService
      */
     public function addRecoveryAddress(User $user, string $email, \Closure $verifyUrlFor): RecoveryAddress
     {
-        $normalized = strtolower($email);
+        // Canonical punycode form (matching the user emails the recovery
+        // code flow is matched against).
+        $normalized = $this->idnService->toAscii(strtolower($email));
+
+        if ('' === $normalized) {
+            throw new \DomainException('The recovery address must not be empty.');
+        }
 
         if (count($user->getRecoveryAddresses()) >= self::MAX_RECOVERY_ADDRESSES) {
             throw new \DomainException(sprintf('A user may register at most %d recovery addresses.', self::MAX_RECOVERY_ADDRESSES));

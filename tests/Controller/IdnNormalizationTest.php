@@ -9,6 +9,7 @@ declare(strict_types=1);
 
 namespace AvalynxOffice\Tests\Controller;
 
+use AvalynxOffice\Entity\Account;
 use AvalynxOffice\Entity\Connector;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Tests\Support\RefreshDatabaseTrait;
@@ -169,6 +170,44 @@ final class IdnNormalizationTest extends WebTestCase
         $content = (string) $this->client->getResponse()->getContent();
         self::assertStringContainsString('jbo@bästoff.de', $content);
         self::assertStringNotContainsString('xn--bstoff-bua.de', $content);
+    }
+
+    public function testAccountCreateStoresUnicodeEmailAsPunycodeAndDecodesIt(): void
+    {
+        $this->client->loginUser($this->admin);
+        $crawler = $this->client->request('GET', '/admin/accounts/new', [], [], ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        self::assertResponseIsSuccessful();
+        $token = $crawler->filter('input[name="account[_token]"]')->attr('value');
+        \assert(is_string($token));
+
+        $this->client->request('POST', '/admin/accounts/new', [
+            'account' => [
+                'name' => 'Info Konto',
+                'email' => 'info@bästoff.de',
+                'folders' => (string) json_encode([[
+                    'name' => 'Posteingang',
+                    'sortOrder' => 0,
+                    'functions' => ['mailbox', 'inbox', 'outbox', 'scheduled', 'drafts', 'trash'],
+                ]], JSON_UNESCAPED_UNICODE),
+                '_token' => $token,
+            ],
+        ], [], ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+
+        self::assertResponseIsSuccessful();
+        $payload = json_decode((string) $this->client->getResponse()->getContent(), true);
+        self::assertIsArray($payload);
+        self::assertTrue($payload['success'], (string) $this->client->getResponse()->getContent());
+
+        $account = $this->em->getRepository(Account::class)->findOneBy(['email' => 'info@xn--bstoff-bua.de']);
+        self::assertNotNull($account, 'The unicode account email must be stored in its punycode form.');
+
+        // The admin account table shows the stored address decoded again.
+        $this->client->request('POST', '/admin/accounts/data', ['_token' => $this->setCsrfToken('datatable')]);
+        self::assertResponseIsSuccessful();
+        $payload = json_decode((string) $this->client->getResponse()->getContent(), true);
+        self::assertIsArray($payload);
+        $emails = array_column(array_column($payload['data'], 'data'), 'email');
+        self::assertContains('info@bästoff.de', $emails);
     }
 
     /**

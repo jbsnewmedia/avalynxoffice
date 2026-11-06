@@ -11,6 +11,7 @@ namespace AvalynxOffice\Command;
 
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Licensing\Service\LicenseEnforcementInterface;
+use AvalynxOffice\Service\Idn\IdnService;
 use AvalynxOffice\Service\UserService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -48,6 +49,7 @@ class UserCreateCommand extends Command
         private readonly UserPasswordHasherInterface $passwordHasher,
         private readonly LicenseEnforcementInterface $licenseEnforcement,
         private readonly UserService $userService,
+        private readonly IdnService $idnService = new IdnService(),
     ) {
         parent::__construct();
     }
@@ -72,6 +74,9 @@ class UserCreateCommand extends Command
             $emailArgument = self::env('OFFICE_ADMIN_EMAIL');
         }
         $email = is_string($emailArgument) ? trim($emailArgument) : '';
+        // IDN domains are normalized to the stored punycode form, so both
+        // "user@xn--bstoff-bua.de" and "user@bästoff.de" are accepted.
+        $email = $this->idnService->toAscii($email);
         $passwordArgument = $input->getOption('password');
         if (!is_string($passwordArgument) || '' === $passwordArgument) {
             $passwordArgument = self::env('OFFICE_ADMIN_PASSWORD');

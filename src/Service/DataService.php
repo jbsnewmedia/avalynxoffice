@@ -18,11 +18,13 @@ use AvalynxOffice\Entity\EmailAttachmentLink;
 use AvalynxOffice\Entity\EmailBodyLink;
 use AvalynxOffice\Entity\Folder;
 use AvalynxOffice\Repository\FolderRepository;
+use AvalynxOffice\Service\Idn\IdnService;
 
 class DataService
 {
     public function __construct(
         private readonly FolderRepository $folderRepo,
+        private readonly IdnService $idnService = new IdnService(),
     ) {
     }
 
@@ -44,7 +46,7 @@ class DataService
                 'type' => $link->getType()->value,
                 'address' => [
                     'id' => (string) $link->getAddress()?->getId(),
-                    'email' => $link->getAddress()?->getEmail(),
+                    'email' => null !== $link->getAddress() ? $this->idnService->toUnicode($link->getAddress()->getEmail()) : null,
                     'name' => $link->getAddress()?->getName(),
                 ],
             ], $e->getEmailAddresses()->toArray()),
@@ -93,7 +95,7 @@ class DataService
             return [
                 'id' => (string) $mb->getId(),
                 'name' => $mb->getName(),
-                'email' => $mb->getEmail(),
+                'email' => $this->idnService->toUnicode($mb->getEmail()),
                 'aliases' => array_map(static fn (AccountAlias $alias): array => [
                     'id' => (string) $alias->getId(),
                     'localPart' => $alias->getLocalPart(),

@@ -41,7 +41,7 @@
                 {% if contact.email == fallbackEmail %}
                     <span class="text-body-secondary">–</span>
                 {% else %}
-                    <a href="mailto:{{ contact.email }}">{{ contact.email }}</a>
+                    <a href="mailto:{{ contact.email }}">{{ contact.email|idn_to_utf8 }}</a>
                 {% endif %}
             </dd>
             <dt class="col-sm-3"><i class="fa-solid fa-mobile-screen me-2 text-body-secondary" aria-hidden="true"></i>{{ 'contact.phone.mobile'|trans }}</dt>

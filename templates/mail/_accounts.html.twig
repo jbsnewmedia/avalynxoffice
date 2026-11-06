@@ -2,7 +2,7 @@
     <h6 class="text-uppercase text-body-secondary fw-bold small mb-2">{{ 'mail.accounts'|trans }}</h6>
     <div class="dropdown w-100 mb-3 account-dropdown" data-bs-auto-close="outside">
         {% set activeLabel = activeAccount ? (activeAccount.name ?: activeAccount.email) : ('mail.all'|trans) %}
-        <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start d-flex align-items-center" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ 'mail.switch_account'|trans }}">
+        <button class="btn btn-secondary dropdown-toggle w-100 text-start d-flex align-items-center" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{ 'mail.switch_account'|trans }}">
             <i class="fa-solid fa-inbox me-2" aria-hidden="true"></i>
             <span class="flex-grow-1">{{ activeLabel }}</span>
         </button>
@@ -11,7 +11,7 @@
                 <div class="input-group input-group-sm search-group">
                     <span class="input-group-text" id="account-search-label"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></span>
                     <input type="text" class="form-control account-search" placeholder="{{ 'search.placeholder'|trans }}" aria-label="{{ 'mail.search_accounts'|trans }}" aria-describedby="account-search-label">
-                    <button class="btn btn-outline-secondary d-none" type="button" title="{{ 'search.clear'|trans }}" aria-label="{{ 'search.clear'|trans }}" data-action="clear-account-search">
+                    <button class="btn btn-secondary d-none" type="button" title="{{ 'search.clear'|trans }}" aria-label="{{ 'search.clear'|trans }}" data-action="clear-account-search">
                         <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                     </button>
                 </div>
@@ -31,7 +31,7 @@
                        href="{{ firstFolder ? path('mail_folder', {accountId: mb.id, folderId: firstFolder.id}) : path('mail_index') }}"
                        aria-label="{{ 'mail.open_account'|trans({'%name%': mb.name ?: mb.email}) }}">
                         <i class="fa-solid fa-inbox me-2" aria-hidden="true"></i>
-                        {{ mb.name ?: mb.email }}
+                        {{ mb.name ?: mb.email|idn_to_utf8 }}
                     </a>
                 </li>
             {% else %}

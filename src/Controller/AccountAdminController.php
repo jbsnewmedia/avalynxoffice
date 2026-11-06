@@ -111,7 +111,7 @@ class AccountAdminController extends AbstractController
                 'data' => [
                     'id' => $account->getId()?->toRfc4122(),
                     'name' => htmlspecialchars($account->getName(), ENT_QUOTES, 'UTF-8'),
-                    'email' => htmlspecialchars($account->getEmail(), ENT_QUOTES, 'UTF-8'),
+                    'email' => htmlspecialchars($this->idnService->toUnicode($account->getEmail()), ENT_QUOTES, 'UTF-8'),
                     'users' => $this->renderUsers($account),
                     'aliases' => $this->renderAliases($account),
                     'folders' => $this->renderFolders($account),

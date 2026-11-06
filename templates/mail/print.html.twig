@@ -24,7 +24,7 @@
             <div>
                 {% for link in email.emailAddresses %}
                     {% if link.type.value == 'sender' %}
-                        <strong>{{ 'email.from'|trans }}:</strong> {{ link.address.name ?: link.address.email }} &lt;{{ link.address.email }}&gt;
+                        <strong>{{ 'email.from'|trans }}:</strong> {{ link.address.name ?: link.address.email|idn_to_utf8 }} &lt;{{ link.address.email|idn_to_utf8 }}&gt;
                     {% endif %}
                 {% endfor %}
             </div>

@@ -324,7 +324,7 @@ class ConnectorAdminController extends AbstractController
         }
 
         return '<div>'.htmlspecialchars($defaultAccount->getName(), ENT_QUOTES, 'UTF-8').'</div>'
-            .'<div class="small text-body-secondary">'.htmlspecialchars($defaultAccount->getEmail(), ENT_QUOTES, 'UTF-8').'</div>';
+            .'<div class="small text-body-secondary">'.htmlspecialchars($this->idnService->toUnicode($defaultAccount->getEmail()), ENT_QUOTES, 'UTF-8').'</div>';
     }
 
     private function renderConfiguredBadge(bool $configured): string

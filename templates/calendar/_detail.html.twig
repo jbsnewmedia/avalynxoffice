@@ -1,7 +1,7 @@
 <div class="sticky-top bg-body border-bottom shadow-sm">
     {% if activeAccountId|default(null) == 'all' and activeEvent.account is not null %}
         <div class="account-tag bg-body-tertiary text-body-secondary small px-3 py-1 border-bottom" style="font-size: 0.75rem;">
-            <i class="fa-solid fa-inbox me-1 small" aria-hidden="true"></i>{{ activeEvent.account.name ?: activeEvent.account.email }}
+            <i class="fa-solid fa-inbox me-1 small" aria-hidden="true"></i>{{ activeEvent.account.name ?: activeEvent.account.email|idn_to_utf8 }}
         </div>
     {% endif %}
     <div class="p-3 email-action-bar d-flex justify-content-between align-items-center">
@@ -53,7 +53,7 @@
             {% endif %}
             {% if activeEvent.account is not null %}
                 <dt class="col-sm-3"><i class="fa-solid fa-inbox me-2 text-body-secondary" aria-hidden="true"></i>{{ 'calendar.account'|trans }}</dt>
-                <dd class="col-sm-9 text-break">{{ activeEvent.account.email }}</dd>
+                <dd class="col-sm-9 text-break">{{ activeEvent.account.email|idn_to_utf8 }}</dd>
             {% endif %}
             {% if activeEvent.busyStatus is not null %}
                 <dt class="col-sm-3"><i class="fa-solid fa-hourglass-half me-2 text-body-secondary" aria-hidden="true"></i>{{ 'calendar.form.busy'|trans }}</dt>
