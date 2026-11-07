@@ -176,10 +176,6 @@ final class AdminControllerTest extends WebTestCase
         $createValues['account']['name'] = 'Created Account';
         $createValues['account']['email'] = 'created@example.com';
         $connector = $this->createConnector($this->createAccount('Alias Source', 'alias-source@example.com'), 'Example', 'alias@example.com');
-        $createValues['account']['aliases'] = json_encode([
-            ['connectorId' => (string) $connector->getId(), 'localPart' => 'alias'],
-        ], JSON_THROW_ON_ERROR);
-        $createValues['account']['folders'] = $this->requiredFoldersPayload();
 
         $this->client->request('POST', '/admin/accounts/new', $createValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
@@ -191,8 +187,10 @@ final class AdminControllerTest extends WebTestCase
         $createdAccount = $this->entityManager->getRepository(Account::class)->findOneBy(['email' => 'created@example.com']);
         self::assertInstanceOf(Account::class, $createdAccount);
         self::assertSame('Created Account', $createdAccount->getName());
+        // The required system folders are created automatically; the alias
+        // is added afterwards in the edit dialog.
         self::assertCount(6, $createdAccount->getFolders());
-        self::assertCount(1, $createdAccount->getAliases());
+        self::assertCount(0, $createdAccount->getAliases());
 
         $editCrawler = $this->client->request('GET', sprintf('/admin/accounts/%s/edit', $createdAccount->getId()), server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
@@ -201,7 +199,9 @@ final class AdminControllerTest extends WebTestCase
         $editValues = $editForm->getPhpValues();
         $editValues['account']['name'] = 'Updated Account';
         $editValues['account']['email'] = 'updated@example.com';
-        $editValues['account']['aliases'] = '[]';
+        $editValues['account']['aliases'] = json_encode([
+            ['connectorId' => (string) $connector->getId(), 'localPart' => 'alias'],
+        ], JSON_THROW_ON_ERROR);
         $editValues['account']['folders'] = $this->requiredFoldersPayload();
 
         $this->client->request('POST', sprintf('/admin/accounts/%s/edit', $createdAccount->getId()), $editValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
@@ -229,17 +229,36 @@ final class AdminControllerTest extends WebTestCase
     {
         $this->loginAdmin();
 
+        // Create collects the basics only; aliases and folders are validated
+        // in the edit dialog afterwards.
         $createCrawler = $this->client->request('GET', '/admin/accounts/new', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
 
         $createForm = $createCrawler->filter('form')->form();
         $createValues = $createForm->getPhpValues();
-        $createValues['account']['name'] = 'Invalid Account';
-        $createValues['account']['email'] = 'invalid@example.com';
-        $createValues['account']['aliases'] = json_encode([
+        $createValues['account']['name'] = 'Validation Account';
+        $createValues['account']['email'] = 'validation@example.com';
+
+        $this->client->request('POST', '/admin/accounts/new', $createValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        self::assertResponseIsSuccessful();
+        $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertTrue($data['success']);
+
+        $this->entityManager->clear();
+        $account = $this->entityManager->getRepository(Account::class)->findOneBy(['email' => 'validation@example.com']);
+        self::assertInstanceOf(Account::class, $account);
+        $accountId = (string) $account->getId();
+
+        // Edit: unknown connector alias and a duplicate folder function.
+        $editCrawler = $this->client->request('GET', sprintf('/admin/accounts/%s/edit', $accountId), server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        self::assertResponseIsSuccessful();
+
+        $editForm = $editCrawler->filter('form')->form();
+        $editValues = $editForm->getPhpValues();
+        $editValues['account']['aliases'] = json_encode([
             ['connectorId' => 'unknown-id', 'localPart' => 'broken'],
         ], JSON_THROW_ON_ERROR);
-        $createValues['account']['folders'] = json_encode([
+        $editValues['account']['folders'] = json_encode([
             [
                 'name' => 'Posteingang',
                 'sortOrder' => -90,
@@ -252,15 +271,14 @@ final class AdminControllerTest extends WebTestCase
             ],
         ], JSON_THROW_ON_ERROR);
 
-        $this->client->request('POST', '/admin/accounts/new', $createValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $this->client->request('POST', sprintf('/admin/accounts/%s/edit', $accountId), $editValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseStatusCodeSame(422);
         $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
         self::assertFalse($data['success']);
         self::assertArrayHasKey('account[aliases]', $data['invalid']);
         self::assertArrayHasKey('account[folders]', $data['invalid']);
-        self::assertNull($this->entityManager->getRepository(Account::class)->findOneBy(['email' => 'invalid@example.com']));
 
-        // Create: conflicting alias that already belongs to another account.
+        // Edit: conflicting alias that already belongs to another account.
         $conflictSource = $this->createAccount('Conflict Source', 'conflict-source@example.com');
         $conflictConnector = $this->createConnector($conflictSource, 'Example', 'conflict@example.com');
         $conflictAlias = (new AccountAlias())->setAccount($conflictSource)->setConnector($conflictConnector)->setLocalPart('conflict');
@@ -268,22 +286,20 @@ final class AdminControllerTest extends WebTestCase
         $this->entityManager->persist($conflictAlias);
         $this->entityManager->flush();
 
-        $createCrawler = $this->client->request('GET', '/admin/accounts/new', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
-        $createForm = $createCrawler->filter('form')->form();
-        $createValues = $createForm->getPhpValues();
-        $createValues['account']['name'] = 'Conflict Account';
-        $createValues['account']['email'] = 'conflict-account@example.com';
-        $createValues['account']['aliases'] = json_encode([
+        $editCrawler = $this->client->request('GET', sprintf('/admin/accounts/%s/edit', $accountId), server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $editForm = $editCrawler->filter('form')->form();
+        $editValues = $editForm->getPhpValues();
+        $editValues['account']['aliases'] = json_encode([
             ['connectorId' => (string) $conflictConnector->getId(), 'localPart' => 'conflict'],
         ], JSON_THROW_ON_ERROR);
-        $createValues['account']['folders'] = $this->requiredFoldersPayload();
 
-        $this->client->request('POST', '/admin/accounts/new', $createValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $this->client->request('POST', sprintf('/admin/accounts/%s/edit', $accountId), $editValues, server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseStatusCodeSame(422);
         $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
         self::assertFalse($data['success']);
         self::assertArrayHasKey('account[aliases]', $data['invalid']);
 
+        // Edit: removing a folder that still holds emails is blocked.
         $account = $this->createAccountWithBlockedFolder('Blocked Account', 'blocked@example.com');
         $editCrawler = $this->client->request('GET', sprintf('/admin/accounts/%s/edit', $account->getId()), server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();

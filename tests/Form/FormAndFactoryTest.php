@@ -66,6 +66,7 @@ final class FormAndFactoryTest extends TestCase
             'aliases_data' => 'aliases',
             'folders_data' => 'folders',
             'users_data' => [],
+            'is_edit' => true,
         ];
 
         (new AccountType())->buildForm($builder, $options);
@@ -84,6 +85,7 @@ final class FormAndFactoryTest extends TestCase
         self::assertSame('', $resolved['folders_data']);
         self::assertSame([], $resolved['users_data']);
         self::assertSame([], $resolved['connector_options']);
+        self::assertFalse($resolved['is_edit'], 'The create dialog starts without alias/folder editors');
     }
 
     public function testAccountConnectorTypeBuildsExpectedFieldsAndDefaults(): void

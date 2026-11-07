@@ -184,11 +184,6 @@ final class IdnNormalizationTest extends WebTestCase
             'account' => [
                 'name' => 'Info Konto',
                 'email' => 'info@bästoff.de',
-                'folders' => (string) json_encode([[
-                    'name' => 'Posteingang',
-                    'sortOrder' => 0,
-                    'functions' => ['mailbox', 'inbox', 'outbox', 'scheduled', 'drafts', 'trash'],
-                ]], JSON_UNESCAPED_UNICODE),
                 '_token' => $token,
             ],
         ], [], ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);

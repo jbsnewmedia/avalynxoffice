@@ -66,7 +66,13 @@ class AccountType extends AbstractType
                     'class' => 'form-select',
                     'size' => '4',
                 ],
-            ])
+            ]);
+
+        // Aliases are the connector-to-account routing and belong to the
+        // create dialog. Folders are management data: a new account starts
+        // with the required system folders; the folder editor lives in the
+        // edit dialog only.
+        $builder
             ->add('aliases', TextareaType::class, [
                 'label' => 'account.aliases',
                 'required' => false,
@@ -77,8 +83,10 @@ class AccountType extends AbstractType
                     'rows' => 6,
                     'spellcheck' => 'false',
                 ],
-            ])
-            ->add('folders', TextareaType::class, [
+            ]);
+
+        if ($options['is_edit']) {
+            $builder->add('folders', TextareaType::class, [
                 'label' => 'account.folders',
                 'required' => false,
                 'mapped' => false,
@@ -88,12 +96,13 @@ class AccountType extends AbstractType
                     'rows' => 6,
                     'spellcheck' => 'false',
                 ],
-            ])
-            ->add('save', SubmitType::class, [
-                'label' => 'common.save',
-                'attr' => ['class' => 'btn btn-primary'],
-            ])
-        ;
+            ]);
+        }
+
+        $builder->add('save', SubmitType::class, [
+            'label' => 'common.save',
+            'attr' => ['class' => 'btn btn-primary'],
+        ]);
 
         // IDN domains are normalized to punycode so the stored account
         // address matches mail routing and the connector domain form.
@@ -109,6 +118,7 @@ class AccountType extends AbstractType
             'folders_data' => '',
             'users_data' => [],
             'connector_options' => [],
+            'is_edit' => false,
         ]);
     }
 }

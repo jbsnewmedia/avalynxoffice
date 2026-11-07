@@ -158,6 +158,7 @@ class AccountAdminController extends AbstractController
         return $this->render('account/_modal_form.html.twig', [
             'form' => $form,
             'connectorOptions' => $this->connectorOptions($connectorRepository),
+            'is_edit' => false,
         ]);
     }
 
@@ -188,6 +189,7 @@ class AccountAdminController extends AbstractController
         return $this->render('account/_modal_form.html.twig', [
             'form' => $form,
             'connectorOptions' => $this->connectorOptions($connectorRepository),
+            'is_edit' => true,
         ]);
     }
 
@@ -238,6 +240,7 @@ class AccountAdminController extends AbstractController
             'folders_data' => $accountService->formatFolders($account),
             'users_data' => $account->getUsers()->toArray(),
             'connector_options' => $this->connectorOptions($connectorRepository),
+            'is_edit' => $isEdit,
         ]);
     }
 
@@ -253,15 +256,13 @@ class AccountAdminController extends AbstractController
             return AvalynxFormResponse::invalid(FormInvalidMapper::map($form));
         }
 
-        $aliases = $accountService->normalizeAliases($this->getTextareaValue($form, 'aliases'));
-        $folders = $accountService->normalizeFolders($this->getTextareaValue($form, 'folders'));
         $users = $this->getUsersValue($form);
+        $aliases = $accountService->normalizeAliases($this->getTextareaValue($form, 'aliases'));
+        $folders = [];
+        $hasCustomErrors = false;
+
         $invalidAliases = $accountService->findInvalidAliases($aliases);
         $conflictingAliases = $accountService->findConflictingAliases($account, $aliases);
-        $blockedFolders = $isNew ? [] : $accountService->findNonRemovableFolders($account, $folders);
-        $duplicateFunctions = $accountService->findDuplicateFolderFunctions($folders);
-        $missingFunctions = $accountService->findMissingSystemFolderFunctions($folders);
-        $hasCustomErrors = false;
 
         if ([] !== $invalidAliases) {
             $hasCustomErrors = true;
@@ -277,25 +278,34 @@ class AccountAdminController extends AbstractController
             ])));
         }
 
-        if ([] !== $blockedFolders) {
-            $hasCustomErrors = true;
-            $form->get('folders')->addError(new FormError($this->translator->trans('account.non_empty_folders', [
-                '%folders%' => implode(', ', $blockedFolders),
-            ])));
-        }
+        // Folders are edit-only management data; a new account starts with
+        // the required system folders created automatically.
+        if (!$isNew) {
+            $folders = $accountService->normalizeFolders($this->getTextareaValue($form, 'folders'));
+            $blockedFolders = $accountService->findNonRemovableFolders($account, $folders);
+            $duplicateFunctions = $accountService->findDuplicateFolderFunctions($folders);
+            $missingFunctions = $accountService->findMissingSystemFolderFunctions($folders);
 
-        if ([] !== $duplicateFunctions) {
-            $hasCustomErrors = true;
-            $form->get('folders')->addError(new FormError($this->translator->trans('account.duplicate_folder_functions', [
-                '%functions%' => implode(', ', array_map(fn (string $key): string => $this->translator->trans($key), $duplicateFunctions)),
-            ])));
-        }
+            if ([] !== $blockedFolders) {
+                $hasCustomErrors = true;
+                $form->get('folders')->addError(new FormError($this->translator->trans('account.non_empty_folders', [
+                    '%folders%' => implode(', ', $blockedFolders),
+                ])));
+            }
 
-        if ([] !== $missingFunctions) {
-            $hasCustomErrors = true;
-            $form->get('folders')->addError(new FormError($this->translator->trans('account.missing_folder_functions', [
-                '%functions%' => implode(', ', array_map(fn (string $key): string => $this->translator->trans($key), $missingFunctions)),
-            ])));
+            if ([] !== $duplicateFunctions) {
+                $hasCustomErrors = true;
+                $form->get('folders')->addError(new FormError($this->translator->trans('account.duplicate_folder_functions', [
+                    '%functions%' => implode(', ', array_map(fn (string $key): string => $this->translator->trans($key), $duplicateFunctions)),
+                ])));
+            }
+
+            if ([] !== $missingFunctions) {
+                $hasCustomErrors = true;
+                $form->get('folders')->addError(new FormError($this->translator->trans('account.missing_folder_functions', [
+                    '%functions%' => implode(', ', array_map(fn (string $key): string => $this->translator->trans($key), $missingFunctions)),
+                ])));
+            }
         }
 
         if ($hasCustomErrors) {

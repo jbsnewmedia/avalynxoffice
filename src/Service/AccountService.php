@@ -52,7 +52,13 @@ class AccountService
 
         $reroutes = $this->syncAliases($account, $aliases);
         $this->folderManager->ensureDefaultFolders($account);
-        $this->syncFolders($account, $folders);
+
+        // A new account starts with the required system folders only; the
+        // aliases and additional folders are managed afterwards in the edit
+        // dialog — syncing an empty list here would wipe the defaults.
+        if (!$isNew) {
+            $this->syncFolders($account, $folders);
+        }
 
         $this->entityManager->flush();
 
