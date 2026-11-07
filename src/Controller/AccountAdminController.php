@@ -438,7 +438,7 @@ class AccountAdminController extends AbstractController
         $editUrl = $this->generateUrl('account_edit', ['id' => $accountId]);
         $html = '<a href="'.htmlspecialchars($editUrl, ENT_QUOTES, 'UTF-8').'"'
             .' class="btn btn-sm btn-primary action-btn-modal me-1"'
-            .' data-title="'.$editLabel.'" data-modal-size="modal-xl"'
+            .' data-title="'.$editLabel.'" data-modal-size="modal-lg"'
             .' title="'.$editLabel.'" aria-label="'.$editLabel.'">'
             .'<i class="fa-solid fa-pen-to-square" aria-hidden="true"></i></a>';
 
