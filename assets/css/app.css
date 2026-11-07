@@ -335,6 +335,43 @@ body:has(> .min-vh-100) > .min-vh-100 > .flex-grow-1 {
 .account-list-editor-folders .account-list-row {
     grid-template-columns: minmax(0, 1.5fr) 8rem auto;
 }
+/* Alias rows in the app-passwords look: label-less inline fields on
+   separator lines instead of bordered boxes. */
+.account-list-editor-aliases .account-list-items {
+    display: block;
+}
+.account-list-editor-aliases .account-list-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    padding: 0.375rem 0;
+    border: 0;
+    border-bottom: 1px solid var(--bs-border-color);
+    border-radius: 0;
+    background: transparent;
+}
+.account-list-editor-aliases .account-list-row:last-child {
+    border-bottom: 0;
+}
+.account-list-editor-aliases .account-list-field {
+    flex: 1 1 auto;
+}
+.account-list-editor-aliases .account-list-field .avalynx-autocomplete-wrapper {
+    width: 100%;
+}
+.account-list-editor-aliases .account-list-row-remove {
+    flex: 0 0 auto;
+    width: 2rem;
+    height: 2rem;
+    border: 0;
+    background: transparent;
+    color: var(--bs-danger);
+    font-size: 1rem;
+}
+.account-list-editor-aliases .account-list-row-remove:hover {
+    color: var(--bs-danger);
+    opacity: 0.75;
+}
 .account-list-field {
     min-width: 0;
 }

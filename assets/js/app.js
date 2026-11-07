@@ -284,9 +284,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 const wrapper = document.createElement('div');
                 wrapper.className = 'account-list-field';
 
-                const label = document.createElement('label');
-                label.className = 'form-label small text-body-secondary mb-1';
-                label.textContent = labelText;
+                // An empty label renders a label-less field (placeholder
+                // carries the meaning) — used by the app-passwords style
+                // alias rows.
+                if (labelText !== '') {
+                    const label = document.createElement('label');
+                    label.className = 'form-label small text-body-secondary mb-1';
+                    label.textContent = labelText;
+                    wrapper.appendChild(label);
+                }
 
                 const input = document.createElement('input');
                 input.type = type;
@@ -295,7 +301,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 input.value = value ?? '';
                 input.addEventListener('input', onInput);
 
-                wrapper.appendChild(label);
                 wrapper.appendChild(input);
 
                 return { wrapper, input };
@@ -360,20 +365,16 @@ document.addEventListener('DOMContentLoaded', function () {
                 return { wrapper, select };
             };
 
-            const buildConnectorAutocompleteField = (labelText, inputId) => {
+            const buildConnectorAutocompleteField = (placeholder, inputId) => {
                 const wrapper = document.createElement('div');
                 wrapper.className = 'account-list-field';
-
-                const label = document.createElement('label');
-                label.className = 'form-label small text-body-secondary mb-1';
-                label.textContent = labelText;
-                wrapper.appendChild(label);
 
                 const input = document.createElement('input');
                 input.type = 'text';
                 input.id = inputId;
                 input.className = 'form-control';
                 input.autocomplete = 'off';
+                input.placeholder = placeholder || '';
                 wrapper.appendChild(input);
 
                 return { wrapper, input };
@@ -431,6 +432,8 @@ document.addEventListener('DOMContentLoaded', function () {
                                 editor.dataset.primaryLabel || '',
                                 'account-alias-connector-' + connectorAutocompleteSequence,
                             );
+                            // app-passwords style rows carry no per-field
+                            // labels: the placeholders name the inputs.
                             row.appendChild(connectorField.wrapper);
                             firstFocusable = connectorField.input;
                             // The autocomplete library resolves its id selector
@@ -462,9 +465,9 @@ document.addEventListener('DOMContentLoaded', function () {
                         }
 
                         const localPartField = buildField(
-                            editor.dataset.secondaryLabel || '',
+                            '',
                             'text',
-                            editor.dataset.secondaryPlaceholder || '',
+                            editor.dataset.secondaryLabel || '',
                             value.localPart || '',
                             function (event) {
                                 items[index].localPart = event.target.value;
@@ -474,7 +477,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         row.appendChild(localPartField.wrapper);
                     } else {
                         const primaryField = buildField(
-                            editor.dataset.primaryLabel || '',
+                            type === 'folder' ? (editor.dataset.primaryLabel || '') : '',
                             type === 'folder' ? 'text' : 'email',
                             editor.dataset.primaryPlaceholder || '',
                             type === 'folder' ? value.name : value.email,
@@ -491,7 +494,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         firstFocusable = primaryField.input;
 
                         const secondaryField = buildField(
-                            editor.dataset.secondaryLabel || '',
+                            type === 'folder' ? (editor.dataset.secondaryLabel || '') : '',
                             type === 'folder' ? 'number' : 'text',
                             editor.dataset.secondaryPlaceholder || '',
                             type === 'folder' ? String(value.sortOrder ?? 0) : (value.name || ''),
