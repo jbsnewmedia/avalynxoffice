@@ -317,6 +317,21 @@ body:has(> .min-vh-100) > .min-vh-100 > .flex-grow-1 {
 .account-list-editor-invalid {
     border-color: var(--bs-danger);
 }
+/* Datatable sort arrows: 2px gap between the up/down symbols (the
+   library places them touching at the vertical middle). */
+body .avalynx-datatable-table th.avalynx-datatable-sorting:before,
+body .avalynx-datatable-table td.avalynx-datatable-sorting:before,
+body .avalynx-datatable-table th.avalynx-datatable-sorting-asc:before,
+body .avalynx-datatable-table td.avalynx-datatable-sorting-asc:before {
+    bottom: calc(50% + 0.5px);
+}
+body .avalynx-datatable-table th.avalynx-datatable-sorting:after,
+body .avalynx-datatable-table td.avalynx-datatable-sorting:after,
+body .avalynx-datatable-table th.avalynx-datatable-sorting-desc:after,
+body .avalynx-datatable-table td.avalynx-datatable-sorting-desc:after {
+    top: calc(50% + 0.5px);
+}
+
 .account-list-items {
     display: grid;
     gap: 0.5rem;
