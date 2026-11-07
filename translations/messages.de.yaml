@@ -397,7 +397,6 @@ account.aliases_help: "Aliasse routen eingehende Mails eines Connectors auf dies
 account.alias_connector: "Connector"
 account.alias_local_part: "Local Part"
 account.alias_local_part_placeholder: "info"
-account.alias_fields_help: "Connector und Local Part wählen — die Adresse ergibt sich aus Local Part und Connector-Domain."
 account.add_alias: "Add"
 account.folders: "Ordner"
 account.folders_placeholder: "Neuer Ordner"

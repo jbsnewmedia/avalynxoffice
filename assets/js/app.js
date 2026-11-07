@@ -416,6 +416,46 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const renderItems = () => {
                 const removeLabel = itemsContainer.dataset.removeLabel || 'Remove';
+
+                if (type === 'alias' && connectorOptions.length > 0) {
+                    // App-passwords look: saved aliases are read-only rows
+                    // (connector + local part), managed via the draft row.
+                    itemsContainer.innerHTML = '';
+                    items.forEach((value, index) => {
+                        const row = document.createElement('div');
+                        row.className = 'account-list-row';
+
+                        const option = connectorOptions.find((candidate) => candidate.value === value.connectorId);
+                        const connectorLabel = option ? option.label : (value.connectorId || '');
+                        const domainMatch = connectorLabel.match(/\(([^)]+)\)/);
+                        const display = domainMatch
+                            ? (value.localPart || '') + '@' + domainMatch[1]
+                            : connectorLabel + ' \u00b7 ' + (value.localPart || '');
+
+                        const text = document.createElement('span');
+                        text.className = 'account-list-alias-text';
+                        const icon = document.createElement('i');
+                        icon.className = 'fa-regular fa-envelope me-2 text-body-secondary';
+                        icon.setAttribute('aria-hidden', 'true');
+                        text.appendChild(icon);
+                        text.appendChild(document.createTextNode(display));
+
+                        const removeButton = document.createElement('button');
+                        removeButton.type = 'button';
+                        removeButton.className = 'account-list-row-remove btn btn-outline-danger';
+                        removeButton.dataset.accountListRemove = String(index);
+                        removeButton.setAttribute('aria-label', removeLabel + ': ' + (value.localPart || connectorLabel));
+                        removeButton.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
+
+                        row.appendChild(text);
+                        row.appendChild(removeButton);
+                        itemsContainer.appendChild(row);
+                    });
+
+                    emptyState.classList.toggle('d-none', items.length > 0);
+                    return;
+                }
+
                 itemsContainer.innerHTML = '';
 
                 items.forEach((value, index) => {
@@ -432,13 +472,8 @@ document.addEventListener('DOMContentLoaded', function () {
                                 editor.dataset.primaryLabel || '',
                                 'account-alias-connector-' + connectorAutocompleteSequence,
                             );
-                            // app-passwords style rows carry no per-field
-                            // labels: the placeholders name the inputs.
                             row.appendChild(connectorField.wrapper);
                             firstFocusable = connectorField.input;
-                            // The autocomplete library resolves its id selector
-                            // against the document: initialize after the row is
-                            // appended.
                             afterAppend = function () {
                                 initConnectorAutocomplete(
                                     connectorField.input,
@@ -559,6 +594,39 @@ document.addEventListener('DOMContentLoaded', function () {
                 emptyState.classList.toggle('d-none', items.length > 0);
             };
 
+            // Draft row for the alias editor: connector autocomplete plus
+            // local part; the Add button moves the pair into the items list.
+            let draftConnectorId = '';
+            const draftConnectorInput = editor.querySelector('[data-account-alias-connector]');
+            const draftLocalPartInput = editor.querySelector('[data-account-alias-local-part]');
+            const isAliasDraftEditor = type === 'alias' && connectorOptions.length > 0 && autocompleteClass !== null && draftConnectorInput !== null && draftLocalPartInput !== null;
+
+            const addAliasDraft = () => {
+                const localPart = draftLocalPartInput.value.trim();
+                if (draftConnectorId === '' || localPart === '') {
+                    return;
+                }
+
+                items.push({ connectorId: draftConnectorId, localPart: localPart });
+                draftConnectorId = '';
+                syncStorage();
+                renderItems();
+
+                // Reset the autocomplete selection for the next entry.
+                const clearIcon = editor.querySelector('.avalynx-autocomplete-clear-icon');
+                if (clearIcon) {
+                    clearIcon.click();
+                }
+                draftLocalPartInput.value = '';
+                draftLocalPartInput.focus();
+            };
+
+            if (isAliasDraftEditor) {
+                initConnectorAutocomplete(draftConnectorInput, connectorOptions, '', (key) => {
+                    draftConnectorId = key;
+                });
+            }
+
             const addItem = () => {
                 if (type === 'folder') {
                     items.push({ name: '', sortOrder: items.length, functions: [] });
@@ -581,7 +649,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
             editor.__flushAccountListInput = () => syncStorage(true);
 
-            addButton.addEventListener('click', addItem);
+            if (isAliasDraftEditor) {
+                addButton.addEventListener('click', addAliasDraft);
+                draftLocalPartInput.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        addAliasDraft();
+                    }
+                });
+            } else {
+                addButton.addEventListener('click', addItem);
+            }
+
             itemsContainer.addEventListener('click', function (event) {
                 const removeButton = event.target.closest('[data-account-list-remove]');
                 if (!removeButton) {

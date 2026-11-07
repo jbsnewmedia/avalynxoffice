@@ -46,29 +46,34 @@
         </div>
 
         <hr class="my-4">
-        <div class="account-list-editor account-list-editor-aliases{% if aliasesInvalid %} account-list-editor-invalid{% endif %}"
-             data-account-list-editor
-             data-account-list-type="alias"
-             data-autocomplete-no-results="{{ 'email.autocomplete_no_results'|trans }}"
-             data-alias-connector-options="{{ connectorOptions|json_encode|e('html_attr') }}"
-             data-primary-label="{{ 'account.alias_connector'|trans }}"
-             data-primary-placeholder="{{ 'common.email_placeholder'|trans }}"
-             data-secondary-label="{{ 'account.alias_local_part'|trans }}"
-             data-secondary-placeholder="{{ 'account.alias_local_part_placeholder'|trans }}">
-            {{ form_label(form.aliases, null, {'label_attr': {'class': 'form-label'}}) }}
-            {{ form_widget(form.aliases, {'attr': {'class': 'd-none', 'data-account-list-storage': 'true'}}) }}
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <div class="small text-body-secondary">{{ 'account.alias_fields_help'|trans }}</div>
-                <button type="button" class="btn btn-primary" data-account-list-add>
-                    <i class="fa-solid fa-plus me-2" aria-hidden="true"></i>{{ 'account.add_alias'|trans }}
-                </button>
-            </div>
-            <div class="account-list-items" data-account-list-items data-remove-label="{{ 'account.remove_alias'|trans }}"></div>
-            <div class="account-list-empty text-body-secondary small" data-account-list-empty>{{ 'account.aliases_empty'|trans }}</div>
-            {{ form_help(form.aliases) }}
-            {{ form_errors(form.aliases) }}
-            <span class="invalid-feedback d-block" data-account-list-feedback{% if not aliasesInvalid %} style="display: none;"{% endif %}></span>
+            <div class="account-list-editor account-list-editor-aliases{%- if aliasesInvalid %} account-list-editor-invalid{% endif %}"
+         data-account-list-editor
+         data-account-list-type="alias"
+         data-alias-connector-options="{{ connectorOptions|json_encode|e('html_attr') }}"
+         data-autocomplete-no-results="{{ 'email.autocomplete_no_results'|trans }}">
+        {{ form_label(form.aliases, null, {'label_attr': {'class': 'form-label'}}) }}
+        {{ form_widget(form.aliases, {'attr': {'class': 'd-none', 'data-account-list-storage': 'true'}}) }}
+        <div class="account-list-row account-list-row-add">
+            <input type="text"
+                   id="{{ form.aliases.vars.id }}_connector"
+                   data-account-alias-connector="1"
+                   placeholder="{{ 'account.alias_connector'|trans }}"
+                   autocomplete="off">
+            <input type="text"
+                   id="{{ form.aliases.vars.id }}_local_part"
+                   data-account-alias-local-part="1"
+                   placeholder="{{ 'account.alias_local_part'|trans }}"
+                   autocomplete="off">
+            <button type="button" class="btn btn-primary" data-account-list-add aria-label="{{ 'account.add_alias'|trans }}" title="{{ 'account.add_alias'|trans }}">
+                <i class="fa-solid fa-plus" aria-hidden="true"></i>
+            </button>
         </div>
+        <div class="account-list-items" data-account-list-items data-remove-label="{{ 'account.remove_alias'|trans }}"></div>
+        <div class="account-list-empty text-body-secondary small" data-account-list-empty>{{ 'account.aliases_empty'|trans }}</div>
+        {{ form_help(form.aliases) }}
+        {{ form_errors(form.aliases) }}
+        <span class="invalid-feedback d-block" data-account-list-feedback{%- if not aliasesInvalid %} style="display: none;"{% endif %}></span>
+    </div>
 
         {% if is_edit %}
             <hr class="my-4">

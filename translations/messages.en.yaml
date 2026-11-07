@@ -412,7 +412,6 @@ account.aliases_help: "Aliases route incoming mail of a connector to this accoun
 account.alias_connector: "Connector"
 account.alias_local_part: "Local part"
 account.alias_local_part_placeholder: "info"
-account.alias_fields_help: "Choose connector and local part — the address is built from the local part and the connector domain."
 account.add_alias: "Add"
 account.folders: "Folders"
 account.folders_placeholder: "New folder"
