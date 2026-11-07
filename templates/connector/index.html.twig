@@ -14,7 +14,7 @@
             {% include 'admin/_nav.html.twig' with { active: 'connectors' } %}
             <div class="d-flex justify-content-between align-items-center gap-3 mb-4">
                 <h1 class="h3 mb-0">{{ 'connector.title'|trans }}</h1>
-                <a href="{{ path('connector_new') }}" class="btn btn-primary action-btn-modal {{ readOnly ? 'disabled' }}" {{ readOnly ? 'aria-disabled="true"' }} data-title="{{ 'connector.new'|trans }}" data-modal-size="modal-lg">
+                <a href="{{ path('connector_new') }}" class="btn btn-primary action-btn-modal {{ readOnly ? 'disabled' }}" {{ readOnly ? 'aria-disabled="true"' }} data-title="{{ 'connector.new'|trans }}" data-modal-size="modal-xl">
                     <i class="fa-solid fa-plus me-2" aria-hidden="true"></i>{{ 'connector.new'|trans }}
                 </a>
             </div>
