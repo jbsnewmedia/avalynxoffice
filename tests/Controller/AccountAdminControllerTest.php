@@ -224,15 +224,39 @@ final class AccountAdminControllerTest extends WebTestCase
         self::assertNotNull($refreshed->getInboxFolder());
     }
 
-    public function testUserSuggestionsEndpointSearchesByEmail(): void
+    public function testUserSuggestionsEndpointSearchesByEmailAndDecodesIdn(): void
     {
+        $idnUser = new User();
+        $idnUser->setEmail('info@xn--bstoff-bua.de');
+        $idnUser->setPassword('secret');
+        $this->entityManager->persist($idnUser);
+        $this->entityManager->flush();
+
         $this->client->loginUser($this->admin);
 
-        $this->client->request('GET', '/admin/accounts/users/suggestions', ['search' => 'adm'], [], ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        // Punycode substring matches the stored form; the display value is
+        // the decoded unicode email.
+        $this->client->request('GET', '/admin/accounts/users/suggestions', ['search' => 'bstoff'], [], ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        self::assertResponseIsSuccessful();
+        $payload = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertSame([
+            ['key' => (string) $idnUser->getId(), 'value' => 'info@bästoff.de'],
+        ], $payload);
+
+        // Plain email searches still find the ASCII users.
+        $this->client->request('GET', '/admin/accounts/users/suggestions', ['search' => 'admin'], [], ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
         $payload = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
         self::assertSame([
             ['key' => (string) $this->admin->getId(), 'value' => 'admin@example.com'],
+        ], $payload);
+
+        // Typing the decoded unicode form finds the punycode-stored user too.
+        $this->client->request('GET', '/admin/accounts/users/suggestions', ['search' => 'info@bästoff.de'], [], ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        self::assertResponseIsSuccessful();
+        $payload = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertSame([
+            ['key' => (string) $idnUser->getId(), 'value' => 'info@bästoff.de'],
         ], $payload);
 
         $this->client->request('GET', '/admin/accounts/users/suggestions', ['search' => 'nobody'], [], ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);

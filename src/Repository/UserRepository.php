@@ -137,11 +137,13 @@ class UserRepository extends ServiceEntityRepository
 
     /**
      * App users for the account users autocomplete: matches the email
-     * substring, ordered by email, capped for the dropdown.
+     * substring in its unicode and punycode form (IDN domains are stored as
+     * punycode, admins type the decoded form), ordered by email, capped for
+     * the dropdown.
      *
      * @return list<User>
      */
-    public function findForAutocomplete(string $search, int $limit = 20): array
+    public function findForAutocomplete(string $search, ?string $asciiSearch = null, int $limit = 20): array
     {
         $queryBuilder = $this->createQueryBuilder('u')
             ->orderBy('u.email', 'ASC')
@@ -149,8 +151,9 @@ class UserRepository extends ServiceEntityRepository
 
         if ('' !== $search) {
             $queryBuilder
-                ->andWhere('LOWER(u.email) LIKE :search')
-                ->setParameter('search', '%'.mb_strtolower($search).'%');
+                ->andWhere('LOWER(u.email) LIKE :search OR LOWER(u.email) LIKE :asciiSearch')
+                ->setParameter('search', '%'.mb_strtolower($search).'%')
+                ->setParameter('asciiSearch', '%'.mb_strtolower($asciiSearch ?? $search).'%');
         }
 
         $result = $queryBuilder->getQuery()->getResult();

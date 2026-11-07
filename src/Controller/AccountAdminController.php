@@ -510,7 +510,8 @@ class AccountAdminController extends AbstractController
     }
 
     /**
-     * App users for the account users autocomplete (admin only).
+     * App users for the account users autocomplete (admin only). The display
+     * value is the decoded unicode email; the search matches both forms.
      */
     #[Route('/users/suggestions', name: 'account_users_suggestions', methods: ['GET'])]
     public function userSuggestions(Request $request, UserRepository $userRepository): JsonResponse
@@ -518,10 +519,11 @@ class AccountAdminController extends AbstractController
         $this->requireXmlHttpRequest($request);
 
         $search = trim((string) $request->query->get('search', ''));
+        $asciiSearch = $this->idnService->toAscii(mb_strtolower($search));
 
         return new JsonResponse(array_map(
-            static fn (User $user): array => ['key' => (string) $user->getId(), 'value' => $user->getEmail()],
-            $userRepository->findForAutocomplete($search),
+            fn (User $user): array => ['key' => (string) $user->getId(), 'value' => $this->idnService->toUnicode($user->getEmail())],
+            $userRepository->findForAutocomplete($search, $asciiSearch),
         ));
     }
 
@@ -534,7 +536,7 @@ class AccountAdminController extends AbstractController
     private function usersAutocompleteDefaults(Account $account): array
     {
         return array_map(
-            static fn (User $user): array => ['key' => (string) $user->getId(), 'value' => $user->getEmail()],
+            fn (User $user): array => ['key' => (string) $user->getId(), 'value' => $this->idnService->toUnicode($user->getEmail())],
             $account->getUsers()->toArray(),
         );
     }
