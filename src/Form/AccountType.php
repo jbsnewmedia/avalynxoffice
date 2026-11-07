@@ -10,10 +10,8 @@ declare(strict_types=1);
 namespace AvalynxOffice\Form;
 
 use AvalynxOffice\Entity\Account;
-use AvalynxOffice\Entity\User;
 use AvalynxOffice\Form\DataTransformer\IdnToAsciiTransformer;
 use AvalynxOffice\Service\Idn\IdnService;
-use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\EmailType;
 use Symfony\Component\Form\Extension\Core\Type\SubmitType;
@@ -52,19 +50,15 @@ class AccountType extends AbstractType
                 'attr' => ['class' => 'form-control'],
                 'constraints' => [new NotBlank(), new Email()],
             ])
-            ->add('users', EntityType::class, [
+            ->add('users', TextType::class, [
                 'label' => 'account.users',
                 'label_attr' => ['class' => 'form-label'],
-                'class' => User::class,
-                'choice_label' => 'email',
-                'multiple' => true,
+                'required' => false,
                 'mapped' => false,
                 'data' => $options['users_data'],
-                'required' => false,
                 'help' => 'account.users_help',
                 'attr' => [
-                    'class' => 'form-select',
-                    'size' => '4',
+                    'class' => 'd-none',
                 ],
             ]);
 
@@ -116,7 +110,7 @@ class AccountType extends AbstractType
             'data_class' => Account::class,
             'aliases_data' => '',
             'folders_data' => '',
-            'users_data' => [],
+            'users_data' => '',
             'connector_options' => [],
             'is_edit' => false,
         ]);

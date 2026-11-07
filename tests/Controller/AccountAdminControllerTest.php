@@ -67,6 +67,7 @@ final class AccountAdminControllerTest extends WebTestCase
         self::assertStringContainsString('account-form', $content);
         self::assertStringContainsString('data-account-list-type="alias"', $content);
         self::assertStringNotContainsString('data-account-list-type="folder"', $content);
+        self::assertStringContainsString('data-user-autocomplete', $content);
         self::assertStringContainsString('system folders', $content);
     }
 
@@ -108,6 +109,7 @@ final class AccountAdminControllerTest extends WebTestCase
             'account' => [
                 'name' => 'Support',
                 'email' => 'support@example.com',
+                'users' => (string) $this->admin->getId(),
                 'aliases' => (string) json_encode([
                     ['connectorId' => $connectorId, 'localPart' => 'support'],
                 ], JSON_THROW_ON_ERROR),
@@ -124,6 +126,10 @@ final class AccountAdminControllerTest extends WebTestCase
         self::assertInstanceOf(Account::class, $account);
         self::assertSame('Support', $account->getName());
         self::assertCount(1, $account->getAliases());
+        self::assertSame([$this->admin->getId()?->toRfc4122()], array_map(
+            static fn (User $user): string => (string) $user->getId(),
+            $account->getUsers()->toArray(),
+        ));
 
         // The required system folders (Pflichtordner) were created
         // automatically and Postfach is wired as the account's mailbox.
@@ -182,6 +188,7 @@ final class AccountAdminControllerTest extends WebTestCase
             'account' => [
                 'name' => 'Support renamed',
                 'email' => 'support@example.com',
+                'users' => (string) $this->admin->getId(),
                 'aliases' => '[]',
                 'folders' => '[{"name":"Postfach","sortOrder":-100,"functions":["mailbox"]},'
                     .'{"name":"Posteingang","sortOrder":-90,"functions":["inbox"]},'
@@ -215,5 +222,21 @@ final class AccountAdminControllerTest extends WebTestCase
         self::assertInstanceOf(Folder::class, $mailbox);
         self::assertContains('mailbox', $mailbox->getFunctions());
         self::assertNotNull($refreshed->getInboxFolder());
+    }
+
+    public function testUserSuggestionsEndpointSearchesByEmail(): void
+    {
+        $this->client->loginUser($this->admin);
+
+        $this->client->request('GET', '/admin/accounts/users/suggestions', ['search' => 'adm'], [], ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        self::assertResponseIsSuccessful();
+        $payload = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertSame([
+            ['key' => (string) $this->admin->getId(), 'value' => 'admin@example.com'],
+        ], $payload);
+
+        $this->client->request('GET', '/admin/accounts/users/suggestions', ['search' => 'nobody'], [], ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        self::assertResponseIsSuccessful();
+        self::assertSame([], json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR));
     }
 }

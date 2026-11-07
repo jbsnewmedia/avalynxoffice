@@ -136,6 +136,33 @@ class UserRepository extends ServiceEntityRepository
     }
 
     /**
+     * App users for the account users autocomplete: matches the email
+     * substring, ordered by email, capped for the dropdown.
+     *
+     * @return list<User>
+     */
+    public function findForAutocomplete(string $search, int $limit = 20): array
+    {
+        $queryBuilder = $this->createQueryBuilder('u')
+            ->orderBy('u.email', 'ASC')
+            ->setMaxResults(max(1, $limit));
+
+        if ('' !== $search) {
+            $queryBuilder
+                ->andWhere('LOWER(u.email) LIKE :search')
+                ->setParameter('search', '%'.mb_strtolower($search).'%');
+        }
+
+        $result = $queryBuilder->getQuery()->getResult();
+        \assert(is_array($result));
+
+        return array_values(array_filter(
+            $result,
+            static fn (mixed $user): bool => $user instanceof User,
+        ));
+    }
+
+    /**
      * Number of users matching the admin table search ('' = all users).
      */
     public function countUsersForAdminList(string $search): int

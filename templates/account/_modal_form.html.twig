@@ -28,8 +28,17 @@
             </div>
             <div class="col-12">
                 <div class="form-group mb-3">
-                    {{ form_label(form.users) }}
-                    {{ form_widget(form.users, {'attr': {'class': 'form-select'}}) }}
+                    <input type="text"
+                           id="{{ form.users.vars.id }}_autocomplete"
+                           data-user-autocomplete="1"
+                           data-target-input-id="{{ form.users.vars.id }}"
+                           data-source-url="{{ path('account_users_suggestions') }}"
+                           data-placeholder="{{ 'account.users_placeholder'|trans }}"
+                           data-no-results="{{ 'account.users_no_results'|trans }}"
+                           data-clear-title="{{ 'email.autocomplete_clear'|trans }}"
+                           data-remove-title="{{ 'email.autocomplete_remove'|trans }}"
+                           data-default-selections="{{ users_autocomplete_defaults|default([])|json_encode|e('html_attr') }}">
+                    {{ form_widget(form.users, {'attr': {'class': 'd-none'}}) }}
                     {{ form_help(form.users) }}
                     <div class="invalid-feedback" aria-live="polite"></div>
                 </div>

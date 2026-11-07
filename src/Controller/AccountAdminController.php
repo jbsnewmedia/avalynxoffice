@@ -19,6 +19,7 @@ use AvalynxOffice\Licensing\Service\LicenseEnforcementInterface;
 use AvalynxOffice\Licensing\Service\LicenseOperation;
 use AvalynxOffice\Repository\AccountRepository;
 use AvalynxOffice\Repository\ConnectorRepository;
+use AvalynxOffice\Repository\UserRepository;
 use AvalynxOffice\Service\AccountService;
 use AvalynxOffice\Service\Idn\IdnService;
 use AvalynxOffice\Util\AvalynxFormResponse;
@@ -61,6 +62,7 @@ class AccountAdminController extends AbstractController
         private readonly LicenseEnforcementInterface $licenseEnforcement,
         private readonly CsrfTokenManagerInterface $csrfTokenManager,
         private readonly AccountRepository $accountRepository,
+        private readonly UserRepository $userRepository,
         private readonly IdnService $idnService,
     ) {
     }
@@ -159,6 +161,7 @@ class AccountAdminController extends AbstractController
             'form' => $form,
             'connectorOptions' => $this->connectorOptions($connectorRepository),
             'is_edit' => false,
+            'users_autocomplete_defaults' => $this->usersAutocompleteDefaults($account),
         ]);
     }
 
@@ -190,6 +193,7 @@ class AccountAdminController extends AbstractController
             'form' => $form,
             'connectorOptions' => $this->connectorOptions($connectorRepository),
             'is_edit' => true,
+            'users_autocomplete_defaults' => $this->usersAutocompleteDefaults($account),
         ]);
     }
 
@@ -238,7 +242,10 @@ class AccountAdminController extends AbstractController
             'action' => $action,
             'aliases_data' => $accountService->formatAliases($account),
             'folders_data' => $accountService->formatFolders($account),
-            'users_data' => $account->getUsers()->toArray(),
+            'users_data' => implode(', ', array_map(
+                static fn (User $user): string => (string) $user->getId(),
+                $account->getUsers()->toArray(),
+            )),
             'connector_options' => $this->connectorOptions($connectorRepository),
             'is_edit' => $isEdit,
         ]);
@@ -484,19 +491,52 @@ class AccountAdminController extends AbstractController
      */
     private function getUsersValue(FormInterface $form): array
     {
-        $users = $form->get('users')->getData();
-        if (!is_iterable($users)) {
+        $raw = $form->get('users')->getData();
+        $raw = is_string($raw) ? trim($raw) : '';
+
+        if ('' === $raw) {
             return [];
         }
 
-        $list = [];
-        foreach ($users as $user) {
+        $users = [];
+        foreach (explode(',', $raw) as $identifier) {
+            $user = $this->userRepository->find(trim($identifier));
             if ($user instanceof User) {
-                $list[] = $user;
+                $users[] = $user;
             }
         }
 
-        return $list;
+        return $users;
+    }
+
+    /**
+     * App users for the account users autocomplete (admin only).
+     */
+    #[Route('/users/suggestions', name: 'account_users_suggestions', methods: ['GET'])]
+    public function userSuggestions(Request $request, UserRepository $userRepository): JsonResponse
+    {
+        $this->requireXmlHttpRequest($request);
+
+        $search = trim((string) $request->query->get('search', ''));
+
+        return new JsonResponse(array_map(
+            static fn (User $user): array => ['key' => (string) $user->getId(), 'value' => $user->getEmail()],
+            $userRepository->findForAutocomplete($search),
+        ));
+    }
+
+    /**
+     * Preselected users for the account users autocomplete (key = user id,
+     * value = email).
+     *
+     * @return array<int, array{key: string, value: string}>
+     */
+    private function usersAutocompleteDefaults(Account $account): array
+    {
+        return array_map(
+            static fn (User $user): array => ['key' => (string) $user->getId(), 'value' => $user->getEmail()],
+            $account->getUsers()->toArray(),
+        );
     }
 
     /**

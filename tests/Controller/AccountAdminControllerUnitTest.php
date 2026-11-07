@@ -13,12 +13,19 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 
 final class AccountAdminControllerUnitTest extends TestCase
 {
-    private function createController(): AccountAdminController
+    private function createController(?\AvalynxOffice\Repository\UserRepository $userRepository = null): AccountAdminController
     {
         $translator = $this->createStub(TranslatorInterface::class);
         $csrfTokenManager = $this->createStub(CsrfTokenManagerInterface::class);
 
-        return new AccountAdminController($translator, new AllowAllLicenseEnforcement(), $csrfTokenManager, $this->createStub(\AvalynxOffice\Repository\AccountRepository::class), new \AvalynxOffice\Service\Idn\IdnService());
+        return new AccountAdminController(
+            $translator,
+            new AllowAllLicenseEnforcement(),
+            $csrfTokenManager,
+            $this->createStub(\AvalynxOffice\Repository\AccountRepository::class),
+            $userRepository ?? $this->createStub(\AvalynxOffice\Repository\UserRepository::class),
+            new \AvalynxOffice\Service\Idn\IdnService(),
+        );
     }
 
     /**
@@ -50,9 +57,16 @@ final class AccountAdminControllerUnitTest extends TestCase
         yield 'null value yields null' => [null, null];
     }
 
-    public function testGetUsersValueFiltersNonUserEntriesAndHandlesNonIterableData(): void
+    public function testGetUsersValueResolvesCommaSeparatedIdentifiersAndIgnoresUnknown(): void
     {
-        $controller = $this->createController();
+        $user = new \AvalynxOffice\Entity\User();
+        $user->setEmail('user@example.com');
+
+        $repository = $this->createStub(\AvalynxOffice\Repository\UserRepository::class);
+        $repository->method('find')->willReturnCallback(
+            static fn (mixed $id): ?\AvalynxOffice\Entity\User => '11111111-1111-7111-8111-111111111111' === $id ? $user : null,
+        );
+        $controller = $this->createController($repository);
 
         $method = new \ReflectionMethod(AccountAdminController::class, 'getUsersValue');
 
@@ -64,10 +78,8 @@ final class AccountAdminControllerUnitTest extends TestCase
 
         self::assertSame([], $method->invoke($controller, $form));
 
-        $user = new \AvalynxOffice\Entity\User();
-        $user->setEmail('user@example.com');
         $field = $this->createStub(FormInterface::class);
-        $field->method('getData')->willReturn([$user, 'nope']);
+        $field->method('getData')->willReturn(' 11111111-1111-7111-8111-111111111111 , unknown-id ');
 
         $form = $this->createStub(FormInterface::class);
         $form->method('get')->willReturn($field);

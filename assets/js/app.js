@@ -528,6 +528,66 @@ document.addEventListener('DOMContentLoaded', function () {
         ['insert', ['link']],
         ['view', ['codeview', 'fullscreen']]
     ];
+    const initUserAutocompletes = (root) => {
+        (root || document).querySelectorAll('[data-user-autocomplete]').forEach(function (autocompleteInput) {
+            if (autocompleteInput.dataset.autocompleteInitialized === 'true') {
+                return;
+            }
+
+            autocompleteInput.dataset.autocompleteInitialized = 'true';
+
+            const storageInputId = autocompleteInput.dataset.targetInputId || '';
+            const storageInput = storageInputId ? document.getElementById(storageInputId) : null;
+            const sourceUrl = autocompleteInput.dataset.sourceUrl || '';
+            const AutocompleteClass = typeof window.AvalynxAutocomplete === 'function'
+                ? window.AvalynxAutocomplete
+                : (typeof AvalynxAutocomplete === 'function' ? AvalynxAutocomplete : null);
+            if (!storageInput || !sourceUrl || AutocompleteClass === null) {
+                return;
+            }
+
+            let defaultSelections = [];
+            try {
+                const parsed = JSON.parse(autocompleteInput.dataset.defaultSelections || '[]');
+                if (Array.isArray(parsed)) {
+                    defaultSelections = parsed.filter((item) => typeof item?.key === 'string' && typeof item?.value === 'string');
+                }
+            } catch (_error) {
+                defaultSelections = [];
+            }
+
+            const syncStorage = (keys) => {
+                storageInput.value = keys.join(', ');
+                storageInput.dispatchEvent(new Event('input', { bubbles: true }));
+            };
+
+            syncStorage(defaultSelections.map((item) => item.key));
+
+            new AutocompleteClass('#' + autocompleteInput.id, {
+                fetchData: async (query) => {
+                    const requestUrl = new URL(sourceUrl, window.location.origin);
+                    requestUrl.searchParams.set('search', query);
+                    const response = await fetch(requestUrl.toString(), {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+                    const payload = await response.json();
+                    return Array.isArray(payload) ? payload : [];
+                },
+                debounce: 150,
+                maxItems: 20,
+                maxSelections: 500,
+                tagsPosition: 'inline',
+                clearStyle: 'icon',
+                defaultSelections: defaultSelections,
+                onChange: (keys) => syncStorage(Array.isArray(keys) ? keys : [])
+            }, {
+                placeholder: autocompleteInput.dataset.placeholder || '',
+                noResults: autocompleteInput.dataset.noResults || 'No results found',
+                clearTitle: autocompleteInput.dataset.clearTitle || 'Clear selection',
+                removeTitle: autocompleteInput.dataset.removeTitle || 'Remove'
+            });
+        });
+    };
     const initComposeEditors = (root) => {
         (root || document).querySelectorAll('[data-compose-editor]').forEach((editor) => {
             if (editor.dataset.composeInitialized === 'true') {
@@ -1067,6 +1127,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             modalContent.innerHTML = data;
                             initAccountListEditors(modalContent);
                             initComposeEditors(modalContent);
+                            initUserAutocompletes(modalContent);
                             const newFormAfterNav = modalContent.querySelector('form');
                             if (newFormAfterNav) {
                                 attachFormListener(newFormAfterNav, originalUrl);
@@ -1075,6 +1136,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             modalContent.innerHTML = data;
                             initAccountListEditors(modalContent);
                             initComposeEditors(modalContent);
+                            initUserAutocompletes(modalContent);
                             updateModalFooterButtons();
                             const errorForm = modalContent.querySelector('form');
                             if (errorForm) {
@@ -1107,6 +1169,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 modalContent.innerHTML = html;
                 initAccountListEditors(modalContent);
                 initComposeEditors(modalContent);
+                initUserAutocompletes(modalContent);
                 updateModalFooterButtons();
                 const form = modalContent.querySelector('form');
                 if (form) {
@@ -2006,6 +2069,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // the modal flow initializes its content itself after insertion.
         initAccountListEditors(document);
         initComposeEditors(document);
+        initUserAutocompletes(document);
         setupFolderDrops(document);
         const mo = new MutationObserver(function(){ setupFolderDrops(document); });
         mo.observe(document.body, {subtree:true, childList:true});

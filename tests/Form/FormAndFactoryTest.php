@@ -83,7 +83,7 @@ final class FormAndFactoryTest extends TestCase
         self::assertSame(Account::class, $resolved['data_class']);
         self::assertSame('', $resolved['aliases_data']);
         self::assertSame('', $resolved['folders_data']);
-        self::assertSame([], $resolved['users_data']);
+        self::assertSame('', $resolved['users_data']);
         self::assertSame([], $resolved['connector_options']);
         self::assertFalse($resolved['is_edit'], 'The create dialog starts without alias/folder editors');
     }
