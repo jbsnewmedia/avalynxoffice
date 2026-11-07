@@ -25,6 +25,7 @@
                 <div class="account-list-editor account-list-editor-aliases{% if aliasesInvalid %} account-list-editor-invalid{% endif %}"
                      data-account-list-editor
                      data-account-list-type="alias"
+                     data-autocomplete-no-results="{{ 'email.autocomplete_no_results'|trans }}"
                      data-alias-connector-options="{{ connectorOptions|json_encode|e('html_attr') }}"
                      data-primary-label="{{ 'account.alias_connector'|trans }}"
                      data-primary-placeholder="{{ 'common.email_placeholder'|trans }}"

@@ -170,6 +170,10 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
     const initAccountListEditors = (root) => {
+        const autocompleteClass = typeof window.AvalynxAutocomplete === 'function'
+            ? window.AvalynxAutocomplete
+            : (typeof AvalynxAutocomplete === 'function' ? AvalynxAutocomplete : null);
+        let connectorAutocompleteSequence = 0;
         (root || document).querySelectorAll('[data-account-list-editor]').forEach((editor) => {
             if (editor.dataset.accountListInitialized === 'true') {
                 return;
@@ -356,6 +360,59 @@ document.addEventListener('DOMContentLoaded', function () {
                 return { wrapper, select };
             };
 
+            const buildConnectorAutocompleteField = (labelText, inputId) => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'account-list-field';
+
+                const label = document.createElement('label');
+                label.className = 'form-label small text-body-secondary mb-1';
+                label.textContent = labelText;
+                wrapper.appendChild(label);
+
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.id = inputId;
+                input.className = 'form-control';
+                input.autocomplete = 'off';
+                wrapper.appendChild(input);
+
+                return { wrapper, input };
+            };
+
+            // Must run AFTER the input is attached to the document: the
+            // autocomplete library resolves the id selector against the DOM.
+            const initConnectorAutocomplete = (input, options, selectedId, onPick) => {
+                const selected = options.find((optionConfig) => optionConfig.value === selectedId);
+                const defaultSelections = selected ? [{ key: selected.value, value: selected.label }] : [];
+
+                new autocompleteClass('#' + input.id, {
+                    fetchData: async (query) => {
+                        const needle = String(query || '').trim().toLowerCase();
+                        const candidates = options.map((optionConfig) => ({ key: optionConfig.value, value: optionConfig.label }));
+                        if (!needle) {
+                            return candidates;
+                        }
+
+                        return candidates.filter((candidate) => candidate.value.toLowerCase().includes(needle));
+                    },
+                    maxSelections: 1,
+                    tagsPosition: 'inline',
+                    clearStyle: 'icon',
+                    defaultSelections: defaultSelections,
+                    onChange: (keys) => {
+                        // Single mode reports a string key, multi mode an
+                        // array of keys — both resolve to one connector id.
+                        const connectorId = Array.isArray(keys) ? (keys.length > 0 ? keys[0] : '') : String(keys ?? '');
+                        onPick(connectorId);
+                    },
+                }, {
+                    placeholder: '',
+                    noResults: editor.dataset.autocompleteNoResults || 'No results found',
+                    clearTitle: '',
+                    removeTitle: editor.dataset.removeLabel || 'Remove'
+                });
+            };
+
             const renderItems = () => {
                 const removeLabel = itemsContainer.dataset.removeLabel || 'Remove';
                 itemsContainer.innerHTML = '';
@@ -364,19 +421,45 @@ document.addEventListener('DOMContentLoaded', function () {
                     const row = document.createElement('div');
                     row.className = 'account-list-row';
                     let firstFocusable = null;
+                    let afterAppend = null;
 
                     if (type === 'alias' && connectorOptions.length > 0) {
-                        const connectorField = buildSelectField(
-                            editor.dataset.primaryLabel || '',
-                            connectorOptions,
-                            value.connectorId || '',
-                            function (event) {
-                                items[index].connectorId = event.target.value;
-                                syncStorage();
-                            }
-                        );
-                        row.appendChild(connectorField.wrapper);
-                        firstFocusable = connectorField.select;
+                        let connectorField;
+                        if (autocompleteClass !== null) {
+                            connectorAutocompleteSequence += 1;
+                            connectorField = buildConnectorAutocompleteField(
+                                editor.dataset.primaryLabel || '',
+                                'account-alias-connector-' + connectorAutocompleteSequence,
+                            );
+                            row.appendChild(connectorField.wrapper);
+                            firstFocusable = connectorField.input;
+                            // The autocomplete library resolves its id selector
+                            // against the document: initialize after the row is
+                            // appended.
+                            afterAppend = function () {
+                                initConnectorAutocomplete(
+                                    connectorField.input,
+                                    connectorOptions,
+                                    value.connectorId || '',
+                                    function (connectorId) {
+                                        items[index].connectorId = connectorId;
+                                        syncStorage();
+                                    }
+                                );
+                            };
+                        } else {
+                            connectorField = buildSelectField(
+                                editor.dataset.primaryLabel || '',
+                                connectorOptions,
+                                value.connectorId || '',
+                                function (event) {
+                                    items[index].connectorId = event.target.value;
+                                    syncStorage();
+                                }
+                            );
+                            row.appendChild(connectorField.wrapper);
+                            firstFocusable = connectorField.select;
+                        }
 
                         const localPartField = buildField(
                             editor.dataset.secondaryLabel || '',
@@ -463,6 +546,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
                     row.appendChild(removeButton);
                     itemsContainer.appendChild(row);
+
+                    if (afterAppend !== null) {
+                        afterAppend();
+                        afterAppend = null;
+                    }
                 });
 
                 emptyState.classList.toggle('d-none', items.length > 0);
