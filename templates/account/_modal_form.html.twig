@@ -55,11 +55,13 @@
         {{ form_widget(form.aliases, {'attr': {'class': 'd-none', 'data-account-list-storage': 'true'}}) }}
         <div class="account-list-row account-list-row-add">
             <input type="text"
+                   class="form-control"
                    id="{{ form.aliases.vars.id }}_connector"
                    data-account-alias-connector="1"
                    placeholder="{{ 'account.alias_connector'|trans }}"
                    autocomplete="off">
             <input type="text"
+                   class="form-control"
                    id="{{ form.aliases.vars.id }}_local_part"
                    data-account-alias-local-part="1"
                    placeholder="{{ 'account.alias_local_part'|trans }}"
