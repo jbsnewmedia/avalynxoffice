@@ -49,9 +49,6 @@
                                     <td>
                                         <div class="fw-medium">{{ session.browser|default('profile.sessions.unknown'|trans) }}</div>
                                         <div class="small text-body-secondary">{{ session.os|default('profile.sessions.unknown'|trans) }}</div>
-                                        {% if isCurrent %}
-                                            <span class="badge bg-primary mt-1">{{ 'profile.sessions.current'|trans }}</span>
-                                        {% endif %}
                                     </td>
                                     <td>
                                         {% if session.geoCity or session.geoCountry %}
@@ -73,7 +70,7 @@
                                     </td>
                                     <td class="text-end">
                                         {% if isCurrent %}
-                                            <span class="small text-body-secondary">{{ 'profile.sessions.current'|trans }}</span>
+                                            <span class="badge bg-primary">{{ 'profile.sessions.current'|trans }}</span>
                                         {% else %}
                                             <form method="post" action="{{ path('app_profile_sessions_revoke', {id: session.id}) }}" class="d-inline">
                                                 <input type="hidden" name="_token" value="{{ csrf_token('session_revoke_' ~ session.id) }}">
