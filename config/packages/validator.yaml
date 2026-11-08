@@ -1,5 +1,9 @@
 framework:
     validation:
+        # Constraint messages use the project's "<module>.*" keys from
+        # translations/messages.<locale>.yaml instead of the default
+        # "validators" domain (which has no files in this project).
+        translation_domain: messages
         # Enables validator auto-mapping support.
         # For instance, basic validation constraints will be inferred from Doctrine's metadata.
         #auto_mapping:
