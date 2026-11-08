@@ -175,7 +175,11 @@ document.addEventListener('DOMContentLoaded', function () {
         const selectClass = typeof window.AvalynxSelect === 'function'
             ? window.AvalynxSelect
             : (typeof AvalynxSelect === 'function' ? AvalynxSelect : null);
+        const autocompleteClass = typeof window.AvalynxAutocomplete === 'function'
+            ? window.AvalynxAutocomplete
+            : (typeof AvalynxAutocomplete === 'function' ? AvalynxAutocomplete : null);
         let connectorSelectSequence = 0;
+        let folderFunctionSequence = 0;
         (root || document).querySelectorAll('[data-account-list-editor]').forEach((editor) => {
             if (editor.dataset.accountListInitialized === 'true') {
                 return;
@@ -308,32 +312,61 @@ document.addEventListener('DOMContentLoaded', function () {
                 return { wrapper, input };
             };
 
-            const buildMultiSelectField = (labelText, options, selectedValues, onInput) => {
+            const buildFolderFunctionField = (placeholder, inputId) => {
                 const wrapper = document.createElement('div');
-                wrapper.className = 'account-list-field';
+                wrapper.className = 'account-list-field account-list-field-functions';
 
-                const label = document.createElement('label');
-                label.className = 'form-label small text-body-secondary mb-1';
-                label.textContent = labelText;
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.id = inputId;
+                input.className = 'form-control';
+                input.autocomplete = 'off';
+                input.placeholder = placeholder || '';
+                wrapper.appendChild(input);
 
-                const select = document.createElement('select');
-                select.className = 'form-select';
-                select.multiple = true;
-                select.size = Math.max(2, options.length);
-                select.addEventListener('change', onInput);
+                return { wrapper, input };
+            };
 
-                options.forEach((optionConfig) => {
-                    const option = document.createElement('option');
-                    option.value = optionConfig.value;
-                    option.textContent = optionConfig.label;
-                    option.selected = selectedValues.includes(optionConfig.value);
-                    select.appendChild(option);
+            // Must run AFTER the input is attached to the document: the
+            // autocomplete library resolves the id selector against the DOM.
+            // Returns the library controller (single selection, live search
+            // over the static folder function options).
+            const initFolderFunctionAutocomplete = (input, options, selectedValue, onPick = null) => {
+                const selected = options.find((optionConfig) => optionConfig.value === selectedValue);
+                return new autocompleteClass('#' + input.id, {
+                    fetchData: async (query) => {
+                        const needle = String(query || '').trim().toLowerCase();
+                        const candidates = options.map((optionConfig) => ({ key: optionConfig.value, value: optionConfig.label }));
+                        if (!needle) {
+                            return candidates;
+                        }
+                        return candidates.filter((candidate) => candidate.value.toLowerCase().includes(needle));
+                    },
+                    maxSelections: 1,
+                    tagsPosition: 'inline',
+                    clearStyle: 'icon',
+                    // Single mode: the library takes the pre-selection from
+                    // defaultKey/defaultValue (defaultSelections is multi-only).
+                    defaultKey: selected ? selected.value : null,
+                    defaultValue: selected ? selected.label : null,
+                    onChange: (keys) => {
+                        if (onPick === null) {
+                            return;
+                        }
+                        // Single mode reports a string key, multi mode an
+                        // array of keys — both resolve to one function.
+                        const functionKey = Array.isArray(keys) ? (keys.length > 0 ? keys[0] : '') : String(keys ?? '');
+                        onPick(functionKey);
+                    },
+                }, {
+                    // The library resets the input placeholder from this
+                    // language object on select/clear — carry the editor's
+                    // "no folder function" placeholder through.
+                    placeholder: editor.dataset.tertiaryPlaceholder || 'Search...',
+                    noResults: editor.dataset.autocompleteNoResults || 'No results found',
+                    clearTitle: '',
+                    removeTitle: editor.dataset.removeLabel || 'Remove'
                 });
-
-                wrapper.appendChild(label);
-                wrapper.appendChild(select);
-
-                return { wrapper, select };
             };
 
             const buildSelectField = (labelText, options, selectedValue, onChange) => {
@@ -522,7 +555,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         row.appendChild(localPartField.wrapper);
                     } else {
                         const primaryField = buildField(
-                            type === 'folder' ? (editor.dataset.primaryLabel || '') : '',
+                            '',
                             type === 'folder' ? 'text' : 'email',
                             editor.dataset.primaryPlaceholder || '',
                             type === 'folder' ? value.name : value.email,
@@ -535,11 +568,14 @@ document.addEventListener('DOMContentLoaded', function () {
                                 syncStorage();
                             }
                         );
+                        if (type === 'folder') {
+                            primaryField.wrapper.className += ' account-list-field-name';
+                        }
                         row.appendChild(primaryField.wrapper);
                         firstFocusable = primaryField.input;
 
                         const secondaryField = buildField(
-                            type === 'folder' ? (editor.dataset.secondaryLabel || '') : '',
+                            '',
                             type === 'folder' ? 'number' : 'text',
                             editor.dataset.secondaryPlaceholder || '',
                             type === 'folder' ? String(value.sortOrder ?? 0) : (value.name || ''),
@@ -552,36 +588,50 @@ document.addEventListener('DOMContentLoaded', function () {
                                 syncStorage();
                             }
                         );
+                        if (type === 'folder') {
+                            secondaryField.wrapper.className += ' account-list-field-sort';
+                        }
                         row.appendChild(secondaryField.wrapper);
                     }
 
                     if (type === 'folder' && folderFunctionOptions.length > 0) {
-                        const tertiaryField = buildMultiSelectField(
-                            editor.dataset.tertiaryLabel || '',
-                            folderFunctionOptions,
-                            Array.isArray(value.functions) && value.functions.length > 0 ? value.functions : ['none'],
-                            function (event) {
-                                let selectedValues = Array.from(event.target.selectedOptions).map(option => option.value);
-                                if (selectedValues.includes('none')) {
-                                    if (selectedValues.length > 1) {
-                                        selectedValues = selectedValues.filter(value => value !== 'none');
-                                        Array.from(event.target.options).forEach((option) => {
-                                            option.selected = selectedValues.includes(option.value);
-                                        });
-                                    } else {
-                                        selectedValues = [];
+                        const selectedFunction = Array.isArray(value.functions) && value.functions.length > 0
+                            ? String(value.functions[0])
+                            : '';
+                        if (autocompleteClass !== null) {
+                            folderFunctionSequence += 1;
+                            const functionField = buildFolderFunctionField(
+                                editor.dataset.tertiaryPlaceholder || '',
+                                'account-folder-function-' + folderFunctionSequence,
+                            );
+                            row.appendChild(functionField.wrapper);
+                            afterAppend = function () {
+                                initFolderFunctionAutocomplete(
+                                    functionField.input,
+                                    folderFunctionOptions,
+                                    selectedFunction,
+                                    function (functionKey) {
+                                        items[index].functions = functionKey === '' ? [] : [functionKey];
+                                        syncStorage();
                                     }
+                                );
+                            };
+                        } else {
+                            const functionField = buildSelectField(
+                                editor.dataset.tertiaryLabel || '',
+                                folderFunctionOptions,
+                                selectedFunction,
+                                function (event) {
+                                    items[index].functions = event.target.value === '' ? [] : [event.target.value];
+                                    syncStorage();
                                 }
-                                items[index].functions = selectedValues;
-                                syncStorage();
-                            }
-                        );
-                        row.appendChild(tertiaryField.wrapper);
+                            );
+                            row.appendChild(functionField.wrapper);
+                        }
                     }
 
                     const removeButton = document.createElement('button');
                     removeButton.type = 'button';
-                    removeButton.className = 'account-list-row-remove btn btn-outline-danger';
                     removeButton.dataset.accountListRemove = String(index);
                     let removeTarget = value.email;
                     if (type === 'folder') {
@@ -589,8 +639,22 @@ document.addEventListener('DOMContentLoaded', function () {
                     } else if (connectorOptions.length > 0) {
                         removeTarget = value.localPart;
                     }
+                    if (type === 'folder') {
+                        // App-passwords look: small danger button with trash
+                        // icon, floated to the row end; removal only happens
+                        // after the shared confirm modal answered
+                        // (data-confirm-client, see the confirmed listener).
+                        removeButton.className = 'account-list-row-remove btn btn-sm btn-danger confirm-action';
+                        removeButton.dataset.confirm = itemsContainer.dataset.confirmMessage || '';
+                        removeButton.dataset.confirmClient = '1';
+                        removeButton.setAttribute('title', removeLabel + ': ' + removeTarget);
+                    } else {
+                        removeButton.className = 'account-list-row-remove btn btn-outline-danger';
+                    }
                     removeButton.setAttribute('aria-label', removeLabel + ': ' + removeTarget);
-                    removeButton.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
+                    removeButton.innerHTML = type === 'folder'
+                        ? '<i class="fa-solid fa-trash" aria-hidden="true"></i>'
+                        : '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
 
                     row.appendChild(removeButton);
                     itemsContainer.appendChild(row);
@@ -655,6 +719,52 @@ document.addEventListener('DOMContentLoaded', function () {
                 draftConnectorInstance = initConnectorSelect(draftConnectorSelect, '');
             }
 
+            // Draft row for the folder editor: name, sort order and optional
+            // function; the Add button moves the triple into the items list.
+            const draftFolderName = editor.querySelector('[data-account-folder-name]');
+            const draftFolderSort = editor.querySelector('[data-account-folder-sort]');
+            const draftFolderFunctions = editor.querySelector('[data-account-folder-functions]');
+            const isFolderDraftEditor = type === 'folder'
+                && folderFunctionOptions.length > 0
+                && autocompleteClass !== null
+                && draftFolderName !== null
+                && draftFolderSort !== null
+                && draftFolderFunctions !== null;
+            let draftFunctionController = null;
+            let draftFunctionRecord = null;
+
+            const addFolderDraft = () => {
+                const name = draftFolderName.value.trim();
+                const sortRaw = draftFolderSort.value.trim();
+                const sort = sortRaw === '' || Number.isNaN(Number(sortRaw))
+                    ? items.length
+                    : Math.trunc(Number(sortRaw));
+                const functionKey = draftFunctionRecord && draftFunctionRecord.hiddenInput
+                    ? String(draftFunctionRecord.hiddenInput.value ?? '').trim()
+                    : '';
+                if (name === '') {
+                    return;
+                }
+
+                items.push({ name: name, sortOrder: sort, functions: functionKey === '' ? [] : [functionKey] });
+                syncStorage();
+                renderItems();
+
+                draftFolderName.value = '';
+                draftFolderSort.value = '';
+                if (draftFunctionController !== null && draftFunctionRecord !== null) {
+                    draftFunctionController.clearSelection(draftFunctionRecord);
+                } else {
+                    draftFolderFunctions.value = '';
+                }
+                draftFolderName.focus();
+            };
+
+            if (isFolderDraftEditor) {
+                draftFunctionController = initFolderFunctionAutocomplete(draftFolderFunctions, folderFunctionOptions, '');
+                draftFunctionRecord = draftFunctionController.instances[0] || null;
+            }
+
             const addItem = () => {
                 if (type === 'folder') {
                     items.push({ name: '', sortOrder: items.length, functions: [] });
@@ -684,6 +794,16 @@ document.addEventListener('DOMContentLoaded', function () {
                         event.preventDefault();
                         addAliasDraft();
                     }
+                });
+            } else if (isFolderDraftEditor) {
+                addButton.addEventListener('click', addFolderDraft);
+                [draftFolderName, draftFolderSort].forEach((draftInput) => {
+                    draftInput.addEventListener('keydown', (event) => {
+                        if (event.key === 'Enter') {
+                            event.preventDefault();
+                            addFolderDraft();
+                        }
+                    });
                 });
             } else {
                 addButton.addEventListener('click', addItem);

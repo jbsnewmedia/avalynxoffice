@@ -418,6 +418,8 @@ account.missing_folder_functions: "Diese Systemordner-Funktionen müssen vorhand
 account.remove_alias: "Alias entfernen"
 account.confirm_remove_alias: "Diesen Alias wirklich entfernen?"
 account.remove_folder: "Ordner entfernen"
+account.confirm_remove_folder: "Diesen Ordner wirklich entfernen?"
+account.folder_functions_placeholder: "Keine Ordnerfunktion"
 account.name: "Name"
 account.email: "E-Mail-Adresse"
 

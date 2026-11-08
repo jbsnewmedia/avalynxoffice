@@ -433,6 +433,8 @@ account.missing_folder_functions: "These system folder functions are required: %
 account.remove_alias: "Remove alias"
 account.confirm_remove_alias: "Really remove this alias?"
 account.remove_folder: "Remove folder"
+account.confirm_remove_folder: "Really remove this folder?"
+account.folder_functions_placeholder: "No folder function"
 account.name: "Name"
 account.email: "E-mail address"
 

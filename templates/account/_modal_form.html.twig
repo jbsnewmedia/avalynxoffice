@@ -88,16 +88,38 @@
                  data-secondary-label="{{ 'account.sort_order'|trans }}"
                  data-secondary-placeholder="{{ 'account.sort_order_placeholder'|trans }}"
                  data-tertiary-label="{{ 'account.folder_functions'|trans }}"
-                 data-folder-function-options="{{ folderFunctionOptions|json_encode|e('html_attr') }}">
+                 data-tertiary-placeholder="{{ 'account.folder_functions_placeholder'|trans }}"
+                 data-folder-function-options="{{ folderFunctionOptions|json_encode|e('html_attr') }}"
+                 data-autocomplete-no-results="{{ 'email.autocomplete_no_results'|trans }}">
                 {{ form_label(form.folders, null, {'label_attr': {'class': 'form-label'}}) }}
                 {{ form_widget(form.folders, {'attr': {'class': 'd-none', 'data-account-list-storage': 'true'}}) }}
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <div class="small text-body-secondary">{{ 'account.folder_fields_help'|trans }}</div>
-                    <button type="button" class="btn btn-primary" data-account-list-add>
-                        <i class="fa-solid fa-plus me-2" aria-hidden="true"></i>{{ 'account.add_folder'|trans }}
+                <div class="account-list-row account-list-row-add">
+                    <input type="text"
+                           class="form-control"
+                           id="{{ form.folders.vars.id }}_name"
+                           data-account-folder-name="1"
+                           placeholder="{{ 'account.folders_placeholder'|trans }}"
+                           aria-label="{{ 'account.folder_name'|trans }}"
+                           autocomplete="off">
+                    <input type="number"
+                           class="form-control"
+                           id="{{ form.folders.vars.id }}_sort"
+                           data-account-folder-sort="1"
+                           placeholder="{{ 'account.sort_order_placeholder'|trans }}"
+                           aria-label="{{ 'account.sort_order'|trans }}"
+                           autocomplete="off">
+                    <input type="text"
+                           class="form-control"
+                           id="{{ form.folders.vars.id }}_functions"
+                           data-account-folder-functions="1"
+                           placeholder="{{ 'account.folder_functions_placeholder'|trans }}"
+                           aria-label="{{ 'account.folder_functions'|trans }}"
+                           autocomplete="off">
+                    <button type="button" class="btn btn-primary" data-account-list-add aria-label="{{ 'account.add_folder'|trans }}" title="{{ 'account.add_folder'|trans }}">
+                        <i class="fa-solid fa-plus" aria-hidden="true"></i>
                     </button>
                 </div>
-                <div class="account-list-items" data-account-list-items data-remove-label="{{ 'account.remove_folder'|trans }}"></div>
+                <div class="account-list-items" data-account-list-items data-remove-label="{{ 'account.remove_folder'|trans }}" data-confirm-message="{{ 'account.confirm_remove_folder'|trans }}"></div>
                 <div class="account-list-empty text-body-secondary small" data-account-list-empty>{{ 'account.folders_empty'|trans }}</div>
                 {{ form_help(form.folders) }}
                 {{ form_errors(form.folders) }}

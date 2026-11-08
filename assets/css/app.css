@@ -357,15 +357,14 @@ body .avalynx-datatable-table td.avalynx-datatable-sorting-desc:after {
     border-radius: 0.75rem;
     background: var(--bs-body-bg);
 }
-.account-list-editor-folders .account-list-row {
-    grid-template-columns: minmax(0, 1.5fr) 8rem auto;
-}
-/* Alias rows in the app-passwords look: label-less inline fields on
-   separator lines instead of bordered boxes. */
-.account-list-editor-aliases .account-list-items {
+/* Alias and folder rows in the app-passwords look: label-less inline
+   fields on separator lines instead of bordered boxes. */
+.account-list-editor-aliases .account-list-items,
+.account-list-editor-folders .account-list-items {
     display: block;
 }
-.account-list-editor-aliases .account-list-row {
+.account-list-editor-aliases .account-list-row,
+.account-list-editor-folders .account-list-row {
     display: flex;
     gap: 0.5rem;
     align-items: center;
@@ -375,18 +374,43 @@ body .avalynx-datatable-table td.avalynx-datatable-sorting-desc:after {
     border-radius: 0;
     background: transparent;
 }
-.account-list-editor-aliases .account-list-row:last-child {
+.account-list-editor-aliases .account-list-row:last-child,
+.account-list-editor-folders .account-list-row:last-child {
     border-bottom: 0;
 }
 .account-list-editor-aliases .account-list-field {
     flex: 1 1 auto;
 }
-.account-list-editor-aliases .account-list-field .avalynx-autocomplete-wrapper {
+/* Folder one-liner: keep the name narrow so the function autocomplete
+   gets the room on the right. */
+.account-list-editor-folders .account-list-field-name {
+    flex: 1 1 9rem;
+}
+.account-list-editor-folders .account-list-field-sort {
+    flex: 0 0 4.5rem;
+}
+.account-list-editor-folders .account-list-field-functions {
+    flex: 1.6 1 10rem;
+}
+.account-list-editor-folders .account-list-row-add [data-account-folder-name] {
+    flex: 1 1 9rem;
+}
+.account-list-editor-folders .account-list-row-add [data-account-folder-sort] {
+    flex: 0 0 4.5rem;
+}
+.account-list-editor-folders .account-list-row-add [data-account-folder-functions],
+.account-list-editor-folders .account-list-row-add .avalynx-autocomplete-wrapper {
+    flex: 1.6 1 10rem;
     width: 100%;
 }
-/* Alias rows keep the standard app-passwords remove button (btn-sm
-   btn-danger with trash icon) and float it to the end of the row. */
-.account-list-editor-aliases .account-list-row-remove {
+.account-list-editor-aliases .account-list-field .avalynx-autocomplete-wrapper,
+.account-list-editor-folders .account-list-field .avalynx-autocomplete-wrapper {
+    width: 100%;
+}
+/* Alias and folder rows keep the standard app-passwords remove button
+   (btn-sm btn-danger with trash icon) floated to the end of the row. */
+.account-list-editor-aliases .account-list-row-remove,
+.account-list-editor-folders .account-list-row-remove {
     flex: 0 0 auto;
     width: auto;
     height: auto;
@@ -409,7 +433,8 @@ body .avalynx-datatable-table td.avalynx-datatable-sorting-desc:after {
     .account-list-row-remove {
         width: 100%;
     }
-    .account-list-editor-aliases .account-list-row-remove {
+    .account-list-editor-aliases .account-list-row-remove,
+    .account-list-editor-folders .account-list-row-remove {
         width: auto;
         margin-left: auto;
     }
