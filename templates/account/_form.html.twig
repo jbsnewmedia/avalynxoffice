@@ -32,21 +32,22 @@
         <div class="account-list-row account-list-row-add">
             <input type="text"
                    class="form-control"
-                   id="{{ form.aliases.vars.id }}_connector"
-                   data-account-alias-connector="1"
-                   placeholder="{{ 'account.alias_connector'|trans }}"
-                   autocomplete="off">
-            <input type="text"
-                   class="form-control"
                    id="{{ form.aliases.vars.id }}_local_part"
                    data-account-alias-local-part="1"
                    placeholder="{{ 'account.alias_local_part'|trans }}"
+                   aria-label="{{ 'account.alias_local_part'|trans }}"
+                   autocomplete="off">
+            <input type="text"
+                   class="form-control"
+                   id="{{ form.aliases.vars.id }}_connector"
+                   data-account-alias-connector="1"
+                   placeholder="{{ 'account.alias_connector'|trans }}"
                    autocomplete="off">
             <button type="button" class="btn btn-primary" data-account-list-add aria-label="{{ 'account.add_alias'|trans }}" title="{{ 'account.add_alias'|trans }}">
                 <i class="fa-solid fa-plus" aria-hidden="true"></i>
             </button>
         </div>
-        <div class="account-list-items" data-account-list-items data-remove-label="{{ 'account.remove_alias'|trans }}"></div>
+        <div class="account-list-items" data-account-list-items data-remove-label="{{ 'account.remove_alias'|trans }}" data-confirm-message="{{ 'account.confirm_remove_alias'|trans }}"></div>
         <div class="account-list-empty text-body-secondary small" data-account-list-empty>{{ 'account.aliases_empty'|trans }}</div>
         {{ form_help(form.aliases) }}
         {{ form_errors(form.aliases) }}

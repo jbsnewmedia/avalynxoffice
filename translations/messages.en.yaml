@@ -431,6 +431,7 @@ account.non_empty_folders: "Folders containing e-mails cannot be removed: %folde
 account.duplicate_folder_functions: "Folder functions may only be assigned once per account: %functions%."
 account.missing_folder_functions: "These system folder functions are required: %functions%."
 account.remove_alias: "Remove alias"
+account.confirm_remove_alias: "Really remove this alias?"
 account.remove_folder: "Remove folder"
 account.name: "Name"
 account.email: "E-mail address"

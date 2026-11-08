@@ -170,10 +170,12 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
     const initAccountListEditors = (root) => {
-        const autocompleteClass = typeof window.AvalynxAutocomplete === 'function'
-            ? window.AvalynxAutocomplete
-            : (typeof AvalynxAutocomplete === 'function' ? AvalynxAutocomplete : null);
-        let connectorAutocompleteSequence = 0;
+        // Like AvalynxAutocomplete, the library declares the class as a bare
+        // global, not on window.
+        const selectClass = typeof window.AvalynxSelect === 'function'
+            ? window.AvalynxSelect
+            : (typeof AvalynxSelect === 'function' ? AvalynxSelect : null);
+        let connectorSelectSequence = 0;
         (root || document).querySelectorAll('[data-account-list-editor]').forEach((editor) => {
             if (editor.dataset.accountListInitialized === 'true') {
                 return;
@@ -365,52 +367,50 @@ document.addEventListener('DOMContentLoaded', function () {
                 return { wrapper, select };
             };
 
-            const buildConnectorAutocompleteField = (placeholder, inputId) => {
+            const buildConnectorSelectField = (labelText, selectId, options, selectedValue) => {
                 const wrapper = document.createElement('div');
                 wrapper.className = 'account-list-field';
 
-                const input = document.createElement('input');
-                input.type = 'text';
-                input.id = inputId;
-                input.className = 'form-control';
-                input.autocomplete = 'off';
-                input.placeholder = placeholder || '';
-                wrapper.appendChild(input);
+                if (labelText !== '') {
+                    const label = document.createElement('label');
+                    label.className = 'form-label small text-body-secondary mb-1';
+                    label.textContent = labelText;
+                    wrapper.appendChild(label);
+                }
 
-                return { wrapper, input };
+                const select = document.createElement('select');
+                select.className = 'form-select';
+                select.id = selectId;
+                select.setAttribute('aria-label', editor.dataset.connectorPlaceholder || selectId);
+
+                options.forEach((optionConfig) => {
+                    const option = document.createElement('option');
+                    option.value = optionConfig.value;
+                    option.textContent = optionConfig.label;
+                    select.appendChild(option);
+                });
+
+                wrapper.appendChild(select);
+
+                return { wrapper, select };
             };
 
-            // Must run AFTER the input is attached to the document: the
-            // autocomplete library resolves the id selector against the DOM.
-            const initConnectorAutocomplete = (input, options, selectedId, onPick) => {
-                const selected = options.find((optionConfig) => optionConfig.value === selectedId);
-                const defaultSelections = selected ? [{ key: selected.value, value: selected.label }] : [];
-
-                new autocompleteClass('#' + input.id, {
-                    fetchData: async (query) => {
-                        const needle = String(query || '').trim().toLowerCase();
-                        const candidates = options.map((optionConfig) => ({ key: optionConfig.value, value: optionConfig.label }));
-                        if (!needle) {
-                            return candidates;
+            // Must run AFTER the select is attached to the document: the
+            // select library resolves the id selector against the DOM.
+            const initConnectorSelect = (select, selectedValue, onPick = null) => {
+                return new selectClass('#' + select.id, {
+                    liveSearch: true,
+                    noDefaultSelection: selectedValue === '',
+                    defaultValue: selectedValue === '' ? null : selectedValue,
+                    onChange: (value) => {
+                        if (onPick !== null) {
+                            onPick(String(value ?? ''));
                         }
-
-                        return candidates.filter((candidate) => candidate.value.toLowerCase().includes(needle));
-                    },
-                    maxSelections: 1,
-                    tagsPosition: 'inline',
-                    clearStyle: 'icon',
-                    defaultSelections: defaultSelections,
-                    onChange: (keys) => {
-                        // Single mode reports a string key, multi mode an
-                        // array of keys — both resolve to one connector id.
-                        const connectorId = Array.isArray(keys) ? (keys.length > 0 ? keys[0] : '') : String(keys ?? '');
-                        onPick(connectorId);
                     },
                 }, {
-                    placeholder: '',
-                    noResults: editor.dataset.autocompleteNoResults || 'No results found',
-                    clearTitle: '',
-                    removeTitle: editor.dataset.removeLabel || 'Remove'
+                    selectPlaceholder: editor.dataset.connectorPlaceholder || 'Please select…',
+                    searchPlaceholder: editor.dataset.connectorSearchPlaceholder || 'Search…',
+                    noResults: editor.dataset.autocompleteNoResults || 'No results'
                 });
             };
 
@@ -442,10 +442,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
                         const removeButton = document.createElement('button');
                         removeButton.type = 'button';
-                        removeButton.className = 'account-list-row-remove btn btn-outline-danger';
+                        // App-passwords look: small danger button with trash
+                        // icon; removal only happens after the shared confirm
+                        // modal answered (see the confirmed listener below).
+                        removeButton.className = 'account-list-row-remove btn btn-sm btn-danger confirm-action';
                         removeButton.dataset.accountListRemove = String(index);
+                        removeButton.dataset.confirm = itemsContainer.dataset.confirmMessage || '';
+                        // Client-side confirm: the shared confirm modal must
+                        // not submit the surrounding account form (see the
+                        // confirm-client branch in its click handler).
+                        removeButton.dataset.confirmClient = '1';
                         removeButton.setAttribute('aria-label', removeLabel + ': ' + (value.localPart || connectorLabel));
-                        removeButton.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
+                        removeButton.setAttribute('title', removeLabel + ': ' + (value.localPart || connectorLabel));
+                        removeButton.innerHTML = '<i class="fa-solid fa-trash" aria-hidden="true"></i>';
 
                         row.appendChild(text);
                         row.appendChild(removeButton);
@@ -466,18 +475,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
                     if (type === 'alias' && connectorOptions.length > 0) {
                         let connectorField;
-                        if (autocompleteClass !== null) {
-                            connectorAutocompleteSequence += 1;
-                            connectorField = buildConnectorAutocompleteField(
+                        if (selectClass !== null) {
+                            connectorSelectSequence += 1;
+                            connectorField = buildConnectorSelectField(
                                 editor.dataset.primaryLabel || '',
-                                'account-alias-connector-' + connectorAutocompleteSequence,
+                                'account-alias-connector-' + connectorSelectSequence,
+                                connectorOptions,
+                                value.connectorId || '',
                             );
                             row.appendChild(connectorField.wrapper);
-                            firstFocusable = connectorField.input;
+                            firstFocusable = connectorField.select;
                             afterAppend = function () {
-                                initConnectorAutocomplete(
-                                    connectorField.input,
-                                    connectorOptions,
+                                initConnectorSelect(
+                                    connectorField.select,
                                     value.connectorId || '',
                                     function (connectorId) {
                                         items[index].connectorId = connectorId;
@@ -594,37 +604,55 @@ document.addEventListener('DOMContentLoaded', function () {
                 emptyState.classList.toggle('d-none', items.length > 0);
             };
 
-            // Draft row for the alias editor: connector autocomplete plus
-            // local part; the Add button moves the pair into the items list.
-            let draftConnectorId = '';
-            const draftConnectorInput = editor.querySelector('[data-account-alias-connector]');
+            // Draft row for the alias editor: connector select with live
+            // search plus local part; the Add button moves the pair into
+            // the items list.
+            const draftConnectorSelect = editor.querySelector('select[data-account-alias-connector]');
             const draftLocalPartInput = editor.querySelector('[data-account-alias-local-part]');
-            const isAliasDraftEditor = type === 'alias' && connectorOptions.length > 0 && autocompleteClass !== null && draftConnectorInput !== null && draftLocalPartInput !== null;
+            const isAliasDraftEditor = type === 'alias' && connectorOptions.length > 0 && selectClass !== null && draftConnectorSelect !== null && draftLocalPartInput !== null;
+            let draftConnectorInstance = null;
+
+            // AvalynxSelect keeps the original select node in place (hidden)
+            // and inserts its button + dropdown right after it:
+            // [select] [button] [dropdown].
+            const resetDraftConnector = () => {
+                const button = draftConnectorSelect.nextElementSibling;
+                const dropdown = button ? button.nextElementSibling : null;
+                if (draftConnectorInstance !== null && button !== null && dropdown !== null) {
+                    draftConnectorInstance.reset(button, dropdown, draftConnectorSelect);
+                }
+            };
 
             const addAliasDraft = () => {
+                // The hidden original select is the source of truth for the
+                // draft connector: AvalynxSelect does not fire onChange when
+                // the active item is clicked again to clear the selection.
+                const connectorId = String(draftConnectorSelect.value ?? '').trim();
                 const localPart = draftLocalPartInput.value.trim();
-                if (draftConnectorId === '' || localPart === '') {
+                if (connectorId === '' || localPart === '') {
                     return;
                 }
 
-                items.push({ connectorId: draftConnectorId, localPart: localPart });
-                draftConnectorId = '';
+                items.push({ connectorId: connectorId, localPart: localPart });
                 syncStorage();
                 renderItems();
 
-                // Reset the autocomplete selection for the next entry.
-                const clearIcon = editor.querySelector('.avalynx-autocomplete-clear-icon');
-                if (clearIcon) {
-                    clearIcon.click();
-                }
+                resetDraftConnector();
                 draftLocalPartInput.value = '';
                 draftLocalPartInput.focus();
             };
 
             if (isAliasDraftEditor) {
-                initConnectorAutocomplete(draftConnectorInput, connectorOptions, '', (key) => {
-                    draftConnectorId = key;
+                // AvalynxSelect skips selects without options, so the
+                // draft select is filled from the editor's connector
+                // list before initialization.
+                connectorOptions.forEach((optionConfig) => {
+                    const option = document.createElement('option');
+                    option.value = optionConfig.value;
+                    option.textContent = optionConfig.label;
+                    draftConnectorSelect.appendChild(option);
                 });
+                draftConnectorInstance = initConnectorSelect(draftConnectorSelect, '');
             }
 
             const addItem = () => {
@@ -661,13 +689,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 addButton.addEventListener('click', addItem);
             }
 
-            itemsContainer.addEventListener('click', function (event) {
-                const removeButton = event.target.closest('[data-account-list-remove]');
-                if (!removeButton) {
-                    return;
-                }
-
-                const index = Number(removeButton.dataset.accountListRemove);
+            const removeItem = (index) => {
                 if (Number.isNaN(index)) {
                     return;
                 }
@@ -675,6 +697,30 @@ document.addEventListener('DOMContentLoaded', function () {
                 items = items.filter((_, itemIndex) => itemIndex !== index);
                 syncStorage();
                 renderItems();
+            };
+
+            itemsContainer.addEventListener('click', function (event) {
+                const removeButton = event.target.closest('[data-account-list-remove]');
+                if (!removeButton) {
+                    return;
+                }
+
+                // Confirm-action buttons remove only after the shared confirm
+                // modal answered; the editor reacts to the confirmed event.
+                if (removeButton.classList.contains('confirm-action')) {
+                    return;
+                }
+
+                removeItem(Number(removeButton.dataset.accountListRemove));
+            });
+
+            itemsContainer.addEventListener('avalynx:confirmed', function (event) {
+                const removeButton = event.target.closest('[data-account-list-remove]');
+                if (!removeButton) {
+                    return;
+                }
+
+                removeItem(Number(removeButton.dataset.accountListRemove));
             });
 
             const form = editor.closest('form');
@@ -1391,59 +1437,71 @@ document.addEventListener('DOMContentLoaded', function () {
         if (confirmBtn) {
             confirmBtn.addEventListener('click', function() {
                 if (currentTrigger) {
-                    const form = currentTrigger.closest('form');
-                    if (form) {
-                        if (form.classList.contains('modal-form-ajax')) {
-                            const formData = new FormData(form);
-                            fetch(form.getAttribute('action'), {
-                                method: 'POST',
-                                body: formData,
-                                headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                            })
-                            .then(res => res.headers.get('content-type').includes('application/json') ? res.json() : res.text())
-                            .then(data => {
-                                if (data.success || (typeof data === 'string' && data.includes('modal-form-ajax-success'))) {
-                                    confirmModal.hide();
-                                    const actionModalEl = document.getElementById('actionModal');
-                                    if (actionModalEl && actionModalEl.classList.contains('show')) {
-                                        const modalContent = actionModalEl.querySelector('.action-modal-content');
-                                        if (modalContent && typeof data === 'string') {
-                                            modalContent.innerHTML = data;
+                    if (currentTrigger.dataset.confirmClient === '1') {
+                        // Client-side confirm: the trigger opts out of the
+                        // form/link handling below — listeners on it (e.g.
+                        // the account list editors) react to the event.
+                        currentTrigger.dispatchEvent(new CustomEvent('avalynx:confirmed', { bubbles: true }));
+                    } else {
+                        const form = currentTrigger.closest('form');
+                        if (form) {
+                            if (form.classList.contains('modal-form-ajax')) {
+                                const formData = new FormData(form);
+                                fetch(form.getAttribute('action'), {
+                                    method: 'POST',
+                                    body: formData,
+                                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                                })
+                                .then(res => res.headers.get('content-type').includes('application/json') ? res.json() : res.text())
+                                .then(data => {
+                                    if (data.success || (typeof data === 'string' && data.includes('modal-form-ajax-success'))) {
+                                        confirmModal.hide();
+                                        const actionModalEl = document.getElementById('actionModal');
+                                        if (actionModalEl && actionModalEl.classList.contains('show')) {
+                                            const modalContent = actionModalEl.querySelector('.action-modal-content');
+                                            if (modalContent && typeof data === 'string') {
+                                                modalContent.innerHTML = data;
+                                            } else {
+                                                window.location.reload();
+                                            }
                                         } else {
                                             window.location.reload();
                                         }
                                     } else {
                                         window.location.reload();
                                     }
-                                } else {
+                                })
+                                .catch(err => {
+                                    console.error('Confirm action failed', err);
                                     window.location.reload();
-                                }
-                            })
-                            .catch(err => {
-                                console.error('Confirm action failed', err);
-                                window.location.reload();
-                            });
-                        } else {
-                            form.submit();
-                        }
-                    } else if (currentTrigger.tagName === 'A') {
-                        const method = currentTrigger.dataset.method || 'GET';
-                        const token = currentTrigger.dataset.token;
-                        if (method.toUpperCase() === 'POST') {
-                            const form = document.createElement('form');
-                            form.method = 'POST';
-                            form.action = currentTrigger.getAttribute('href');
-                            if (token) {
-                                const input = document.createElement('input');
-                                input.type = 'hidden';
-                                input.name = '_token';
-                                input.value = token;
-                                form.appendChild(input);
+                                });
+                            } else {
+                                form.submit();
                             }
-                            document.body.appendChild(form);
-                            form.submit();
+                        } else if (currentTrigger.tagName === 'A') {
+                            const method = currentTrigger.dataset.method || 'GET';
+                            const token = currentTrigger.dataset.token;
+                            if (method.toUpperCase() === 'POST') {
+                                const form = document.createElement('form');
+                                form.method = 'POST';
+                                form.action = currentTrigger.getAttribute('href');
+                                if (token) {
+                                    const input = document.createElement('input');
+                                    input.type = 'hidden';
+                                    input.name = '_token';
+                                    input.value = token;
+                                    form.appendChild(input);
+                                }
+                                document.body.appendChild(form);
+                                form.submit();
+                            } else {
+                                window.location.href = currentTrigger.getAttribute('href');
+                            }
                         } else {
-                            window.location.href = currentTrigger.getAttribute('href');
+                            // Bare trigger (no form, no link): the action is
+                            // handled client-side — listeners on the trigger
+                            // (e.g. the account list editors) react to the event.
+                            currentTrigger.dispatchEvent(new CustomEvent('avalynx:confirmed', { bubbles: true }));
                         }
                     }
                     confirmModal.hide();

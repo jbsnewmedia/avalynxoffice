@@ -6,6 +6,16 @@
 body {
     overflow-y: hidden;
 }
+/* Shared action modal (base.html.twig): the fetched content templates ship
+   their own vertical padding utilities on a wrapper div (p-4 / p-3), which
+   used to stack with the modal body's px-3 — header (1rem) and body content
+   (1rem + 1.5rem) sat in different lines. The body keeps the horizontal
+   padding, the wrappers only keep their vertical one. Utilities ship with
+   !important, so this override needs it too. */
+.action-modal-content > div {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
 /* Full pages (settings, profile, account forms, login, ...) keep the navbar
    and the footer fixed and scroll only the content area below the navbar:
    the body becomes a full-height flex column, the page wrapper (.min-vh-100
@@ -374,18 +384,14 @@ body .avalynx-datatable-table td.avalynx-datatable-sorting-desc:after {
 .account-list-editor-aliases .account-list-field .avalynx-autocomplete-wrapper {
     width: 100%;
 }
+/* Alias rows keep the standard app-passwords remove button (btn-sm
+   btn-danger with trash icon) and float it to the end of the row. */
 .account-list-editor-aliases .account-list-row-remove {
     flex: 0 0 auto;
-    width: 2rem;
-    height: 2rem;
-    border: 0;
-    background: transparent;
-    color: var(--bs-danger);
-    font-size: 1rem;
-}
-.account-list-editor-aliases .account-list-row-remove:hover {
-    color: var(--bs-danger);
-    opacity: 0.75;
+    width: auto;
+    height: auto;
+    padding: var(--bs-btn-padding-y) var(--bs-btn-padding-x);
+    margin-left: auto;
 }
 .account-list-field {
     min-width: 0;
@@ -402,6 +408,10 @@ body .avalynx-datatable-table td.avalynx-datatable-sorting-desc:after {
     }
     .account-list-row-remove {
         width: 100%;
+    }
+    .account-list-editor-aliases .account-list-row-remove {
+        width: auto;
+        margin-left: auto;
     }
 }
 [data-bs-theme=dark] .account-list-editor {
