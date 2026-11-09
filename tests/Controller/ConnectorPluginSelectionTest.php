@@ -59,6 +59,51 @@ final class ConnectorPluginSelectionTest extends WebTestCase
         self::assertStringContainsString('value="exchange"', $content);
     }
 
+    public function testPluginSettingsRejectsUnknownPluginWith404(): void
+    {
+        $connector = new Connector();
+        $connector->setName('Primary');
+        $connector->setDomain('example.com');
+        $this->em->persist($connector);
+        $this->em->flush();
+
+        $this->client->loginUser($this->admin);
+        $this->client->request('POST', sprintf('/admin/connectors/%s/settings/no-such-plugin', $connector->getId()?->toRfc4122()));
+
+        self::assertResponseStatusCodeSame(404);
+    }
+
+    public function testDataTableFallsBackToPluginKeyForBracketOnlyLabels(): void
+    {
+        // A plugin key whose (translated) label collapses to nothing after
+        // stripping the bracket suffix falls back to the raw key.
+        $connector = new Connector();
+        $connector->setName('Bracket');
+        $connector->setDomain('example.com');
+        $connector->setPluginKey('(');
+        $this->em->persist($connector);
+        $this->em->flush();
+
+        $this->client->loginUser($this->admin);
+        $this->client->request('POST', '/admin/connectors/data', ['_token' => $this->setCsrfToken('datatable')], [], ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+
+        self::assertResponseIsSuccessful();
+        $payload = json_decode((string) $this->client->getResponse()->getContent(), true);
+        self::assertIsArray($payload);
+        self::assertSame('example.com<div class="small text-body-secondary">(</div>', $payload['data'][0]['data']['domain']);
+    }
+
+    private function setCsrfToken(string $tokenId): string
+    {
+        $this->client->request('GET', '/admin/connectors');
+        $session = $this->client->getRequest()->getSession();
+        $value = 'test-csrf-token-'.bin2hex(random_bytes(8));
+        $session->set('_csrf/'.$tokenId, $value);
+        $session->save();
+
+        return $value;
+    }
+
     public function testCreateWithChosenPluginJumpsToItsSettings(): void
     {
         $this->client->loginUser($this->admin);
