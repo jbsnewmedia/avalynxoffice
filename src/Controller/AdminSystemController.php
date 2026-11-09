@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace AvalynxOffice\Controller;
 
 use AvalynxOffice\Entity\Connector;
+use AvalynxOffice\Entity\SyncRun;
 use AvalynxOffice\Form\SyncSettingsType;
 use AvalynxOffice\Repository\ConnectorRepository;
 use AvalynxOffice\Repository\SyncRunRepository;
@@ -55,10 +56,34 @@ final class AdminSystemController extends AbstractController
 
         return $this->render('admin/system.html.twig', [
             'form' => $form,
+        ] + $this->statusData($connectorRepository, $pluginRegistry));
+    }
+
+    /**
+     * Live-refresh fragment for the system page: renders only the status
+     * cards (latest run, recent runs, connectors) so the page can poll
+     * the important values without a full reload.
+     */
+    #[Route('/status', name: 'app_admin_system_status', methods: ['GET'])]
+    public function status(Request $request, ConnectorRepository $connectorRepository, ConnectorPluginRegistry $pluginRegistry): Response
+    {
+        if (!$request->isXmlHttpRequest()) {
+            throw new AccessDeniedException();
+        }
+
+        return $this->render('admin/_system_status.html.twig', $this->statusData($connectorRepository, $pluginRegistry));
+    }
+
+    /**
+     * @return array{lastSyncRun: SyncRun|null, recentRuns: list<SyncRun>, connectors: list<array{name: string, domain: string, plugin: string|null, inputConfigured: bool, status: array{mails: ?string, contacts: ?string, calendar: ?string}}>}
+     */
+    private function statusData(ConnectorRepository $connectorRepository, ConnectorPluginRegistry $pluginRegistry): array
+    {
+        return [
             'lastSyncRun' => $this->syncRunRepository->findLatest(),
             'recentRuns' => $this->syncRunRepository->findBy([], ['startedAt' => 'DESC'], 5),
             'connectors' => $this->connectorOverview($connectorRepository, $pluginRegistry),
-        ]);
+        ];
     }
 
     #[Route('', name: 'app_admin_system_save', methods: ['POST'])]
@@ -121,7 +146,7 @@ final class AdminSystemController extends AbstractController
      * overview shows which plugin drives each connector and how far the
      * data is already synced.
      *
-     * @return list<array{name: string, domain: string, settingsUrl: string, plugin: string|null, inputConfigured: bool, status: array{mails: ?string, contacts: ?string, calendar: ?string}}>
+     * @return list<array{name: string, domain: string, plugin: string|null, inputConfigured: bool, status: array{mails: ?string, contacts: ?string, calendar: ?string}}>
      */
     private function connectorOverview(ConnectorRepository $connectorRepository, ConnectorPluginRegistry $pluginRegistry): array
     {
@@ -132,7 +157,6 @@ final class AdminSystemController extends AbstractController
             $connectors[] = [
                 'name' => $connector->getName(),
                 'domain' => $this->idnService->toUnicode($connector->getDomain()),
-                'settingsUrl' => $this->generateUrl('connector_settings', ['id' => $connector->getId()]),
                 'plugin' => null !== $plugin ? $this->translator->trans($plugin->getName()) : $pluginKey,
                 'inputConfigured' => $pluginRegistry->isInputConfigured($connector),
                 'status' => $pluginRegistry->getStatus($connector),

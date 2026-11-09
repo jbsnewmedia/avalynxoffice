@@ -1605,6 +1605,39 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     })();
     (function(){
+        // Elements with data-live-refresh poll their data-live-refresh-url
+        // and swap in the returned fragment (e.g. the admin system status
+        // cards). Hidden tabs skip a pass — the next visible interval
+        // refreshes anyway. Redirect answers (e.g. an expired session that
+        // bounces to the login page) are ignored instead of being swapped
+        // into the page.
+        document.querySelectorAll('[data-live-refresh]').forEach(function (el) {
+            const url = el.dataset.liveRefreshUrl;
+            if (!url) return;
+            const interval = parseInt(el.dataset.liveRefresh, 10) || 30000;
+            window.setInterval(function () {
+                if (document.hidden) return;
+                fetch(url, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    cache: 'no-store'
+                })
+                .then(function (response) {
+                    if (!response.ok || response.redirected) {
+                        return null;
+                    }
+                    return response.text();
+                })
+                .then(function (html) {
+                    if (null === html) return;
+                    el.innerHTML = html;
+                })
+                .catch(function () {
+                    // Keep the last rendered state; the next pass retries.
+                });
+            }, interval);
+        });
+    })();
+    (function(){
         const confirmModalEl = document.getElementById('confirmModal');
         if (!confirmModalEl) return;
         const confirmModal = window.bootstrap.Modal.getOrCreateInstance(confirmModalEl);

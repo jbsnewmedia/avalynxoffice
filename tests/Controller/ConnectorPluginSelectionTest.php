@@ -185,12 +185,14 @@ final class ConnectorPluginSelectionTest extends WebTestCase
         $this->em->flush();
 
         $this->client->loginUser($this->admin);
-        $this->client->request('GET', '/admin/system');
+        $crawler = $this->client->request('GET', '/admin/system');
 
         self::assertResponseIsSuccessful();
         $content = (string) $this->client->getResponse()->getContent();
         self::assertStringContainsString('Connectors in the sync service', $content);
         self::assertStringContainsString('Exchange Connector', $content);
-        self::assertStringContainsString('/admin/connectors/'.$connector->getId()?->toRfc4122().'/settings', $content);
+        // The connector name is plain text, not a link to its settings.
+        self::assertStringNotContainsString('/admin/connectors/'.$connector->getId()?->toRfc4122().'/settings', $content);
+        self::assertSame(0, $crawler->filter('[data-system-status-card="connectors"] a')->count());
     }
 }

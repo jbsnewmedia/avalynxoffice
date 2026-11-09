@@ -67,6 +67,21 @@ final class AdminSystemControllerTest extends WebTestCase
         self::assertResponseStatusCodeSame(403);
     }
 
+    public function testSystemPageWiresStatusCardsForLiveRefresh(): void
+    {
+        $this->client->loginUser($this->admin);
+        $crawler = $this->client->request('GET', '/admin/system');
+
+        self::assertResponseIsSuccessful();
+
+        $container = $crawler->filter('#admin-system-status');
+        self::assertSame(1, $container->count());
+        self::assertSame('/admin/system/status', $container->attr('data-live-refresh-url'));
+        self::assertSame('10000', $container->attr('data-live-refresh'));
+        self::assertSame(1, $crawler->filter('#admin-system-status [data-system-status-card="latest"]')->count());
+        self::assertSame(1, $crawler->filter('#admin-system-status [data-system-status-card="connectors"]')->count());
+    }
+
     public function testSystemPageShowsPlaceholderWhenServiceNeverRan(): void
     {
         $this->client->loginUser($this->admin);
@@ -201,6 +216,56 @@ final class AdminSystemControllerTest extends WebTestCase
         ]);
 
         self::assertResponseStatusCodeSame(403);
+    }
+
+    public function testStatusFragmentRequiresLogin(): void
+    {
+        $this->client->request('GET', '/admin/system/status', [], [], ['HTTP_X-Requested-With' => 'XMLHttpRequest']);
+
+        self::assertResponseRedirects('/login');
+    }
+
+    public function testStatusFragmentRequiresAdminRole(): void
+    {
+        $this->client->loginUser($this->user);
+        $this->client->request('GET', '/admin/system/status', [], [], ['HTTP_X-Requested-With' => 'XMLHttpRequest']);
+
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    public function testStatusFragmentRequiresXmlHttpRequest(): void
+    {
+        $this->client->loginUser($this->admin);
+        $this->client->request('GET', '/admin/system/status');
+
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    public function testStatusFragmentRendersCurrentValuesOnly(): void
+    {
+        $run = new SyncRun();
+        $run->setStatus(SyncRun::STATUS_SUCCESS);
+        $run->setTrigger(SyncRun::TRIGGER_MANUAL);
+        $run->setFinishedAt(new \DateTimeImmutable('+3 seconds'));
+        $run->setMailsImported(7);
+        $this->em->persist($run);
+        $this->em->flush();
+
+        $this->client->loginUser($this->admin);
+        $crawler = $this->client->request('GET', '/admin/system/status', [], [], ['HTTP_X-Requested-With' => 'XMLHttpRequest']);
+
+        self::assertResponseIsSuccessful();
+
+        $content = (string) $this->client->getResponse()->getContent();
+        self::assertStringContainsString('Successful', $content);
+        self::assertStringContainsString('7 imported', $content);
+        self::assertSame(1, $crawler->filter('[data-system-status-card="latest"]')->count());
+        self::assertSame(1, $crawler->filter('[data-system-status-card="recent"]')->count());
+        self::assertSame(1, $crawler->filter('[data-system-status-card="connectors"]')->count());
+        // The fragment carries the status cards only — no page frame and
+        // none of the settings form.
+        self::assertSame(0, $crawler->filter('nav, form')->count());
+        self::assertStringNotContainsString('sync_settings', $content);
     }
 
     public function testSaveRejectsBusyIntervalGreaterThanIdleInterval(): void
