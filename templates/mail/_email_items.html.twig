@@ -52,7 +52,7 @@
                         </button>
                     {% endif %}
                 </div>
-                <small class="text-body-secondary text-nowrap" aria-label="{{ 'email.date_label'|trans({'%date%': effDate ? (effDate|user_datetime('short') ~ ' ' ~ ('common.oclock'|trans)) : ('common.unknown'|trans)}) }}">{{ effDate ? (effDate|user_datetime('short') ~ ' ' ~ ('common.oclock'|trans)) : '' }}</small>
+                <small class="text-body-secondary text-nowrap" aria-label="{{ 'email.date_label'|trans({'%date%': effDate ? effDate|user_datetime : ('common.unknown'|trans)}) }}">{{ effDate ? effDate|user_datetime : '' }}</small>
             </div>
         </div>
     </article>
