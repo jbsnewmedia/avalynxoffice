@@ -4,20 +4,20 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "c101d53378cc655312326df1ca43240b",
+    "content-hash": "f171bf97749e0ead3482e7bf9db7cb4a",
     "packages": [
         {
             "name": "avalynx/avalynx-alert",
-            "version": "1.0.6",
+            "version": "1.0.7",
             "source": {
                 "type": "git",
                 "url": "https://github.com/avalynx/avalynx-alert.git",
-                "reference": "566f28c45ab024a7b1ad2f2838e80fb3f7c05507"
+                "reference": "2aed7332d6635035c3130f6566210331b6a59b59"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/avalynx/avalynx-alert/zipball/566f28c45ab024a7b1ad2f2838e80fb3f7c05507",
-                "reference": "566f28c45ab024a7b1ad2f2838e80fb3f7c05507",
+                "url": "https://api.github.com/repos/avalynx/avalynx-alert/zipball/2aed7332d6635035c3130f6566210331b6a59b59",
+                "reference": "2aed7332d6635035c3130f6566210331b6a59b59",
                 "shasum": ""
             },
             "require": {
@@ -47,10 +47,10 @@
             ],
             "support": {
                 "issues": "https://github.com/avalynx/avalynx-alert/issues",
-                "source": "https://github.com/avalynx/avalynx-alert/tree/1.0.6"
+                "source": "https://github.com/avalynx/avalynx-alert/tree/1.0.7"
             },
-            "time": "2026-08-05T14:15:14+00:00",
-            "published-time": "2026-08-05T14:17:12+00:00"
+            "time": "2026-11-09T18:13:58+00:00",
+            "published-time": "2026-11-09T18:55:16+00:00"
         },
         {
             "name": "avalynx/avalynx-autocomplete",
@@ -195,16 +195,16 @@
         },
         {
             "name": "avalynx/avalynx-form",
-            "version": "1.0.6",
+            "version": "1.0.7",
             "source": {
                 "type": "git",
                 "url": "https://github.com/avalynx/avalynx-form.git",
-                "reference": "dfec5cd348602972eae95031c1e88e144ca598d4"
+                "reference": "34cbe551b326a0a9284d72e131d786759e3b09fd"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/avalynx/avalynx-form/zipball/dfec5cd348602972eae95031c1e88e144ca598d4",
-                "reference": "dfec5cd348602972eae95031c1e88e144ca598d4",
+                "url": "https://api.github.com/repos/avalynx/avalynx-form/zipball/34cbe551b326a0a9284d72e131d786759e3b09fd",
+                "reference": "34cbe551b326a0a9284d72e131d786759e3b09fd",
                 "shasum": ""
             },
             "require": {
@@ -234,10 +234,10 @@
             ],
             "support": {
                 "issues": "https://github.com/avalynx/avalynx-form/issues",
-                "source": "https://github.com/avalynx/avalynx-form/tree/1.0.6"
+                "source": "https://github.com/avalynx/avalynx-form/tree/1.0.7"
             },
-            "time": "2026-08-05T15:26:03+00:00",
-            "published-time": "2026-08-05T15:31:40+00:00"
+            "time": "2026-11-09T18:13:58+00:00",
+            "published-time": "2026-11-09T19:01:15+00:00"
         },
         {
             "name": "avalynx/avalynx-lightbox",
@@ -285,16 +285,16 @@
         },
         {
             "name": "avalynx/avalynx-loader",
-            "version": "1.0.3",
+            "version": "1.0.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/avalynx/avalynx-loader.git",
-                "reference": "fe2d557c1adab706fc3e7e575af7b0cf4242f83f"
+                "reference": "1831a71a49c0df987a11436b0e7df412e5b6cfb8"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/avalynx/avalynx-loader/zipball/fe2d557c1adab706fc3e7e575af7b0cf4242f83f",
-                "reference": "fe2d557c1adab706fc3e7e575af7b0cf4242f83f",
+                "url": "https://api.github.com/repos/avalynx/avalynx-loader/zipball/1831a71a49c0df987a11436b0e7df412e5b6cfb8",
+                "reference": "1831a71a49c0df987a11436b0e7df412e5b6cfb8",
                 "shasum": ""
             },
             "require": {
@@ -324,10 +324,10 @@
             ],
             "support": {
                 "issues": "https://github.com/avalynx/avalynx-loader/issues",
-                "source": "https://github.com/avalynx/avalynx-loader/tree/1.0.3"
+                "source": "https://github.com/avalynx/avalynx-loader/tree/1.0.4"
             },
-            "time": "2026-08-05T15:27:16+00:00",
-            "published-time": "2026-08-05T15:33:21+00:00"
+            "time": "2026-11-09T18:57:05+00:00",
+            "published-time": "2026-11-09T18:57:45+00:00"
         },
         {
             "name": "avalynx/avalynx-modal",
