@@ -113,7 +113,7 @@ class ConnectorAdminController extends AbstractController
         return new JsonResponse([
             'head' => ['columns' => [
                 ['name' => $this->translator->trans('connector.name'), 'sortable' => true, 'id' => 'name'],
-                ['name' => $this->translator->trans('connector.domain'), 'sortable' => true, 'id' => 'domain'],
+                ['name' => $this->translator->trans('connector.domain'), 'sortable' => true, 'id' => 'domain', 'raw' => true],
                 ['name' => $this->translator->trans('connector.default_account'), 'raw' => true, 'id' => 'defaultAccount'],
                 ['name' => $this->translator->trans('connector.input'), 'raw' => true, 'id' => 'input'],
                 ['name' => $this->translator->trans('connector.output'), 'raw' => true, 'id' => 'output'],
@@ -204,6 +204,21 @@ class ConnectorAdminController extends AbstractController
         $this->addFlash('success', $this->translator->trans('connector.saved'));
 
         return AvalynxFormResponse::success($this->generateUrl('connector_settings', ['id' => $connector->getId()]));
+    }
+
+    #[Route('/{id}/edit', name: 'connector_edit_modal', methods: ['GET'], requirements: ['id' => '[0-9a-fA-F\-]{36}'])]
+    public function editModal(Connector $connector, Request $request): Response
+    {
+        $this->requireXmlHttpRequest($request);
+
+        $form = $this->createForm(ConnectorType::class, $connector, [
+            'action' => $this->generateUrl('connector_edit', ['id' => $connector->getId()]),
+            'pluginChoices' => $this->pluginChoices($connector),
+        ]);
+
+        return $this->render('connector/_modal_form.html.twig', [
+            'form' => $form,
+        ]);
     }
 
     #[Route('/{id}/settings', name: 'connector_settings', methods: ['GET'], requirements: ['id' => '[0-9a-fA-F\-]{36}'])]
@@ -342,29 +357,58 @@ class ConnectorAdminController extends AbstractController
     private function renderStatus(array $status): string
     {
         $entries = [
-            'connector.status_mails' => $status['mails'] ?? null,
-            'connector.status_contacts' => $status['contacts'] ?? null,
-            'connector.status_calendar' => $status['calendar'] ?? null,
+            [
+                'label' => 'connector.status_mails',
+                'icon' => 'fa-solid fa-envelope',
+                'value' => $status['mails'] ?? null,
+            ],
+            [
+                'label' => 'connector.status_contacts',
+                'icon' => 'fa-regular fa-user',
+                'value' => $status['contacts'] ?? null,
+            ],
+            [
+                'label' => 'connector.status_calendar',
+                'icon' => 'fa-regular fa-calendar',
+                'value' => $status['calendar'] ?? null,
+            ],
         ];
 
-        $lines = [];
-        foreach ($entries as $key => $value) {
-            $lines[] = '<div>'.htmlspecialchars($this->translator->trans($key), ENT_QUOTES, 'UTF-8').': '
-                .htmlspecialchars(null !== $value ? (string) $value : '—', ENT_QUOTES, 'UTF-8').'</div>';
+        $badges = [];
+        foreach ($entries as $entry) {
+            $label = htmlspecialchars($this->translator->trans($entry['label']), ENT_QUOTES, 'UTF-8');
+            $hasValue = null !== $entry['value'];
+            $value = $hasValue ? (string) $entry['value'] : '—';
+            $title = htmlspecialchars($label.': '.$value, ENT_QUOTES, 'UTF-8');
+            $class = $hasValue ? 'badge text-bg-success' : 'badge text-bg-secondary';
+
+            $badges[] = '<span class="'.$class.'" title="'.$title.'" aria-label="'.$title.'">'
+                .'<i class="'.$entry['icon'].' me-1" aria-hidden="true"></i>'
+                .htmlspecialchars($value, ENT_QUOTES, 'UTF-8')
+                .'</span>';
         }
 
-        return '<div class="small">'.implode('', $lines).'</div>';
+        return '<div class="d-flex flex-wrap gap-1">'.implode('', $badges).'</div>';
     }
 
     private function renderOptions(Connector $connector): string
     {
         $connectorId = $connector->getId()?->toRfc4122();
         $readOnly = $this->licenseEnforcement->isReadOnly();
+        $editLabel = htmlspecialchars($this->translator->trans('connector.edit'), ENT_QUOTES, 'UTF-8');
         $settingsLabel = htmlspecialchars($this->translator->trans('connector.settings'), ENT_QUOTES, 'UTF-8');
         $deleteLabel = htmlspecialchars($this->translator->trans('email.delete'), ENT_QUOTES, 'UTF-8');
 
+        $editUrl = $this->generateUrl('connector_edit_modal', ['id' => $connectorId]);
+        $html = '<a href="'.htmlspecialchars($editUrl, ENT_QUOTES, 'UTF-8').'"'
+            .' class="btn btn-sm btn-primary me-1 action-btn-modal"'
+            .' data-modal-size="modal-lg" data-title="'.$editLabel.'"'
+            .' title="'.$editLabel.'" aria-label="'.$editLabel.'"'
+            .($readOnly ? ' disabled' : '').'>'
+            .'<i class="fa-solid fa-pen" aria-hidden="true"></i></a>';
+
         $settingsUrl = $this->generateUrl('connector_settings', ['id' => $connectorId]);
-        $html = '<a href="'.htmlspecialchars($settingsUrl, ENT_QUOTES, 'UTF-8').'"'
+        $html .= '<a href="'.htmlspecialchars($settingsUrl, ENT_QUOTES, 'UTF-8').'"'
             .' class="btn btn-sm btn-primary me-1"'
             .' title="'.$settingsLabel.'" aria-label="'.$settingsLabel.'">'
             .'<i class="fa-solid fa-gear" aria-hidden="true"></i></a>';
@@ -406,7 +450,8 @@ class ConnectorAdminController extends AbstractController
 
     /**
      * Shows the plugin driving the connector below the domain in the admin
-     * table.
+     * table. The scope suffix (e.g. "(Eingang & Ausgabe)") is stripped: the
+     * Eingang/Ausgabe columns already carry that information.
      */
     private function renderPluginLine(Connector $connector): string
     {
@@ -416,6 +461,10 @@ class ConnectorAdminController extends AbstractController
         }
         $plugin = $this->pluginRegistry->get($pluginKey);
         $label = null !== $plugin ? $this->translator->trans($plugin->getName()) : $pluginKey;
+        $label = trim((string) preg_replace('/\s*\(.*$/u', '', $label));
+        if ('' === $label) {
+            $label = $pluginKey;
+        }
 
         return '<div class="small text-body-secondary">'.htmlspecialchars($label, ENT_QUOTES, 'UTF-8').'</div>';
     }

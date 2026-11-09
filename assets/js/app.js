@@ -897,6 +897,32 @@ document.addEventListener('DOMContentLoaded', function () {
             renderItems();
         });
     };
+    // The connector modal (create + edit) turns its plugin and default
+    // account selects into AvalynxSelect dropdowns with live search.
+    const initConnectorFormSelects = (root) => {
+        const selectClass = typeof window.AvalynxSelect === 'function'
+            ? window.AvalynxSelect
+            : (typeof AvalynxSelect === 'function' ? AvalynxSelect : null);
+        if (selectClass === null) {
+            return;
+        }
+        (root || document).querySelectorAll('#connector-form select[data-avalynx-select]').forEach((select) => {
+            if (select.dataset.avalynxSelectInitialized === 'true') {
+                return;
+            }
+            select.dataset.avalynxSelectInitialized = 'true';
+            new selectClass('#' + select.id, {
+                liveSearch: true,
+                noDefaultSelection: select.value === '',
+                defaultValue: select.value === '' ? null : select.value,
+                onChange: () => {},
+            }, {
+                selectPlaceholder: select.dataset.placeholder || 'Please select…',
+                searchPlaceholder: select.dataset.searchPlaceholder || 'Search…',
+                noResults: select.dataset.noResults || 'No results'
+            });
+        });
+    };
     const COMPOSE_EDITOR_TOOLBAR = [
         ['style', ['style', 'bold', 'italic', 'underline', 'clear']],
         ['para', ['ul', 'ol', 'paragraph']],
@@ -1503,6 +1529,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             initAccountListEditors(modalContent);
                             initComposeEditors(modalContent);
                             initUserAutocompletes(modalContent);
+                initConnectorFormSelects(modalContent);
                             const newFormAfterNav = modalContent.querySelector('form');
                             if (newFormAfterNav) {
                                 attachFormListener(newFormAfterNav, originalUrl);
@@ -1512,6 +1539,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             initAccountListEditors(modalContent);
                             initComposeEditors(modalContent);
                             initUserAutocompletes(modalContent);
+                initConnectorFormSelects(modalContent);
                             updateModalFooterButtons();
                             const errorForm = modalContent.querySelector('form');
                             if (errorForm) {
@@ -1545,6 +1573,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 initAccountListEditors(modalContent);
                 initComposeEditors(modalContent);
                 initUserAutocompletes(modalContent);
+                initConnectorFormSelects(modalContent);
                 updateModalFooterButtons();
                 const form = modalContent.querySelector('form');
                 if (form) {
@@ -2457,6 +2486,7 @@ document.addEventListener('DOMContentLoaded', function () {
         initAccountListEditors(document);
         initComposeEditors(document);
         initUserAutocompletes(document);
+        initConnectorFormSelects(document);
         setupFolderDrops(document);
         const mo = new MutationObserver(function(){ setupFolderDrops(document); });
         mo.observe(document.body, {subtree:true, childList:true});

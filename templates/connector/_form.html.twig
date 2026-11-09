@@ -1,10 +1,46 @@
 {{ form_start(form, {'attr': {'id': 'connector-form', 'data-avalynxform': '1', 'novalidate': 'novalidate'}}) }}
     <div class="row g-3">
-        <div class="col-md-6">{{ form_row(form.name, {'attr': {'class': 'form-control'}}) }}</div>
-        <div class="col-md-6">{{ form_row(form.domain, {'attr': {'class': 'form-control'}}) }}</div>
-        <div class="col-md-6">{{ form_row(form.plugin, {'attr': {'class': 'form-select'}}) }}</div>
-        <div class="col-md-6">{{ form_row(form.fetchFrom, {'attr': {'class': 'form-control'}}) }}</div>
-        <div class="col-md-6">{{ form_row(form.defaultAccount, {'attr': {'class': 'form-select'}}) }}</div>
+        <div class="col-md-6">
+            {{ form_label(form.name) }}
+            {{ form_widget(form.name, {'attr': {'class': 'form-control'}}) }}
+            <div class="invalid-feedback" aria-live="polite"></div>
+        </div>
+        <div class="col-md-6">
+            {{ form_label(form.domain) }}
+            {{ form_widget(form.domain, {'attr': {'class': 'form-control'}}) }}
+            {{ form_help(form.domain) }}
+            <div class="invalid-feedback" aria-live="polite"></div>
+        </div>
+        <div class="col-md-6">
+            {{ form_label(form.plugin) }}
+            {{ form_widget(form.plugin, {'attr': {
+                'class': 'form-select',
+                'data-avalynx-select': '1',
+                'data-placeholder': 'connector.plugin.placeholder'|trans,
+                'data-search-placeholder': 'search.placeholder'|trans,
+                'data-no-results': 'email.autocomplete_no_results'|trans,
+            }}) }}
+            {{ form_help(form.plugin) }}
+            <div class="invalid-feedback" aria-live="polite"></div>
+        </div>
+        <div class="col-md-6">
+            {{ form_label(form.fetchFrom) }}
+            {{ form_widget(form.fetchFrom, {'attr': {'class': 'form-control'}}) }}
+            {{ form_help(form.fetchFrom) }}
+            <div class="invalid-feedback" aria-live="polite"></div>
+        </div>
+        <div class="col-md-6">
+            {{ form_label(form.defaultAccount) }}
+            {{ form_widget(form.defaultAccount, {'attr': {
+                'class': 'form-select',
+                'data-avalynx-select': '1',
+                'data-placeholder': 'connector.no_default_account'|trans,
+                'data-search-placeholder': 'search.placeholder'|trans,
+                'data-no-results': 'email.autocomplete_no_results'|trans,
+            }}) }}
+            {{ form_help(form.defaultAccount) }}
+            <div class="invalid-feedback" aria-live="polite"></div>
+        </div>
     </div>
     <div class="mt-3 d-flex justify-content-end">
         {{ form_widget(form.save) }}

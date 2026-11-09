@@ -48,7 +48,11 @@ class ConnectorType extends AbstractType
                 'required' => true,
                 'label_attr' => ['class' => 'form-label'],
                 'attr' => ['class' => 'form-control'],
-                'constraints' => [new NotBlank()],
+                // An empty submission must map to '' (not null) or the
+                // string-typed setter crashes before NotBlank can reject
+                // the value with its translated message.
+                'empty_data' => '',
+                'constraints' => [new NotBlank(message: 'connector.name_required')],
             ])
             ->add('domain', TextType::class, [
                 'label' => 'connector.domain',
@@ -58,10 +62,10 @@ class ConnectorType extends AbstractType
                 'help' => 'connector.domain_help',
                 'empty_data' => '',
                 'constraints' => [
-                    new NotBlank(),
+                    new NotBlank(message: 'connector.domain_required'),
                     // Hostname labels only (no leading/trailing dots, no "..", no path characters):
                     // the domain is used as a directory name for mail dumps.
-                    new Regex(pattern: '/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$/i'),
+                    new Regex(pattern: '/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$/i', message: 'connector.domain_invalid'),
                 ],
             ])
             ->add('plugin', ChoiceType::class, [

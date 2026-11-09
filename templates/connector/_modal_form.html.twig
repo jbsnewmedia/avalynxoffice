@@ -19,7 +19,13 @@
             <div class="col-md-6">
                 <div class="form-group mb-3">
                     {{ form_label(form.plugin) }}
-                    {{ form_widget(form.plugin, {'attr': {'class': 'form-select'}}) }}
+                    {{ form_widget(form.plugin, {'attr': {
+                        'class': 'form-select',
+                        'data-avalynx-select': '1',
+                        'data-placeholder': 'connector.plugin.placeholder'|trans,
+                        'data-search-placeholder': 'search.placeholder'|trans,
+                        'data-no-results': 'email.autocomplete_no_results'|trans,
+                    }}) }}
                     {{ form_help(form.plugin) }}
                     <div class="invalid-feedback" aria-live="polite"></div>
                 </div>
@@ -35,7 +41,13 @@
             <div class="col-md-6">
                 <div class="form-group mb-3">
                     {{ form_label(form.defaultAccount) }}
-                    {{ form_widget(form.defaultAccount, {'attr': {'class': 'form-select'}}) }}
+                    {{ form_widget(form.defaultAccount, {'attr': {
+                        'class': 'form-select',
+                        'data-avalynx-select': '1',
+                        'data-placeholder': 'connector.no_default_account'|trans,
+                        'data-search-placeholder': 'search.placeholder'|trans,
+                        'data-no-results': 'email.autocomplete_no_results'|trans,
+                    }}) }}
                     {{ form_help(form.defaultAccount) }}
                     <div class="invalid-feedback" aria-live="polite"></div>
                 </div>

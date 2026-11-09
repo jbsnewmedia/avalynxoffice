@@ -41,14 +41,22 @@ class AccountType extends AbstractType
                 'required' => true,
                 'label_attr' => ['class' => 'form-label'],
                 'attr' => ['class' => 'form-control'],
-                'constraints' => [new NotBlank()],
+                // An empty submission must map to '' (not null) or the
+                // string-typed setter crashes before NotBlank can reject
+                // the value with its translated message.
+                'empty_data' => '',
+                'constraints' => [new NotBlank(message: 'account.name_required')],
             ])
             ->add('email', EmailType::class, [
                 'label' => 'account.email',
                 'required' => true,
                 'label_attr' => ['class' => 'form-label'],
                 'attr' => ['class' => 'form-control'],
-                'constraints' => [new NotBlank(), new Email()],
+                'empty_data' => '',
+                'constraints' => [
+                    new NotBlank(message: 'account.email_required'),
+                    new Email(message: 'account.email_invalid'),
+                ],
             ])
             ->add('users', TextType::class, [
                 'label' => 'account.users',

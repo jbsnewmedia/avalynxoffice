@@ -45,5 +45,6 @@
 </div>
 {% endblock %}
 {% block javascripts %}
+    {% do addAssetComposer('avalynx/avalynx-select/dist/js/avalynx-select.js') %}
     {{ parent() }}
 {% endblock %}

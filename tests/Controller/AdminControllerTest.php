@@ -138,10 +138,13 @@ final class AdminControllerTest extends WebTestCase
         $this->client->request('GET', sprintf('/admin/connectors/%s/settings', $connector->getId()));
         self::assertResponseIsSuccessful();
 
-        // The base connector form is only editable on the settings page and
-        // accepts POST requests only.
+        // The base connector form lives in the edit modal: it is an XHR-only
+        // fragment and accepts POST requests only.
         $this->client->request('GET', sprintf('/admin/connectors/%s/edit', $connector->getId()));
-        self::assertResponseStatusCodeSame(405);
+        self::assertResponseStatusCodeSame(403);
+
+        $this->client->request('GET', sprintf('/admin/connectors/%s/edit', $connector->getId()), [], [], ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        self::assertResponseIsSuccessful();
     }
 
     public function testAccountControllerSupportsCreateEditAndDeleteFlows(): void
