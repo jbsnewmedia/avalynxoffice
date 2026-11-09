@@ -26,7 +26,7 @@ final class SecurityHeadersSubscriberTest extends TestCase
         self::assertSame('SAMEORIGIN', $response->headers->get('X-Frame-Options'));
         self::assertSame('strict-origin-when-cross-origin', $response->headers->get('Referrer-Policy'));
         self::assertSame('camera=(), microphone=(), geolocation=()', $response->headers->get('Permissions-Policy'));
-        self::assertSame("frame-ancestors 'self'", $response->headers->get('Content-Security-Policy'));
+        self::assertSame("frame-ancestors 'self'; base-uri 'self'; object-src 'none'; form-action 'self'", $response->headers->get('Content-Security-Policy'));
         self::assertNull($response->headers->get('Strict-Transport-Security'), 'Plain HTTP must not receive HSTS');
     }
 

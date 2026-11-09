@@ -32,7 +32,7 @@ final class SecurityHeadersSubscriber implements EventSubscriberInterface
         $headers->set('X-Frame-Options', 'SAMEORIGIN');
         $headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
         $headers->set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-        $headers->set('Content-Security-Policy', "frame-ancestors 'self'");
+        $headers->set('Content-Security-Policy', "frame-ancestors 'self'; base-uri 'self'; object-src 'none'; form-action 'self'");
 
         if ($request->isSecure()) {
             $headers->set('Strict-Transport-Security', 'max-age=31536000');

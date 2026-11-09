@@ -289,7 +289,7 @@ final readonly class UserService
      */
     public function requestPasswordReset(string $email, \Closure $resetUrlFor): void
     {
-        $user = $this->userRepository->findOneBy(['email' => strtolower($email)]);
+        $user = $this->userRepository->findOneBy(['email' => $this->idnService->toAscii(strtolower($email))]);
 
         if (null === $user || [] === $user->getVerifiedRecoveryAddresses()) {
             return;

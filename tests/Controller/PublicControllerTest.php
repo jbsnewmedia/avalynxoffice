@@ -121,7 +121,7 @@ final class PublicControllerTest extends WebTestCase
         self::assertResponseHeaderSame('X-Content-Type-Options', 'nosniff');
         self::assertResponseHeaderSame('X-Frame-Options', 'SAMEORIGIN');
         self::assertResponseHeaderSame('Referrer-Policy', 'strict-origin-when-cross-origin');
-        self::assertResponseHeaderSame('Content-Security-Policy', "frame-ancestors 'self'");
+        self::assertResponseHeaderSame('Content-Security-Policy', "frame-ancestors 'self'; base-uri 'self'; object-src 'none'; form-action 'self'");
     }
 
     public function testDataEndpointsReturnStructuredMailData(): void

@@ -325,6 +325,43 @@ final class AdminPasswordResetFlowTest extends WebTestCase
         self::assertArrayHasKey('error', $payload);
     }
 
+    public function testFlowPageIsRateLimitedPerIp(): void
+    {
+        $this->client->disableReboot();
+
+        $limiter = static::getContainer()->get('limiter.password_reset_status');
+        \assert($limiter instanceof RateLimiterFactoryInterface);
+        // Exhaust the budget of the test client's IP directly.
+        $limiter->create('127.0.0.1')->consume(30);
+
+        $this->client->request('GET', '/profile/password-reset/admin-flow/UNKNOWN-TOKEN');
+        self::assertResponseIsSuccessful();
+
+        // The limited page is indistinguishable from an unknown token.
+        self::assertStringContainsString('data-state="unknown"', (string) $this->client->getResponse()->getContent());
+    }
+
+    public function testSubmitIsRateLimitedPerIp(): void
+    {
+        $this->client->disableReboot();
+
+        $limiter = static::getContainer()->get('limiter.password_reset');
+        \assert($limiter instanceof RateLimiterFactoryInterface);
+        // Exhaust the budget of the test client's IP directly.
+        $limiter->create('127.0.0.1')->consume(5);
+
+        $this->client->request('POST', '/profile/password-reset/admin-flow/UNKNOWN-TOKEN', [
+            'password' => 'super-secret',
+            'password_confirm' => 'super-secret',
+            '_token' => 'irrelevant-the-limiter-runs-first',
+        ]);
+        self::assertResponseStatusCodeSame(403);
+
+        $payload = $this->jsonPayload();
+        self::assertFalse($payload['success']);
+        self::assertSame('Too many requests. Please try again in a few minutes.', $payload['message']);
+    }
+
     public function testCompletedFlowRevokesLoginSessionsAndOtherOpenRequests(): void
     {
         $target = $this->findUser(self::TARGET_EMAIL);
@@ -694,13 +731,13 @@ final class AdminPasswordResetFlowTest extends WebTestCase
             $this->createStub(UserPasswordHasherInterface::class),
         );
 
-        $controller = new UserPasswordResetController($service, $repository, static::getContainer()->get('translator'), static::getContainer()->get('limiter.password_reset_status'));
+        $controller = new UserPasswordResetController($service, $repository, static::getContainer()->get('translator'), static::getContainer()->get('limiter.password_reset_status'), static::getContainer()->get('limiter.password_reset'));
         $controller->setContainer(static::getContainer());
 
         $request = Request::create('/profile/password-reset/admin-flow/race-token');
         static::getContainer()->get('request_stack')->push($request);
 
-        $response = $controller->flow('race-token');
+        $response = $controller->flow('race-token', $request);
 
         self::assertStringContainsString('data-state="pending"', (string) $response->getContent());
     }

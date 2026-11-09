@@ -44,6 +44,10 @@ self.addEventListener('fetch', (event) => {
   // show outdated mails until the cache version is bumped.
   if (req.headers.get('x-requested-with') === 'XMLHttpRequest') return;
 
+  // Never cache attachment downloads: mail attachments are private data and
+  // the CacheStorage survives logout/session end.
+  if (new URL(req.url).pathname.includes('/attachment/')) return;
+
   // Default: cache-first for other GET requests (minimal change to existing behavior)
   event.respondWith(
     caches.match(req).then((cached) => {
@@ -51,7 +55,7 @@ self.addEventListener('fetch', (event) => {
         // Never cache error responses: a temporarily failing asset (e.g.
         // a route that was added later) would otherwise stay broken until
         // the cache version is bumped.
-        if (!resp.ok) {
+        if (!resp.ok || resp.headers.has('content-disposition')) {
           return resp;
         }
         const copy = resp.clone();

@@ -34,12 +34,26 @@ final class UserPasswordResetController extends AbstractController
         private readonly PasswordResetRequestRepository $passwordResetRequestRepository,
         private readonly TranslatorInterface $translator,
         private readonly RateLimiterFactoryInterface $passwordResetStatusLimiter,
+        private readonly RateLimiterFactoryInterface $passwordResetLimiter,
     ) {
     }
 
     #[Route('/profile/password-reset/admin-flow/{token}', name: 'app_password_reset_admin_flow', methods: ['GET'])]
-    public function flow(string $token): Response
+    public function flow(string $token, Request $httpRequest): Response
     {
+        // The flow page is a token oracle just like the status endpoint, so
+        // it shares the per-IP budget: an exhausted budget renders the page
+        // in the "unknown" state - indistinguishable from an invalid token.
+        if (!$this->passwordResetStatusLimiter->create($httpRequest->getClientIp() ?? 'unknown')->consume()->isAccepted()) {
+            return $this->render('profile/password_reset_flow.html.twig', [
+                'token' => $token,
+                'state' => 'unknown',
+                'secondsLeft' => 0,
+                'statusUrl' => $this->generateUrl('app_password_reset_admin_flow_status', ['token' => $token]),
+                'submitUrl' => $this->generateUrl('app_password_reset_admin_flow_submit', ['token' => $token]),
+            ]);
+        }
+
         $request = $this->passwordResetRequestRepository->findByToken($token);
         $now = new \DateTimeImmutable();
 
@@ -133,6 +147,12 @@ final class UserPasswordResetController extends AbstractController
     #[Route('/profile/password-reset/admin-flow/{token}', name: 'app_password_reset_admin_flow_submit', methods: ['POST'])]
     public function submit(string $token, Request $request): JsonResponse
     {
+        // Setting the password is the valuable target of the flow: a leaked
+        // token plus release number must not be brute-forceable at speed.
+        if (!$this->passwordResetLimiter->create($request->getClientIp() ?? 'unknown')->consume()->isAccepted()) {
+            return AvalynxFormResponse::failure($this->translator->trans('password.reset.too_many_requests'));
+        }
+
         $tokenRaw = $request->request->get('_token');
         $csrfToken = is_scalar($tokenRaw) ? (string) $tokenRaw : null;
 

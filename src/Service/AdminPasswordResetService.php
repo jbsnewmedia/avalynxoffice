@@ -278,7 +278,7 @@ final readonly class AdminPasswordResetService
             throw new \DomainException('This reset request has expired.');
         }
 
-        if (!hash_equals($request->getReleaseNumberHash(), $this->hashNumber($number))) {
+        if (!password_verify((string) $number, $request->getReleaseNumberHash())) {
             $request->incrementAttempts();
 
             if ($request->getAttempts() >= PasswordResetRequest::MAX_NUMBER_ATTEMPTS) {
@@ -425,12 +425,15 @@ final readonly class AdminPasswordResetService
     }
 
     /**
-     * Numbers are hashed with a fixed context string so that a leaked database
-     * dump does not directly expose the 90-9999 plaintext values.
+     * Numbers are hashed with a slow password hash so that a leaked database
+     * dump does not expose the 1000-9999 plaintext values cheaply.
+     * PASSWORD_BCRYPT is pinned on purpose: it keeps the hash at 60 characters
+     * (the release_number_hash column size) regardless of the PHP default
+     * algorithm.
      */
     private function hashNumber(int $number): string
     {
-        return hash('sha256', 'password-reset-release:'.$number);
+        return password_hash((string) $number, PASSWORD_BCRYPT);
     }
 
     private static function uuidFrom(string $id): \Symfony\Component\Uid\UuidV7

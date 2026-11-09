@@ -53,10 +53,8 @@ final class AdminPasswordResetServiceTest extends TestCase
         self::assertSame(PasswordResetRequest::STATUS_PENDING, $result['request']->getStatus());
         self::assertSame($user, $result['request']->getUser());
         self::assertSame(hash('sha256', $result['token']), $result['request']->getTokenHash());
-        self::assertSame(
-            hash('sha256', 'password-reset-release:'.$result['number']),
-            $result['request']->getReleaseNumberHash(),
-        );
+        self::assertTrue(password_verify((string) $result['number'], $result['request']->getReleaseNumberHash()));
+        self::assertNotSame((string) $result['number'], $result['request']->getReleaseNumberHash());
         self::assertNotNull($result['request']->getExpiresAt());
         self::assertGreaterThan(new \DateTimeImmutable(), $result['request']->getExpiresAt());
     }
@@ -100,10 +98,7 @@ final class AdminPasswordResetServiceTest extends TestCase
         self::assertSame(PasswordResetRequest::STATUS_INVALIDATED, $openRequest->getStatus());
         self::assertSame(PasswordResetRequest::STATUS_CLAIMED, $result['request']->getStatus());
         self::assertSame(hash('sha256', $result['token']), $result['request']->getTokenHash());
-        self::assertSame(
-            hash('sha256', 'password-reset-release:'.$result['number']),
-            $result['request']->getReleaseNumberHash(),
-        );
+        self::assertTrue(password_verify((string) $result['number'], $result['request']->getReleaseNumberHash()));
         self::assertNull($result['request']->getCreatedByAdmin());
         self::assertSame('127.0.0.1', $result['request']->getCreatedIp());
     }
@@ -409,7 +404,7 @@ final class AdminPasswordResetServiceTest extends TestCase
     {
         $request = $this->createRequest(PasswordResetRequest::STATUS_CLAIMED);
         $request->setExpiresAt(new \DateTimeImmutable('+5 minutes'));
-        $request->setReleaseNumberHash(hash('sha256', 'password-reset-release:4321'));
+        $request->setReleaseNumberHash(password_hash('4321', PASSWORD_BCRYPT));
 
         $adminId = Uuid::v7()->toRfc4122();
         $entityManager = $this->createMock(EntityManagerInterface::class);
@@ -429,7 +424,7 @@ final class AdminPasswordResetServiceTest extends TestCase
     {
         $request = $this->createRequest(PasswordResetRequest::STATUS_CLAIMED);
         $request->setExpiresAt(new \DateTimeImmutable('+5 minutes'));
-        $request->setReleaseNumberHash(hash('sha256', 'password-reset-release:4321'));
+        $request->setReleaseNumberHash(password_hash('4321', PASSWORD_BCRYPT));
 
         $service = $this->createService();
 
@@ -447,7 +442,7 @@ final class AdminPasswordResetServiceTest extends TestCase
     {
         $request = $this->createRequest(PasswordResetRequest::STATUS_CLAIMED);
         $request->setExpiresAt(new \DateTimeImmutable('+5 minutes'));
-        $request->setReleaseNumberHash(hash('sha256', 'password-reset-release:4321'));
+        $request->setReleaseNumberHash(password_hash('4321', PASSWORD_BCRYPT));
         $request->incrementAttempts();
         $request->incrementAttempts();
 
@@ -469,7 +464,7 @@ final class AdminPasswordResetServiceTest extends TestCase
         $request = $this->createRequest(PasswordResetRequest::STATUS_CLAIMED);
         $request->setExpiresAt(new \DateTimeImmutable('+5 minutes'));
         $request->setReleaseExpiresAt(new \DateTimeImmutable('-1 minute'));
-        $request->setReleaseNumberHash(hash('sha256', 'password-reset-release:4321'));
+        $request->setReleaseNumberHash(password_hash('4321', PASSWORD_BCRYPT));
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->expects($this->once())->method('flush');
@@ -488,7 +483,7 @@ final class AdminPasswordResetServiceTest extends TestCase
     {
         $request = $this->createRequest(PasswordResetRequest::STATUS_CLAIMED);
         $request->setExpiresAt(new \DateTimeImmutable('-1 minute'));
-        $request->setReleaseNumberHash(hash('sha256', 'password-reset-release:4321'));
+        $request->setReleaseNumberHash(password_hash('4321', PASSWORD_BCRYPT));
 
         $entityManager = $this->createMock(EntityManagerInterface::class);
         $entityManager->expects($this->once())->method('flush');

@@ -52,6 +52,26 @@ class AttachmentStorageTest extends TestCase
         $storage->store($attachment, str_repeat('a', 11));
     }
 
+    public function testRejectsAbsoluteFilePath(): void
+    {
+        $storage = new AttachmentStorage('/tmp/project', 'attachments', 2, 2, 65_536);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('relative to the storage directory');
+
+        $storage->resolveAbsolutePath('/etc/passwd');
+    }
+
+    public function testRejectsDirectoryTraversalInFilePath(): void
+    {
+        $storage = new AttachmentStorage('/tmp/project', 'attachments', 2, 2, 65_536);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('directory traversals');
+
+        $storage->resolveAbsolutePath('../outside.txt');
+    }
+
     public function testBaseDirResolveAndDownloadResponseUseStoredFile(): void
     {
         $attachment = (new Attachment())
@@ -67,7 +87,6 @@ class AttachmentStorageTest extends TestCase
         $this->assertSame(65_536, $storage->getMaxBytes());
         $this->assertStringEndsWith('.gz', $relativePath);
         $this->assertSame('/tmp/project/attachments/'.$relativePath, $storage->resolveAbsolutePath($relativePath));
-        $this->assertSame('/already/absolute/file.txt', $storage->resolveAbsolutePath('/already/absolute/file.txt'));
 
         $response = $storage->createDownloadResponse($attachment);
 

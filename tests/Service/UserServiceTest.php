@@ -563,6 +563,28 @@ final class UserServiceTest extends TestCase
     }
 
     #[Group('unit')]
+    public function testRequestPasswordResetNormalizesIdnDomains(): void
+    {
+        $sent = [];
+        $systemMailer = $this->createMock(MailerInterface::class);
+        $systemMailer->expects($this->once())->method('send')->willReturnCallback(
+            static function (\Symfony\Component\Mime\RawMessage $message) use (&$sent): void {
+                $sent[] = $message;
+            },
+        );
+        $user = new User();
+        $user->setEmail('jbo@xn--bstoff-bua.de');
+        $user->setPassword('current-hash');
+        $service = $this->createRecoveryService($this->createRecoveryRepository(), $systemMailer, ['user' => $user]);
+        self::attachVerifiedAddress($user, 'one@example.com');
+
+        // The Unicode form of the domain must reach the punycode-stored user.
+        $service->requestPasswordReset('jbo@bästoff.de', static fn (User $candidate): string => 'https://office.example/reset/'.($candidate->getId()?->toRfc4122() ?? ''));
+
+        self::assertCount(1, $sent);
+    }
+
+    #[Group('unit')]
     public function testPasswordResetFingerprintChangesWithThePassword(): void
     {
         $service = $this->createRecoveryService($this->createRecoveryRepository(), $this->createStub(MailerInterface::class));

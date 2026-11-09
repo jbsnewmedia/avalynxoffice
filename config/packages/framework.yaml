@@ -13,7 +13,13 @@ framework:
         enabled: true
 
     # Note that the session will be started ONLY if you read or write from it.
-    session: true
+    session:
+        cookie_httponly: true
+        cookie_samesite: 'lax'
+        # "auto" sends the cookie secure only over HTTPS. Force `true` when
+        # the installation is reachable via TLS only (nginx edge or an
+        # external reverse proxy with TRUSTED_PROXIES configured).
+        cookie_secure: auto
 
     #esi: true
     #fragments: true

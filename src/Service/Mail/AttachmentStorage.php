@@ -86,7 +86,11 @@ class AttachmentStorage
         }
 
         if ($this->isAbsolutePath($filePath)) {
-            return $filePath;
+            throw new \RuntimeException('Attachment paths must stay relative to the storage directory.');
+        }
+
+        if (str_contains($filePath, '..')) {
+            throw new \RuntimeException('Attachment paths must not contain directory traversals.');
         }
 
         return rtrim($this->getBaseDir(), '/').'/'.ltrim($filePath, '/');
