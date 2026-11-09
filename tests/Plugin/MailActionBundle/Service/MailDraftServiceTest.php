@@ -23,6 +23,7 @@ use AvalynxOffice\Entity\Enum\BodyContentType;
 use AvalynxOffice\Entity\Enum\EmailAddressType;
 use AvalynxOffice\Entity\Folder;
 use AvalynxOffice\Entity\FolderAccount;
+use AvalynxOffice\Service\Idn\IdnService;
 use AvalynxOffice\Service\Mail\AttachmentStorage;
 use AvalynxOffice\Service\Mail\FolderManager;
 use AvalynxOffice\Tests\Support\AllowAllLicenseEnforcement;
@@ -73,7 +74,7 @@ final class MailDraftServiceTest extends TestCase
             ->expects(self::never())
             ->method('persist');
 
-        $service = new MailDraftService($entityManager, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
+        $service = new MailDraftService($entityManager, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement(), new IdnService());
 
         $draft = $service->createComposeDraft($account);
 
@@ -96,7 +97,7 @@ final class MailDraftServiceTest extends TestCase
             ->expects(self::never())
             ->method('getRepository');
 
-        $service = new MailDraftService($entityManager, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
+        $service = new MailDraftService($entityManager, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement(), new IdnService());
         $draft = $service->createComposeDraft();
 
         self::assertTrue($draft->isOutgoing());
@@ -111,7 +112,7 @@ final class MailDraftServiceTest extends TestCase
         $folderManager = $this->createMock(FolderManager::class);
         $attachmentStorage = $this->createStub(AttachmentStorage::class);
         $translator = $this->createTranslatorStub();
-        $service = new MailDraftService($entityManager, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
+        $service = new MailDraftService($entityManager, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement(), new IdnService());
 
         $account = (new Account())
             ->setName('Primary')
@@ -179,7 +180,7 @@ final class MailDraftServiceTest extends TestCase
         $folderManager = $this->createMock(FolderManager::class);
         $attachmentStorage = $this->createStub(AttachmentStorage::class);
         $translator = $this->createTranslatorStub();
-        $service = new MailDraftService($entityManager, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
+        $service = new MailDraftService($entityManager, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement(), new IdnService());
 
         $account = (new Account())
             ->setName('Primary')
@@ -243,7 +244,7 @@ final class MailDraftServiceTest extends TestCase
         $folderManager = $this->createMock(FolderManager::class);
         $attachmentStorage = $this->createStub(AttachmentStorage::class);
         $translator = $this->createTranslatorStub();
-        $service = new MailDraftService($entityManager, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
+        $service = new MailDraftService($entityManager, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement(), new IdnService());
 
         $account = (new Account())
             ->setName('Primary')
@@ -297,6 +298,7 @@ final class MailDraftServiceTest extends TestCase
             $this->createStub(AttachmentStorage::class),
             $this->createTranslatorStub(),
             new AllowAllLicenseEnforcement(),
+            new IdnService(),
         );
 
         $account = (new Account())->setName('Primary')->setEmail('primary@example.com');
@@ -333,7 +335,7 @@ final class MailDraftServiceTest extends TestCase
         $folderManager = $this->createMock(FolderManager::class);
         $attachmentStorage = $this->createStub(AttachmentStorage::class);
         $translator = $this->createStub(TranslatorInterface::class);
-        $service = new MailDraftService($entityManager, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
+        $service = new MailDraftService($entityManager, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement(), new IdnService());
 
         $account = (new Account())
             ->setName('Primary')
@@ -420,7 +422,7 @@ final class MailDraftServiceTest extends TestCase
         $folderManager = $this->createMock(FolderManager::class);
         $attachmentStorage = $this->createStub(AttachmentStorage::class);
         $translator = $this->createStub(TranslatorInterface::class);
-        $service = new MailDraftService($entityManager, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
+        $service = new MailDraftService($entityManager, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement(), new IdnService());
 
         $email = new Email();
 
@@ -448,7 +450,7 @@ final class MailDraftServiceTest extends TestCase
         $folderManager = $this->createStub(FolderManager::class);
         $attachmentStorage = $this->createStub(AttachmentStorage::class);
         $translator = $this->createTranslatorStub();
-        $service = new MailDraftService($entityManager, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
+        $service = new MailDraftService($entityManager, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement(), new IdnService());
 
         $account = (new Account())
             ->setName('Primary')
@@ -510,6 +512,7 @@ final class MailDraftServiceTest extends TestCase
             $this->createStub(AttachmentStorage::class),
             $this->createTranslatorStub(),
             new AllowAllLicenseEnforcement(),
+            new IdnService(),
         );
 
         $resolveAccount = new \ReflectionMethod(MailDraftService::class, 'resolveAccount');
@@ -578,6 +581,7 @@ final class MailDraftServiceTest extends TestCase
             $this->createStub(AttachmentStorage::class),
             $this->createTranslatorStub(),
             new AllowAllLicenseEnforcement(),
+            new IdnService(),
         );
 
         $originalEmail = new Email();
@@ -614,6 +618,7 @@ final class MailDraftServiceTest extends TestCase
             $this->createStub(AttachmentStorage::class),
             $this->createTranslatorStub(),
             new AllowAllLicenseEnforcement(),
+            new IdnService(),
         );
 
         $prefixSubject = new \ReflectionMethod(MailDraftService::class, 'prefixSubject');
@@ -625,6 +630,14 @@ final class MailDraftServiceTest extends TestCase
         self::assertSame(
             ['one@example.com', 'Two@example.com'],
             $parseAddressList->invoke($service, " one@example.com;\nTwo@example.com, one@example.com "),
+        );
+
+        // Typed unicode IDN recipients are normalized to the punycode
+        // storage form; the punycode duplicate (different local part case)
+        // collapses into the same stored address.
+        self::assertSame(
+            ['info@xn--bstoff-bua.de'],
+            $parseAddressList->invoke($service, 'info@bästoff.de, INFO@xn--bstoff-bua.de'),
         );
     }
 
@@ -638,6 +651,7 @@ final class MailDraftServiceTest extends TestCase
             $attachmentStorage,
             $this->createTranslatorStub(),
             new AllowAllLicenseEnforcement(),
+            new IdnService(),
         );
 
         $email = new Email();
@@ -725,6 +739,7 @@ final class MailDraftServiceTest extends TestCase
             $attachmentStorage,
             $this->createTranslatorStub(),
             new AllowAllLicenseEnforcement(),
+            new IdnService(),
         );
 
         $account = (new Account())
@@ -783,6 +798,7 @@ final class MailDraftServiceTest extends TestCase
             $this->createStub(AttachmentStorage::class),
             $this->createTranslatorStub(),
             new AllowAllLicenseEnforcement(),
+            new IdnService(),
         );
 
         $normalize = new \ReflectionMethod(MailDraftService::class, 'normalizeAttachmentName');

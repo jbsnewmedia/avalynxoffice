@@ -21,6 +21,7 @@ use AvalynxOffice\Entity\Enum\BodyContentType;
 use AvalynxOffice\Entity\Enum\EmailAddressType;
 use AvalynxOffice\Licensing\Service\LicenseEnforcementInterface;
 use AvalynxOffice\Licensing\Service\LicenseOperation;
+use AvalynxOffice\Service\Idn\IdnService;
 use AvalynxOffice\Service\Mail\AttachmentStorage;
 use AvalynxOffice\Service\Mail\FolderManager;
 use Doctrine\ORM\EntityManagerInterface;
@@ -35,6 +36,7 @@ final readonly class MailDraftService
         private AttachmentStorage $attachmentStorage,
         private TranslatorInterface $translator,
         private LicenseEnforcementInterface $licenseEnforcement,
+        private IdnService $idnService,
     ) {
     }
 
@@ -126,6 +128,7 @@ final readonly class MailDraftService
         array $uploadedAttachments = [],
     ): void {
         $this->licenseEnforcement->assertCanPerform(LicenseOperation::MAIL_MODIFY);
+        $from = null === $from ? null : $this->idnService->toAscii($from);
         $this->replaceAddresses($email, EmailAddressType::SENDER, null === $from ? [] : [$from], true);
         $this->replaceAddresses($email, EmailAddressType::RECIPIENT, $this->parseAddressList($to));
         $this->replaceAddresses($email, EmailAddressType::CC, $this->parseAddressList($cc));
@@ -432,6 +435,10 @@ final readonly class MailDraftService
     }
 
     /**
+     * Splits a comma/semicolon/newline separated address list into unique
+     * entries. Addresses typed in their unicode IDN form are normalized to
+     * the punycode storage form so lookups find the existing rows.
+     *
      * @return list<string>
      */
     private function parseAddressList(string $value): array
@@ -444,6 +451,8 @@ final readonly class MailDraftService
             if ('' === $trimmed) {
                 continue;
             }
+
+            $trimmed = $this->idnService->toAscii($trimmed);
 
             $lookupKey = mb_strtolower($trimmed);
             if (isset($seen[$lookupKey])) {

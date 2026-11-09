@@ -10,7 +10,13 @@ declare(strict_types=1);
 namespace AvalynxOffice\Tests\Controller;
 
 use AvalynxOffice\Entity\Account;
+use AvalynxOffice\Entity\Address;
 use AvalynxOffice\Entity\Connector;
+use AvalynxOffice\Entity\Email;
+use AvalynxOffice\Entity\EmailAddressLink;
+use AvalynxOffice\Entity\EmailFolder;
+use AvalynxOffice\Entity\Enum\EmailAddressType;
+use AvalynxOffice\Entity\Folder;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Tests\Support\RefreshDatabaseTrait;
 use Doctrine\ORM\EntityManagerInterface;
@@ -203,6 +209,93 @@ final class IdnNormalizationTest extends WebTestCase
         self::assertIsArray($payload);
         $emails = array_column(array_column($payload['data'], 'data'), 'email');
         self::assertContains('info@bästoff.de', $emails);
+    }
+
+    public function testAccountsDataEndpointDisplaysDecodedUserEmailsInUsersColumn(): void
+    {
+        $idnUser = new User();
+        $idnUser->setEmail('jbo@xn--bstoff-bua.de');
+        $idnUser->setPassword('test-password');
+        $this->em->persist($idnUser);
+
+        $account = (new Account())
+            ->setName('IDN Konto')
+            ->setEmail('test@xn--bstoff-bua.de');
+        $account->addUser($idnUser);
+        $this->em->persist($account);
+        $this->em->flush();
+
+        $this->client->loginUser($this->admin);
+        $this->client->request('POST', '/admin/accounts/data', ['_token' => $this->setCsrfToken('datatable')]);
+
+        self::assertResponseIsSuccessful();
+        $payload = json_decode((string) $this->client->getResponse()->getContent(), true);
+        self::assertIsArray($payload);
+        $users = (string) $payload['data'][0]['data']['users'];
+        self::assertStringContainsString('jbo@bästoff.de', $users, 'The users column badges must show the decoded unicode email.');
+        self::assertStringNotContainsString('xn--bstoff-bua.de', $users);
+    }
+
+    public function testMailViewDisplaysDecodedIdnAddresses(): void
+    {
+        $account = (new Account())
+            ->setName('IDN Mail')
+            ->setEmail('test@xn--bstoff-bua.de');
+        $folder = (new Folder())
+            ->setName('Posteingang')
+            ->setFunctions(['inbox']);
+        $account->addFolder($folder);
+
+        $email = (new Email())
+            ->setAccount($account)
+            ->setSubject('IDN Mail')
+            ->setPreviewBody('Vorschau')
+            ->setReceivedAt(new \DateTimeImmutable('2026-01-01 10:00:00'));
+        $emailFolder = (new EmailFolder())
+            ->setEmail($email)
+            ->setFolder($folder);
+        $email->addEmailFolder($emailFolder);
+
+        $senderAddress = (new Address())
+            ->setEmail('jbo@xn--bstoff-bua.de')
+            ->setName('Jürgen');
+        $email->addEmailAddress(
+            (new EmailAddressLink())
+                ->setEmail($email)
+                ->setAddress($senderAddress)
+                ->setType(EmailAddressType::SENDER)
+        );
+        // Real-world import data: some clients write the recipient with the
+        // bare address as display name ("To: addr <addr>") — the display
+        // must not fall back to that punycode "name".
+        $recipientAddress = (new Address())
+            ->setEmail('test@xn--bstoff-bua.de')
+            ->setName('test@xn--bstoff-bua.de');
+        $email->addEmailAddress(
+            (new EmailAddressLink())
+                ->setEmail($email)
+                ->setAddress($recipientAddress)
+                ->setType(EmailAddressType::RECIPIENT)
+        );
+
+        $this->admin->addAccount($account);
+        $this->em->persist($account);
+        $this->em->persist($folder);
+        $this->em->persist($email);
+        $this->em->persist($emailFolder);
+        $this->em->persist($senderAddress);
+        $this->em->persist($recipientAddress);
+        $this->em->flush();
+
+        $this->client->loginUser($this->admin);
+        $this->client->request('GET', '/mails');
+
+        self::assertResponseIsSuccessful();
+        $content = (string) $this->client->getResponse()->getContent();
+        self::assertStringContainsString('test@bästoff.de', $content, 'The recipient must be displayed in its decoded unicode form.');
+        self::assertStringContainsString('jbo@bästoff.de', $content, 'The sender address must be displayed in its decoded unicode form.');
+        self::assertStringNotContainsString('xn--bstoff-bua.de', $content);
+        self::assertStringNotContainsString('test@bästoff.de &lt;test@bästoff.de&gt;', $content, 'A name that equals the email must not be rendered twice.');
     }
 
     /**

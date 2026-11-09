@@ -39,8 +39,8 @@
         {% set replyToLinks = replyToLinks|merge([link]) %}
     {% endif %}
 {% endfor %}
-{% set senderName = senderLink ? (senderLink.address.name ?: senderLink.address.email) : ('common.unknown'|trans) %}
-{% set senderEmail = senderLink ? senderLink.address.email : '' %}
+{% set senderName = senderLink ? ((senderLink.address.name and senderLink.address.name != senderLink.address.email) ? senderLink.address.name : senderLink.address.email|idn_to_utf8) : ('common.unknown'|trans) %}
+{% set senderEmail = senderLink ? senderLink.address.email|idn_to_utf8 : '' %}
 {% set nameParts = senderName|split(' ')|filter(part => part is not empty) %}
 {% set senderInitials = nameParts|length >= 2 ? (nameParts[0]|slice(0, 1) ~ nameParts[1]|slice(0, 1)) : senderName|slice(0, 2) %}
 {% set effDate = email.sentAt ?: email.receivedAt %}
@@ -97,8 +97,8 @@
                     <span class="flex-shrink-0">{{ 'email.to_label'|trans }}</span>
                     <div class="min-w-0">
                         {% for link in toLinks %}
-                            {% set displayName = link.address.name ?: link.address.email %}
-                            <div class="text-truncate" title="{{ displayName }}{% if link.address.email and link.address.email != displayName %} &lt;{{ link.address.email|idn_to_utf8 }}&gt;{% endif %}">{{ displayName }}{% if link.address.email and link.address.email != displayName %} &lt;{{ link.address.email|idn_to_utf8 }}&gt;{% endif %}</div>
+                            {% set displayName = (link.address.name and link.address.name != link.address.email) ? link.address.name : link.address.email|idn_to_utf8 %}
+                            <div class="text-truncate" title="{{ displayName }}{% if link.address.email and link.address.email|idn_to_utf8 != displayName %} &lt;{{ link.address.email|idn_to_utf8 }}&gt;{% endif %}">{{ displayName }}{% if link.address.email and link.address.email|idn_to_utf8 != displayName %} &lt;{{ link.address.email|idn_to_utf8 }}&gt;{% endif %}</div>
                         {% else %}
                             <span>–</span>
                         {% endfor %}
@@ -121,12 +121,12 @@
             <div class="email-meta-panel mt-3 p-3 bg-body-tertiary rounded-4 small">
                 <div class="email-meta-grid">
                     <span class="email-meta-label">{{ 'email.from'|trans }}</span>
-                    <span class="email-meta-value">{{ senderName }}{% if senderEmail != '' %} &lt;{{ senderEmail }}&gt;{% endif %}</span>
+                    <span class="email-meta-value">{{ senderName }}{% if senderEmail != '' and senderEmail != senderName %} &lt;{{ senderEmail }}&gt;{% endif %}</span>
                     <span class="email-meta-label">{{ 'email.to'|trans }}</span>
                     <span class="email-meta-value">
                         {% if toLinks|length > 0 %}
                             {% for link in toLinks %}
-                                {{ link.address.name ?: link.address.email|idn_to_utf8 }} &lt;{{ link.address.email|idn_to_utf8 }}&gt;{{ not loop.last ? ', ' : '' }}
+                                {% if link.address.name and link.address.name != link.address.email %}{{ link.address.name }} &lt;{{ link.address.email|idn_to_utf8 }}&gt;{% else %}{{ link.address.email|idn_to_utf8 }}{% endif %}{{ not loop.last ? ', ' : '' }}
                             {% endfor %}
                         {% else %}
                             <span class="text-body-secondary">–</span>
@@ -136,7 +136,7 @@
                         <span class="email-meta-label">{{ 'email.cc'|trans }}</span>
                         <span class="email-meta-value">
                             {% for link in ccLinks %}
-                                {{ link.address.name ?: link.address.email|idn_to_utf8 }} &lt;{{ link.address.email|idn_to_utf8 }}&gt;{{ not loop.last ? ', ' : '' }}
+                                {% if link.address.name and link.address.name != link.address.email %}{{ link.address.name }} &lt;{{ link.address.email|idn_to_utf8 }}&gt;{% else %}{{ link.address.email|idn_to_utf8 }}{% endif %}{{ not loop.last ? ', ' : '' }}
                             {% endfor %}
                         </span>
                     {% endif %}
@@ -144,7 +144,7 @@
                         <span class="email-meta-label">{{ 'email.bcc'|trans }}</span>
                         <span class="email-meta-value">
                             {% for link in bccLinks %}
-                                {{ link.address.name ?: link.address.email|idn_to_utf8 }} &lt;{{ link.address.email|idn_to_utf8 }}&gt;{{ not loop.last ? ', ' : '' }}
+                                {% if link.address.name and link.address.name != link.address.email %}{{ link.address.name }} &lt;{{ link.address.email|idn_to_utf8 }}&gt;{% else %}{{ link.address.email|idn_to_utf8 }}{% endif %}{{ not loop.last ? ', ' : '' }}
                             {% endfor %}
                         </span>
                     {% endif %}
@@ -152,7 +152,7 @@
                         <span class="email-meta-label">{{ 'email.reply_to'|trans }}</span>
                         <span class="email-meta-value">
                             {% for link in replyToLinks %}
-                                {{ link.address.name ?: link.address.email|idn_to_utf8 }} &lt;{{ link.address.email|idn_to_utf8 }}&gt;{{ not loop.last ? ', ' : '' }}
+                                {% if link.address.name and link.address.name != link.address.email %}{{ link.address.name }} &lt;{{ link.address.email|idn_to_utf8 }}&gt;{% else %}{{ link.address.email|idn_to_utf8 }}{% endif %}{{ not loop.last ? ', ' : '' }}
                             {% endfor %}
                         </span>
                     {% endif %}

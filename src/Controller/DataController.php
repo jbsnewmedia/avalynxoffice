@@ -13,6 +13,7 @@ use AvalynxOffice\Entity\Address;
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Repository\AddressRepository;
 use AvalynxOffice\Service\DataService;
+use AvalynxOffice\Service\Idn\IdnService;
 use AvalynxOffice\Service\Mail\UserAccountProvider;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -22,6 +23,11 @@ use Symfony\Component\Routing\Attribute\Route;
 
 class DataController extends AbstractController
 {
+    public function __construct(
+        private readonly IdnService $idnService,
+    ) {
+    }
+
     #[Route(path: '/data/all', name: 'data_all')]
     public function all(DataService $dataService, UserAccountProvider $accountProvider): JsonResponse
     {
@@ -57,8 +63,10 @@ class DataController extends AbstractController
 
     private function formatAddressLabel(Address $address): string
     {
-        return $address->getName()
-            ? sprintf('%s <%s>', $address->getName(), $address->getEmail())
-            : $address->getEmail();
+        if ($address->getName() && $address->getName() !== $address->getEmail()) {
+            return sprintf('%s <%s>', $address->getName(), $this->idnService->toUnicode($address->getEmail()));
+        }
+
+        return $this->idnService->toUnicode($address->getEmail());
     }
 }

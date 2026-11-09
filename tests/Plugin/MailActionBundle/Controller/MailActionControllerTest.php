@@ -27,6 +27,7 @@ use AvalynxOffice\Entity\User;
 use AvalynxOffice\Repository\EmailFolderRepository;
 use AvalynxOffice\Repository\EmailRepository;
 use AvalynxOffice\Repository\FolderRepository;
+use AvalynxOffice\Service\Idn\IdnService;
 use AvalynxOffice\Service\Mail\AttachmentStorage;
 use AvalynxOffice\Service\Mail\FolderManager;
 use AvalynxOffice\Service\Mail\MailService;
@@ -94,7 +95,7 @@ final class MailActionControllerTest extends KernelTestCase
         });
 
         $emailActionService = new EmailActionService($this->entityManager, $emailFolderRepository);
-        $mailDraftService = new MailDraftService($this->entityManager, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement());
+        $mailDraftService = new MailDraftService($this->entityManager, $folderManager, $attachmentStorage, $translator, new AllowAllLicenseEnforcement(), new IdnService());
         $userAccountProvider = $container->get(UserAccountProvider::class);
         $this->tokenStorage = $container->get('security.token_storage');
 
@@ -109,6 +110,7 @@ final class MailActionControllerTest extends KernelTestCase
             new AllowAllLicenseEnforcement(),
             $userAccountProvider,
             $this->tokenStorage,
+            new IdnService(),
         );
 
         $this->requestStack = $container->get('request_stack');
@@ -187,11 +189,12 @@ final class MailActionControllerTest extends KernelTestCase
             $container->get(FolderRepository::class),
             $container->get(MailService::class),
             new EmailActionService($this->entityManager, $container->get(EmailFolderRepository::class)),
-            new MailDraftService($this->entityManager, $folderManager, $this->createStub(AttachmentStorage::class), $translator, new AllowAllLicenseEnforcement()),
+            new MailDraftService($this->entityManager, $folderManager, $this->createStub(AttachmentStorage::class), $translator, new AllowAllLicenseEnforcement(), new IdnService()),
             $folderManager,
             new AllowAllLicenseEnforcement(),
             $container->get(UserAccountProvider::class),
             $this->tokenStorage,
+            new IdnService(),
         );
         $controller->setContainer($this->actionControllerServiceLocator());
 

@@ -2,7 +2,7 @@
     {% set senderName = null %}
     {% for link in mail.emailAddresses %}
         {% if link.type.value == 'sender' %}
-            {% set senderName = link.address.name ?: link.address.email %}
+            {% set senderName = (link.address.name and link.address.name != link.address.email) ? link.address.name : link.address.email|idn_to_utf8 %}
         {% endif %}
     {% endfor %}
     {% set attCount = mail.emailAttachments|length %}

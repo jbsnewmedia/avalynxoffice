@@ -378,7 +378,7 @@ class AccountAdminController extends AbstractController
 
         $badges = [];
         foreach ($users as $user) {
-            $badges[] = '<span class="badge bg-secondary-subtle text-body">'.htmlspecialchars($user->getEmail(), ENT_QUOTES, 'UTF-8').'</span>';
+            $badges[] = '<span class="badge bg-secondary-subtle text-body">'.htmlspecialchars($this->idnService->toUnicode($user->getEmail()), ENT_QUOTES, 'UTF-8').'</span>';
         }
 
         return '<div class="d-flex flex-wrap gap-1">'.implode('', $badges).'</div>';

@@ -20,6 +20,7 @@ use AvalynxOffice\Licensing\Service\LicenseEnforcementInterface;
 use AvalynxOffice\Licensing\Service\LicenseOperation;
 use AvalynxOffice\Repository\EmailRepository;
 use AvalynxOffice\Repository\FolderRepository;
+use AvalynxOffice\Service\Idn\IdnService;
 use AvalynxOffice\Service\Mail\FolderManager;
 use AvalynxOffice\Service\Mail\MailService;
 use AvalynxOffice\Service\Mail\UserAccountProvider;
@@ -52,6 +53,7 @@ final class MailActionController extends AbstractController
         private readonly LicenseEnforcementInterface $licenseEnforcement,
         private readonly UserAccountProvider $userAccountProvider,
         private readonly TokenStorageInterface $tokenStorage,
+        private readonly IdnService $idnService,
     ) {
     }
 
@@ -557,7 +559,7 @@ final class MailActionController extends AbstractController
         $choices = [];
         $seen = [];
 
-        $addChoice = static function (string $mail) use (&$choices, &$seen, $account): void {
+        $addChoice = function (string $mail) use (&$choices, &$seen, $account): void {
             $mail = trim($mail);
             if ('' === $mail) {
                 return;
@@ -569,7 +571,9 @@ final class MailActionController extends AbstractController
             }
 
             $seen[$normalized] = true;
-            $choices[$account->getName() ? sprintf('%s <%s>', $account->getName(), $mail) : $mail] = $mail;
+            // The choice key stays the stored punycode address; only the
+            // visible label is decoded for display.
+            $choices[$account->getName() ? sprintf('%s <%s>', $account->getName(), $this->idnService->toUnicode($mail)) : $this->idnService->toUnicode($mail)] = $mail;
         };
 
         $addChoice($account->getEmail());
@@ -635,9 +639,9 @@ final class MailActionController extends AbstractController
 
             $selections[] = [
                 'key' => $address->getEmail(),
-                'value' => $address->getName()
-                    ? sprintf('%s <%s>', $address->getName(), $address->getEmail())
-                    : $address->getEmail(),
+                'value' => $address->getName() && $address->getName() !== $address->getEmail()
+                    ? sprintf('%s <%s>', $address->getName(), $this->idnService->toUnicode($address->getEmail()))
+                    : $this->idnService->toUnicode($address->getEmail()),
             ];
         }
 

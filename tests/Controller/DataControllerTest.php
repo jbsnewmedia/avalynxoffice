@@ -16,6 +16,7 @@ use AvalynxOffice\Entity\User;
 use AvalynxOffice\Repository\AccountRepository;
 use AvalynxOffice\Repository\AddressRepository;
 use AvalynxOffice\Service\DataService;
+use AvalynxOffice\Service\Idn\IdnService;
 use AvalynxOffice\Service\Mail\UserAccountProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ServiceLocator;
@@ -38,7 +39,7 @@ final class DataControllerTest extends TestCase
             ->with([$account])
             ->willReturn(['accounts' => [['id' => 1]]]);
 
-        $controller = new DataController();
+        $controller = new DataController(new IdnService());
         $controller->setContainer(new ServiceLocator([
             'security.token_storage' => fn (): TokenStorageInterface => $this->createTokenStorage($user),
         ]));
@@ -56,7 +57,7 @@ final class DataControllerTest extends TestCase
         $user = new User();
         $user->addAccount($account);
 
-        $controller = new DataController();
+        $controller = new DataController(new IdnService());
         $controller->setContainer(new ServiceLocator([
             'security.token_storage' => fn (): TokenStorageInterface => $this->createTokenStorage($user),
         ]));
@@ -69,20 +70,22 @@ final class DataControllerTest extends TestCase
             ->willReturn([
                 (new Address())->setEmail('named@example.com')->setName('Named User'),
                 (new Address())->setEmail('plain@example.com'),
+                (new Address())->setEmail('idn@xn--bstoff-bua.de')->setName('IDN Nutzer'),
+                (new Address())->setEmail('dup@xn--bstoff-bua.de')->setName('dup@xn--bstoff-bua.de'),
             ]);
         $accountProvider = new UserAccountProvider($this->createStub(AccountRepository::class));
 
         $response = $controller->addressSuggestions($request, $repository, $accountProvider);
 
         self::assertJsonStringEqualsJsonString(
-            '[{"key":"named@example.com","value":"Named User <named@example.com>"},{"key":"plain@example.com","value":"plain@example.com"}]',
+            '[{"key":"named@example.com","value":"Named User <named@example.com>"},{"key":"plain@example.com","value":"plain@example.com"},{"key":"idn@xn--bstoff-bua.de","value":"IDN Nutzer <idn@bästoff.de>"},{"key":"dup@xn--bstoff-bua.de","value":"dup@bästoff.de"}]',
             (string) $response->getContent(),
         );
     }
 
     public function testAddressSuggestionsRequiresAuthenticatedUser(): void
     {
-        $controller = new DataController();
+        $controller = new DataController(new IdnService());
         $controller->setContainer(new ServiceLocator([
             'security.token_storage' => fn (): TokenStorageInterface => $this->createTokenStorage(null),
         ]));
@@ -98,7 +101,7 @@ final class DataControllerTest extends TestCase
 
     public function testAllRequiresAuthenticatedUser(): void
     {
-        $controller = new DataController();
+        $controller = new DataController(new IdnService());
         $controller->setContainer(new ServiceLocator([
             'security.token_storage' => fn (): TokenStorageInterface => $this->createTokenStorage(null),
         ]));
