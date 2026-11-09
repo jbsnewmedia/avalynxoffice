@@ -7,7 +7,7 @@
     {% endfor %}
     {% set attCount = mail.emailAttachments|length %}
     {% set isOutgoing = mail.isOutgoing %}
-    {% set effDate = mail.sentAt ?: mail.receivedAt %}
+    {% set effDate = mail.sentAt ?: mail.scheduledAt ?: mail.receivedAt %}
     {% set senderDisplay = senderName ?: ('common.unknown'|trans) %}
     <article class="email-item border-bottom {{ activeEmail and activeEmail.id == mail.id ? 'email-active' : '' }} {{ mail.isRead ? '' : 'email-unread' }}" data-email="{{ mail.id }}" tabindex="0" role="button" aria-selected="{{ activeEmail and activeEmail.id == mail.id ? 'true' : 'false' }}" aria-label="{{ 'email.item_aria'|trans({'%sender%': senderDisplay, '%subject%': mail.subject}) }}" draggable="true">
         {% if (activeAccount is not defined or not activeAccount) %}

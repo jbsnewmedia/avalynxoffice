@@ -10,6 +10,7 @@ use AvalynxOffice\Command\AccountAddCommand;
 use AvalynxOffice\Command\MailClearCommand;
 use AvalynxOffice\Command\MailFetchCommand;
 use AvalynxOffice\Command\MailSendCommand;
+use AvalynxOffice\Service\Mail\MailSendService;
 use AvalynxOffice\Command\PluginManifestCommand;
 use AvalynxOffice\Command\PurgeCssCommand;
 use AvalynxOffice\Entity\Address;
@@ -482,7 +483,7 @@ final class CommandGapFillTest extends TestCase
         $folderManager->expects(self::never())->method('syncEmailSystemFolders');
         $attachmentStorage = $this->createStub(AttachmentStorage::class);
 
-        $tester = new CommandTester(new MailSendCommand($repository, $entityManager, $folderManager, $attachmentStorage, $this->pluginRegistry(), $this->connectorRepositoryFor(null), new AllowAllLicenseEnforcement()));
+        $tester = new CommandTester(new MailSendCommand(new MailSendService($repository, $entityManager, $folderManager, $attachmentStorage, $this->pluginRegistry(), $this->connectorRepositoryFor(null), new AllowAllLicenseEnforcement())));
 
         self::assertSame(Command::SUCCESS, $tester->execute([]));
         self::assertStringContainsString('No pending emails found to send.', $tester->getDisplay());
@@ -514,7 +515,7 @@ final class CommandGapFillTest extends TestCase
 
         $plugin = new FakeConnectorPlugin(outputConfigured: true, mailer: new Mailer(new NullTransport()));
 
-        $tester = new CommandTester(new MailSendCommand($repository, $entityManager, $folderManager, $attachmentStorage, $this->pluginRegistry($plugin), $this->connectorRepositoryFor(null), new AllowAllLicenseEnforcement()));
+        $tester = new CommandTester(new MailSendCommand(new MailSendService($repository, $entityManager, $folderManager, $attachmentStorage, $this->pluginRegistry($plugin), $this->connectorRepositoryFor(null), new AllowAllLicenseEnforcement())));
 
         self::assertSame(Command::SUCCESS, $tester->execute([]));
         self::assertSame([$this->lastOutgoingConnector], $plugin->mailerCalls);
@@ -535,10 +536,10 @@ final class CommandGapFillTest extends TestCase
         $folderManager->expects(self::never())->method('syncEmailSystemFolders');
         $attachmentStorage = $this->createStub(AttachmentStorage::class);
 
-        $command = new MailSendCommand($repository, $entityManager, $folderManager, $attachmentStorage, $this->pluginRegistry(), $this->connectorRepositoryFor(null), new AllowAllLicenseEnforcement());
+        $service = new MailSendService($repository, $entityManager, $folderManager, $attachmentStorage, $this->pluginRegistry(), $this->connectorRepositoryFor(null), new AllowAllLicenseEnforcement());
         $output = new BufferedOutput();
 
-        $this->invokeMailSend($command, (new Email())->setSubject('Missing config'), $output);
+        $this->invokeMailSend($service, (new Email())->setSubject('Missing config'), $output);
 
         self::assertStringContainsString('No SMTP configuration', $output->fetch());
 
@@ -553,7 +554,7 @@ final class CommandGapFillTest extends TestCase
         );
         $output = new BufferedOutput();
 
-        $this->invokeMailSend($command, $brokenSender, $output);
+        $this->invokeMailSend($service, $brokenSender, $output);
 
         self::assertStringContainsString('No SMTP configuration', $output->fetch());
     }
@@ -578,8 +579,8 @@ final class CommandGapFillTest extends TestCase
                 ->setDomain('example.com'));
             $output = new BufferedOutput();
 
-            $command = new MailSendCommand($repository, $entityManager, $folderManager, $attachmentStorage, $this->pluginRegistry($plugin), $this->connectorRepositoryFor(null), new AllowAllLicenseEnforcement());
-            $this->invokeMailSend($command, $email, $output);
+            $service = new MailSendService($repository, $entityManager, $folderManager, $attachmentStorage, $this->pluginRegistry($plugin), $this->connectorRepositoryFor(null), new AllowAllLicenseEnforcement());
+            $this->invokeMailSend($service, $email, $output);
 
             self::assertFalse($email->isSent());
             self::assertFalse($email->isSending());
@@ -728,7 +729,7 @@ final class CommandGapFillTest extends TestCase
 
         $plugin = new FakeConnectorPlugin(outputConfigured: true, mailer: new Mailer(new NullTransport()));
 
-        $tester = new CommandTester(new MailSendCommand($repository, $entityManager, $folderManager, $attachmentStorage, $this->pluginRegistry($plugin), $this->connectorRepositoryFor(null), new AllowAllLicenseEnforcement()));
+        $tester = new CommandTester(new MailSendCommand(new MailSendService($repository, $entityManager, $folderManager, $attachmentStorage, $this->pluginRegistry($plugin), $this->connectorRepositoryFor(null), new AllowAllLicenseEnforcement())));
 
         self::assertSame(Command::SUCCESS, $tester->execute([]));
         self::assertTrue($email->isSent());
@@ -1088,7 +1089,7 @@ final class CommandGapFillTest extends TestCase
         $folderManager->expects(self::never())->method('syncEmailSystemFolders');
         $attachmentStorage = $this->createStub(AttachmentStorage::class);
 
-        $command = new MailSendCommand($repository, $entityManager, $folderManager, $attachmentStorage, $this->pluginRegistry(), $this->connectorRepositoryFor($connector), new AllowAllLicenseEnforcement());
+        $service = new MailSendService($repository, $entityManager, $folderManager, $attachmentStorage, $this->pluginRegistry(), $this->connectorRepositoryFor($connector), new AllowAllLicenseEnforcement());
 
         $email = (new Email())
             ->setSubject('No mailer')
@@ -1100,7 +1101,7 @@ final class CommandGapFillTest extends TestCase
         );
 
         $output = new BufferedOutput();
-        $this->invokeMailSend($command, $email, $output);
+        $this->invokeMailSend($service, $email, $output);
 
         self::assertStringContainsString('No SMTP configuration', $output->fetch());
     }
@@ -1170,17 +1171,19 @@ final class CommandGapFillTest extends TestCase
         return $email;
     }
 
-    private function invokeMailSend(MailSendCommand $command, Email $email, BufferedOutput $output): void
+    private function invokeMailSend(MailSendService $service, Email $email, BufferedOutput $output): void
     {
         $closure = \Closure::bind(
-            static function (MailSendCommand $command, Email $email, BufferedOutput $output): void {
-                $command->sendEmail($email, $output);
+            static function (MailSendService $service, Email $email): array {
+                return $service->sendEmail($email);
             },
             null,
-            MailSendCommand::class,
+            MailSendService::class,
         );
         self::assertInstanceOf(\Closure::class, $closure);
-        $closure($command, $email, $output);
+        foreach ($closure($service, $email) as $message) {
+            $output->writeln($message);
+        }
     }
 
     /**

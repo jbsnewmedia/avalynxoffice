@@ -40,7 +40,7 @@
 {% set senderEmail = senderLink ? senderLink.address.email|idn_to_utf8 : '' %}
 {% set nameParts = senderName|split(' ')|filter(part => part is not empty) %}
 {% set senderInitials = nameParts|length >= 2 ? (nameParts[0]|slice(0, 1) ~ nameParts[1]|slice(0, 1)) : senderName|slice(0, 2) %}
-{% set effDate = email.sentAt ?: email.receivedAt %}
+{% set effDate = email.sentAt ?: email.scheduledAt ?: email.receivedAt %}
 {% set dateFull = effDate ? effDate|user_datetime : ('common.unknown'|trans) %}
 {% set dateIsToday = effDate and (effDate|user_datetime('date') == 'now'|user_datetime('date')) %}
 {% set dateDisplay = dateIsToday ? (('common.today'|trans) ~ ', ' ~ (effDate|user_datetime('time') ~ ' ' ~ ('common.oclock'|trans))) : dateFull %}

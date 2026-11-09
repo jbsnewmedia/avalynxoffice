@@ -14,11 +14,14 @@ use AvalynxOffice\Plugin\Contract\ConnectorFetchRequest;
 use AvalynxOffice\Repository\ConnectorRepository;
 use AvalynxOffice\Repository\SyncRunRepository;
 use AvalynxOffice\Service\ConnectorPluginRegistry;
+use AvalynxOffice\Service\Mail\MailSendService;
 
 /**
  * Executes one pass of the sync service: fetches mails, contacts and
  * calendar entries from every configured connector plugin and records the
- * run for the system status in the admin area.
+ * run for the system status in the admin area. Pending outgoing mails are
+ * sent at the end of the pass, so every trigger (webcron, daemon or
+ * manual call) also drains the outbox.
  */
 final readonly class SyncService
 {
@@ -26,6 +29,7 @@ final readonly class SyncService
         private ConnectorPluginRegistry $pluginRegistry,
         private ConnectorRepository $connectorRepository,
         private SyncRunRepository $syncRunRepository,
+        private MailSendService $mailSendService,
     ) {
     }
 
@@ -53,6 +57,15 @@ final readonly class SyncService
 
             $calendar = $this->syncCalendar($run, max(0, $limits['calendar'] ?? 0));
             $run->setCalendarCount($calendar['imported']);
+
+            try {
+                $this->mailSendService->sendPending();
+            } catch (\Throwable $exception) {
+                // Fetching succeeded — a failing send pass (e.g. SMTP not
+                // reachable) must not turn the run red. The mails stay
+                // pending and are retried on the next pass.
+                $run->setMessage('Mailversand: '.$exception->getMessage());
+            }
 
             $run->setStatus(SyncRun::STATUS_SUCCESS);
         } catch (\Throwable $exception) {

@@ -79,7 +79,7 @@ final class SyncCommandTest extends KernelTestCase
         $this->em->persist($connector);
         $this->em->flush();
 
-        return new SyncRunCommand(new SyncService($registry, $this->em->getRepository(Connector::class), $this->syncRunRepository), $this->syncSettings());
+        return new SyncRunCommand(new SyncService($registry, $this->em->getRepository(Connector::class), $this->syncRunRepository, self::getContainer()->get(\AvalynxOffice\Service\Mail\MailSendService::class)), $this->syncSettings());
     }
 
     private function createDaemonCommand(): SyncDaemonCommand
@@ -96,7 +96,7 @@ final class SyncCommandTest extends KernelTestCase
         $this->em->persist($connector);
         $this->em->flush();
 
-        return new SyncDaemonCommand(new SyncService($registry, $this->em->getRepository(Connector::class), $this->syncRunRepository), $this->syncSettings());
+        return new SyncDaemonCommand(new SyncService($registry, $this->em->getRepository(Connector::class), $this->syncRunRepository, self::getContainer()->get(\AvalynxOffice\Service\Mail\MailSendService::class)), $this->syncSettings());
     }
 
     public function testRunCommandOutputsCountsAndSucceeds(): void
@@ -155,7 +155,7 @@ final class SyncCommandTest extends KernelTestCase
         $this->em->persist($connector);
         $this->em->flush();
 
-        $command = new SyncDaemonCommand(new SyncService($registry, $this->em->getRepository(Connector::class), $this->syncRunRepository), $this->syncSettings());
+        $command = new SyncDaemonCommand(new SyncService($registry, $this->em->getRepository(Connector::class), $this->syncRunRepository, self::getContainer()->get(\AvalynxOffice\Service\Mail\MailSendService::class)), $this->syncSettings());
         $tester = new CommandTester($command);
         // While entries are imported, the long idle pause (60s) must NOT be
         // taken: both passes run immediately (busy pause = 0s).
@@ -176,7 +176,7 @@ final class SyncCommandTest extends KernelTestCase
         \assert($configRepository instanceof ConnectorConfigRepository);
         $registry = new ConnectorPluginRegistry([$fake], $configRepository, $this->secretCrypto());
 
-        $command = new SyncDaemonCommand(new SyncService($registry, $this->em->getRepository(Connector::class), $this->syncRunRepository), $this->syncSettings());
+        $command = new SyncDaemonCommand(new SyncService($registry, $this->em->getRepository(Connector::class), $this->syncRunRepository, self::getContainer()->get(\AvalynxOffice\Service\Mail\MailSendService::class)), $this->syncSettings());
         $tester = new CommandTester($command);
         // Nothing imported: the long idle pause is taken between passes.
         $this->syncSettings()->save(['intervalSeconds' => 1, 'busyIntervalSeconds' => 0]);
@@ -235,7 +235,7 @@ final class SyncCommandTest extends KernelTestCase
         $this->em->persist($connector);
         $this->em->flush();
 
-        $command = new SyncRunCommand(new SyncService($registry, $this->em->getRepository(Connector::class), $this->syncRunRepository), $this->syncSettings());
+        $command = new SyncRunCommand(new SyncService($registry, $this->em->getRepository(Connector::class), $this->syncRunRepository, self::getContainer()->get(\AvalynxOffice\Service\Mail\MailSendService::class)), $this->syncSettings());
         $tester = new CommandTester($command);
         $tester->execute([]);
 

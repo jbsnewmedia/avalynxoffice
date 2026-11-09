@@ -4,17 +4,34 @@ declare(strict_types=1);
 
 namespace AvalynxOffice\Tests\Service\Sync;
 
+use AvalynxOffice\Entity\Account;
+use AvalynxOffice\Entity\Address;
+use AvalynxOffice\Entity\Body;
 use AvalynxOffice\Entity\Connector;
+use AvalynxOffice\Entity\Email;
+use AvalynxOffice\Entity\EmailAddressLink;
+use AvalynxOffice\Entity\EmailBodyLink;
+use AvalynxOffice\Entity\Enum\BodyContentType;
+use AvalynxOffice\Entity\Enum\EmailAddressType;
+use AvalynxOffice\Entity\SyncRun;
 use AvalynxOffice\Repository\ConnectorConfigRepository;
+use AvalynxOffice\Repository\EmailRepository;
 use AvalynxOffice\Repository\SyncRunRepository;
 use AvalynxOffice\Service\ConnectorPluginRegistry;
+use AvalynxOffice\Service\Mail\AttachmentStorage;
+use AvalynxOffice\Service\Mail\FolderManager;
+use AvalynxOffice\Service\Mail\MailSendService;
 use AvalynxOffice\Service\Security\SecretCrypto;
 use AvalynxOffice\Service\Sync\SyncService;
+use AvalynxOffice\Tests\Support\AllowAllLicenseEnforcement;
 use AvalynxOffice\Tests\Support\FakeConnectorPlugin;
 use AvalynxOffice\Tests\Support\RefreshDatabaseTrait;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\Group;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Mailer\Mailer;
+use Symfony\Component\Mailer\MailerInterface;
+use Symfony\Component\Mailer\Transport\NullTransport;
 
 #[Group('integration')]
 final class SyncServiceTest extends KernelTestCase
@@ -41,13 +58,31 @@ final class SyncServiceTest extends KernelTestCase
      */
     private function createService(array $plugins): SyncService
     {
+        $registry = $this->createRegistry($plugins);
+        $mailSendService = new MailSendService(
+            self::getContainer()->get(EmailRepository::class),
+            $this->em,
+            self::getContainer()->get(FolderManager::class),
+            self::getContainer()->get(AttachmentStorage::class),
+            $registry,
+            $this->em->getRepository(Connector::class),
+            new AllowAllLicenseEnforcement(),
+        );
+
+        return new SyncService($registry, $this->em->getRepository(Connector::class), $this->syncRunRepository, $mailSendService);
+    }
+
+    /**
+     * @param list<FakeConnectorPlugin> $plugins
+     */
+    private function createRegistry(array $plugins): ConnectorPluginRegistry
+    {
         $configRepository = self::getContainer()->get(ConnectorConfigRepository::class);
         \assert($configRepository instanceof ConnectorConfigRepository);
         $secretCrypto = self::getContainer()->get(SecretCrypto::class);
         \assert($secretCrypto instanceof SecretCrypto);
-        $registry = new ConnectorPluginRegistry($plugins, $configRepository, $secretCrypto);
 
-        return new SyncService($registry, $this->em->getRepository(Connector::class), $this->syncRunRepository);
+        return new ConnectorPluginRegistry($plugins, $configRepository, $secretCrypto);
     }
 
     private function createConnector(string $name): Connector
@@ -163,7 +198,7 @@ final class SyncServiceTest extends KernelTestCase
             }
         };
 
-        $service = new SyncService($registry, $this->em->getRepository(Connector::class), $this->syncRunRepository);
+        $service = new SyncService($registry, $this->em->getRepository(Connector::class), $this->syncRunRepository, self::getContainer()->get(MailSendService::class));
         $run = $service->run(['mails' => 10]);
 
         self::assertSame(\AvalynxOffice\Entity\SyncRun::STATUS_ERROR, $run->getStatus());
@@ -218,7 +253,7 @@ final class SyncServiceTest extends KernelTestCase
             }
         };
 
-        $service = new SyncService($registry, $this->em->getRepository(Connector::class), $this->syncRunRepository);
+        $service = new SyncService($registry, $this->em->getRepository(Connector::class), $this->syncRunRepository, self::getContainer()->get(MailSendService::class));
         $run = $service->run(['mails' => 0, 'contacts' => 10]);
 
         self::assertSame(\AvalynxOffice\Entity\SyncRun::STATUS_ERROR, $run->getStatus());
@@ -238,10 +273,101 @@ final class SyncServiceTest extends KernelTestCase
             }
         };
 
-        $service = new SyncService($registry, $this->em->getRepository(Connector::class), $this->syncRunRepository);
+        $service = new SyncService($registry, $this->em->getRepository(Connector::class), $this->syncRunRepository, self::getContainer()->get(MailSendService::class));
         $run = $service->run(['mails' => 0, 'calendar' => 10]);
 
         self::assertSame(\AvalynxOffice\Entity\SyncRun::STATUS_ERROR, $run->getStatus());
         self::assertSame('EWS calendar unreachable.', $run->getMessage());
+    }
+
+    public function testRunSendsPendingOutgoingMails(): void
+    {
+        $connector = $this->createConnector('SMTP Connector');
+        $account = (new Account())
+            ->setName('Account')
+            ->setEmail('sender@example.com');
+        $this->em->persist($account);
+
+        $email = (new Email())
+            ->setAccount($account)
+            ->setSubject('Geplant im Sync')
+            ->setIsOutgoing(true)
+            ->setIsDraft(false);
+        $senderAddress = (new Address())->setEmail('sender@example.com');
+        $senderLink = (new EmailAddressLink())
+            ->setType(EmailAddressType::SENDER)
+            ->setAddress($senderAddress);
+        $email->addEmailAddress($senderLink);
+        $recipientAddress = (new Address())->setEmail('recipient@example.com');
+        $recipientLink = (new EmailAddressLink())
+            ->setType(EmailAddressType::RECIPIENT)
+            ->setAddress($recipientAddress);
+        $email->addEmailAddress($recipientLink);
+        $body = (new Body())->setContent('Plain body');
+        $bodyLink = (new EmailBodyLink())
+            ->setContentType(BodyContentType::TEXT)
+            ->setBody($body);
+        $email->addEmailBody($bodyLink);
+        $this->em->persist($email);
+        $this->em->persist($senderAddress);
+        $this->em->persist($senderLink);
+        $this->em->persist($recipientAddress);
+        $this->em->persist($recipientLink);
+        $this->em->persist($body);
+        $this->em->persist($bodyLink);
+        $this->em->flush();
+
+        $plugin = new FakeConnectorPlugin(outputConfigured: true, mailer: new Mailer(new NullTransport()));
+        $service = $this->createService([$plugin]);
+
+        $run = $service->run(['mails' => 0, 'contacts' => 0, 'calendar' => 0]);
+
+        self::assertSame(SyncRun::STATUS_SUCCESS, $run->getStatus());
+        $this->em->refresh($email);
+        self::assertTrue($email->isSent(), 'The sync pass must send pending outgoing mails.');
+        self::assertFalse($email->isSending());
+        self::assertSame([$connector], $plugin->mailerCalls);
+    }
+
+    public function testRunStaysSuccessfulWhenMailSendingFails(): void
+    {
+        $this->createConnector('Broken SMTP Connector');
+        $account = (new Account())
+            ->setName('Account')
+            ->setEmail('sender@example.com');
+        $this->em->persist($account);
+
+        $email = (new Email())
+            ->setAccount($account)
+            ->setSubject('Verwaiste Mail')
+            ->setIsOutgoing(true)
+            ->setIsDraft(false);
+        $senderAddress = (new Address())->setEmail('sender@example.com');
+        $senderLink = (new EmailAddressLink())
+            ->setType(EmailAddressType::SENDER)
+            ->setAddress($senderAddress);
+        $email->addEmailAddress($senderLink);
+        $body = (new Body())->setContent('Plain body');
+        $bodyLink = (new EmailBodyLink())
+            ->setContentType(BodyContentType::TEXT)
+            ->setBody($body);
+        $email->addEmailBody($bodyLink);
+        $this->em->persist($email);
+        $this->em->persist($senderAddress);
+        $this->em->persist($senderLink);
+        $this->em->persist($body);
+        $this->em->persist($bodyLink);
+        $this->em->flush();
+
+        $failingMailer = $this->createStub(MailerInterface::class);
+        $failingMailer->method('send')->willThrowException(new \RuntimeException('SMTP unavailable'));
+        $service = $this->createService([new FakeConnectorPlugin(outputConfigured: true, mailer: $failingMailer)]);
+
+        $run = $service->run(['mails' => 0, 'contacts' => 0, 'calendar' => 0]);
+
+        self::assertSame(SyncRun::STATUS_SUCCESS, $run->getStatus(), 'A failing send pass must not turn the sync run red.');
+        $this->em->refresh($email);
+        self::assertFalse($email->isSent());
+        self::assertFalse($email->isSending(), 'The sending flag must be reset so the next pass retries the mail.');
     }
 }

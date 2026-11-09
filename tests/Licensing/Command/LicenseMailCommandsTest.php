@@ -184,13 +184,15 @@ final class LicenseMailCommandsTest extends KernelTestCase
         $repository->method('findBy')->willReturn([$email]);
 
         $command = new MailSendCommand(
-            $repository,
-            $entityManager,
-            $this->createStub(\AvalynxOffice\Service\Mail\FolderManager::class),
-            $this->createStub(\AvalynxOffice\Service\Mail\AttachmentStorage::class),
-            new \AvalynxOffice\Service\ConnectorPluginRegistry([], $this->createStub(\AvalynxOffice\Repository\ConnectorConfigRepository::class), new \AvalynxOffice\Service\Security\SecretCrypto('')),
-            $this->createStub(\AvalynxOffice\Repository\ConnectorRepository::class),
-            new \AvalynxOffice\Tests\Support\FlippingReadOnlyLicenseEnforcement(2),
+            new \AvalynxOffice\Service\Mail\MailSendService(
+                $repository,
+                $entityManager,
+                $this->createStub(\AvalynxOffice\Service\Mail\FolderManager::class),
+                $this->createStub(\AvalynxOffice\Service\Mail\AttachmentStorage::class),
+                new \AvalynxOffice\Service\ConnectorPluginRegistry([], $this->createStub(\AvalynxOffice\Repository\ConnectorConfigRepository::class), new \AvalynxOffice\Service\Security\SecretCrypto('')),
+                $this->createStub(\AvalynxOffice\Repository\ConnectorRepository::class),
+                new \AvalynxOffice\Tests\Support\FlippingReadOnlyLicenseEnforcement(2),
+            ),
         );
 
         $tester = new CommandTester($command);
