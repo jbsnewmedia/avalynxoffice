@@ -46,7 +46,7 @@ class MailAttachmentControllerTest extends WebTestCase
         [$user, $email, $attachment, $payload] = $this->createFixtureData(true);
 
         $this->client->loginUser($user);
-        $this->client->request('GET', sprintf('/email/%s/attachment/%s', $email->getId(), $attachment->getId()));
+        $this->client->request('GET', sprintf('/mail/%s/attachment/%s', $email->getId(), $attachment->getId()));
 
         $response = $this->client->getResponse();
 
@@ -75,7 +75,7 @@ class MailAttachmentControllerTest extends WebTestCase
         $this->entityManager->clear();
 
         $this->client->loginUser($user);
-        $this->client->request('GET', sprintf('/email/%s/attachment/%s', $email->getId(), $attachment->getId()));
+        $this->client->request('GET', sprintf('/mail/%s/attachment/%s', $email->getId(), $attachment->getId()));
 
         $this->assertResponseStatusCodeSame(403);
     }

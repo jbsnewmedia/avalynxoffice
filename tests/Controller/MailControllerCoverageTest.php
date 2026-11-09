@@ -67,24 +67,24 @@ final class MailControllerCoverageTest extends WebTestCase
         $favoriteToken = $crawler->filter('.email-list-container')->attr('data-mail-token');
         self::assertNotEmpty($favoriteToken);
 
-        $this->client->request('POST', sprintf('/email/%s/favorite', $emailId), ['favorite' => '1', '_token' => $favoriteToken]);
+        $this->client->request('POST', sprintf('/mail/%s/favorite', $emailId), ['favorite' => '1', '_token' => $favoriteToken]);
         self::assertResponseIsSuccessful();
         self::assertJsonStringEqualsJsonString('{"success":true,"favorite":true}', (string) $this->client->getResponse()->getContent());
 
-        $this->client->request('POST', sprintf('/email/%s/favorite', $emailId), ['favorite' => '0', '_token' => $favoriteToken]);
+        $this->client->request('POST', sprintf('/mail/%s/favorite', $emailId), ['favorite' => '0', '_token' => $favoriteToken]);
         self::assertResponseIsSuccessful();
         self::assertJsonStringEqualsJsonString('{"success":true,"favorite":false}', (string) $this->client->getResponse()->getContent());
 
-        $this->client->request('GET', sprintf('/folder/%s/more?accountId=%s&offset=0&limit=1', $folderId, $accountId));
+        $this->client->request('GET', sprintf('/mails/%s/more?accountId=%s&offset=0&limit=1', $folderId, $accountId));
         self::assertResponseIsSuccessful();
 
-        $this->client->request('GET', sprintf('/folder/%s/more?accountId=all&offset=0&limit=1', $folderId));
+        $this->client->request('GET', sprintf('/mails/%s/more?accountId=all&offset=0&limit=1', $folderId));
         self::assertResponseIsSuccessful();
 
-        $this->client->request('GET', sprintf('/email/%s', '00000000-0000-0000-0000-000000000000'));
+        $this->client->request('GET', sprintf('/mail/%s', '00000000-0000-0000-0000-000000000000'));
         self::assertResponseStatusCodeSame(404);
 
-        $this->client->request('GET', sprintf('/folder/%s/more', '00000000-0000-0000-0000-000000000000'));
+        $this->client->request('GET', sprintf('/mails/%s/more', '00000000-0000-0000-0000-000000000000'));
         self::assertResponseStatusCodeSame(404);
     }
 
@@ -92,10 +92,10 @@ final class MailControllerCoverageTest extends WebTestCase
     {
         $this->loginGuestUser();
 
-        $this->client->request('GET', sprintf('/email/%s', $this->email->getId()));
+        $this->client->request('GET', sprintf('/mail/%s', $this->email->getId()));
         self::assertResponseStatusCodeSame(403);
 
-        $this->client->request('POST', sprintf('/email/%s/favorite', $this->email->getId()), ['favorite' => '1', '_token' => $this->setCsrfToken('mail_favorite')]);
+        $this->client->request('POST', sprintf('/mail/%s/favorite', $this->email->getId()), ['favorite' => '1', '_token' => $this->setCsrfToken('mail_favorite')]);
         self::assertResponseStatusCodeSame(403);
     }
 
@@ -104,11 +104,11 @@ final class MailControllerCoverageTest extends WebTestCase
         $this->loginAdmin();
         $emailId = (string) $this->email->getId();
 
-        $this->client->request('POST', sprintf('/email/%s/favorite', $emailId), ['favorite' => '1']);
+        $this->client->request('POST', sprintf('/mail/%s/favorite', $emailId), ['favorite' => '1']);
         self::assertResponseStatusCodeSame(403);
         self::assertStringContainsString('"success":false', (string) $this->client->getResponse()->getContent());
 
-        $this->client->request('POST', sprintf('/email/%s/favorite', $emailId), ['favorite' => '1', '_token' => 'invalid']);
+        $this->client->request('POST', sprintf('/mail/%s/favorite', $emailId), ['favorite' => '1', '_token' => 'invalid']);
         self::assertResponseStatusCodeSame(403);
 
         $this->entityManager->clear();
@@ -117,7 +117,7 @@ final class MailControllerCoverageTest extends WebTestCase
         self::assertFalse($reloaded->isFavorite());
 
         // The token may alternatively be sent as X-CSRF-Token header.
-        $this->client->request('POST', sprintf('/email/%s/favorite', $emailId), ['favorite' => '1'], [], ['HTTP_X_CSRF_TOKEN' => $this->setCsrfToken('mail_favorite')]);
+        $this->client->request('POST', sprintf('/mail/%s/favorite', $emailId), ['favorite' => '1'], [], ['HTTP_X_CSRF_TOKEN' => $this->setCsrfToken('mail_favorite')]);
         self::assertResponseIsSuccessful();
         self::assertJsonStringEqualsJsonString('{"success":true,"favorite":true}', (string) $this->client->getResponse()->getContent());
     }
@@ -134,7 +134,7 @@ final class MailControllerCoverageTest extends WebTestCase
     {
         $this->loginAdmin();
 
-        $this->client->request('GET', sprintf('/email/%s/attachment/%s', $this->email->getId(), $this->attachment->getId()));
+        $this->client->request('GET', sprintf('/mail/%s/attachment/%s', $this->email->getId(), $this->attachment->getId()));
         self::assertResponseIsSuccessful();
         self::assertSame('application/pdf', (string) $this->client->getResponse()->headers->get('Content-Type'));
     }
@@ -202,10 +202,10 @@ final class MailControllerCoverageTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSelectorExists(sprintf('.email-item.email-active[data-email="%s"]', $emailId));
 
-        $this->client->request('GET', '/folder/all/more?accountId=all&offset=0&limit=10');
+        $this->client->request('GET', '/mails/all/more?accountId=all&offset=0&limit=10');
         self::assertResponseIsSuccessful();
 
-        $this->client->request('GET', sprintf('/folder/all/more?accountId=%s&offset=0&limit=10', $accountId));
+        $this->client->request('GET', sprintf('/mails/all/more?accountId=%s&offset=0&limit=10', $accountId));
         self::assertResponseIsSuccessful();
     }
 
@@ -213,7 +213,7 @@ final class MailControllerCoverageTest extends WebTestCase
     {
         $this->loginGuestUser();
 
-        $this->client->request('GET', sprintf('/folder/all/more?accountId=%s&offset=0&limit=10', $this->account->getId()));
+        $this->client->request('GET', sprintf('/mails/all/more?accountId=%s&offset=0&limit=10', $this->account->getId()));
         self::assertResponseStatusCodeSame(403);
     }
 
@@ -255,26 +255,26 @@ final class MailControllerCoverageTest extends WebTestCase
 
         $this->loginAdmin();
 
-        $this->client->request('GET', sprintf('/email/%s', $emailId));
+        $this->client->request('GET', sprintf('/mail/%s', $emailId));
         self::assertResponseIsSuccessful();
 
-        $this->client->request('GET', sprintf('/email/%s/attachment/%s', $missingUuid, $missingUuid));
+        $this->client->request('GET', sprintf('/mail/%s/attachment/%s', $missingUuid, $missingUuid));
         self::assertResponseStatusCodeSame(404);
 
-        $this->client->request('GET', sprintf('/email/%s/attachment/%s', $emailId, $missingUuid));
+        $this->client->request('GET', sprintf('/mail/%s/attachment/%s', $emailId, $missingUuid));
         self::assertResponseStatusCodeSame(404);
 
-        $this->client->request('GET', sprintf('/email/%s/attachment/%s', $emailId, $brokenAttachmentId));
+        $this->client->request('GET', sprintf('/mail/%s/attachment/%s', $emailId, $brokenAttachmentId));
         self::assertResponseStatusCodeSame(404);
 
-        $this->client->request('POST', sprintf('/email/%s/favorite', $missingUuid), ['favorite' => '1', '_token' => $this->setCsrfToken('mail_favorite')]);
+        $this->client->request('POST', sprintf('/mail/%s/favorite', $missingUuid), ['favorite' => '1', '_token' => $this->setCsrfToken('mail_favorite')]);
         self::assertResponseStatusCodeSame(404);
         self::assertStringContainsString('"success":false', (string) $this->client->getResponse()->getContent());
 
-        $this->client->request('GET', sprintf('/folder/%s/more?accountId=%s&limit=0', $folderId, $accountId));
+        $this->client->request('GET', sprintf('/mails/%s/more?accountId=%s&limit=0', $folderId, $accountId));
         self::assertResponseIsSuccessful();
 
-        $this->client->request('GET', sprintf('/folder/%s/more?accountId=%s&offset=-1', $folderId, $accountId));
+        $this->client->request('GET', sprintf('/mails/%s/more?accountId=%s&offset=-1', $folderId, $accountId));
         self::assertResponseIsSuccessful();
     }
 
@@ -305,12 +305,12 @@ final class MailControllerCoverageTest extends WebTestCase
 
         $this->client->loginUser($owner);
 
-        $this->client->request('GET', sprintf('/folder/%s/more', (string) $foreignFolder->getId()));
+        $this->client->request('GET', sprintf('/mails/%s/more', (string) $foreignFolder->getId()));
         self::assertResponseStatusCodeSame(403);
 
         // Known folder, but the selected account scope does not contain it:
         // also rejected.
-        $this->client->request('GET', sprintf('/folder/%s/more?accountId=%s', (string) $this->folder->getId(), (string) $secondAccount->getId()));
+        $this->client->request('GET', sprintf('/mails/%s/more?accountId=%s', (string) $this->folder->getId(), (string) $secondAccount->getId()));
         self::assertResponseStatusCodeSame(403);
     }
 
@@ -325,7 +325,7 @@ final class MailControllerCoverageTest extends WebTestCase
 
         $this->loginGuestUser();
 
-        $this->client->request('GET', sprintf('/email/%s', $orphanEmail->getId()));
+        $this->client->request('GET', sprintf('/mail/%s', $orphanEmail->getId()));
         self::assertResponseStatusCodeSame(403);
     }
 

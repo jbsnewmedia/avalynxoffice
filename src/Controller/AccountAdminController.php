@@ -75,7 +75,7 @@ class AccountAdminController extends AbstractController
         ]);
     }
 
-    #[Route('/view', name: 'account_structure', methods: ['GET'])]
+    #[Route('/structure', name: 'account_structure', methods: ['GET'])]
     public function structure(AccountRepository $repo): Response
     {
         $items = $repo->findBy([], ['name' => 'ASC']);

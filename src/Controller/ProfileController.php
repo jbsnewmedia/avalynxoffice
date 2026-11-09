@@ -364,7 +364,7 @@ class ProfileController extends AbstractController
         $this->userService->requestPasswordReset(
             $email,
             fn (User $candidate): string => $this->generateUrl(
-                'app_profile_password_reset_execute',
+                'app_password_reset_execute',
                 ['userId' => $candidate->getId()?->toRfc4122() ?? ''],
                 UrlGeneratorInterface::ABSOLUTE_URL,
             ),
@@ -380,7 +380,7 @@ class ProfileController extends AbstractController
      * for: a link that was already used (or a password changed by any other
      * means) no longer matches and is rejected like an expired one.
      */
-    #[Route('/profile/password-reset/execute/{userId}', name: 'app_profile_password_reset_execute', methods: ['GET'])]
+    #[Route('/profile/password-reset/execute/{userId}', name: 'app_password_reset_execute', methods: ['GET'])]
     public function executePasswordReset(Request $request, string $userId): Response
     {
         if (!$this->isSignedRequestValid()) {
@@ -400,7 +400,7 @@ class ProfileController extends AbstractController
         return $this->renderResetForm($user);
     }
 
-    #[Route('/profile/password-reset/submit/{userId}', name: 'app_profile_password_reset_submit', methods: ['POST'])]
+    #[Route('/profile/password-reset/submit/{userId}', name: 'app_password_reset_submit', methods: ['POST'])]
     public function submitPasswordReset(Request $request, string $userId): JsonResponse
     {
         if (!$this->isSignedRequestValid()) {
@@ -463,7 +463,7 @@ class ProfileController extends AbstractController
         $userId = $user->getId()?->toRfc4122() ?? '';
         $submitUrl = $this->uriSigner->sign(
             $this->userService->withResetFingerprint(
-                $this->generateUrl('app_profile_password_reset_submit', ['userId' => $userId], UrlGeneratorInterface::ABSOLUTE_URL),
+                $this->generateUrl('app_password_reset_submit', ['userId' => $userId], UrlGeneratorInterface::ABSOLUTE_URL),
                 $user,
             ),
             new \DateInterval(UserService::RESET_LINK_TTL),

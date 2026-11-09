@@ -1,6 +1,6 @@
 <p class="text-body-secondary">{{ 'legal.admin.help'|trans }}</p>
 
-<form id="legal-form" method="post" action="{{ path('app_settings_legal_save') }}" class="needs-validation" novalidate data-legal-form="1" data-avalynxform="1">
+<form id="legal-form" method="post" action="{{ path('admin_legal_save') }}" class="needs-validation" novalidate data-legal-form="1" data-avalynxform="1">
     <input type="hidden" name="_token" value="{{ csrf_token('save_legal') }}">
     <input type="hidden" name="page" value="{{ legal_page_active|default('impressum') }}" data-legal-page-input="1">
 

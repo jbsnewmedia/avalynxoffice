@@ -55,7 +55,7 @@ final class MailActionController extends AbstractController
     ) {
     }
 
-    #[Route(path: '/email/{id}/read', name: 'mail_email_read', requirements: ['id' => '[0-9a-fA-F\-]{36}'], methods: ['POST'])]
+    #[Route(path: '/mail/{id}/read', name: 'mail_email_read', requirements: ['id' => '[0-9a-fA-F\-]{36}'], methods: ['POST'])]
     public function setRead(string $id, Request $request): JsonResponse
     {
         $tokenRaw = $request->request->get('_token') ?? $request->headers->get('X-CSRF-Token');
@@ -89,7 +89,7 @@ final class MailActionController extends AbstractController
         ]);
     }
 
-    #[Route(path: '/email/{id}/print', name: 'mail_email_print', requirements: ['id' => '[0-9a-fA-F\-]{36}'])]
+    #[Route(path: '/mail/{id}/print', name: 'mail_email_print', requirements: ['id' => '[0-9a-fA-F\-]{36}'])]
     public function printEmail(string $id): Response
     {
         $email = $this->emailRepository->find($id);
@@ -103,7 +103,7 @@ final class MailActionController extends AbstractController
         ]);
     }
 
-    #[Route(path: '/email/{id}/move', name: 'mail_email_move', requirements: ['id' => '[0-9a-fA-F\-]{36}'], methods: ['GET', 'POST'])]
+    #[Route(path: '/mail/{id}/move', name: 'mail_email_move', requirements: ['id' => '[0-9a-fA-F\-]{36}'], methods: ['GET', 'POST'])]
     public function moveEmail(string $id, Request $request): Response
     {
         $email = $this->emailRepository->find($id);
@@ -318,7 +318,7 @@ final class MailActionController extends AbstractController
         return $this->redirectToRoute('mail_index');
     }
 
-    #[Route(path: '/email/{id}/spam', name: 'mail_email_spam', requirements: ['id' => '[0-9a-fA-F\-]{36}'], methods: ['POST'])]
+    #[Route(path: '/mail/{id}/spam', name: 'mail_email_spam', requirements: ['id' => '[0-9a-fA-F\-]{36}'], methods: ['POST'])]
     public function markSpam(string $id, Request $request): JsonResponse
     {
         $this->licenseEnforcement->assertCanPerform(LicenseOperation::MAIL_MODIFY);

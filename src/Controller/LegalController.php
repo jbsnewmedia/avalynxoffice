@@ -30,7 +30,7 @@ class LegalController extends AbstractController
     ) {
     }
 
-    #[Route('/admin/legal', name: 'app_settings_legal')]
+    #[Route('/admin/legal', name: 'admin_legal')]
     #[IsGranted('ROLE_ADMIN')]
     public function admin(): Response
     {
@@ -44,7 +44,7 @@ class LegalController extends AbstractController
         ]);
     }
 
-    #[Route('/admin/legal/save', name: 'app_settings_legal_save', methods: ['POST'])]
+    #[Route('/admin/legal/save', name: 'admin_legal_save', methods: ['POST'])]
     #[IsGranted('ROLE_ADMIN')]
     public function save(Request $request, TranslatorInterface $translator): JsonResponse
     {
@@ -71,7 +71,7 @@ class LegalController extends AbstractController
 
         $this->addFlash('success', 'legal.admin.saved');
 
-        return AvalynxFormResponse::success($this->generateUrl('app_settings_legal'));
+        return AvalynxFormResponse::success($this->generateUrl('admin_legal'));
     }
 
     #[Route('/legal', name: 'app_legal')]

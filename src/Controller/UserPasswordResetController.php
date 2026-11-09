@@ -37,7 +37,7 @@ final class UserPasswordResetController extends AbstractController
     ) {
     }
 
-    #[Route('/profile/password-reset/admin-flow/{token}', name: 'app_user_password_reset_flow', methods: ['GET'])]
+    #[Route('/profile/password-reset/admin-flow/{token}', name: 'app_password_reset_admin_flow', methods: ['GET'])]
     public function flow(string $token): Response
     {
         $request = $this->passwordResetRequestRepository->findByToken($token);
@@ -72,8 +72,8 @@ final class UserPasswordResetController extends AbstractController
             'token' => $token,
             'state' => $state,
             'secondsLeft' => $secondsLeft,
-            'statusUrl' => $this->generateUrl('app_user_password_reset_status', ['token' => $token]),
-            'submitUrl' => $this->generateUrl('app_user_password_reset_submit', ['token' => $token]),
+            'statusUrl' => $this->generateUrl('app_password_reset_admin_flow_status', ['token' => $token]),
+            'submitUrl' => $this->generateUrl('app_password_reset_admin_flow_submit', ['token' => $token]),
         ]);
     }
 
@@ -81,7 +81,7 @@ final class UserPasswordResetController extends AbstractController
      * Polled by the flow page; rate limited per IP so the token in the URL
      * cannot be probed at high speed.
      */
-    #[Route('/profile/password-reset/admin-flow/{token}/status', name: 'app_user_password_reset_status', methods: ['GET'])]
+    #[Route('/profile/password-reset/admin-flow/{token}/status', name: 'app_password_reset_admin_flow_status', methods: ['GET'])]
     public function status(string $token, Request $httpRequest): JsonResponse
     {
         if (!$this->passwordResetStatusLimiter->create($httpRequest->getClientIp() ?? 'unknown')->consume()->isAccepted()) {
@@ -130,7 +130,7 @@ final class UserPasswordResetController extends AbstractController
         return max(0, ($expiresAt?->getTimestamp() ?? $now->getTimestamp()) - $now->getTimestamp());
     }
 
-    #[Route('/profile/password-reset/admin-flow/{token}', name: 'app_user_password_reset_submit', methods: ['POST'])]
+    #[Route('/profile/password-reset/admin-flow/{token}', name: 'app_password_reset_admin_flow_submit', methods: ['POST'])]
     public function submit(string $token, Request $request): JsonResponse
     {
         $tokenRaw = $request->request->get('_token');

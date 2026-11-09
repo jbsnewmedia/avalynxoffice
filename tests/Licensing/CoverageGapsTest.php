@@ -193,7 +193,7 @@ final class CoverageGapsTest extends KernelTestCase
     {
         $subscriber = static::getContainer()->get(LicenseExceptionSubscriber::class);
 
-        $request = \Symfony\Component\HttpFoundation\Request::create('/email/00000000-0000-7000-8000-000000000000/read', 'POST');
+        $request = \Symfony\Component\HttpFoundation\Request::create('/mail/00000000-0000-7000-8000-000000000000/read', 'POST');
         $request->headers->set('X-Requested-With', 'XMLHttpRequest');
 
         $nested = new \RuntimeException(

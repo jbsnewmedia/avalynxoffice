@@ -184,7 +184,7 @@ class MailController extends AbstractController
         ]);
     }
 
-    #[Route(path: '/email/{id}', name: 'mail_email', requirements: ['id' => '[0-9a-fA-F\-]{36}'])]
+    #[Route(path: '/mail/{id}', name: 'mail_email', requirements: ['id' => '[0-9a-fA-F\-]{36}'])]
     public function email(string $id, Request $request): Response
     {
         $email = $this->emailRepo->find($id);
@@ -199,7 +199,7 @@ class MailController extends AbstractController
         ]);
     }
 
-    #[Route(path: '/email/{emailId}/attachment/{attachmentId}', name: 'mail_email_attachment_download', requirements: ['emailId' => '[0-9a-fA-F\-]{36}', 'attachmentId' => '[0-9a-fA-F\-]{36}'])]
+    #[Route(path: '/mail/{emailId}/attachment/{attachmentId}', name: 'mail_email_attachment_download', requirements: ['emailId' => '[0-9a-fA-F\-]{36}', 'attachmentId' => '[0-9a-fA-F\-]{36}'])]
     public function downloadAttachment(string $emailId, string $attachmentId, AttachmentStorage $attachmentStorage): Response
     {
         $email = $this->emailRepo->find($emailId);
@@ -229,7 +229,7 @@ class MailController extends AbstractController
         throw $this->createNotFoundException($this->translator->trans('email.attachment_not_found'));
     }
 
-    #[Route(path: '/email/{id}/favorite', name: 'mail_email_favorite', requirements: ['id' => '[0-9a-fA-F\-]{36}'], methods: ['POST'])]
+    #[Route(path: '/mail/{id}/favorite', name: 'mail_email_favorite', requirements: ['id' => '[0-9a-fA-F\-]{36}'], methods: ['POST'])]
     public function setFavorite(string $id, Request $request): JsonResponse
     {
         $tokenRaw = $request->request->get('_token') ?? $request->headers->get('X-CSRF-Token');
@@ -258,7 +258,7 @@ class MailController extends AbstractController
         return new JsonResponse(['success' => true, 'favorite' => $email->isFavorite()]);
     }
 
-    #[Route(path: '/folder/{folderId}/more', name: 'mail_folder_more', requirements: ['folderId' => 'all|[0-9a-fA-F\-]{36}'])]
+    #[Route(path: '/mails/{folderId}/more', name: 'mail_folder_more', requirements: ['folderId' => 'all|[0-9a-fA-F\-]{36}'])]
     public function folderMore(string $folderId, Request $request): Response
     {
         $offset = (int) $request->query->get('offset', '0');

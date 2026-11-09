@@ -180,7 +180,7 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
 
-        $this->client->request('GET', '/email/'.$this->email->getId());
+        $this->client->request('GET', '/mail/'.$this->email->getId());
         self::assertResponseIsSuccessful();
 
         /** @var Email $reloaded */
@@ -194,7 +194,7 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
     {
         $this->client->loginUser($this->admin);
         $token = $this->setCsrfToken('mail_favorite');
-        $this->client->request('POST', '/email/'.$this->email->getId().'/read', ['read' => '1', '_token' => $token], [], [
+        $this->client->request('POST', '/mail/'.$this->email->getId().'/read', ['read' => '1', '_token' => $token], [], [
             'HTTP_X-Requested-With' => 'XMLHttpRequest',
         ]);
 
@@ -211,7 +211,7 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
     public function testMoveIsBlocked(): void
     {
         $this->client->loginUser($this->admin);
-        $this->client->request('POST', '/email/'.$this->email->getId().'/move', ['targetFolderId' => (string) $this->inbox->getId()], [], [
+        $this->client->request('POST', '/mail/'.$this->email->getId().'/move', ['targetFolderId' => (string) $this->inbox->getId()], [], [
             'HTTP_X-Requested-With' => 'XMLHttpRequest',
         ]);
 
@@ -222,7 +222,7 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
     {
         $this->client->loginUser($this->admin);
         $token = $this->setCsrfToken('mail_favorite');
-        $this->client->request('POST', '/email/'.$this->email->getId().'/favorite', ['favorite' => '1', '_token' => $token], [], [
+        $this->client->request('POST', '/mail/'.$this->email->getId().'/favorite', ['favorite' => '1', '_token' => $token], [], [
             'HTTP_X-Requested-With' => 'XMLHttpRequest',
         ]);
 
@@ -266,7 +266,7 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
         $this->em->flush();
 
         $this->client->loginUser($this->admin);
-        $this->client->request('GET', '/email/'.$this->email->getId().'/attachment/'.$attachment->getId());
+        $this->client->request('GET', '/mail/'.$this->email->getId().'/attachment/'.$attachment->getId());
 
         self::assertResponseIsSuccessful();
         self::assertStringContainsString('attachment;', (string) $this->client->getResponse()->headers->get('Content-Disposition'));
@@ -588,7 +588,7 @@ final class LicenseReadOnlyFunctionalTest extends WebTestCase
     {
         $this->client->loginUser($this->admin);
         $token = $this->setCsrfToken('mail_favorite');
-        $this->client->request('POST', '/email/'.$this->email->getId().'/read', ['read' => '1', '_token' => $token]);
+        $this->client->request('POST', '/mail/'.$this->email->getId().'/read', ['read' => '1', '_token' => $token]);
 
         self::assertResponseStatusCodeSame(403);
         $content = (string) $this->client->getResponse()->getContent();

@@ -73,7 +73,7 @@ final class AdminAreaControllerTest extends WebTestCase
         self::assertStringContainsString($this->generateUrl('license_admin'), $content);
         self::assertStringContainsString($this->generateUrl('admin_users'), $content);
         self::assertStringContainsString($this->generateUrl('connector_index'), $content);
-        self::assertStringContainsString($this->generateUrl('app_settings_legal'), $content);
+        self::assertStringContainsString($this->generateUrl('admin_legal'), $content);
     }
 
     public function testAdminSectionPagesShareTheAdminNav(): void
@@ -108,7 +108,7 @@ final class AdminAreaControllerTest extends WebTestCase
         self::assertStringContainsString('id="adminNavDropdown"', $content);
         self::assertStringContainsString($this->generateUrl('app_admin'), $content);
 
-        $this->client->request('GET', $this->generateUrl('app_settings_legal'));
+        $this->client->request('GET', $this->generateUrl('admin_legal'));
         self::assertResponseIsSuccessful();
 
         $content = (string) $this->client->getResponse()->getContent();

@@ -1966,7 +1966,7 @@ document.addEventListener('DOMContentLoaded', function () {
         try {
             const listContainer = clickedEl ? clickedEl.closest('.email-list-container') : document.querySelector('.email-list-container');
             const accountId = listContainer ? listContainer.getAttribute('data-account-id') : 'all';
-            const resp = await fetch('/email/' + encodeURIComponent(id) + '?accountId=' + encodeURIComponent(accountId), {headers: {'X-Requested-With': 'XMLHttpRequest'}});
+            const resp = await fetch('/mail/' + encodeURIComponent(id) + '?accountId=' + encodeURIComponent(accountId), {headers: {'X-Requested-With': 'XMLHttpRequest'}});
             if (!resp.ok) throw new Error('HTTP ' + resp.status);
             const html = await resp.text();
             detailContainer.innerHTML = html;
@@ -1990,7 +1990,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (token) {
             body.set('_token', token);
         }
-        const resp = await fetch('/email/' + encodeURIComponent(id) + '/read', {
+        const resp = await fetch('/mail/' + encodeURIComponent(id) + '/read', {
             method: 'POST',
             headers: {'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded'},
             body
@@ -2005,7 +2005,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (token) {
             body.set('_token', token);
         }
-        const resp = await fetch('/email/' + encodeURIComponent(id) + '/favorite', {
+        const resp = await fetch('/mail/' + encodeURIComponent(id) + '/favorite', {
             method: 'POST',
             headers: {'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded'},
             body
@@ -2122,7 +2122,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const moreText = (window.I18N && window.I18N.load_more) || 'Lade mehr…';
             sentinel.innerHTML = '<div class="text-center text-body-secondary py-2">' + moreText + '</div>';
             try {
-                let url = '/folder/' + encodeURIComponent(folderId) + '/more?offset=' + encodeURIComponent(offset) + '&limit=' + encodeURIComponent(limit);
+                let url = '/mails/' + encodeURIComponent(folderId) + '/more?offset=' + encodeURIComponent(offset) + '&limit=' + encodeURIComponent(limit);
                 if (accountId) {
                     url += '&accountId=' + encodeURIComponent(accountId);
                 }
@@ -2408,7 +2408,7 @@ document.addEventListener('DOMContentLoaded', function () {
             body.set('sourceFolderId', sourceFolderId);
             body.set('targetFolderId', targetFolderId);
             if (token) { body.set('_token', token); }
-            fetch('/email/' + encodeURIComponent(emailId) + '/move', {
+            fetch('/mail/' + encodeURIComponent(emailId) + '/move', {
                 method: 'POST',
                 headers: {'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded'},
                 body
@@ -2465,7 +2465,7 @@ document.addEventListener('DOMContentLoaded', function () {
             window.__movingEmailIds.add(emailId);
             const body = new URLSearchParams();
             body.set('_token', btn.getAttribute('data-token') || '');
-            fetch(btn.getAttribute('data-url') || '/email/' + encodeURIComponent(emailId) + '/spam', {
+            fetch(btn.getAttribute('data-url') || '/mail/' + encodeURIComponent(emailId) + '/spam', {
                 method: 'POST',
                 headers: {'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded'},
                 body

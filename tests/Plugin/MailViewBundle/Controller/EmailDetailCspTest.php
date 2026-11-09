@@ -53,7 +53,7 @@ final class EmailDetailCspTest extends WebTestCase
     {
         $email = $this->createHtmlEmail('<p>Hallo <img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt=""></p>');
 
-        $crawler = $this->client->request('GET', sprintf('/email/%s', $email->getId()));
+        $crawler = $this->client->request('GET', sprintf('/mail/%s', $email->getId()));
         self::assertResponseIsSuccessful();
 
         $iframe = $crawler->filter('iframe.email-html-frame');
@@ -73,7 +73,7 @@ final class EmailDetailCspTest extends WebTestCase
     {
         $email = $this->createHtmlEmail('<p>Tracking <img src="https://tracker.example.com/pixel.gif" width="1" height="1"></p>');
 
-        $crawler = $this->client->request('GET', sprintf('/email/%s', $email->getId()));
+        $crawler = $this->client->request('GET', sprintf('/mail/%s', $email->getId()));
         self::assertResponseIsSuccessful();
 
         $this->assertStrictCspPresent($crawler);
@@ -89,7 +89,7 @@ final class EmailDetailCspTest extends WebTestCase
     {
         $email = $this->createHtmlEmail('<div style="background: url( \'http://cdn.example.com/bg.png\' )">Inhalt</div>');
 
-        $crawler = $this->client->request('GET', sprintf('/email/%s', $email->getId()));
+        $crawler = $this->client->request('GET', sprintf('/mail/%s', $email->getId()));
         self::assertResponseIsSuccessful();
 
         $this->assertStrictCspPresent($crawler);
@@ -100,7 +100,7 @@ final class EmailDetailCspTest extends WebTestCase
     {
         $email = $this->createHtmlEmail('<p>Mehr unter <a href="https://example.com/news">example.com</a></p>');
 
-        $crawler = $this->client->request('GET', sprintf('/email/%s', $email->getId()));
+        $crawler = $this->client->request('GET', sprintf('/mail/%s', $email->getId()));
         self::assertResponseIsSuccessful();
 
         $this->assertStrictCspPresent($crawler);
@@ -110,7 +110,7 @@ final class EmailDetailCspTest extends WebTestCase
     public function testSrcsetReferenceShowsLoadExternalContentButton(): void
     {
         $email = $this->createHtmlEmail('<img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" srcset="https://cdn.example.com/a.png 1x">');
-        $crawler = $this->client->request('GET', sprintf('/email/%s', $email->getId()));
+        $crawler = $this->client->request('GET', sprintf('/mail/%s', $email->getId()));
         self::assertResponseIsSuccessful();
         self::assertCount(1, $crawler->filter('[data-action="load-external-content"]'));
     }
@@ -118,7 +118,7 @@ final class EmailDetailCspTest extends WebTestCase
     public function testProtocolRelativeReferenceShowsLoadExternalContentButton(): void
     {
         $email = $this->createHtmlEmail('<img src="//cdn.example.com/pixel.gif">');
-        $crawler = $this->client->request('GET', sprintf('/email/%s', $email->getId()));
+        $crawler = $this->client->request('GET', sprintf('/mail/%s', $email->getId()));
         self::assertResponseIsSuccessful();
         self::assertCount(1, $crawler->filter('[data-action="load-external-content"]'));
     }
@@ -126,7 +126,7 @@ final class EmailDetailCspTest extends WebTestCase
     public function testCssImportShowsLoadExternalContentButton(): void
     {
         $email = $this->createHtmlEmail('<style>@import url("https://cdn.example.com/style.css");</style><p>Hi</p>');
-        $crawler = $this->client->request('GET', sprintf('/email/%s', $email->getId()));
+        $crawler = $this->client->request('GET', sprintf('/mail/%s', $email->getId()));
         self::assertResponseIsSuccessful();
         self::assertCount(1, $crawler->filter('[data-action="load-external-content"]'));
     }
@@ -141,7 +141,7 @@ final class EmailDetailCspTest extends WebTestCase
             .'<p>Sichtbarer Inhalt</p>'
         );
 
-        $crawler = $this->client->request('GET', sprintf('/email/%s', $email->getId()));
+        $crawler = $this->client->request('GET', sprintf('/mail/%s', $email->getId()));
         self::assertResponseIsSuccessful();
 
         $srcdoc = (string) $crawler->filter('iframe.email-html-frame')->attr('srcdoc');
@@ -163,7 +163,7 @@ final class EmailDetailCspTest extends WebTestCase
         $this->attachBody($email, 'Nur Text mit https://example.com/pixel.gif', BodyContentType::TEXT);
         $this->entityManager->flush();
 
-        $crawler = $this->client->request('GET', sprintf('/email/%s', $email->getId()));
+        $crawler = $this->client->request('GET', sprintf('/mail/%s', $email->getId()));
         self::assertResponseIsSuccessful();
 
         self::assertCount(0, $crawler->filter('iframe.email-html-frame'));

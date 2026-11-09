@@ -381,7 +381,7 @@ final class MailActionControllerTest extends KernelTestCase
         [$user, $email, $sourceFolder, $targetFolder] = $this->createFixtureData('picker');
         $this->setCurrentUserRequest();
 
-        $response = $this->controller->moveEmail((string) $email->getId(), Request::create('/email/'.$email->getId().'/move', 'GET', [], [], [], ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']));
+        $response = $this->controller->moveEmail((string) $email->getId(), Request::create('/mail/'.$email->getId().'/move', 'GET', [], [], [], ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']));
         self::assertSame(Response::HTTP_OK, $response->getStatusCode());
         $content = (string) $response->getContent();
         self::assertStringContainsString('move-folder-choice', $content);
@@ -954,7 +954,7 @@ final class MailActionControllerTest extends KernelTestCase
 
         $missingId = '00000000-0000-0000-0000-000000000000';
         $this->expectException(\Symfony\Component\HttpKernel\Exception\NotFoundHttpException::class);
-        $this->controller->moveEmail($missingId, Request::create('/email/'.$missingId.'/move', 'GET'));
+        $this->controller->moveEmail($missingId, Request::create('/mail/'.$missingId.'/move', 'GET'));
     }
 
     public function testMoveEmailPostReturnsJsonNotFoundForMissingEmail(): void
@@ -962,7 +962,7 @@ final class MailActionControllerTest extends KernelTestCase
         $this->setCurrentUserRequest();
 
         $missingId = '00000000-0000-0000-0000-000000000000';
-        $response = $this->controller->moveEmail($missingId, Request::create('/email/'.$missingId.'/move', 'POST'));
+        $response = $this->controller->moveEmail($missingId, Request::create('/mail/'.$missingId.'/move', 'POST'));
 
         self::assertSame(Response::HTTP_NOT_FOUND, $response->getStatusCode());
         self::assertStringContainsString('"success":false', (string) $response->getContent());
@@ -973,7 +973,7 @@ final class MailActionControllerTest extends KernelTestCase
         [$user, $email, $sourceFolder, $targetFolder] = $this->createFixtureData('move-get');
         $this->setCurrentUserRequest();
 
-        $response = $this->controller->moveEmail((string) $email->getId(), Request::create('/email/'.$email->getId().'/move', 'GET'));
+        $response = $this->controller->moveEmail((string) $email->getId(), Request::create('/mail/'.$email->getId().'/move', 'GET'));
 
         self::assertSame(Response::HTTP_FOUND, $response->getStatusCode());
         self::assertSame('/mails', $response->getTargetUrl());

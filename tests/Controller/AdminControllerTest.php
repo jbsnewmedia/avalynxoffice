@@ -52,7 +52,7 @@ final class AdminControllerTest extends WebTestCase
         $this->client->request('GET', '/admin/accounts');
         self::assertResponseRedirects('/login');
 
-        $this->client->request('GET', '/admin/accounts/view');
+        $this->client->request('GET', '/admin/accounts/structure');
         self::assertResponseRedirects('/login');
 
         $this->client->request('GET', '/admin/accounts/new');
@@ -90,7 +90,7 @@ final class AdminControllerTest extends WebTestCase
         $this->client->request('GET', '/admin/accounts');
         self::assertResponseIsSuccessful();
 
-        $this->client->request('GET', '/admin/accounts/view');
+        $this->client->request('GET', '/admin/accounts/structure');
         self::assertResponseIsSuccessful();
 
         // The create/edit forms are modal fragments: they are only served
@@ -154,7 +154,7 @@ final class AdminControllerTest extends WebTestCase
         $this->client->request('GET', '/admin/accounts/new', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
 
-        $this->client->request('GET', '/admin/accounts/view', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $this->client->request('GET', '/admin/accounts/structure', server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
         self::assertResponseIsSuccessful();
 
         $account = $this->createAccountWithBlockedFolder('Support', 'support-edit@example.com');
