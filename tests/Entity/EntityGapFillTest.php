@@ -8,6 +8,7 @@ use AvalynxOffice\Entity\Address;
 use AvalynxOffice\Entity\Attachment;
 use AvalynxOffice\Entity\Body;
 use AvalynxOffice\Entity\CalendarEvent;
+use AvalynxOffice\Entity\CalendarEventException;
 use AvalynxOffice\Entity\Email;
 use AvalynxOffice\Entity\EmailAddressLink;
 use AvalynxOffice\Entity\EmailAttachmentLink;
@@ -263,6 +264,225 @@ final class EntityGapFillTest extends TestCase
         self::assertSame(1, $event->getBusyStatus());
         self::assertSame(2, $event->getSensitivity());
         self::assertSame(30, $event->getReminder());
+    }
+
+    public function testCalendarEventExposesMeetingOrganizerAttendeeAndExceptionFields(): void
+    {
+        $event = new CalendarEvent();
+        $attendees = [
+            ['name' => 'Bob Guest', 'email' => 'bob@example.com', 'type' => 1, 'status' => 3],
+            ['name' => null, 'email' => 'carol@example.com', 'type' => null, 'status' => null],
+        ];
+
+        $event->setOrganizerName('Alice Organizer');
+        $event->setOrganizerEmail('alice@example.com');
+        $event->setAttendees($attendees);
+        $event->setMeetingStatus(1);
+        $event->setResponseType(2);
+        $event->setResponseRequested(true);
+        $event->setDisallowNewTimeProposal(true);
+        $event->setOnlineMeetingConfLink('https://conf.example.com/meet');
+        $event->setOnlineMeetingExternalLink('https://ext.example.com/meet');
+        $event->setCategories(['Work', 'Team']);
+        $event->setRecurrenceOccurrences(10);
+        $event->setRecurrenceCalendarType(0);
+        $event->setRecurrenceFirstDayOfWeek(1);
+
+        self::assertSame('Alice Organizer', $event->getOrganizerName());
+        self::assertSame('alice@example.com', $event->getOrganizerEmail());
+        self::assertSame($attendees, $event->getAttendees());
+        self::assertSame(1, $event->getMeetingStatus());
+        self::assertSame(2, $event->getResponseType());
+        self::assertTrue($event->getResponseRequested());
+        self::assertTrue($event->getDisallowNewTimeProposal());
+        self::assertSame('https://conf.example.com/meet', $event->getOnlineMeetingConfLink());
+        self::assertSame('https://ext.example.com/meet', $event->getOnlineMeetingExternalLink());
+        self::assertSame(['Work', 'Team'], $event->getCategories());
+        self::assertSame(10, $event->getRecurrenceOccurrences());
+        self::assertSame(0, $event->getRecurrenceCalendarType());
+        self::assertSame(1, $event->getRecurrenceFirstDayOfWeek());
+
+        $event->setResponseRequested(false);
+        $event->setDisallowNewTimeProposal(false);
+        self::assertFalse($event->getResponseRequested());
+        self::assertFalse($event->getDisallowNewTimeProposal());
+
+        self::assertCount(0, $event->getExceptions());
+    }
+
+    public function testCalendarEventExceptionExposesAllOverrideFields(): void
+    {
+        $event = new CalendarEvent();
+        $exception = new CalendarEventException();
+        $exceptionStart = new \DateTimeImmutable('2026-11-24 09:00');
+        $start = new \DateTimeImmutable('2026-12-08 14:00');
+        $end = new \DateTimeImmutable('2026-12-08 15:00');
+
+        $exception->setExceptionStartAt($exceptionStart);
+        $exception->setIsDeleted(false);
+        $exception->setTitle('Moved session');
+        $exception->setStartAt($start);
+        $exception->setEndAt($end);
+        $exception->setIsAllDay(true);
+        $exception->setLocation('Room 2');
+        $exception->setDescription('Moved note');
+        $exception->setBusyStatus(3);
+        $exception->setReminder(30);
+
+        self::assertNotNull($exception->getId());
+        self::assertNull($exception->getEvent());
+        self::assertSame($exceptionStart, $exception->getExceptionStartAt());
+        self::assertFalse($exception->isDeleted());
+        self::assertSame('Moved session', $exception->getTitle());
+        self::assertSame($start, $exception->getStartAt());
+        self::assertSame($end, $exception->getEndAt());
+        self::assertTrue($exception->isAllDay());
+        self::assertSame('Room 2', $exception->getLocation());
+        self::assertSame('Moved note', $exception->getDescription());
+        self::assertSame(3, $exception->getBusyStatus());
+        self::assertSame(30, $exception->getReminder());
+
+        $event->addException($exception);
+        self::assertSame($event, $exception->getEvent());
+        self::assertCount(1, $event->getExceptions());
+
+        $event->addException($exception);
+        self::assertCount(1, $event->getExceptions());
+
+        $event->removeException($exception);
+        self::assertCount(0, $event->getExceptions());
+        self::assertNull($exception->getEvent());
+    }
+
+    public function testAddressExposesAllContactFields(): void
+    {
+        $birthday = new \DateTimeImmutable('1990-05-14');
+        $anniversary = new \DateTimeImmutable('2015-06-20');
+        $children = ['Max', 'Moritz'];
+        $categories = ['Friends', 'Work'];
+
+        $address = (new Address())
+            ->setEmail('jane@example.com')
+            ->setMiddlename('Ann')
+            ->setNickname('JD')
+            ->setNamePrefix('Dr.')
+            ->setNameSuffix('PhD')
+            ->setDepartment('Engineering')
+            ->setJobTitle('Developer')
+            ->setOfficeLocation('Building 4')
+            ->setAssistantName('Nora Helper')
+            ->setManagerName('Big Boss')
+            ->setSpouseName('John Doe')
+            ->setWebsite('https://example.com')
+            ->setBusinessPhone2('+49 30 112')
+            ->setBusinessFaxNumber('+49 30 113')
+            ->setHomePhone2('+49 40 112')
+            ->setHomeFaxNumber('+49 40 113')
+            ->setCarPhone('+49 170 222')
+            ->setPagerNumber('+49 170 333')
+            ->setRadioNumber('+49 170 444')
+            ->setAssistantPhone('+49 30 114')
+            ->setCompanyPhone('+49 30 115')
+            ->setMms('+49 170 555')
+            ->setEmail2('jane2@example.com')
+            ->setEmail3('jane3@example.com')
+            ->setImAddress('jane@im.example.com')
+            ->setImAddress2('jane2@im.example.com')
+            ->setImAddress3('jane3@im.example.com')
+            ->setCustomerId('C-4711')
+            ->setGovernmentId('G-0815')
+            ->setAccountName('A-1')
+            ->setYomiCompany('ACME Kana')
+            ->setYomiFirstname('Jane Kana')
+            ->setYomiLastname('Doe Kana')
+            ->setBirthday($birthday)
+            ->setAnniversary($anniversary)
+            ->setBusinessStreet('Business Street 1')
+            ->setBusinessCity('Berlin')
+            ->setBusinessState('Berlin')
+            ->setBusinessPostalCode('10115')
+            ->setBusinessCountry('Germany')
+            ->setHomeStreet('Home Street 2')
+            ->setHomeCity('Hamburg')
+            ->setHomeState('Hamburg')
+            ->setHomePostalCode('20095')
+            ->setHomeCountry('Germany')
+            ->setOtherStreet('Other Street 3')
+            ->setOtherCity('Köln')
+            ->setOtherState('NRW')
+            ->setOtherPostalCode('50667')
+            ->setOtherCountry('Germany')
+            ->setNote('Note text')
+            ->setChildren($children)
+            ->setCategories($categories)
+            ->setPicture('aGVsbG8=');
+
+        self::assertSame('jane@example.com', $address->getEmail());
+        self::assertSame('Ann', $address->getMiddlename());
+        self::assertSame('JD', $address->getNickname());
+        self::assertSame('Dr.', $address->getNamePrefix());
+        self::assertSame('PhD', $address->getNameSuffix());
+        self::assertSame('Engineering', $address->getDepartment());
+        self::assertSame('Developer', $address->getJobTitle());
+        self::assertSame('Building 4', $address->getOfficeLocation());
+        self::assertSame('Nora Helper', $address->getAssistantName());
+        self::assertSame('Big Boss', $address->getManagerName());
+        self::assertSame('John Doe', $address->getSpouseName());
+        self::assertSame('https://example.com', $address->getWebsite());
+        self::assertSame('+49 30 112', $address->getBusinessPhone2());
+        self::assertSame('+49 30 113', $address->getBusinessFaxNumber());
+        self::assertSame('+49 40 112', $address->getHomePhone2());
+        self::assertSame('+49 40 113', $address->getHomeFaxNumber());
+        self::assertSame('+49 170 222', $address->getCarPhone());
+        self::assertSame('+49 170 333', $address->getPagerNumber());
+        self::assertSame('+49 170 444', $address->getRadioNumber());
+        self::assertSame('+49 30 114', $address->getAssistantPhone());
+        self::assertSame('+49 30 115', $address->getCompanyPhone());
+        self::assertSame('+49 170 555', $address->getMms());
+        self::assertSame('jane2@example.com', $address->getEmail2());
+        self::assertSame('jane3@example.com', $address->getEmail3());
+        self::assertSame('jane@im.example.com', $address->getImAddress());
+        self::assertSame('jane2@im.example.com', $address->getImAddress2());
+        self::assertSame('jane3@im.example.com', $address->getImAddress3());
+        self::assertSame('C-4711', $address->getCustomerId());
+        self::assertSame('G-0815', $address->getGovernmentId());
+        self::assertSame('A-1', $address->getAccountName());
+        self::assertSame('ACME Kana', $address->getYomiCompany());
+        self::assertSame('Jane Kana', $address->getYomiFirstname());
+        self::assertSame('Doe Kana', $address->getYomiLastname());
+        self::assertSame($birthday, $address->getBirthday());
+        self::assertSame($anniversary, $address->getAnniversary());
+        self::assertSame('Business Street 1', $address->getBusinessStreet());
+        self::assertSame('Berlin', $address->getBusinessCity());
+        self::assertSame('Berlin', $address->getBusinessState());
+        self::assertSame('10115', $address->getBusinessPostalCode());
+        self::assertSame('Germany', $address->getBusinessCountry());
+        self::assertSame('Home Street 2', $address->getHomeStreet());
+        self::assertSame('Hamburg', $address->getHomeCity());
+        self::assertSame('Hamburg', $address->getHomeState());
+        self::assertSame('20095', $address->getHomePostalCode());
+        self::assertSame('Germany', $address->getHomeCountry());
+        self::assertSame('Other Street 3', $address->getOtherStreet());
+        self::assertSame('Köln', $address->getOtherCity());
+        self::assertSame('NRW', $address->getOtherState());
+        self::assertSame('50667', $address->getOtherPostalCode());
+        self::assertSame('Germany', $address->getOtherCountry());
+        self::assertSame('Note text', $address->getNote());
+        self::assertSame($children, $address->getChildren());
+        self::assertSame($categories, $address->getCategories());
+        self::assertSame('aGVsbG8=', $address->getPicture());
+    }
+
+    public function testAddressDisplayNamePrefersNameThenNamesThenEmail(): void
+    {
+        $withName = (new Address())->setEmail('jane@example.com')->setName('Display Name');
+        self::assertSame('Display Name', $withName->displayName());
+
+        $withNames = (new Address())->setEmail('jane@example.com')->setFirstname('Jane')->setLastname('Doe');
+        self::assertSame('Jane Doe', $withNames->displayName());
+
+        $emailOnly = (new Address())->setEmail('jane@example.com');
+        self::assertSame('jane@example.com', $emailOnly->displayName());
     }
 
     public function testAppSettingExposesIdentifierAndMutableKey(): void
