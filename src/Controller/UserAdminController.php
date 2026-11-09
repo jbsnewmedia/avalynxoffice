@@ -64,7 +64,7 @@ final class UserAdminController extends AbstractController
     ) {
     }
 
-    #[Route(path: '/admin/users', name: 'license_admin_users', methods: ['GET'])]
+    #[Route(path: '/admin/users', name: 'admin_users', methods: ['GET'])]
     public function index(): Response
     {
         return $this->render('admin/users/index.html.twig', [
@@ -202,7 +202,7 @@ final class UserAdminController extends AbstractController
 
         $this->addFlash('success', 'admin.users.created');
 
-        return AvalynxFormResponse::success($this->generateUrl('license_admin_users'));
+        return AvalynxFormResponse::success($this->generateUrl('admin_users'));
     }
 
     #[Route(path: '/admin/users/{id}/edit', name: 'admin_users_edit', methods: ['GET'], requirements: ['id' => '[0-9a-fA-F\-]{36}'])]
@@ -322,7 +322,7 @@ final class UserAdminController extends AbstractController
 
         $this->addFlash('success', 'admin.users.updated');
 
-        return AvalynxFormResponse::success($this->generateUrl('license_admin_users'));
+        return AvalynxFormResponse::success($this->generateUrl('admin_users'));
     }
 
     #[Route(path: '/admin/users/{id}/delete', name: 'admin_users_delete', methods: ['POST'], requirements: ['id' => '[0-9a-fA-F\-]{36}'])]
@@ -355,7 +355,7 @@ final class UserAdminController extends AbstractController
 
         $this->addFlash('success', 'admin.users.deleted');
 
-        return $this->redirectToRoute('license_admin_users', [], Response::HTTP_SEE_OTHER);
+        return $this->redirectToRoute('admin_users', [], Response::HTTP_SEE_OTHER);
     }
 
     /**

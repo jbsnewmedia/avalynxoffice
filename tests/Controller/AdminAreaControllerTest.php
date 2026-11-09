@@ -71,7 +71,7 @@ final class AdminAreaControllerTest extends WebTestCase
         // through the dropdown only, without content cards.
         self::assertStringContainsString($this->generateUrl('app_admin_password_resets'), $content);
         self::assertStringContainsString($this->generateUrl('license_admin'), $content);
-        self::assertStringContainsString($this->generateUrl('license_admin_users'), $content);
+        self::assertStringContainsString($this->generateUrl('admin_users'), $content);
         self::assertStringContainsString($this->generateUrl('connector_index'), $content);
         self::assertStringContainsString($this->generateUrl('app_settings_legal'), $content);
     }
@@ -94,7 +94,7 @@ final class AdminAreaControllerTest extends WebTestCase
         self::assertStringContainsString('id="adminNavDropdown"', $content);
         self::assertStringContainsString($this->generateUrl('app_admin'), $content);
 
-        $this->client->request('GET', $this->generateUrl('license_admin_users'));
+        $this->client->request('GET', $this->generateUrl('admin_users'));
         self::assertResponseIsSuccessful();
 
         $content = (string) $this->client->getResponse()->getContent();

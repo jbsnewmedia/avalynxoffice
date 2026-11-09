@@ -31,17 +31,6 @@ final class LicenseController extends AbstractController
     ) {
     }
 
-    #[Route(path: '/license', name: 'app_license', methods: ['GET'])]
-    public function index(): Response
-    {
-        $entitlement = $this->licenseManager->getEntitlement();
-
-        return $this->render('license/info.html.twig', [
-            'entitlement' => $entitlement,
-            'trustedKeysConfigured' => $this->licenseManager->areTrustedKeysConfigured(),
-        ]);
-    }
-
     #[Route(path: '/admin/license', name: 'license_admin', methods: ['GET'])]
     #[IsGranted('ROLE_ADMIN')]
     public function admin(): Response

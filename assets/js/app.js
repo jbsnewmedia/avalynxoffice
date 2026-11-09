@@ -1620,71 +1620,106 @@ document.addEventListener('DOMContentLoaded', function () {
             currentTrigger = btn;
             const text = btn.dataset.confirm || defaultConfirmText;
             if (confirmText) confirmText.textContent = text;
+            const inputWrap = confirmModalEl.querySelector('.confirm-modal-input-wrap');
+            const modalInput = confirmModalEl.querySelector('.confirm-modal-input');
+            if (inputWrap && modalInput) {
+                if (btn.dataset.confirmInput) {
+                    // The dialog asks for a value (e.g. the password reset
+                    // release number) that is submitted with the trigger's
+                    // own form after confirmation.
+                    modalInput.value = '';
+                    modalInput.classList.remove('is-invalid');
+                    inputWrap.classList.remove('d-none');
+                    const label = confirmModalEl.querySelector('label[for="confirm-modal-input"]');
+                    if (label) label.textContent = btn.dataset.confirmInputLabel || '';
+                } else {
+                    inputWrap.classList.add('d-none');
+                }
+            }
             confirmModal.show();
         });
         if (confirmBtn) {
             confirmBtn.addEventListener('click', function() {
                 if (currentTrigger) {
+                    const modalInput = confirmModalEl.querySelector('.confirm-modal-input');
+                    const inputTargetName = currentTrigger.dataset.confirmInput;
+                    if (inputTargetName && modalInput) {
+                        const value = modalInput.value.trim();
+                        if (value === '') {
+                            modalInput.classList.add('is-invalid');
+                            modalInput.focus();
+                            return;
+                        }
+                        modalInput.classList.remove('is-invalid');
+                        const triggerForm = currentTrigger.closest('form');
+                        const targetField = triggerForm ? triggerForm.querySelector('[name="' + inputTargetName + '"]') : null;
+                        if (targetField) {
+                            targetField.value = value;
+                        }
+                    }
                     if (currentTrigger.dataset.confirmClient === '1') {
                         // Client-side confirm: the trigger opts out of the
                         // form/link handling below — listeners on it (e.g.
                         // the account list editors) react to the event.
                         currentTrigger.dispatchEvent(new CustomEvent('avalynx:confirmed', { bubbles: true }));
+                    } else if (currentTrigger.tagName === 'A') {
+                        const method = currentTrigger.dataset.method || 'GET';
+                        const token = currentTrigger.dataset.token;
+                        if (method.toUpperCase() === 'POST') {
+                            const form = document.createElement('form');
+                            form.method = 'POST';
+                            form.action = currentTrigger.getAttribute('href');
+                            if (token) {
+                                const input = document.createElement('input');
+                                input.type = 'hidden';
+                                input.name = '_token';
+                                input.value = token;
+                                form.appendChild(input);
+                            }
+                            document.body.appendChild(form);
+                            form.submit();
+                        } else {
+                            window.location.href = currentTrigger.getAttribute('href');
+                        }
                     } else {
                         const form = currentTrigger.closest('form');
-                        if (form) {
-                            if (form.classList.contains('modal-form-ajax')) {
-                                const formData = new FormData(form);
-                                fetch(form.getAttribute('action'), {
-                                    method: 'POST',
-                                    body: formData,
-                                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                                })
-                                .then(res => res.headers.get('content-type').includes('application/json') ? res.json() : res.text())
-                                .then(data => {
-                                    if (data.success || (typeof data === 'string' && data.includes('modal-form-ajax-success'))) {
-                                        confirmModal.hide();
-                                        const actionModalEl = document.getElementById('actionModal');
-                                        if (actionModalEl && actionModalEl.classList.contains('show')) {
-                                            const modalContent = actionModalEl.querySelector('.action-modal-content');
-                                            if (modalContent && typeof data === 'string') {
-                                                modalContent.innerHTML = data;
-                                            } else {
-                                                window.location.reload();
-                                            }
+                        if (form && form.hasAttribute('data-avalynxform')) {
+                            // AvalynxForm listens for the submit event itself
+                            // and performs the XHR submission with inline
+                            // error handling — hand over via requestSubmit().
+                            form.requestSubmit();
+                        } else if (form && form.classList.contains('modal-form-ajax')) {
+                            const formData = new FormData(form);
+                            fetch(form.getAttribute('action'), {
+                                method: 'POST',
+                                body: formData,
+                                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                            })
+                            .then(res => res.headers.get('content-type').includes('application/json') ? res.json() : res.text())
+                            .then(data => {
+                                if (data.success || (typeof data === 'string' && data.includes('modal-form-ajax-success'))) {
+                                    confirmModal.hide();
+                                    const actionModalEl = document.getElementById('actionModal');
+                                    if (actionModalEl && actionModalEl.classList.contains('show')) {
+                                        const modalContent = actionModalEl.querySelector('.action-modal-content');
+                                        if (modalContent && typeof data === 'string') {
+                                            modalContent.innerHTML = data;
                                         } else {
                                             window.location.reload();
                                         }
                                     } else {
                                         window.location.reload();
                                     }
-                                })
-                                .catch(err => {
-                                    console.error('Confirm action failed', err);
+                                } else {
                                     window.location.reload();
-                                });
-                            } else {
-                                form.submit();
-                            }
-                        } else if (currentTrigger.tagName === 'A') {
-                            const method = currentTrigger.dataset.method || 'GET';
-                            const token = currentTrigger.dataset.token;
-                            if (method.toUpperCase() === 'POST') {
-                                const form = document.createElement('form');
-                                form.method = 'POST';
-                                form.action = currentTrigger.getAttribute('href');
-                                if (token) {
-                                    const input = document.createElement('input');
-                                    input.type = 'hidden';
-                                    input.name = '_token';
-                                    input.value = token;
-                                    form.appendChild(input);
                                 }
-                                document.body.appendChild(form);
-                                form.submit();
-                            } else {
-                                window.location.href = currentTrigger.getAttribute('href');
-                            }
+                            })
+                            .catch(err => {
+                                console.error('Confirm action failed', err);
+                                window.location.reload();
+                            });
+                        } else if (form) {
+                            form.submit();
                         } else {
                             // Bare trigger (no form, no link): the action is
                             // handled client-side — listeners on the trigger

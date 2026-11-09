@@ -75,33 +75,6 @@ final class LicenseControllerTest extends WebTestCase
         $this->em->flush();
     }
 
-    public function testLicenseInfoPageShowsCommunityStatusForUsers(): void
-    {
-        $this->client->loginUser($this->user);
-        $this->client->request('GET', '/license');
-
-        self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('body', 'Community');
-        self::assertSelectorTextContains('body', 'Active Seats (last 30 days)');
-    }
-
-    public function testLicenseInfoPageShowsValidLicenseAndSeats(): void
-    {
-        $key = self::$issuer->issue(['additional_seats' => 2]);
-        $this->em->persist(new StoredLicenseKey($key));
-        $this->em->flush();
-
-        $this->client->loginUser($this->user);
-        $this->client->request('GET', '/license');
-
-        self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('body', 'Licensed');
-        self::assertSelectorTextContains('body', 'LIC-TEST-000001');
-        // Full keys are never displayed.
-        $content = (string) $this->client->getResponse()->getContent();
-        self::assertStringNotContainsString($key, $content);
-    }
-
     public function testAdminPageRequiresAdminRole(): void
     {
         $this->client->loginUser($this->user);
