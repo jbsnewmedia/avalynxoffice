@@ -435,6 +435,7 @@ account.confirm_remove_alias: "Really remove this alias?"
 account.remove_folder: "Remove folder"
 account.confirm_remove_folder: "Really remove this folder?"
 account.folder_functions_placeholder: "No folder function"
+account.folder_functions_add_placeholder: "Add folder function"
 account.name: "Name"
 account.email: "E-mail address"
 

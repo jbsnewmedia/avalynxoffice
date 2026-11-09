@@ -327,13 +327,34 @@ document.addEventListener('DOMContentLoaded', function () {
                 return { wrapper, input };
             };
 
+            // The legacy listbox treated "Keine Funktion" as exclusive: it
+            // never persisted the value itself. Keep that semantics — two
+            // folders holding "none" would trip the duplicate validation.
+            // Stale dropdowns can hand out a picked key twice, so dedupe.
+            const normalizeFolderFunctions = (keys) => {
+                const values = (Array.isArray(keys) ? keys : [keys])
+                    .map((value) => String(value ?? '').trim())
+                    .filter((value) => value !== '');
+                const unique = values.filter((value, index) => values.indexOf(value) === index);
+                if (unique.includes('none')) {
+                    return unique.length === 1 ? [] : unique.filter((value) => value !== 'none');
+                }
+                return unique;
+            };
+
             // Must run AFTER the input is attached to the document: the
             // autocomplete library resolves the id selector against the DOM.
-            // Returns the library controller (single selection, live search
-            // over the static folder function options).
-            const initFolderFunctionAutocomplete = (input, options, selectedValue, onPick = null) => {
-                const selected = options.find((optionConfig) => optionConfig.value === selectedValue);
-                return new autocompleteClass('#' + input.id, {
+            // Returns the library controller (multi selection with live
+            // search over the static folder function options).
+            const initFolderFunctionAutocomplete = (input, options, selectedFunctions, onPick = null) => {
+                const tertiary = editor.dataset.tertiaryPlaceholder || '';
+                // Chips in the field: the input invites to add another one.
+                const addHint = editor.dataset.tertiaryAddPlaceholder || tertiary;
+                const labelByValue = new Map(options.map((optionConfig) => [optionConfig.value, optionConfig.label]));
+                const defaultSelections = (Array.isArray(selectedFunctions) ? selectedFunctions : [])
+                    .filter((value) => labelByValue.has(String(value)))
+                    .map((value) => ({ key: String(value), value: labelByValue.get(String(value)) }));
+                const controller = new autocompleteClass('#' + input.id, {
                     fetchData: async (query) => {
                         const needle = String(query || '').trim().toLowerCase();
                         const candidates = options.map((optionConfig) => ({ key: optionConfig.value, value: optionConfig.label }));
@@ -342,31 +363,38 @@ document.addEventListener('DOMContentLoaded', function () {
                         }
                         return candidates.filter((candidate) => candidate.value.toLowerCase().includes(needle));
                     },
-                    maxSelections: 1,
+                    // Every folder may carry every function (e.g. Spam/Junk/
+                    // Scam all on one mailbox folder), so the cap is the
+                    // option count itself.
+                    maxSelections: Math.max(options.length, 1),
                     tagsPosition: 'inline',
                     clearStyle: 'icon',
-                    // Single mode: the library takes the pre-selection from
-                    // defaultKey/defaultValue (defaultSelections is multi-only).
-                    defaultKey: selected ? selected.value : null,
-                    defaultValue: selected ? selected.label : null,
+                    defaultSelections: defaultSelections,
                     onChange: (keys) => {
+                        const functions = normalizeFolderFunctions(keys);
+                        // Empty field reads "no folder function", a filled
+                        // one invites to add another function.
+                        input.placeholder = functions.length > 0 ? addHint : tertiary;
                         if (onPick === null) {
                             return;
                         }
-                        // Single mode reports a string key, multi mode an
-                        // array of keys — both resolve to one function.
-                        const functionKey = Array.isArray(keys) ? (keys.length > 0 ? keys[0] : '') : String(keys ?? '');
-                        onPick(functionKey);
+                        onPick(functions);
                     },
                 }, {
                     // The library resets the input placeholder from this
-                    // language object on select/clear — carry the editor's
-                    // "no folder function" placeholder through.
-                    placeholder: editor.dataset.tertiaryPlaceholder || 'Search...',
+                    // language object on select/clear — the per-state sync
+                    // in the onChange handler runs after it.
+                    placeholder: tertiary,
                     noResults: editor.dataset.autocompleteNoResults || 'No results found',
                     clearTitle: '',
-                    removeTitle: editor.dataset.removeLabel || 'Remove'
+                    removeTitle: editor.dataset.tertiaryRemoveTitle || editor.dataset.removeLabel || 'Remove'
                 });
+                // setInitialValue() runs before the library is marked
+                // initialized, so its selections did not fire onChange:
+                // sync the placeholder for pre-filled fields here.
+                const record = controller.instances[0] || null;
+                input.placeholder = record && record.selections.length > 0 ? addHint : tertiary;
+                return controller;
             };
 
             const buildSelectField = (labelText, options, selectedValue, onChange) => {
@@ -452,7 +480,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 if (type === 'alias' && connectorOptions.length > 0) {
                     // App-passwords look: saved aliases are read-only rows
-                    // (connector + local part), managed via the draft row.
+                    // rendered in the same two columns as the draft row
+                    // (local part + connector), managed via the draft row.
+                    const localLabel = itemsContainer.dataset.localLabel || '';
+                    const connectorLabel = itemsContainer.dataset.connectorLabel || '';
                     itemsContainer.innerHTML = '';
                     items.forEach((value, index) => {
                         const row = document.createElement('div');
@@ -460,18 +491,23 @@ document.addEventListener('DOMContentLoaded', function () {
 
                         const option = connectorOptions.find((candidate) => candidate.value === value.connectorId);
                         const connectorLabel = option ? option.label : (value.connectorId || '');
-                        const domainMatch = connectorLabel.match(/\(([^)]+)\)/);
-                        const display = domainMatch
-                            ? (value.localPart || '') + '@' + domainMatch[1]
-                            : connectorLabel + ' \u00b7 ' + (value.localPart || '');
 
-                        const text = document.createElement('span');
-                        text.className = 'account-list-alias-text';
-                        const icon = document.createElement('i');
-                        icon.className = 'fa-regular fa-envelope me-2 text-body-secondary';
-                        icon.setAttribute('aria-hidden', 'true');
-                        text.appendChild(icon);
-                        text.appendChild(document.createTextNode(display));
+                        const localInput = document.createElement('input');
+                        localInput.type = 'text';
+                        localInput.className = 'form-control';
+                        localInput.value = value.localPart || '';
+                        localInput.readOnly = true;
+                        localInput.setAttribute('aria-label', localLabel);
+                        localInput.tabIndex = -1;
+
+                        const connectorInput = document.createElement('input');
+                        connectorInput.type = 'text';
+                        connectorInput.className = 'form-control';
+                        connectorInput.value = connectorLabel;
+                        connectorInput.readOnly = true;
+                        connectorInput.setAttribute('aria-label', connectorLabel);
+                        connectorInput.tabIndex = -1;
+                        connectorInput.title = connectorLabel;
 
                         const removeButton = document.createElement('button');
                         removeButton.type = 'button';
@@ -489,7 +525,8 @@ document.addEventListener('DOMContentLoaded', function () {
                         removeButton.setAttribute('title', removeLabel + ': ' + (value.localPart || connectorLabel));
                         removeButton.innerHTML = '<i class="fa-solid fa-trash" aria-hidden="true"></i>';
 
-                        row.appendChild(text);
+                        row.appendChild(localInput);
+                        row.appendChild(connectorInput);
                         row.appendChild(removeButton);
                         itemsContainer.appendChild(row);
                     });
@@ -609,9 +646,9 @@ document.addEventListener('DOMContentLoaded', function () {
                                 initFolderFunctionAutocomplete(
                                     functionField.input,
                                     folderFunctionOptions,
-                                    selectedFunction,
-                                    function (functionKey) {
-                                        items[index].functions = functionKey === '' ? [] : [functionKey];
+                                    Array.isArray(value.functions) ? value.functions : [],
+                                    function (functions) {
+                                        items[index].functions = functions;
                                         syncStorage();
                                     }
                                 );
@@ -732,6 +769,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 && draftFolderFunctions !== null;
             let draftFunctionController = null;
             let draftFunctionRecord = null;
+            let draftFunctionKeys = [];
 
             const addFolderDraft = () => {
                 const name = draftFolderName.value.trim();
@@ -739,19 +777,18 @@ document.addEventListener('DOMContentLoaded', function () {
                 const sort = sortRaw === '' || Number.isNaN(Number(sortRaw))
                     ? items.length
                     : Math.trunc(Number(sortRaw));
-                const functionKey = draftFunctionRecord && draftFunctionRecord.hiddenInput
-                    ? String(draftFunctionRecord.hiddenInput.value ?? '').trim()
-                    : '';
+                const functions = normalizeFolderFunctions(draftFunctionKeys);
                 if (name === '') {
                     return;
                 }
 
-                items.push({ name: name, sortOrder: sort, functions: functionKey === '' ? [] : [functionKey] });
+                items.push({ name: name, sortOrder: sort, functions: functions });
                 syncStorage();
                 renderItems();
 
                 draftFolderName.value = '';
                 draftFolderSort.value = '';
+                draftFunctionKeys = [];
                 if (draftFunctionController !== null && draftFunctionRecord !== null) {
                     draftFunctionController.clearSelection(draftFunctionRecord);
                 } else {
@@ -761,7 +798,9 @@ document.addEventListener('DOMContentLoaded', function () {
             };
 
             if (isFolderDraftEditor) {
-                draftFunctionController = initFolderFunctionAutocomplete(draftFolderFunctions, folderFunctionOptions, '');
+                draftFunctionController = initFolderFunctionAutocomplete(draftFolderFunctions, folderFunctionOptions, [], function (functions) {
+                    draftFunctionKeys = functions;
+                });
                 draftFunctionRecord = draftFunctionController.instances[0] || null;
             }
 

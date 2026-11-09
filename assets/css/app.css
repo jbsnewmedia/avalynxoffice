@@ -381,6 +381,14 @@ body .avalynx-datatable-table td.avalynx-datatable-sorting-desc:after {
 .account-list-editor-aliases .account-list-field {
     flex: 1 1 auto;
 }
+/* Alias draft and saved rows share the same two columns: the local
+   part field and the connector field each take 48% of the row, the
+   action button sits at the end. */
+.account-list-editor-aliases .account-list-row-add > input[data-account-alias-local-part],
+.account-list-editor-aliases .account-list-row-add > button.form-select,
+.account-list-editor-aliases .account-list-items .account-list-row > input[readonly] {
+    flex: 0 1 48%;
+}
 /* Folder one-liner: keep the name narrow so the function autocomplete
    gets the room on the right. */
 .account-list-editor-folders .account-list-field-name {
@@ -403,6 +411,9 @@ body .avalynx-datatable-table td.avalynx-datatable-sorting-desc:after {
     flex: 1.6 1 10rem;
     width: 100%;
 }
+/* Function chips and the search input wrap naturally: chips on the
+   first line, the search input below. The placeholder is managed from
+   JS — empty whenever chips are in the field. */
 .account-list-editor-aliases .account-list-field .avalynx-autocomplete-wrapper,
 .account-list-editor-folders .account-list-field .avalynx-autocomplete-wrapper {
     width: 100%;

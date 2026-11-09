@@ -67,11 +67,11 @@
                     class="form-select"
                     data-account-alias-connector="1"
                     aria-label="{{ 'account.alias_connector'|trans }}"></select>
-            <button type="button" class="btn btn-primary" data-account-list-add aria-label="{{ 'account.add_alias'|trans }}" title="{{ 'account.add_alias'|trans }}">
+            <button type="button" class="btn btn-sm btn-primary" data-account-list-add aria-label="{{ 'account.add_alias'|trans }}" title="{{ 'account.add_alias'|trans }}">
                 <i class="fa-solid fa-plus" aria-hidden="true"></i>
             </button>
         </div>
-        <div class="account-list-items" data-account-list-items data-remove-label="{{ 'account.remove_alias'|trans }}" data-confirm-message="{{ 'account.confirm_remove_alias'|trans }}"></div>
+        <div class="account-list-items" data-account-list-items data-remove-label="{{ 'account.remove_alias'|trans }}" data-confirm-message="{{ 'account.confirm_remove_alias'|trans }}" data-local-label="{{ 'account.alias_local_part'|trans }}" data-connector-label="{{ 'account.alias_connector'|trans }}"></div>
         <div class="account-list-empty text-body-secondary small" data-account-list-empty>{{ 'account.aliases_empty'|trans }}</div>
         {{ form_help(form.aliases) }}
         {{ form_errors(form.aliases) }}
@@ -89,6 +89,8 @@
                  data-secondary-placeholder="{{ 'account.sort_order_placeholder'|trans }}"
                  data-tertiary-label="{{ 'account.folder_functions'|trans }}"
                  data-tertiary-placeholder="{{ 'account.folder_functions_placeholder'|trans }}"
+                 data-tertiary-add-placeholder="{{ 'account.folder_functions_add_placeholder'|trans }}"
+                 data-tertiary-remove-title="{{ 'email.autocomplete_remove'|trans }}"
                  data-folder-function-options="{{ folderFunctionOptions|json_encode|e('html_attr') }}"
                  data-autocomplete-no-results="{{ 'email.autocomplete_no_results'|trans }}">
                 {{ form_label(form.folders, null, {'label_attr': {'class': 'form-label'}}) }}
@@ -115,7 +117,7 @@
                            placeholder="{{ 'account.folder_functions_placeholder'|trans }}"
                            aria-label="{{ 'account.folder_functions'|trans }}"
                            autocomplete="off">
-                    <button type="button" class="btn btn-primary" data-account-list-add aria-label="{{ 'account.add_folder'|trans }}" title="{{ 'account.add_folder'|trans }}">
+                    <button type="button" class="btn btn-sm btn-primary" data-account-list-add aria-label="{{ 'account.add_folder'|trans }}" title="{{ 'account.add_folder'|trans }}">
                         <i class="fa-solid fa-plus" aria-hidden="true"></i>
                     </button>
                 </div>
