@@ -128,5 +128,21 @@ fi
 # into the web server process tree.
 unset OFFICE_ADMIN_PASSWORD OFFICE_ADMIN_EMAIL OFFICE_ADMIN_PASSWORD_FILE OFFICE_ADMIN_EMAIL_FILE
 
+# Automatic backup scheduler: a long-running loop next to the web server
+# that creates backups when the admin-configured interval has elapsed
+# (settings live in the database and apply without a restart). Started
+# per default; disable with AVALYNXOFFICE_BACKUP_DAEMON=off.
+if [ "${AVALYNXOFFICE_BACKUP_DAEMON:-on}" = "off" ]; then
+    echo '[avalynxoffice] Backup scheduler disabled (AVALYNXOFFICE_BACKUP_DAEMON=off).'
+else
+    echo '[avalynxoffice] Starting the automatic backup scheduler in the background ...'
+    # The loop inherits this script's stdout, which stays the container
+    # stdout across the exec below (fd remains open).
+    run_as_application php bin/console app:backup:schedule --interval=60 </dev/null &
+    # Detach the loop from this script's job table so the exec below does
+    # not keep it from running.
+    disown 2>/dev/null || true
+fi
+
 echo '[avalynxoffice] Starting web server ...'
 exec /entrypoint "$@"

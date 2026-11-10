@@ -6,6 +6,7 @@ namespace AvalynxOffice\Tests\Controller;
 
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Repository\UserRepository;
+use AvalynxOffice\Service\Backup\BackupScheduleService;
 use AvalynxOffice\Service\Backup\BackupService;
 use AvalynxOffice\Tests\Support\RefreshDatabaseTrait;
 use Doctrine\ORM\EntityManagerInterface;
@@ -95,6 +96,14 @@ final class AdminBackupControllerTest extends WebTestCase
         \assert($repository instanceof UserRepository);
 
         return $repository;
+    }
+
+    private function scheduleService(): BackupScheduleService
+    {
+        $service = static::getContainer()->get(BackupScheduleService::class);
+        \assert($service instanceof BackupScheduleService);
+
+        return $service;
     }
 
     public function testPageRequiresLogin(): void
@@ -449,5 +458,78 @@ final class AdminBackupControllerTest extends WebTestCase
         self::assertResponseStatusCodeSame(422);
         $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
         self::assertArrayHasKey('restorePassword', $data['invalid']);
+    }
+
+    public function testPageShowsAutoBackupCardWithCronUrl(): void
+    {
+        $this->client->loginUser($this->admin);
+        $crawler = $this->client->request('GET', '/admin/backup');
+
+        self::assertResponseIsSuccessful();
+        self::assertSame(1, $crawler->filter('#backup-schedule-form')->count());
+        $cronUrl = $crawler->filter('[data-copy-value]')->attr('data-copy-value');
+        self::assertIsString($cronUrl);
+        self::assertStringContainsString('/cron/backup?token=', $cronUrl);
+        self::assertMatchesRegularExpression('/token=[0-9a-f]{48}$/', $cronUrl);
+    }
+
+    public function testSaveScheduleSettingsPersistsValues(): void
+    {
+        $this->client->loginUser($this->admin);
+        $crawler = $this->client->request('GET', '/admin/backup', [], [], $this->xhr());
+
+        $form = $crawler->filter('#backup-schedule-form')->form();
+        $values = $form->getPhpValues();
+        $values['backup_schedule']['enabled'] = '1';
+        $values['backup_schedule']['intervalHours'] = '12';
+        // Unchecked checkboxes are omitted by browsers entirely.
+        unset($values['backup_schedule']['includeFiles']);
+        $values['backup_schedule']['retention'] = '5';
+
+        $this->client->request('POST', '/admin/backup/schedule', $values, [], $this->xhr());
+        self::assertResponseIsSuccessful();
+        $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertTrue($data['success']);
+
+        $settings = $this->scheduleService()->all();
+        self::assertTrue($settings['enabled']);
+        self::assertSame(12, $settings['intervalHours']);
+        self::assertFalse($settings['includeFiles']);
+        self::assertSame(5, $settings['retention']);
+    }
+
+    public function testSaveScheduleClampsOutOfRangeValues(): void
+    {
+        $this->client->loginUser($this->admin);
+        $crawler = $this->client->request('GET', '/admin/backup', [], [], $this->xhr());
+
+        $form = $crawler->filter('#backup-schedule-form')->form();
+        $values = $form->getPhpValues();
+        $values['backup_schedule']['enabled'] = '1';
+        $values['backup_schedule']['intervalHours'] = '9999';
+        $values['backup_schedule']['retention'] = '-3';
+
+        $this->client->request('POST', '/admin/backup/schedule', $values, [], $this->xhr());
+        self::assertResponseStatusCodeSame(422);
+        $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertArrayHasKey('backup_schedule[intervalHours]', $data['invalid']);
+        self::assertArrayHasKey('backup_schedule[retention]', $data['invalid']);
+    }
+
+    public function testRegenerateCronTokenChangesUrl(): void
+    {
+        $this->client->loginUser($this->admin);
+        $crawler = $this->client->request('GET', '/admin/backup');
+        $urlBefore = (string) $crawler->filter('[data-copy-value]')->attr('data-copy-value');
+
+        $form = $crawler->filter('form[action$="/cron-token/regenerate"]')->form();
+
+        $this->client->request('POST', '/admin/backup/cron-token/regenerate', $form->getPhpValues(), [], $this->xhr());
+        self::assertResponseIsSuccessful();
+
+        $crawler = $this->client->request('GET', '/admin/backup');
+        $urlAfter = (string) $crawler->filter('[data-copy-value]')->attr('data-copy-value');
+        self::assertStringContainsString('/cron/backup?token=', $urlAfter);
+        self::assertNotSame($urlBefore, $urlAfter);
     }
 }

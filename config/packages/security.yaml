@@ -35,6 +35,9 @@ security:
         - { path: ^/profile/password-reset, roles: PUBLIC_ACCESS }
         - { path: ^/profile/recovery/verify/, roles: PUBLIC_ACCESS }
         - { path: ^/locale, roles: PUBLIC_ACCESS }
+        # Public cron endpoint: authenticated by its secret token, not by
+        # a user session (see CronBackupController).
+        - { path: ^/cron/backup$, roles: PUBLIC_ACCESS }
         - { path: ^/(css|js|images|build|assets), roles: PUBLIC_ACCESS }
         - { path: ^/(_(profiler|wdt)), roles: PUBLIC_ACCESS }
         - { path: ^/, roles: ROLE_USER }

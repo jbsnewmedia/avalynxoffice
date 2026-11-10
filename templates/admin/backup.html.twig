@@ -27,6 +27,108 @@
 
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-body-tertiary d-flex align-items-center gap-2">
+                    <i class="fa-solid fa-robot" aria-hidden="true"></i><strong>{{ 'admin.backup.auto_title'|trans }}</strong>
+                </div>
+                <div class="card-body">
+                    <div class="p-2">
+                        {{ form_start(scheduleForm, {'attr': {'id': 'backup-schedule-form', 'data-avalynxform': '1', 'novalidate': 'novalidate'}}) }}
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="form-check mb-3">
+                                        {{ form_widget(scheduleForm.enabled, {'attr': {'class': 'form-check-input'}}) }}
+                                        {{ form_label(scheduleForm.enabled, null, {'label_attr': {'class': 'form-check-label'}}) }}
+                                        <div class="form-text">{{ form_help(scheduleForm.enabled) }}</div>
+                                    </div>
+                                    <div class="form-check mb-3">
+                                        {{ form_widget(scheduleForm.includeFiles, {'attr': {'class': 'form-check-input'}}) }}
+                                        {{ form_label(scheduleForm.includeFiles, null, {'label_attr': {'class': 'form-check-label'}}) }}
+                                        <div class="form-text">{{ form_help(scheduleForm.includeFiles) }}</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        {{ form_label(scheduleForm.intervalHours) }}
+                                        {{ form_widget(scheduleForm.intervalHours, {'attr': {'class': 'form-control'}}) }}
+                                        {{ form_help(scheduleForm.intervalHours) }}
+                                        <div class="invalid-feedback" aria-live="polite"></div>
+                                    </div>
+                                    <div class="form-group mb-3">
+                                        {{ form_label(scheduleForm.retention) }}
+                                        {{ form_widget(scheduleForm.retention, {'attr': {'class': 'form-control'}}) }}
+                                        {{ form_help(scheduleForm.retention) }}
+                                        <div class="invalid-feedback" aria-live="polite"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <div class="invalid-feedback" aria-live="polite"></div>
+                            </div>
+                            <div class="d-flex justify-content-end mt-3">
+                                {{ form_widget(scheduleForm.save) }}
+                            </div>
+                        {{ form_end(scheduleForm) }}
+
+                        <hr>
+                        <h2 class="h6 mb-3">{{ 'admin.backup.auto_status'|trans }}</h2>
+                        <dl class="row mb-3">
+                            <dt class="col-sm-4">{{ 'admin.backup.auto_last_run'|trans }}</dt>
+                            <dd class="col-sm-8">
+                                {% if autoLastRunAt is not null %}
+                                    {{ autoLastRunAt|user_datetime('short') }}
+                                    {% if autoLastResult is not null %}
+                                        {% set isError = autoLastResult starts with 'error' %}
+                                        <span class="badge bg-{{ isError ? 'danger' : 'success' }} ms-2">
+                                            {{ isError ? autoLastResult : autoLastResult|slice(4) }}
+                                        </span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-body-secondary">{{ 'admin.backup.auto_last_run_none'|trans }}</span>
+                                {% endif %}
+                            </dd>
+                            <dt class="col-sm-4">{{ 'admin.backup.auto_next_run'|trans }}</dt>
+                            <dd class="col-sm-8">
+                                {% if autoNextRunAt is not null %}
+                                    {{ autoNextRunAt|user_datetime('short') }}
+                                {% else %}
+                                    <span class="text-body-secondary">{{ 'admin.backup.auto_next_run_disabled'|trans }}</span>
+                                {% endif %}
+                            </dd>
+                        </dl>
+
+                        <hr>
+                        <h2 class="h6 mb-3">{{ 'admin.backup.auto_cron_title'|trans }}</h2>
+                        <p class="form-text mb-2">{{ 'admin.backup.auto_cron_help'|trans }}</p>
+                        <div class="input-group input-group-sm mb-2">
+                            <span class="input-group-text"><i class="fa-solid fa-link" aria-hidden="true"></i></span>
+                            <input type="text" id="cronUrlField" class="form-control font-monospace text-break" readonly value="{{ cronUrl }}"
+                                   aria-label="{{ 'admin.backup.auto_cron_url'|trans }}" onclick="this.select()">
+                            <button type="button" class="btn btn-outline-secondary" data-copy-value="{{ cronUrl }}"
+                                    aria-label="{{ 'admin.backup.auto_copy'|trans }}" title="{{ 'admin.backup.auto_copy'|trans }}">
+                                <i class="fa-solid fa-copy" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        <div class="input-group input-group-sm mb-3">
+                            <span class="input-group-text"><i class="fa-solid fa-terminal" aria-hidden="true"></i></span>
+                            <input type="text" id="cronCliField" class="form-control font-monospace" readonly
+                                   value="{{ 'php bin/console app:backup:run'|e }}" aria-label="{{ 'admin.backup.auto_cli'|trans }}" onclick="this.select()">
+                            <button type="button" class="btn btn-outline-secondary" data-copy-value="php bin/console app:backup:run"
+                                    aria-label="{{ 'admin.backup.auto_copy'|trans }}" title="{{ 'admin.backup.auto_copy'|trans }}">
+                                <i class="fa-solid fa-copy" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        <form action="{{ path('app_admin_backup_token_regenerate') }}" method="post" data-avalynxform="1">
+                            <input type="hidden" name="_token" value="{{ csrf_token('admin_backup_token') }}">
+                            <button type="submit" class="btn btn-sm btn-outline-danger confirm-action"
+                                    data-confirm="{{ 'admin.backup.auto_confirm_regenerate'|trans }}">
+                                <i class="fa-solid fa-rotate me-2" aria-hidden="true"></i>{{ 'admin.backup.auto_regenerate'|trans }}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-body-tertiary d-flex align-items-center gap-2">
                     <i class="fa-solid fa-box-archive" aria-hidden="true"></i><strong>{{ 'admin.backup.create_title'|trans }}</strong>
                 </div>
                 <div class="card-body">
@@ -224,4 +326,25 @@
 {% endblock %}
 {% block javascripts %}
     {{ parent() }}
+    <script>
+        (function () {
+            document.addEventListener('click', function (event) {
+                const button = event.target.closest('[data-copy-value]');
+                if (!button) return;
+                const value = button.getAttribute('data-copy-value') || '';
+                const done = function () {
+                    const icon = button.querySelector('i');
+                    if (!icon) return;
+                    icon.classList.replace('fa-copy', 'fa-check');
+                    setTimeout(function () { icon.classList.replace('fa-check', 'fa-copy'); }, 1500);
+                };
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(value).then(done).catch(function () {
+                        /* clipboard refused (non-secure context): the input
+                           fields select their content on click as fallback */
+                    });
+                }
+            });
+        })();
+    </script>
 {% endblock %}

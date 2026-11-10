@@ -21,7 +21,7 @@ use AvalynxOffice\Service\Mail\AttachmentStorage;
  */
 final readonly class BackupService
 {
-    private const string FILENAME_PATTERN = '/^avalynxoffice-(backup|pre-restore|uploaded)-\d{4}-\d{2}-\d{2}_\d{6}\.aobak(\.enc)?$/';
+    private const string FILENAME_PATTERN = '/^avalynxoffice-(backup|pre-restore|uploaded|auto)-\d{4}-\d{2}-\d{2}_\d{6}(?:_\d+)?\.aobak(\.enc)?$/';
 
     public function __construct(
         private readonly string $projectDir,
@@ -93,7 +93,11 @@ final readonly class BackupService
             );
         }
 
-        usort($infos, static fn (BackupFileInfo $a, BackupFileInfo $b): int => $b->createdAt <=> $a->createdAt);
+        usort(
+            $infos,
+            static fn (BackupFileInfo $a, BackupFileInfo $b): int => $b->createdAt <=> $a->createdAt
+                ?: strcmp($b->filename, $a->filename),
+        );
 
         return $infos;
     }
@@ -101,7 +105,7 @@ final readonly class BackupService
     /**
      * Creates a backup and returns its file name.
      *
-     * @param string $namePrefix 'backup', 'pre-restore' or 'uploaded'
+     * @param string $namePrefix 'backup', 'pre-restore', 'uploaded' or 'auto'
      *
      * @throws \RuntimeException when the backup cannot be created
      */
@@ -158,16 +162,27 @@ final readonly class BackupService
 
     /**
      * Builds a file name for a stored backup with the given content type
-     * (plain archive or encrypted wrapper).
+     * (plain archive or encrypted wrapper). When the name already exists
+     * (several backups within the same second), a counter suffix is
+     * appended so nothing is silently overwritten.
      */
     public function buildFilename(string $namePrefix, bool $encrypted): string
     {
-        return sprintf(
-            'avalynxoffice-%s-%s.aobak%s',
+        $base = sprintf(
+            'avalynxoffice-%s-%s',
             $namePrefix,
             date('Y-m-d_His'),
-            $encrypted ? '.enc' : '',
         );
+        $extension = $encrypted ? '.aobak.enc' : '.aobak';
+
+        $filename = $base.$extension;
+        $counter = 2;
+        while (is_file($this->getBackupDir().'/'.$filename)) {
+            $filename = $base.'_'.$counter.$extension;
+            ++$counter;
+        }
+
+        return $filename;
     }
 
     /**

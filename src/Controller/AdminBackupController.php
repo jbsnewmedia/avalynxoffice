@@ -10,8 +10,10 @@ declare(strict_types=1);
 namespace AvalynxOffice\Controller;
 
 use AvalynxOffice\Form\BackupCreateType;
+use AvalynxOffice\Form\BackupScheduleType;
 use AvalynxOffice\Service\Backup\BackupArchive;
 use AvalynxOffice\Service\Backup\BackupRestoreService;
+use AvalynxOffice\Service\Backup\BackupScheduleService;
 use AvalynxOffice\Service\Backup\BackupService;
 use AvalynxOffice\Util\AvalynxFormResponse;
 use AvalynxOffice\Util\FormInvalidMapper;
@@ -23,6 +25,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Contracts\Translation\TranslatorInterface;
@@ -53,6 +56,7 @@ final class AdminBackupController extends AbstractController
         private readonly BackupService $backups,
         private readonly BackupArchive $archive,
         private readonly BackupRestoreService $restoreService,
+        private readonly BackupScheduleService $schedule,
         private readonly TranslatorInterface $translator,
         private readonly RateLimiterFactoryInterface $adminBackupCreateLimiter,
         private readonly RateLimiterFactoryInterface $adminBackupRestoreLimiter,
@@ -67,15 +71,93 @@ final class AdminBackupController extends AbstractController
             'action' => $this->generateUrl('app_admin_backup_create'),
         ]);
 
+        $scheduleForm = $this->createForm(BackupScheduleType::class, null, [
+            'action' => $this->generateUrl('app_admin_backup_schedule_save'),
+            'settings' => $this->schedule->all(),
+        ]);
+
         $limit = $this->uploadLimitBytes();
+        $token = $this->schedule->cronToken();
+        $cronUrl = $this->generateUrl('app_cron_backup', ['token' => $token], UrlGeneratorInterface::ABSOLUTE_URL);
 
         return $this->render('admin/backup.html.twig', [
             'form' => $form,
+            'scheduleForm' => $scheduleForm,
             'backups' => $this->backups->listBackups(),
             'uploadMaxBytes' => $limit ?? 0,
             'uploadMaxText' => self::formatBytes($limit ?? 0),
             'uploadChunkSize' => self::UPLOAD_CHUNK_BYTES,
+            'autoLastRunAt' => $this->schedule->lastRunAt(),
+            'autoLastResult' => $this->schedule->lastResult(),
+            'autoNextRunAt' => $this->schedule->nextRunAt(),
+            'cronUrl' => $cronUrl,
         ]);
+    }
+
+    /**
+     * Saves the automatic backup settings (toggle, interval, attachments,
+     * retention). Applies on the next scheduler pass without a restart.
+     */
+    #[Route('/schedule', name: 'app_admin_backup_schedule_save', methods: ['POST'])]
+    public function saveSchedule(Request $request): Response
+    {
+        if (!$request->isXmlHttpRequest()) {
+            throw new AccessDeniedException();
+        }
+
+        $scheduleForm = $this->createForm(BackupScheduleType::class, null, [
+            'action' => $this->generateUrl('app_admin_backup_schedule_save'),
+            'settings' => $this->schedule->all(),
+        ]);
+        $scheduleForm->handleRequest($request);
+
+        if (!$scheduleForm->isSubmitted() || !$scheduleForm->isValid()) {
+            return AvalynxFormResponse::invalid(FormInvalidMapper::map($scheduleForm));
+        }
+
+        $includeFiles = (bool) $scheduleForm->get('includeFiles')->getData();
+        $values = [
+            'enabled' => (bool) $scheduleForm->get('enabled')->getData(),
+            'includeFiles' => $includeFiles,
+        ];
+
+        $intervalRaw = $scheduleForm->get('intervalHours')->getData();
+        if (is_numeric($intervalRaw)) {
+            $values['intervalHours'] = (int) $intervalRaw;
+        }
+
+        $retentionRaw = $scheduleForm->get('retention')->getData();
+        if (is_numeric($retentionRaw)) {
+            $values['retention'] = (int) $retentionRaw;
+        }
+
+        $this->schedule->save($values);
+
+        $this->addFlash('success', $this->translator->trans('admin.backup.auto_saved'));
+
+        return AvalynxFormResponse::success($this->generateUrl('app_admin_backup'));
+    }
+
+    /**
+     * Regenerates the secret token of the cron URL (invalidates all
+     * previously copied URLs).
+     */
+    #[Route('/cron-token/regenerate', name: 'app_admin_backup_token_regenerate', methods: ['POST'])]
+    public function regenerateCronToken(Request $request): Response
+    {
+        if (!$request->isXmlHttpRequest()) {
+            throw new AccessDeniedException();
+        }
+
+        $token = $request->request->get('_token');
+        if (null === $token || !$this->isCsrfTokenValid('admin_backup_token', (string) $token)) {
+            return AvalynxFormResponse::failure($this->translator->trans('common.invalid_token'));
+        }
+
+        $this->schedule->regenerateCronToken();
+        $this->addFlash('success', $this->translator->trans('admin.backup.auto_token_regenerated'));
+
+        return AvalynxFormResponse::success($this->generateUrl('app_admin_backup'));
     }
 
     #[Route('/create', name: 'app_admin_backup_create', methods: ['POST'])]
