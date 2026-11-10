@@ -1,0 +1,227 @@
+{% extends 'base.html.twig' %}
+{% block title %}{{ 'admin.backup.title'|trans }} - {{ 'app.title'|trans }}{% endblock %}
+{% block stylesheets %}
+    {% include '_assets.html.twig' with { mode: 'user' } %}
+    {% do addAssetComposer('app/assets/js/admin-backup-upload.js') %}
+    {{ parent() }}
+{% endblock %}
+{% block flashes %}{% endblock %}
+{% block body %}
+<div class="d-flex flex-column min-vh-100">
+    {% include '_navbar.html.twig' with { showMailToggles: false, userMenuActive: true } %}
+    <main class="flex-grow-1 py-4">
+        <div class="container">
+            {% include 'admin/_nav.html.twig' with { active: 'backup' } %}
+            <h1 class="h3 mb-4">{{ 'admin.backup.title'|trans }}</h1>
+            <p class="text-body-secondary mb-4">{{ 'admin.backup.description'|trans }}</p>
+
+            {% include '_flashes.html.twig' %}
+
+            <div class="alert alert-info d-flex" role="alert">
+                <i class="fa-solid fa-lightbulb me-3 mt-1" aria-hidden="true"></i>
+                <div>
+                    <strong>{{ 'admin.backup.rule321_title'|trans }}</strong><br>
+                    {{ 'admin.backup.rule321_text'|trans }}
+                </div>
+            </div>
+
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-body-tertiary d-flex align-items-center gap-2">
+                    <i class="fa-solid fa-box-archive" aria-hidden="true"></i><strong>{{ 'admin.backup.create_title'|trans }}</strong>
+                </div>
+                <div class="card-body">
+                    <div class="p-2">
+                        {{ form_start(form, {'attr': {'id': 'backup-create-form', 'data-avalynxform': '1', 'novalidate': 'novalidate'}}) }}
+                            <div class="form-check mb-2">
+                                {{ form_widget(form.includeFiles, {'attr': {'class': 'form-check-input'}}) }}
+                                {{ form_label(form.includeFiles, null, {'label_attr': {'class': 'form-check-label'}}) }}
+                                <div class="form-text">{{ form_help(form.includeFiles) }}</div>
+                            </div>
+                            <div class="form-check mb-2">
+                                {{ form_widget(form.encrypt, {'attr': {'class': 'form-check-input'}}) }}
+                                {{ form_label(form.encrypt, null, {'label_attr': {'class': 'form-check-label'}}) }}
+                                <div class="form-text">{{ form_help(form.encrypt) }}</div>
+                            </div>
+                            <div class="collapse" id="backup-password-fields">
+                                <div class="row g-3 mb-2">
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-3">
+                                            {{ form_label(form.password) }}
+                                            {{ form_widget(form.password, {'attr': {'class': 'form-control'}}) }}
+                                            {{ form_help(form.password) }}
+                                            <div class="invalid-feedback" aria-live="polite"></div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group mb-3">
+                                            {{ form_label(form.passwordRepeat) }}
+                                            {{ form_widget(form.passwordRepeat, {'attr': {'class': 'form-control'}}) }}
+                                            <div class="invalid-feedback" aria-live="polite"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <div class="invalid-feedback" aria-live="polite"></div>
+                            </div>
+                            <div class="d-flex justify-content-end mt-3">
+                                {{ form_widget(form.create) }}
+                            </div>
+                        {{ form_end(form) }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-body-tertiary d-flex align-items-center gap-2">
+                    <i class="fa-solid fa-upload" aria-hidden="true"></i><strong>{{ 'admin.backup.upload_title'|trans }}</strong>
+                </div>
+                <div class="card-body">
+                    <div class="p-2">
+                        <form id="backup-upload-form" data-backup-upload
+                              data-action-init="{{ path('app_admin_backup_upload_init') }}"
+                              data-action-chunk="{{ path('app_admin_backup_upload_chunk') }}"
+                              data-action-finish="{{ path('app_admin_backup_upload_finish') }}"
+                              data-csrf="{{ csrf_token('admin_backup_upload') }}"
+                              data-chunk-size="{{ uploadChunkSize }}"
+                              data-max-bytes="{{ uploadMaxBytes }}"
+                              data-msg-missing="{{ 'admin.backup.err_upload_missing'|trans }}"
+                              data-msg-too-large="{{ 'admin.backup.err_upload_too_large_client'|trans }}"
+                              data-msg-unavailable="{{ 'admin.backup.err_upload_unavailable'|trans }}"
+                              data-msg-failed="{{ 'admin.backup.err_upload_failed'|trans }}"
+                              class="needs-validation" novalidate>
+                            <div class="form-group mb-3">
+                                <label for="backupFile" class="form-label visually-hidden">{{ 'admin.backup.upload_title'|trans }}</label>
+                                <input id="backupFile" name="backupFile" type="file" class="form-control" required
+                                       accept=".aobak,.aobak.enc" />
+                                <div class="form-text">{{ 'admin.backup.upload_help'|trans({'%maxSize%': uploadMaxText}) }}</div>
+                                <div class="invalid-feedback" aria-live="polite"></div>
+                            </div>
+                            <div class="progress mb-3 d-none" data-upload-progress role="progressbar" aria-label="{{ 'admin.backup.upload_progress'|trans }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" data-upload-bar style="width: 0%">0 %</div>
+                            </div>
+                            <div class="d-flex justify-content-end">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fa-solid fa-upload me-2" aria-hidden="true"></i>{{ 'admin.backup.upload_submit'|trans }}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-body-tertiary d-flex align-items-center gap-2">
+                    <i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i><strong>{{ 'admin.backup.restore_title'|trans }}</strong>
+                </div>
+                <div class="card-body">
+                    <div class="p-2">
+                        <div class="alert alert-warning d-flex" role="alert">
+                            <i class="fa-solid fa-triangle-exclamation me-3 mt-1" aria-hidden="true"></i>
+                            <div>{{ 'admin.backup.restore_warning'|trans }}</div>
+                        </div>
+                        {% if backups|length == 0 %}
+                            <p class="text-body-secondary mb-0">{{ 'admin.backup.restore_none'|trans }}</p>
+                        {% else %}
+                        <form action="{{ path('app_admin_backup_restore') }}" method="post" id="backup-restore-form"
+                              class="needs-validation" novalidate data-avalynxform="1">
+                            <input type="hidden" name="_token" value="{{ csrf_token('admin_backup_restore') }}">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label for="restoreFilename" class="form-label">{{ 'admin.backup.restore_select'|trans }}</label>
+                                        <select id="restoreFilename" name="restoreFilename" class="form-select" required>
+                                            {% for backup in backups %}
+                                                <option value="{{ backup.filename }}">
+                                                    {{ backup.filename }} ({{ backup.sizeFormatted() }})
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                        <div class="invalid-feedback" aria-live="polite"></div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label for="restorePassword" class="form-label">{{ 'admin.backup.restore_password'|trans }}</label>
+                                        <input id="restorePassword" name="restorePassword" type="password" class="form-control"
+                                               placeholder="{{ 'admin.backup.restore_password_placeholder'|trans }}" />
+                                        <div class="form-text">{{ 'admin.backup.restore_password_help'|trans }}</div>
+                                        <div class="invalid-feedback" aria-live="polite"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-end mt-3">
+                                <button type="submit" class="btn btn-danger confirm-action"
+                                        data-confirm="{{ 'admin.backup.confirm_restore'|trans }}">
+                                    <i class="fa-solid fa-clock-rotate-left me-2" aria-hidden="true"></i>{{ 'admin.backup.restore_submit'|trans }}
+                                </button>
+                            </div>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-body-tertiary d-flex align-items-center gap-2">
+                    <i class="fa-solid fa-list" aria-hidden="true"></i><strong>{{ 'admin.backup.list_title'|trans }}</strong>
+                </div>
+                <div class="card-body">
+                    {% if backups|length == 0 %}
+                        <p class="text-body-secondary mb-0 p-2">{{ 'admin.backup.list_none'|trans }}</p>
+                    {% else %}
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">{{ 'admin.backup.col_file'|trans }}</th>
+                                        <th scope="col">{{ 'admin.backup.col_size'|trans }}</th>
+                                        <th scope="col">{{ 'admin.backup.col_created'|trans }}</th>
+                                        <th scope="col">{{ 'admin.backup.col_actions'|trans }}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for backup in backups %}
+                                        <tr>
+                                            <td>
+                                                {% if backup.encrypted %}
+                                                    <i class="fa-solid fa-lock text-warning me-2" aria-hidden="true" title="{{ 'admin.backup.encrypted'|trans }}"></i>
+                                                {% else %}
+                                                    <i class="fa-solid fa-file-archive me-2" aria-hidden="true"></i>
+                                                {% endif %}
+                                                {{ backup.filename }}
+                                            </td>
+                                            <td>{{ backup.sizeFormatted() }}</td>
+                                            <td>{{ backup.createdAt|user_datetime('short') }}</td>
+                                            <td>
+                                                <div class="d-flex gap-2">
+                                                    <a class="btn btn-sm btn-outline-secondary" href="{{ path('app_admin_backup_download', {filename: backup.filename}) }}"
+                                                       aria-label="{{ 'admin.backup.download'|trans }}" title="{{ 'admin.backup.download'|trans }}">
+                                                        <i class="fa-solid fa-download" aria-hidden="true"></i>
+                                                    </a>
+                                                    <form action="{{ path('app_admin_backup_delete', {filename: backup.filename}) }}" method="post"
+                                                          data-avalynxform="1">
+                                                        <input type="hidden" name="_token" value="{{ csrf_token('admin_backup_delete') }}">
+                                                        <button type="submit" class="btn btn-sm btn-danger confirm-action"
+                                                                data-confirm="{{ 'admin.backup.confirm_delete'|trans }}"
+                                                                aria-label="{{ 'admin.backup.delete'|trans }}" title="{{ 'admin.backup.delete'|trans }}">
+                                                            <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}
+{% block javascripts %}
+    {{ parent() }}
+{% endblock %}

@@ -10,6 +10,20 @@ framework:
             policy: 'sliding_window'
             limit: 30
             interval: '1 minute'
+        # Admin backups: creating is disk-heavy, restoring is destructive,
+        # the chunked upload starts one session per archive.
+        admin_backup_create:
+            policy: 'sliding_window'
+            limit: 5
+            interval: '15 minutes'
+        admin_backup_restore:
+            policy: 'sliding_window'
+            limit: 3
+            interval: '15 minutes'
+        admin_backup_upload:
+            policy: 'sliding_window'
+            limit: 10
+            interval: '15 minutes'
 
 # Tests use an in-memory storage: it lives as long as the kernel, so limits
 # never leak between tests (each test boots its own kernel) but can still be
@@ -20,6 +34,12 @@ when@test:
             password_reset:
                 storage_service: 'test.rate_limiter.storage'
             password_reset_status:
+                storage_service: 'test.rate_limiter.storage'
+            admin_backup_create:
+                storage_service: 'test.rate_limiter.storage'
+            admin_backup_restore:
+                storage_service: 'test.rate_limiter.storage'
+            admin_backup_upload:
                 storage_service: 'test.rate_limiter.storage'
     services:
         test.rate_limiter.storage:
