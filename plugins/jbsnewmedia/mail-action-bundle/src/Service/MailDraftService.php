@@ -314,24 +314,60 @@ final readonly class MailDraftService
     private function attachQuotedBody(Email $draft, Email $originalEmail, string $quotedOnText): void
     {
         $body = new Body();
-        $body->setContent(
-            "\n\n--- "
-            .$quotedOnText
-            .' '
-            .$this->translator->trans('email.wrote')
-            .' '
-            .$originalEmail->getPreviewBody()
-            ." ---\n\n"
-            .$this->resolveOriginalContent($originalEmail)
-        );
+        $body->setContent($this->buildQuotedHtml($originalEmail, $quotedOnText));
         $this->entityManager->persist($body);
 
         $bodyLink = new EmailBodyLink();
         $bodyLink->setEmail($draft);
         $bodyLink->setBody($body);
-        $bodyLink->setContentType(BodyContentType::TEXT);
+        $bodyLink->setContentType(BodyContentType::HTML);
         $draft->addEmailBody($bodyLink);
         $this->entityManager->persist($bodyLink);
+    }
+
+    /**
+     * Builds the quote for reply/forward drafts as HTML: the compose editor
+     * is a HTML editor (Summernote), so a plain-text quote with newlines
+     * would collapse into a single line. The original text is escaped,
+     * rendered with preserved line breaks and placed in a blockquote below
+     * a header line naming the original sender.
+     */
+    private function buildQuotedHtml(Email $originalEmail, string $quotedOnText): string
+    {
+        $senderLabel = $this->resolveOriginalSenderLabel($originalEmail);
+        $header = $quotedOnText.' '.$this->translator->trans('email.wrote')
+            .('' !== $senderLabel ? ' '.$senderLabel : '').':';
+
+        return '<p><br></p>'
+            .'<p>--- '.htmlspecialchars($header, ENT_QUOTES, 'UTF-8').' ---</p>'
+            .'<blockquote><p>'.nl2br(htmlspecialchars($this->resolveOriginalContent($originalEmail), ENT_QUOTES, 'UTF-8')).'</p></blockquote>';
+    }
+
+    /**
+     * Display label of the original sender ("Name <email>" or the plain
+     * address); empty string when the mail carries no sender address.
+     */
+    private function resolveOriginalSenderLabel(Email $originalEmail): string
+    {
+        foreach ($originalEmail->getEmailAddresses() as $link) {
+            if (EmailAddressType::SENDER !== $link->getType()) {
+                continue;
+            }
+
+            $address = $link->getAddress();
+            if (!$address instanceof Address) {
+                continue;
+            }
+
+            $name = null === $address->getName() ? '' : trim($address->getName());
+            if ('' !== $name) {
+                return $name.' <'.$address->getEmail().'>';
+            }
+
+            return $address->getEmail();
+        }
+
+        return '';
     }
 
     private function resolveOriginalContent(Email $originalEmail): string

@@ -170,8 +170,10 @@ final class MailDraftServiceTest extends TestCase
         self::assertSame('primary@example.com', $draftAddresses[0]->getAddress()?->getEmail());
         self::assertSame(EmailAddressType::RECIPIENT, $draftAddresses[1]->getType());
         self::assertSame('sender@example.com', $draftAddresses[1]->getAddress()?->getEmail());
-        self::assertStringContainsString('On 27.04.2026 10:15 sender wrote Preview excerpt', $draftBodies[0]->getBody()?->getContent() ?? '');
-        self::assertStringContainsString('Original text body', $draftBodies[0]->getBody()?->getContent() ?? '');
+        $quoteContent = $draftBodies[0]->getBody()?->getContent() ?? '';
+        self::assertSame(BodyContentType::HTML, $draftBodies[0]->getContentType());
+        self::assertStringContainsString('On 27.04.2026 10:15 sender wrote sender@example.com:', $quoteContent);
+        self::assertStringContainsString('Original text body', $quoteContent);
     }
 
     public function testCreateReplyAllDraftAddsReplyToRecipientsAndCc(): void
@@ -325,8 +327,53 @@ final class MailDraftServiceTest extends TestCase
 
         $draft = $service->createReplyDraft($originalEmail);
 
-        self::assertStringContainsString('On unknown sender wrote Preview fallback', $draft->getEmailBodies()->first()?->getBody()?->getContent() ?? '');
-        self::assertStringContainsString('Preview fallback', $draft->getEmailBodies()->first()?->getBody()?->getContent() ?? '');
+        $quoteContent = $draft->getEmailBodies()->first()?->getBody()?->getContent() ?? '';
+        self::assertStringContainsString('On unknown sender wrote sender@example.com:', $quoteContent);
+        self::assertStringContainsString('Preview fallback', $quoteContent);
+    }
+
+    public function testCreateReplyDraftQuotesMultilineTextAsEscapedHtmlBlockquote(): void
+    {
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $folderManager = $this->createMock(FolderManager::class);
+        $service = new MailDraftService(
+            $entityManager,
+            $folderManager,
+            $this->createStub(AttachmentStorage::class),
+            $this->createTranslatorStub(),
+            new AllowAllLicenseEnforcement(),
+            new IdnService(),
+        );
+
+        $account = (new Account())->setName('Primary')->setEmail('primary@example.com');
+        $originalEmail = (new Email())
+            ->setAccount($account)
+            ->setSubject('Original subject')
+            ->setPreviewBody('Preview excerpt')
+            ->setReceivedAt(new \DateTimeImmutable('2026-04-27 10:15:00'));
+        $originalEmail->addEmailAddress((new EmailAddressLink())
+            ->setEmail($originalEmail)
+            ->setAddress((new Address())->setEmail('sender@example.com')->setName('Max <evil> & Co'))
+            ->setType(EmailAddressType::SENDER));
+        $originalEmail->addEmailBody((new EmailBodyLink())
+            ->setEmail($originalEmail)
+            ->setBody((new Body())->setContent("Line one\n\nLine two with <script>alert(1)</script> markup"))
+            ->setContentType(BodyContentType::TEXT));
+
+        $folderManager->expects(self::once())->method('syncEmailSystemFolders');
+        $entityManager->expects(self::atLeastOnce())->method('persist');
+        $entityManager->expects(self::exactly(2))->method('flush');
+
+        $draft = $service->createReplyDraft($originalEmail);
+
+        $quoteContent = $draft->getEmailBodies()->first()?->getBody()?->getContent() ?? '';
+        self::assertSame(BodyContentType::HTML, $draft->getEmailBodies()->first()?->getContentType());
+        // The sender name is escaped and quoted as a display label.
+        self::assertStringContainsString('Max &lt;evil&gt; &amp; Co &lt;sender@example.com&gt;:', $quoteContent);
+        // Line breaks are preserved as <br> instead of collapsing the quote into one line.
+        self::assertStringContainsString('Line one<br />', $quoteContent);
+        self::assertStringContainsString('Line two with &lt;script&gt;alert(1)&lt;/script&gt; markup', $quoteContent);
+        self::assertStringNotContainsString('<script>', $quoteContent);
     }
 
     public function testSaveEmailFromFormReplacesRecipientsAndBodyAndAssignsFolder(): void
