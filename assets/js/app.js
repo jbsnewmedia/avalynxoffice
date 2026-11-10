@@ -1432,6 +1432,16 @@ document.addEventListener('DOMContentLoaded', function () {
         // Summernote editors live inside the modal content; destroy them
         // once the modal is hidden so no context leaks between loads.
         actionModalEl.addEventListener('hidden.bs.modal', function () {
+            const shouldReload = composeGuard.reloadOnClose;
+            resetComposeGuard();
+            if (shouldReload) {
+                // A draft was discarded behind the modal — refresh the list
+                // so folder counts and drafts views reflect it.
+                window.location.reload();
+
+                return;
+            }
+
             if (!window.summernote || typeof window.summernote.destroy !== 'function') {
                 return;
             }
@@ -1443,6 +1453,198 @@ document.addEventListener('DOMContentLoaded', function () {
                     // Already destroyed.
                 }
             });
+        });
+        // --- Compose dirty guard ---------------------------------------------
+        // The compose modal edits a server-side draft. Closing it with
+        // unsaved changes asks how to proceed (save as draft / discard /
+        // keep editing). Closing an untouched pending draft (reply, forward
+        // and compose pre-create one) discards that draft silently.
+        const composeGuard = {
+            form: null,
+            dirty: false,
+            pending: false,
+            allowClose: false,
+            reloadOnClose: false,
+            dialog: null,
+            elements: {},
+            texts: {},
+        };
+        const resetComposeGuard = () => {
+            composeGuard.form = null;
+            composeGuard.dirty = false;
+            composeGuard.pending = false;
+            composeGuard.allowClose = false;
+            composeGuard.reloadOnClose = false;
+        };
+        const sendDiscardRequest = (form) => {
+            return fetch(form.dataset.discardUrl || '', {
+                method: 'POST',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                body: new URLSearchParams({ _token: form.dataset.discardToken || '' }),
+                cache: 'no-store'
+            }).then(res => res.json());
+        };
+        const requestDraftSave = (form) => {
+            // Mirrors the footer "Als Entwurf speichern" button: a hidden
+            // field carrying the real button name marks it as clicked so the
+            // server saves instead of sending; AvalynxForm performs the XHR
+            // submission.
+            const saveDraftButton = form.querySelector('button[name$="[saveDraft]"], input[type="submit"][name$="[saveDraft]"]');
+            const hiddenInput = document.createElement('input');
+            hiddenInput.type = 'hidden';
+            hiddenInput.name = saveDraftButton ? (saveDraftButton.getAttribute('name') || 'saveDraft') : 'saveDraft';
+            hiddenInput.value = saveDraftButton ? (saveDraftButton.getAttribute('value') || '1') : '1';
+            form.appendChild(hiddenInput);
+            form.requestSubmit();
+        };
+        const buildComposeDirtyDialog = () => {
+            if (composeGuard.dialog) {
+                return;
+            }
+
+            const dialogEl = document.createElement('div');
+            dialogEl.className = 'modal fade';
+            dialogEl.id = 'composeDirtyModal';
+            dialogEl.tabIndex = -1;
+            dialogEl.setAttribute('aria-hidden', 'true');
+            dialogEl.innerHTML = [
+                '<div class="modal-dialog modal-dialog-centered">',
+                '<div class="modal-content shadow-lg border-0">',
+                '<div class="modal-header text-bg-primary">',
+                '<h5 class="modal-title compose-dirty-title"></h5>',
+                '<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>',
+                '</div>',
+                '<div class="modal-body py-4 px-3"><p class="mb-0 compose-dirty-text"></p></div>',
+                '<div class="modal-footer bg-body-tertiary">',
+                '<button type="button" class="btn btn-secondary compose-dirty-cancel"></button>',
+                '<button type="button" class="btn btn-danger compose-dirty-discard"></button>',
+                '<button type="button" class="btn btn-primary compose-dirty-save"></button>',
+                '</div>',
+                '</div>',
+                '</div>'
+            ].join('');
+            document.body.appendChild(dialogEl);
+
+            composeGuard.elements = {
+                el: dialogEl,
+                title: dialogEl.querySelector('.compose-dirty-title'),
+                text: dialogEl.querySelector('.compose-dirty-text'),
+                cancel: dialogEl.querySelector('.compose-dirty-cancel'),
+                discard: dialogEl.querySelector('.compose-dirty-discard'),
+                save: dialogEl.querySelector('.compose-dirty-save'),
+            };
+            composeGuard.elements.cancel.addEventListener('click', function () {
+                window.bootstrap.Modal.getOrCreateInstance(dialogEl).hide();
+            });
+            composeGuard.elements.save.addEventListener('click', function () {
+                const form = composeGuard.form;
+                window.bootstrap.Modal.getOrCreateInstance(dialogEl).hide();
+                if (!form) {
+                    return;
+                }
+
+                // Edit mode keeps the modal open with a toast; compose mode
+                // follows the redirect. Either way the saved state matches
+                // the form, so closing afterwards stays silent.
+                composeGuard.dirty = false;
+                composeGuard.pending = false;
+                requestDraftSave(form);
+            });
+            composeGuard.elements.discard.addEventListener('click', function () {
+                const form = composeGuard.form;
+                if (!form) {
+                    return;
+                }
+
+                sendDiscardRequest(form).then((data) => {
+                    if (data && data.success) {
+                        window.bootstrap.Modal.getOrCreateInstance(dialogEl).hide();
+                        composeGuard.allowClose = true;
+                        composeGuard.dirty = false;
+                        composeGuard.pending = false;
+                        composeGuard.reloadOnClose = true;
+                        actionModal.hide();
+
+                        return;
+                    }
+
+                    if (typeof AvalynxAlert === 'function') {
+                        new AvalynxAlert((data && data.error) || composeGuard.texts.discardFailed, 'danger', { position: 'top-right' });
+                    }
+                }).catch(() => {
+                    if (typeof AvalynxAlert === 'function') {
+                        new AvalynxAlert(composeGuard.texts.discardFailed, 'danger', { position: 'top-right' });
+                    }
+                });
+            });
+            composeGuard.dialog = window.bootstrap.Modal.getOrCreateInstance(dialogEl);
+        };
+        const openComposeDirtyDialog = () => {
+            buildComposeDirtyDialog();
+            composeGuard.elements.title.textContent = composeGuard.texts.title;
+            composeGuard.elements.text.textContent = composeGuard.texts.text;
+            composeGuard.elements.save.textContent = composeGuard.texts.save;
+            composeGuard.elements.discard.textContent = composeGuard.texts.discard;
+            composeGuard.elements.cancel.textContent = composeGuard.texts.cancel;
+            const closeButton = composeGuard.elements.el.querySelector('.btn-close');
+            if (closeButton) {
+                closeButton.setAttribute('aria-label', composeGuard.texts.close || 'Close');
+            }
+            composeGuard.dialog.show();
+        };
+        const setupComposeGuard = (root) => {
+            resetComposeGuard();
+            const form = (root || modalContent).querySelector('#mail-compose-form');
+            if (!form || !form.dataset.discardUrl) {
+                return;
+            }
+
+            composeGuard.form = form;
+            composeGuard.pending = form.dataset.composePending === '1';
+            composeGuard.texts = {
+                title: form.dataset.dirtyTitle || '',
+                text: form.dataset.dirtyText || '',
+                save: form.dataset.dirtySave || '',
+                discard: form.dataset.dirtyDiscard || '',
+                cancel: form.dataset.dirtyCancel || '',
+                close: form.dataset.dirtyClose || '',
+                discardFailed: form.dataset.discardFailed || '',
+            };
+
+            const markDirty = () => {
+                composeGuard.dirty = true;
+            };
+            form.addEventListener('input', markDirty);
+            form.addEventListener('change', markDirty);
+            // A submission (send or save as draft) persists the current
+            // values; closing afterwards must not warn again.
+            form.addEventListener('submit', function () {
+                composeGuard.dirty = false;
+                composeGuard.pending = false;
+            }, true);
+        };
+        actionModalEl.addEventListener('hide.bs.modal', function (event) {
+            const form = composeGuard.form;
+            if (!form || composeGuard.allowClose) {
+                return;
+            }
+
+            if (!composeGuard.dirty) {
+                if (composeGuard.pending) {
+                    // Untouched pending draft (reply/forward/compose):
+                    // remove the pre-created draft silently and refresh the
+                    // list so no phantom draft lingers in "Entwürfe".
+                    composeGuard.allowClose = true;
+                    composeGuard.pending = false;
+                    composeGuard.reloadOnClose = true;
+                    sendDiscardRequest(form).catch(() => {});
+                }
+
+                return;
+            }
+
+            event.preventDefault();
+            openComposeDirtyDialog();
         });
         document.addEventListener('click', function(ev) {
             const btn = ev.target.closest('.action-btn-modal');
@@ -1528,6 +1730,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             modalContent.innerHTML = data;
                             initAccountListEditors(modalContent);
                             initComposeEditors(modalContent);
+                            setupComposeGuard(modalContent);
                             initUserAutocompletes(modalContent);
                 initConnectorFormSelects(modalContent);
                             const newFormAfterNav = modalContent.querySelector('form');
@@ -1538,6 +1741,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             modalContent.innerHTML = data;
                             initAccountListEditors(modalContent);
                             initComposeEditors(modalContent);
+                            setupComposeGuard(modalContent);
                             initUserAutocompletes(modalContent);
                 initConnectorFormSelects(modalContent);
                             updateModalFooterButtons();
@@ -1572,6 +1776,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 modalContent.innerHTML = html;
                 initAccountListEditors(modalContent);
                 initComposeEditors(modalContent);
+                setupComposeGuard(modalContent);
                 initUserAutocompletes(modalContent);
                 initConnectorFormSelects(modalContent);
                 updateModalFooterButtons();

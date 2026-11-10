@@ -504,6 +504,168 @@ final class MailActionControllerTest extends KernelTestCase
         self::assertStringContainsString('stored.txt', $response->getContent());
     }
 
+    public function testEditMarksPendingDraftsForTheDirtyGuard(): void
+    {
+        $email = $this->createPersistedDraftEmail('pending-flag');
+        $this->setCurrentUserRequest();
+
+        $pendingResponse = $this->controller->edit((string) $email->getId(), Request::create('/mail/edit/'.$email->getId(), 'GET', ['ajax' => '1', 'pending' => '1']));
+
+        self::assertSame(Response::HTTP_OK, $pendingResponse->getStatusCode());
+        self::assertStringContainsString('data-compose-pending="1"', $pendingResponse->getContent());
+
+        $plainResponse = $this->controller->edit((string) $email->getId(), Request::create('/mail/edit/'.$email->getId(), 'GET', ['ajax' => '1']));
+
+        self::assertSame(Response::HTTP_OK, $plainResponse->getStatusCode());
+        self::assertStringContainsString('data-compose-pending="0"', $plainResponse->getContent());
+    }
+
+    public function testDiscardDraftHardDeletesDraftWithLinks(): void
+    {
+        $draft = $this->createPersistedDraftEmail('discard-links');
+        $account = $draft->getAccount();
+        self::assertInstanceOf(Account::class, $account);
+        $folder = $account->getFolders()->first();
+        self::assertInstanceOf(Folder::class, $folder);
+        $user = $this->currentUser;
+        self::assertNotNull($user);
+
+        $sender = (new Address())->setEmail('discard-sender@example.com');
+        $senderLink = (new EmailAddressLink())->setEmail($draft)->setAddress($sender)->setType(EmailAddressType::SENDER);
+        $body = (new Body())->setContent('Discard body');
+        $bodyLink = (new EmailBodyLink())->setEmail($draft)->setBody($body)->setContentType(BodyContentType::TEXT);
+        $folderLink = (new EmailFolder())->setEmail($draft)->setFolder($folder);
+        $draft->addEmailAddress($senderLink);
+        $draft->addEmailBody($bodyLink);
+        $draft->addEmailFolder($folderLink);
+        $this->entityManager->persist($sender);
+        $this->entityManager->persist($senderLink);
+        $this->entityManager->persist($body);
+        $this->entityManager->persist($bodyLink);
+        $this->entityManager->persist($folderLink);
+        $this->entityManager->flush();
+        $this->setCurrentUserRequest($user);
+
+        $response = $this->controller->discardDraft((string) $draft->getId(), Request::create('/mail/discard/'.$draft->getId(), 'POST', [
+            '_token' => $this->csrfToken('discard_email_'.$draft->getId()),
+        ]));
+
+        self::assertSame(Response::HTTP_OK, $response->getStatusCode());
+        $data = json_decode((string) $response->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertTrue($data['success']);
+
+        $this->entityManager->clear();
+        self::assertNull($this->entityManager->find(Email::class, $draft->getId()), 'The discarded draft must be gone');
+        self::assertNull($this->entityManager->find(EmailAddressLink::class, $senderLink->getId()));
+        self::assertNull($this->entityManager->find(EmailBodyLink::class, $bodyLink->getId()));
+        self::assertNull($this->entityManager->find(EmailFolder::class, $folderLink->getId()));
+    }
+
+    public function testDiscardDraftRemovesAttachmentsOnlyTheDraftUses(): void
+    {
+        $draft = $this->createPersistedDraftEmail('discard-sole');
+        $user = $this->currentUser;
+        self::assertNotNull($user);
+
+        $attachment = (new Attachment())
+            ->setName('sole.txt')
+            ->setSize(4)
+            ->setMimeType('text/plain')
+            ->setSha1(str_repeat('c', 40))
+            ->setFilePath('sole/sole.txt');
+        $attachmentLink = (new EmailAttachmentLink())->setEmail($draft)->setAttachment($attachment);
+        $draft->addEmailAttachment($attachmentLink);
+        $this->entityManager->persist($attachment);
+        $this->entityManager->persist($attachmentLink);
+        $this->entityManager->flush();
+        $this->setCurrentUserRequest($user);
+
+        $response = $this->controller->discardDraft((string) $draft->getId(), Request::create('/mail/discard/'.$draft->getId(), 'POST', [
+            '_token' => $this->csrfToken('discard_email_'.$draft->getId()),
+        ]));
+
+        self::assertSame(Response::HTTP_OK, $response->getStatusCode());
+
+        $this->entityManager->clear();
+        self::assertNull($this->entityManager->find(Email::class, $draft->getId()));
+        self::assertNull($this->entityManager->find(Attachment::class, $attachment->getId()), 'An attachment only the draft used must be removed');
+    }
+
+    public function testDiscardDraftKeepsAttachmentsLinkedByOtherEmails(): void
+    {
+        $draft = $this->createPersistedDraftEmail('discard-shared');
+        $draftUser = $this->currentUser;
+        self::assertNotNull($draftUser);
+        [, $original] = $this->createFixtureData('discard-shared-source');
+
+        $attachment = (new Attachment())
+            ->setName('shared.txt')
+            ->setSize(6)
+            ->setMimeType('text/plain')
+            ->setSha1(str_repeat('d', 40))
+            ->setFilePath('shared/shared.txt');
+        $draftLink = (new EmailAttachmentLink())->setEmail($draft)->setAttachment($attachment);
+        $originalLink = (new EmailAttachmentLink())->setEmail($original)->setAttachment($attachment);
+        $draft->addEmailAttachment($draftLink);
+        $original->addEmailAttachment($originalLink);
+        $this->entityManager->persist($attachment);
+        $this->entityManager->persist($draftLink);
+        $this->entityManager->persist($originalLink);
+        $this->entityManager->flush();
+        $this->setCurrentUserRequest($draftUser);
+
+        $response = $this->controller->discardDraft((string) $draft->getId(), Request::create('/mail/discard/'.$draft->getId(), 'POST', [
+            '_token' => $this->csrfToken('discard_email_'.$draft->getId()),
+        ]));
+
+        self::assertSame(Response::HTTP_OK, $response->getStatusCode());
+
+        $this->entityManager->clear();
+        self::assertNull($this->entityManager->find(Email::class, $draft->getId()));
+        self::assertNotNull($this->entityManager->find(Attachment::class, $attachment->getId()), 'An attachment another email links must survive');
+        self::assertNotNull($this->entityManager->find(Email::class, $original->getId()));
+    }
+
+    public function testDiscardDraftRejectsInvalidCsrfTokenAndKeepsTheDraft(): void
+    {
+        $draft = $this->createPersistedDraftEmail('discard-csrf');
+        $this->setCurrentUserRequest();
+
+        $response = $this->controller->discardDraft((string) $draft->getId(), Request::create('/mail/discard/'.$draft->getId(), 'POST', [
+            '_token' => 'invalid',
+        ]));
+
+        self::assertSame(Response::HTTP_FORBIDDEN, $response->getStatusCode());
+
+        $this->entityManager->clear();
+        self::assertNotNull($this->entityManager->find(Email::class, $draft->getId()), 'The draft must survive a rejected discard');
+    }
+
+    public function testDiscardDraftRejectsEmailsThatAreNotDrafts(): void
+    {
+        [, $email] = $this->createFixtureData('discard-nondraft');
+        $this->setCurrentUserRequest();
+
+        $response = $this->controller->discardDraft((string) $email->getId(), Request::create('/mail/discard/'.$email->getId(), 'POST', [
+            '_token' => $this->csrfToken('discard_email_'.$email->getId()),
+        ]));
+
+        self::assertSame(Response::HTTP_BAD_REQUEST, $response->getStatusCode());
+
+        $this->entityManager->clear();
+        self::assertNotNull($this->entityManager->find(Email::class, $email->getId()), 'A sent/received email must survive a discard attempt');
+    }
+
+    public function testDiscardDraftReturnsNotFoundForMissingEmail(): void
+    {
+        $this->setCurrentUserRequest();
+
+        $missingId = '00000000-0000-0000-0000-000000000000';
+        $response = $this->controller->discardDraft($missingId, Request::create('/mail/discard/'.$missingId, 'POST'));
+
+        self::assertSame(Response::HTTP_NOT_FOUND, $response->getStatusCode());
+    }
+
     public function testEditReturnsSubmissionResponseForAjaxPost(): void
     {
         $email = $this->createPersistedDraftEmail('edit-response');

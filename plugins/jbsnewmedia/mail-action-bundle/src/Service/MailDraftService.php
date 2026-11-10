@@ -171,6 +171,61 @@ final readonly class MailDraftService
         $this->entityManager->flush();
     }
 
+    /**
+     * Hard-deletes a draft email together with its link rows. Attachments are
+     * only removed when no other email links them (forwarded drafts share the
+     * original's attachment rows).
+     */
+    public function discardDraft(Email $draft): void
+    {
+        $this->licenseEnforcement->assertCanPerform(LicenseOperation::MAIL_MODIFY);
+
+        $orphanedAttachments = [];
+        foreach ($draft->getEmailAttachments() as $attachmentLink) {
+            $attachment = $attachmentLink->getAttachment();
+            if ($attachment instanceof Attachment && !$this->hasOtherAttachmentLinks($attachment)) {
+                $orphanedAttachments[] = $attachment;
+            }
+
+            $draft->removeEmailAttachment($attachmentLink);
+            $this->entityManager->remove($attachmentLink);
+        }
+
+        foreach ($draft->getEmailAddresses() as $addressLink) {
+            $draft->removeEmailAddress($addressLink);
+            $this->entityManager->remove($addressLink);
+        }
+
+        foreach ($draft->getEmailBodies() as $bodyLink) {
+            $draft->removeEmailBody($bodyLink);
+            $this->entityManager->remove($bodyLink);
+        }
+
+        foreach ($draft->getEmailFolders() as $emailFolder) {
+            $draft->removeEmailFolder($emailFolder);
+            $this->entityManager->remove($emailFolder);
+        }
+
+        $this->entityManager->remove($draft);
+        $this->entityManager->flush();
+
+        // Files are removed after the commit so a failed delete cannot leave
+        // dangling rows pointing at nothing.
+        foreach ($orphanedAttachments as $attachment) {
+            $this->attachmentStorage->delete($attachment);
+            $this->entityManager->remove($attachment);
+        }
+        $this->entityManager->flush();
+    }
+
+    private function hasOtherAttachmentLinks(Attachment $attachment): bool
+    {
+        // The draft's own link row still exists in the database at this
+        // point (the removal is not flushed yet), so more than one row
+        // means another email shares the attachment.
+        return 1 < $this->entityManager->getRepository(EmailAttachmentLink::class)->count(['attachment' => $attachment]);
+    }
+
     private function createQuotedDraft(Email $originalEmail, string $prefix, string $quotedOnText): Email
     {
         $this->licenseEnforcement->assertCanPerform(LicenseOperation::MAIL_MODIFY);

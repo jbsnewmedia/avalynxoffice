@@ -216,7 +216,7 @@ final class MailActionController extends AbstractController
 
         $draft = $this->mailDraftService->createReplyDraft($originalEmail);
 
-        return $this->redirectToRoute('mail_edit', ['id' => $draft->getId(), 'ajax' => '1'], Response::HTTP_SEE_OTHER);
+        return $this->redirectToRoute('mail_edit', ['id' => $draft->getId(), 'ajax' => '1', 'pending' => '1'], Response::HTTP_SEE_OTHER);
     }
 
     #[Route('/mail/reply-all/{id}', name: 'mail_reply_all', methods: ['POST'])]
@@ -231,7 +231,7 @@ final class MailActionController extends AbstractController
 
         $draft = $this->mailDraftService->createReplyAllDraft($originalEmail);
 
-        return $this->redirectToRoute('mail_edit', ['id' => $draft->getId(), 'ajax' => '1'], Response::HTTP_SEE_OTHER);
+        return $this->redirectToRoute('mail_edit', ['id' => $draft->getId(), 'ajax' => '1', 'pending' => '1'], Response::HTTP_SEE_OTHER);
     }
 
     #[Route('/mail/edit/{id}', name: 'mail_edit')]
@@ -264,6 +264,10 @@ final class MailActionController extends AbstractController
             'form' => $form->createView(),
             'email' => $email,
             'recipientAutocompleteDefaults' => $this->buildRecipientAutocompleteDefaults($email),
+            // Reply/forward/compose pre-create the draft; the modal marks it
+            // pending so an untouched close can discard it silently. A draft
+            // opened from the drafts folder is never pending.
+            'pendingDraft' => $request->query->getBoolean('pending'),
         ]);
     }
 
@@ -279,7 +283,7 @@ final class MailActionController extends AbstractController
 
         $draft = $this->mailDraftService->createForwardDraft($originalEmail);
 
-        return $this->redirectToRoute('mail_edit', ['id' => $draft->getId(), 'ajax' => '1'], Response::HTTP_SEE_OTHER);
+        return $this->redirectToRoute('mail_edit', ['id' => $draft->getId(), 'ajax' => '1', 'pending' => '1'], Response::HTTP_SEE_OTHER);
     }
 
     #[Route('/mail/delete/{id}', name: 'mail_delete', requirements: ['id' => '[0-9a-fA-F\-]{36}'], methods: ['POST', 'DELETE'])]
@@ -318,6 +322,32 @@ final class MailActionController extends AbstractController
         }
 
         return $this->redirectToRoute('mail_index');
+    }
+
+    /**
+     * Hard-deletes an unsent draft (used by the compose modal's discard
+     * action and the silent cleanup of untouched auto-created drafts).
+     */
+    #[Route('/mail/discard/{id}', name: 'mail_discard', requirements: ['id' => '[0-9a-fA-F\-]{36}'], methods: ['POST'])]
+    public function discardDraft(string $id, Request $request): JsonResponse
+    {
+        $email = $this->emailRepository->find($id);
+        if (!$email instanceof Email) {
+            return new JsonResponse(['success' => false, 'error' => $this->translator->trans('email.not_found')], Response::HTTP_NOT_FOUND);
+        }
+        $this->assertEmailAccessible($email);
+
+        if (!$this->isCsrfTokenValid('discard_email_'.$id, (string) $request->request->get('_token', ''))) {
+            return new JsonResponse(['success' => false, 'error' => $this->translator->trans('common.invalid_token')], Response::HTTP_FORBIDDEN);
+        }
+
+        if (!$email->isDraft() || $email->isSent()) {
+            return new JsonResponse(['success' => false, 'error' => $this->translator->trans('email.cannot_discard')], Response::HTTP_BAD_REQUEST);
+        }
+
+        $this->mailDraftService->discardDraft($email);
+
+        return new JsonResponse(['success' => true]);
     }
 
     #[Route(path: '/mail/{id}/spam', name: 'mail_email_spam', requirements: ['id' => '[0-9a-fA-F\-]{36}'], methods: ['POST'])]
@@ -383,6 +413,8 @@ final class MailActionController extends AbstractController
             'form' => $form->createView(),
             'email' => $email,
             'recipientAutocompleteDefaults' => $this->buildRecipientAutocompleteDefaults($email),
+            // Compose pre-creates the draft, so an untouched close discards it.
+            'pendingDraft' => true,
         ]);
     }
 

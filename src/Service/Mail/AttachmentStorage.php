@@ -59,6 +59,29 @@ class AttachmentStorage
         return $relativePath;
     }
 
+    /**
+     * Removes the stored file of an attachment. Missing files are ignored so
+     * the database cleanup can proceed.
+     */
+    public function delete(Attachment $attachment): void
+    {
+        $filePath = trim((string) $attachment->getFilePath());
+        if ('' === $filePath) {
+            return;
+        }
+
+        $absolutePath = $this->resolveAbsolutePath($filePath);
+        if (!is_file($absolutePath)) {
+            return;
+        }
+
+        try {
+            new Filesystem()->remove($absolutePath);
+        } catch (IOExceptionInterface $exception) {
+            throw new \RuntimeException(sprintf('Attachment file "%s" could not be deleted.', $absolutePath), 0, $exception);
+        }
+    }
+
     public function createDownloadResponse(Attachment $attachment): BinaryFileResponse
     {
         $absolutePath = $this->resolveAbsolutePath($attachment->getFilePath());

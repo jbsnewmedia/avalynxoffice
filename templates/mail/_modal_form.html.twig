@@ -2,7 +2,21 @@
     {% set showAdvancedFields = (form.cc.vars.value ?? '') != '' or (form.bcc.vars.value ?? '') != '' or (form.replyTo.vars.value ?? '') != '' %}
     {% set scheduleEnabled = form.scheduleLater.vars.data ?? false %}
     {% set attachmentsEnabled = email.emailAttachments|length > 0 %}
-    {{ form_start(form, {'attr': {'id': 'mail-compose-form', 'class': 'py-2 compose-form', 'data-avalynxform': '1', 'novalidate': 'novalidate'}}) }}
+    {{ form_start(form, {'attr': {
+        'id': 'mail-compose-form',
+        'class': 'py-2 compose-form',
+        'data-avalynxform': '1',
+        'novalidate': 'novalidate',
+        'data-compose-pending': pendingDraft|default(false) ? '1' : '0',
+        'data-dirty-title': 'email.dirty_draft_title'|trans,
+        'data-dirty-text': 'email.dirty_draft_question'|trans,
+        'data-dirty-save': 'email.save_draft'|trans,
+        'data-dirty-discard': 'email.discard_draft'|trans,
+        'data-dirty-cancel': 'common.cancel'|trans,
+        'data-dirty-close': 'common.close'|trans,
+        'data-discard-url': path('mail_discard', {'id': email.id}),
+        'data-discard-token': csrf_token('discard_email_' ~ email.id),
+    }}) }}
         <div class="compose-editor" data-compose-editor="1">
             <div class="vstack gap-3">
                 {% if form.from is defined %}
