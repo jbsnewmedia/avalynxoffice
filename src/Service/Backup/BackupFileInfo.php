@@ -27,6 +27,17 @@ final readonly class BackupFileInfo
     }
 
     /**
+     * App version recorded in the manifest (null when encrypted, unreadable
+     * or the manifest predates the field).
+     */
+    public function appVersion(): ?string
+    {
+        $version = $this->manifest['appVersion'] ?? null;
+
+        return is_string($version) && '' !== $version ? $version : null;
+    }
+
+    /**
      * Human readable size, e.g. "1.2 MiB".
      */
     public function sizeFormatted(): string

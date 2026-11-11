@@ -235,7 +235,7 @@
                                         <select id="restoreFilename" name="restoreFilename" class="form-select" required>
                                             {% for backup in backups %}
                                                 <option value="{{ backup.filename }}">
-                                                    {{ backup.filename }} ({{ backup.sizeFormatted() }})
+                                                    {{ backup.filename }} ({{ backup.sizeFormatted() }}{% if backup.appVersion() is not null %}, v{{ backup.appVersion() }}{% endif %})
                                                 </option>
                                             {% endfor %}
                                         </select>
@@ -251,6 +251,11 @@
                                         <div class="invalid-feedback" aria-live="polite"></div>
                                     </div>
                                 </div>
+                            </div>
+                            <div class="form-check mb-3">
+                                <input type="checkbox" id="restoreMigrate" name="restoreMigrate" value="1" class="form-check-input" checked>
+                                <label for="restoreMigrate" class="form-check-label">{{ 'admin.backup.restore_migrate'|trans }}</label>
+                                <div class="form-text">{{ 'admin.backup.restore_migrate_help'|trans }}</div>
                             </div>
                             <div class="d-flex justify-content-end mt-3">
                                 <button type="submit" class="btn btn-danger confirm-action"
@@ -277,6 +282,7 @@
                                 <thead>
                                     <tr>
                                         <th scope="col">{{ 'admin.backup.col_file'|trans }}</th>
+                                        <th scope="col">{{ 'admin.backup.col_version'|trans }}</th>
                                         <th scope="col">{{ 'admin.backup.col_size'|trans }}</th>
                                         <th scope="col">{{ 'admin.backup.col_created'|trans }}</th>
                                         <th scope="col">{{ 'admin.backup.col_actions'|trans }}</th>
@@ -292,6 +298,15 @@
                                                     <i class="fa-solid fa-file-archive me-2" aria-hidden="true"></i>
                                                 {% endif %}
                                                 {{ backup.filename }}
+                                            </td>
+                                            <td>
+                                                {% set backupVersion = backup.appVersion() %}
+                                                {% if backupVersion is not null %}
+                                                    <span class="badge bg-{{ backupVersion == appVersion ? 'secondary' : 'warning text-dark' }}"
+                                                          data-backup-version="{{ backupVersion }}">{{ backupVersion }}</span>
+                                                {% else %}
+                                                    <span class="text-body-secondary" data-backup-version="">{{ 'admin.backup.version_unknown'|trans }}</span>
+                                                {% endif %}
                                             </td>
                                             <td>{{ backup.sizeFormatted() }}</td>
                                             <td>{{ backup.createdAt|user_datetime('short') }}</td>

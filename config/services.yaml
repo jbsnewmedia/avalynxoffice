@@ -98,6 +98,10 @@ services:
         arguments:
             $projectDir: '%kernel.project_dir%'
 
+    AvalynxOffice\Service\Migration\DatabaseMigrator:
+        arguments:
+            $migrationsDir: '%kernel.project_dir%/migrations'
+
     AvalynxOffice\Twig\UserDateTimeExtension: ~
 
     AvalynxOffice\EventSubscriber\UserTimezoneSubscriber:

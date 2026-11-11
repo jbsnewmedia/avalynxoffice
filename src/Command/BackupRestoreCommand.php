@@ -11,6 +11,7 @@ namespace AvalynxOffice\Command;
 
 use AvalynxOffice\Service\Backup\BackupRestoreService;
 use AvalynxOffice\Service\Backup\BackupService;
+use AvalynxOffice\Service\Migration\MigrationResult;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -27,7 +28,9 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  * The archive is given as file name below data/backups or as absolute
  * path. Encrypted archives need their password. Before the restore a
  * safety backup of the current state is created unless --no-safety-backup
- * is given.
+ * is given. After the restore the database is migrated to the current
+ * schema version unless --no-migrate is given (backups from an older
+ * installation version are made immediately usable this way).
  */
 #[AsCommand(
     name: 'app:backup:restore',
@@ -49,6 +52,7 @@ final class BackupRestoreCommand extends Command
             ->addArgument('archive', InputArgument::REQUIRED, 'Backup file name (below data/backups) or absolute path')
             ->addOption('password', 'p', InputOption::VALUE_REQUIRED, 'Password of an encrypted backup (preferred: shell env var)')
             ->addOption('no-safety-backup', null, InputOption::VALUE_NONE, 'Skip the automatic safety backup of the current state')
+            ->addOption('no-migrate', null, InputOption::VALUE_NONE, 'Skip migrating the restored database to the current schema version')
             ->addOption('yes', 'y', InputOption::VALUE_NONE, 'Skip the confirmation')
         ;
     }
@@ -84,9 +88,20 @@ final class BackupRestoreCommand extends Command
         $password = is_string($password) && '' !== $password ? $password : null;
 
         try {
-            $result = $this->restoreService->restore($archivePath, $password, !$input->getOption('no-safety-backup'));
+            $result = $this->restoreService->restore(
+                $archivePath,
+                $password,
+                !$input->getOption('no-safety-backup'),
+                !$input->getOption('no-migrate'),
+                $output,
+            );
         } catch (\RuntimeException $exception) {
-            $io->error('Restore failed: '.$exception->getMessage());
+            if (str_contains($exception->getMessage(), 'migration step')) {
+                $io->error('The data was restored, but the migration to the current schema version failed: '
+                    .$exception->getMessage());
+            } else {
+                $io->error('Restore failed: '.$exception->getMessage());
+            }
 
             return Command::FAILURE;
         }
@@ -100,6 +115,15 @@ final class BackupRestoreCommand extends Command
                 ? ' — safety backup of the previous state: '.$result->safetyBackupFilename
                 : '',
         ));
+
+        if (null !== $result->migration) {
+            $io->note(MigrationResult::MODE_SCHEMA_SYNC === $result->migration->mode
+                ? 'The schema was converged to the current version via schema sync (the backup is from a diverging installation version).'
+                : sprintf('Migrated to the current schema version (%d migration(s) applied).', $result->migration->migrationCount));
+        } else {
+            $io->note('The database was not migrated (--no-migrate): the schema is the backup\'s own version. '
+                .'The migration to the current version runs at the latest on the next container start.');
+        }
 
         return Command::SUCCESS;
     }

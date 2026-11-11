@@ -9,6 +9,8 @@ declare(strict_types=1);
 
 namespace AvalynxOffice\Service\Backup;
 
+use AvalynxOffice\Service\Migration\MigrationResult;
+
 /**
  * Statistics of a successful backup restore, shown to the admin as flash
  * message / CLI output.
@@ -24,6 +26,8 @@ final readonly class RestoreResult
         public int $fileCount,
         public bool $includesFiles,
         public ?string $safetyBackupFilename,
+        public ?string $backupAppVersion = null,
+        public ?MigrationResult $migration = null,
     ) {
     }
 }

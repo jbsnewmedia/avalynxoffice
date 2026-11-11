@@ -386,6 +386,11 @@ final class AdminBackupControllerTest extends WebTestCase
         $values = $form->getPhpValues();
         $values['restoreFilename'] = $filename;
 
+        // The restore form offers the migration option (checked by default)
+        // and the backup list shows the recorded app version.
+        self::assertNotNull($crawler->filter('#restoreMigrate')->attr('checked'));
+        self::assertGreaterThanOrEqual(1, $crawler->filter('[data-backup-version]')->count());
+
         $this->client->request('POST', '/admin/backup/restore', $values, [], $this->xhr());
         self::assertResponseIsSuccessful();
 
@@ -407,6 +412,75 @@ final class AdminBackupControllerTest extends WebTestCase
             static fn (string $name): bool => str_contains($name, 'avalynxoffice-pre-restore-'),
         ));
         self::assertCount(1, $preRestore);
+    }
+
+    public function testUploadedOldBackupIsMigratedOnRestore(): void
+    {
+        $service = $this->backupService();
+        $connection = $this->em->getConnection();
+
+        // Simulate an "old" installation: its migration tracking knows only
+        // a long-gone version and its schema predates a newer table.
+        $connection->executeStatement(
+            'CREATE TABLE IF NOT EXISTS doctrine_migration_versions (version VARCHAR(255) NOT NULL, PRIMARY KEY(version))',
+        );
+        $connection->executeStatement('DELETE FROM doctrine_migration_versions');
+        $connection->executeStatement("INSERT INTO doctrine_migration_versions (version) VALUES ('Version20260901000000')");
+        $connection->executeStatement('DROP TABLE IF EXISTS app_recovery_address');
+
+        // Take the "old" backup …
+        $sourceName = $service->create(false, null);
+        $content = (string) file_get_contents($service->getBackupDir().'/'.$sourceName);
+
+        // … upload it through the chunked HTTP endpoints …
+        $this->client->loginUser($this->admin);
+        $uploadId = $this->startChunkedUpload(strlen($content));
+        $this->sendUploadChunk($uploadId, 0, substr($content, 0, 100));
+        $this->sendUploadChunk($uploadId, 1, substr($content, 100));
+        $this->finishChunkedUpload($uploadId);
+        self::assertResponseIsSuccessful();
+
+        $uploaded = array_values(array_filter(
+            array_map(static fn ($info): string => $info->filename, $service->listBackups()),
+            static fn (string $name): bool => str_contains($name, 'avalynxoffice-uploaded-'),
+        ));
+        self::assertCount(1, $uploaded);
+        $uploadedName = $uploaded[0];
+
+        // … dirty the current state (the kernel restarts on every client
+        // request, so a fresh entity manager is required here) …
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        \assert($em instanceof EntityManagerInterface);
+        $connection = $em->getConnection();
+        $connection->executeStatement("DELETE FROM app_user WHERE email = 'user@example.com'");
+        self::assertSame(1, (int) $connection->fetchOne('SELECT COUNT(*) FROM app_user'));
+
+        // … and restore the uploaded archive with the migration option
+        // (checked by default in the restore form).
+        $crawler = $this->client->request('GET', '/admin/backup', [], [], $this->xhr());
+        $form = $crawler->filter('#backup-restore-form')->form();
+        $values = $form->getPhpValues();
+        $values['restoreFilename'] = $uploadedName;
+
+        $this->client->request('POST', '/admin/backup/restore', $values, [], $this->xhr());
+        self::assertResponseIsSuccessful();
+        $data = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertTrue($data['success']);
+
+        // Fresh kernel after the POST — re-fetch the entity manager.
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        \assert($em instanceof EntityManagerInterface);
+        $connection = $em->getConnection();
+
+        // The uploaded data is back …
+        self::assertSame(2, (int) $connection->fetchOne('SELECT COUNT(*) FROM app_user'));
+        self::assertNotNull($this->userRepository()->findOneByEmail('user@example.com'));
+        // … the migration recreated the newer table …
+        self::assertContains('app_recovery_address', $connection->createSchemaManager()->listTableNames());
+        // … and the diverging tracking was replaced by the current history.
+        $versions = array_map('strval', $connection->executeQuery('SELECT version FROM doctrine_migration_versions')->fetchFirstColumn());
+        self::assertNotContains('Version20260901000000', $versions);
+        self::assertGreaterThanOrEqual(4, count($versions));
     }
 
     public function testRestoreEncryptedRoundtripWithWrongAndRightPassword(): void

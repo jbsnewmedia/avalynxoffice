@@ -11,10 +11,12 @@ namespace AvalynxOffice\Controller;
 
 use AvalynxOffice\Form\BackupCreateType;
 use AvalynxOffice\Form\BackupScheduleType;
+use AvalynxOffice\Service\AppService;
 use AvalynxOffice\Service\Backup\BackupArchive;
 use AvalynxOffice\Service\Backup\BackupRestoreService;
 use AvalynxOffice\Service\Backup\BackupScheduleService;
 use AvalynxOffice\Service\Backup\BackupService;
+use AvalynxOffice\Service\Migration\MigrationResult;
 use AvalynxOffice\Util\AvalynxFormResponse;
 use AvalynxOffice\Util\FormInvalidMapper;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -57,6 +59,7 @@ final class AdminBackupController extends AbstractController
         private readonly BackupArchive $archive,
         private readonly BackupRestoreService $restoreService,
         private readonly BackupScheduleService $schedule,
+        private readonly AppService $appService,
         private readonly TranslatorInterface $translator,
         private readonly RateLimiterFactoryInterface $adminBackupCreateLimiter,
         private readonly RateLimiterFactoryInterface $adminBackupRestoreLimiter,
@@ -84,6 +87,7 @@ final class AdminBackupController extends AbstractController
             'form' => $form,
             'scheduleForm' => $scheduleForm,
             'backups' => $this->backups->listBackups(),
+            'appVersion' => $this->appService->getVersion(),
             'uploadMaxBytes' => $limit ?? 0,
             'uploadMaxText' => self::formatBytes($limit ?? 0),
             'uploadChunkSize' => self::UPLOAD_CHUNK_BYTES,
@@ -419,20 +423,44 @@ final class AdminBackupController extends AbstractController
             ]);
         }
 
+        $migrate = $request->request->getBoolean('restoreMigrate', true);
+
         try {
-            $result = $this->restoreService->restore($path, $encrypted ? $password : null);
+            $result = $this->restoreService->restore($path, $encrypted ? $password : null, true, $migrate);
         } catch (\RuntimeException $exception) {
-            $messageKey = str_contains($exception->getMessage(), 'wrong password')
+            $message = $exception->getMessage();
+            $messageKey = str_contains($message, 'wrong password')
                 ? 'admin.backup.err_wrong_password'
-                : 'admin.backup.err_restore_failed';
+                : (str_contains($message, 'migration step')
+                    ? 'admin.backup.err_migration_failed'
+                    : 'admin.backup.err_restore_failed');
 
             return AvalynxFormResponse::failure($this->translator->trans($messageKey));
+        }
+
+        if (null !== $result->migration) {
+            $this->addFlash('success', $this->translator->trans(
+                MigrationResult::MODE_SCHEMA_SYNC === $result->migration->mode
+                    ? 'admin.backup.restored_migrated_sync'
+                    : 'admin.backup.restored_migrated',
+                [
+                    '%tableCount%' => (string) $result->tableCount,
+                    '%fileCount%' => (string) $result->fileCount,
+                    '%migrationCount%' => (string) $result->migration->migrationCount,
+                ],
+            ));
+
+            return AvalynxFormResponse::success($this->generateUrl('app_admin_backup'));
         }
 
         $this->addFlash('success', $this->translator->trans('admin.backup.restored', [
             '%tableCount%' => (string) $result->tableCount,
             '%fileCount%' => (string) $result->fileCount,
         ]));
+
+        if (!$migrate) {
+            $this->addFlash('info', $this->translator->trans('admin.backup.restore_unmigrated_hint'));
+        }
 
         return AvalynxFormResponse::success($this->generateUrl('app_admin_backup'));
     }

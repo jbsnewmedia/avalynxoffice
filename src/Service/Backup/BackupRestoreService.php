@@ -9,12 +9,16 @@ declare(strict_types=1);
 
 namespace AvalynxOffice\Service\Backup;
 
+use AvalynxOffice\Service\Migration\DatabaseMigrator;
+use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Filesystem\Filesystem;
 
 /**
  * Restores a backup archive: validates it, takes a forced safety backup of
  * the current state, replaces the whole database (drop + recreate from the
- * serialized schema + insert rows) and replaces the attachment files.
+ * serialized schema + insert rows), replaces the attachment files and —
+ * optionally — migrates the restored database to the current installation
+ * version (see DatabaseMigrator).
  *
  * Restore runs with foreign key checks disabled (replica mode on
  * PostgreSQL). Table data inserts run in chunked transactions; the DDL
@@ -27,20 +31,31 @@ final readonly class BackupRestoreService
         private readonly BackupService $backups,
         private readonly BackupArchive $archive,
         private readonly DatabaseDumper $dumper,
+        private readonly DatabaseMigrator $migrator,
     ) {
     }
 
     /**
      * Restores the archive at the given path (plain or encrypted).
      *
-     * @param string      $archivePath      absolute path of the archive
-     * @param string|null $password         required for encrypted archives
-     * @param bool        $withSafetyBackup create a "pre-restore" backup first
+     * @param string               $archivePath      absolute path of the archive
+     * @param string|null          $password         required for encrypted archives
+     * @param bool                 $withSafetyBackup create a "pre-restore" backup first
+     * @param bool                 $migrateToCurrent bring the restored database up
+     *                                               to the current installation version
+     * @param OutputInterface|null $migrationOutput  receives the migration command
+     *                                               output (null = silent)
      *
-     * @throws \RuntimeException when validation, decryption or the restore fails
+     * @throws \RuntimeException when validation, decryption, the restore or
+     *                           the migration step fails
      */
-    public function restore(string $archivePath, ?string $password, bool $withSafetyBackup = true): RestoreResult
-    {
+    public function restore(
+        string $archivePath,
+        ?string $password,
+        bool $withSafetyBackup = true,
+        bool $migrateToCurrent = true,
+        ?OutputInterface $migrationOutput = null,
+    ): RestoreResult {
         $tempZip = null;
         try {
             if ($this->archive->isEncrypted($archivePath)) {
@@ -72,12 +87,20 @@ final readonly class BackupRestoreService
                 ? $this->restoreFiles($zipPath)
                 : 0;
 
+            $migration = $migrateToCurrent
+                ? $this->migrator->migrateToCurrent($migrationOutput)
+                : null;
+
+            $appVersion = BackupArchive::specString($manifest, 'appVersion');
+
             return new RestoreResult(
                 count($tables),
                 $tables,
                 $files,
                 BackupArchive::specBool($manifest, 'includesFiles'),
                 $safetyFilename,
+                '' === $appVersion ? null : $appVersion,
+                $migration,
             );
         } finally {
             if (is_string($tempZip) && is_file($tempZip)) {
