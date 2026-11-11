@@ -96,10 +96,12 @@ final class SystemEnvironmentService
         $start = microtime(true);
 
         try {
-            // throw=false: any status code (the unauthenticated probe
-            // normally answers with the 401 challenge) proves the service
-            // is up; only transport errors throw and mean "not available".
-            $response = $this->httpClient->request('GET', $url, ['throw' => false]);
+            // Any status code (the unauthenticated probe normally answers
+            // with the 401 challenge) proves the service is up; only
+            // transport errors throw (getStatusCode throws TransportException,
+            // HTTP error statuses are no longer controlled by a "throw"
+            // option since Symfony 7.1) and mean "not available".
+            $response = $this->httpClient->request('GET', $url);
             $statusCode = $response->getStatusCode();
             $latencyMs = (int) round((microtime(true) - $start) * 1000);
 
