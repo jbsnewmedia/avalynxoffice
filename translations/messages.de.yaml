@@ -656,7 +656,7 @@ profile.app_passwords.confirm_revoke: "Dieses App-Passwort wirklich widerrufen? 
 profile.app_passwords.revoked: "Das App-Passwort wurde widerrufen."
 profile.app_passwords.none: "Noch keine App-Passwörter vorhanden."
 profile.app_passwords.eas_box_title: "Verbindungsdaten für Geräte (EAS)"
-profile.app_passwords.eas_box_server: "Server-URL"
+profile.app_passwords.eas_box_server: "Server"
 profile.app_passwords.eas_box_user: "Benutzer"
 profile.app_passwords.eas_box_password: "Passwort"
 profile.app_passwords.eas_box_password_hint: "Ein App-Passwort von dieser Seite — niemals Ihr Web-Login-Passwort."

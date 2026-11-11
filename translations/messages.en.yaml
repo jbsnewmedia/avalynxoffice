@@ -671,7 +671,7 @@ profile.app_passwords.confirm_revoke: "Really revoke this app password? Devices 
 profile.app_passwords.revoked: "The app password has been revoked."
 profile.app_passwords.none: "No app passwords yet."
 profile.app_passwords.eas_box_title: "Connection details for devices (EAS)"
-profile.app_passwords.eas_box_server: "Server URL"
+profile.app_passwords.eas_box_server: "Server"
 profile.app_passwords.eas_box_user: "Username"
 profile.app_passwords.eas_box_password: "Password"
 profile.app_passwords.eas_box_password_hint: "An app password from this page — never your web login password."

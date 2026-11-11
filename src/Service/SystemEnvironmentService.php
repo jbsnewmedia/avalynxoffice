@@ -38,7 +38,7 @@ final class SystemEnvironmentService
     private readonly HttpClientInterface $httpClient;
 
     /**
-     * @var array{configured: bool, available: bool, url: string, statusCode: int|null, latencyMs: int|null, detail: string}|null
+     * @var array{configured: bool, available: bool, baseUrl: string, url: string, statusCode: int|null, latencyMs: int|null, detail: string}|null
      */
     private ?array $easCache = null;
 
@@ -61,7 +61,7 @@ final class SystemEnvironmentService
     }
 
     /**
-     * @return array{configured: bool, available: bool, url: string|null, statusCode: int|null, latencyMs: int|null, detail: string}
+     * @return array{configured: bool, available: bool, baseUrl: string|null, url: string|null, statusCode: int|null, latencyMs: int|null, detail: string}
      */
     public function easStatus(): array
     {
@@ -70,6 +70,7 @@ final class SystemEnvironmentService
             return [
                 'configured' => false,
                 'available' => false,
+                'baseUrl' => null,
                 'url' => null,
                 'statusCode' => null,
                 'latencyMs' => null,
@@ -82,16 +83,16 @@ final class SystemEnvironmentService
             return $this->easCache;
         }
 
-        $this->easCache = $this->probe(rtrim($baseUrl, '/').self::EAS_PROBE_PATH);
+        $this->easCache = $this->probe(rtrim($baseUrl, '/').self::EAS_PROBE_PATH, $baseUrl);
         $this->easCacheAt = $now;
 
         return $this->easCache;
     }
 
     /**
-     * @return array{configured: bool, available: bool, url: string, statusCode: int|null, latencyMs: int|null, detail: string}
+     * @return array{configured: bool, available: bool, baseUrl: string, url: string, statusCode: int|null, latencyMs: int|null, detail: string}
      */
-    private function probe(string $url): array
+    private function probe(string $url, string $baseUrl): array
     {
         $start = microtime(true);
 
@@ -108,6 +109,7 @@ final class SystemEnvironmentService
             return [
                 'configured' => true,
                 'available' => true,
+                'baseUrl' => $baseUrl,
                 'url' => $url,
                 'statusCode' => $statusCode,
                 'latencyMs' => $latencyMs,
@@ -117,6 +119,7 @@ final class SystemEnvironmentService
             return [
                 'configured' => true,
                 'available' => false,
+                'baseUrl' => $baseUrl,
                 'url' => $url,
                 'statusCode' => null,
                 'latencyMs' => (int) round((microtime(true) - $start) * 1000),
