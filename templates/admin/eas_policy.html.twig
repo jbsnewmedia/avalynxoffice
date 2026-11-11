@@ -1,0 +1,87 @@
+{% extends 'base.html.twig' %}
+{% block title %}{{ 'admin.eas_policy.title'|trans }} - {{ 'app.title'|trans }}{% endblock %}
+{% block stylesheets %}
+    {% include '_assets.html.twig' with { mode: 'user' } %}
+    {{ parent() }}
+{% endblock %}
+{% block flashes %}{% endblock %}
+{% block body %}
+<div class="d-flex flex-column min-vh-100">
+    {% include '_navbar.html.twig' with { showMailToggles: false, userMenuActive: true } %}
+    <main class="flex-grow-1 py-4">
+        <div class="container">
+            {% include 'admin/_nav.html.twig' with { active: 'eas_policy' } %}
+            {% include '_flashes.html.twig' %}
+
+            <h1 class="h3 mb-4">{{ 'admin.eas_policy.title'|trans }}</h1>
+
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <p class="text-body-secondary">{{ 'admin.eas_policy.description'|trans }}</p>
+
+                    {% if not eas.configured %}
+                        <div class="alert alert-warning" role="alert">
+                            <i class="fa-solid fa-triangle-exclamation me-2" aria-hidden="true"></i>{{ 'admin.eas_policy.not_configured'|trans }}
+                            <div class="small text-body-secondary mt-1">{{ 'admin.eas_policy.not_configured_help'|trans }}</div>
+                        </div>
+                    {% endif %}
+
+                    {{ form_start(form, {'attr': {'id': 'eas-policy-form', 'data-avalynxform': '1', 'novalidate': 'novalidate'}}) }}
+
+                        {% set toggleGroups = {
+                            'group_password': ['devpwenabled', 'alphanumpwreq', 'allowsimpledevpw'],
+                            'group_encryption': ['reqdevenc', 'devencenabled'],
+                            'group_device': ['allowcam', 'allowstoragecard', 'allowunsignedapps', 'allowwifi', 'allowtextmessaging', 'allowpopimapemail', 'allowconsumeremail', 'allowbrowser', 'allowinternetsharing', 'allowbluetooth', 'allowirda', 'reqmansyncroam'],
+                        } %}
+                        {% set numberFields = ['maxdevpwfailedattempts', 'maxinacttimedevlock', 'devpwexpiration', 'devpwhistory', 'mindevpwlenngth', 'mindevcomplexchars'] %}
+
+                        {% for groupKey, groupToggles in toggleGroups %}
+                            <div class="card bg-body-tertiary border-0 mb-3">
+                                <div class="card-body">
+                                    <h2 class="h6 fw-semibold mb-3"><i class="fa-solid {{ groupKey == 'group_password' ? 'fa-key' : (groupKey == 'group_encryption' ? 'fa-lock' : 'fa-mobile-screen') }} me-2" aria-hidden="true"></i>{{ ('admin.eas_policy.' ~ groupKey)|trans }}</h2>
+                                    {% for key in groupToggles %}
+                                        <div class="form-group mb-2">
+                                            <div class="form-check form-switch">
+                                                {{ form_widget(attribute(form, key), {'attr': {'class': 'form-check-input', 'role': 'switch'}}) }}
+                                                {{ form_label(attribute(form, key), null, {'label_attr': {'class': 'form-check-label'}}) }}
+                                            </div>
+                                            <div class="form-text mt-0">{{ form_help(attribute(form, key)) }}</div>
+                                            <div class="invalid-feedback" aria-live="polite"></div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        {% endfor %}
+
+                        <div class="card bg-body-tertiary border-0 mb-3">
+                            <div class="card-body">
+                                <h2 class="h6 fw-semibold mb-3"><i class="fa-solid fa-sliders me-2" aria-hidden="true"></i>{{ 'admin.eas_policy.group_limits'|trans }}</h2>
+                                <div class="row g-3">
+                                    {% for key in numberFields %}
+                                        <div class="col-md-4">
+                                            <div class="form-group mb-1">
+                                                {{ form_label(attribute(form, key), null, {'label_attr': {'class': 'form-label'}}) }}
+                                                {{ form_widget(attribute(form, key)) }}
+                                                {{ form_help(attribute(form, key)) }}
+                                                <div class="invalid-feedback" aria-live="polite"></div>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="text-end">
+                            {{ form_widget(form.save, {'attr': {'class': 'btn btn-primary'}}) }}
+                        </div>
+
+                        {{ form_end(form) }}
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}
+{% block javascripts %}
+    {{ parent() }}
+{% endblock %}

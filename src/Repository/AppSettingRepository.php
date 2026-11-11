@@ -51,4 +51,39 @@ class AppSettingRepository extends ServiceEntityRepository
         }
         $this->getEntityManager()->flush();
     }
+
+    /**
+     * Deletes the setting row for the given key (no-op when absent).
+     */
+    public function remove(string $key): void
+    {
+        $setting = $this->findOneBy(['settingKey' => $key]);
+        if (null !== $setting) {
+            $this->getEntityManager()->remove($setting);
+            $this->getEntityManager()->flush();
+        }
+    }
+
+    /**
+     * Returns all stored settings as a key => value map (empty values
+     * included so callers can distinguish "stored empty" from "absent").
+     *
+     * @return array<string, string>
+     */
+    public function all(): array
+    {
+        $map = [];
+
+        foreach ($this->findAll() as $setting) {
+            $key = $setting->getSettingKey();
+
+            if (null === $key) {
+                continue;
+            }
+
+            $map[$key] = $setting->getSettingValue() ?? '';
+        }
+
+        return $map;
+    }
 }
