@@ -24,6 +24,13 @@ DirectoryIndex index.php
 
     RewriteEngine On
 
+    # Autodiscover for ActiveSync clients: devices asking the mail domain
+    # are redirected to the EAS installation (avalynxofficeeas), which
+    # answers with the ActiveSync server URL. Works with the
+    # eas.<domain> convention; Docker setups that route autodiscover
+    # themselves ignore this rule (nginx config takes precedence).
+    RewriteRule ^autodiscover/autodiscover\.xml$ https://eas.%{HTTP_HOST}/autodiscover/autodiscover.xml [R=302,L,QSA]
+
     # Determine the RewriteBase automatically and set it as environment variable.
     # If you are using Apache aliases to do mass virtual hosting or installed the
     # project in a subdirectory, the base path will be prepended to allow proper
