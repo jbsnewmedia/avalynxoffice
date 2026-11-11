@@ -11,6 +11,7 @@ namespace AvalynxOffice\Controller;
 
 use AvalynxOffice\Entity\User;
 use AvalynxOffice\Service\Login\AppPasswordService;
+use AvalynxOffice\Service\SystemEnvironmentService;
 use AvalynxOffice\Util\AvalynxFormResponse;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -34,6 +35,7 @@ final class ProfileAppPasswordsController extends AbstractController
 
     public function __construct(
         private readonly AppPasswordService $appPasswordService,
+        private readonly SystemEnvironmentService $systemEnvironment,
         private readonly TranslatorInterface $translator,
     ) {
     }
@@ -54,6 +56,7 @@ final class ProfileAppPasswordsController extends AbstractController
             'canCreate' => $this->appPasswordService->canCreate($user),
             'maxActive' => AppPasswordService::MAX_ACTIVE,
             'maxLabelLength' => AppPasswordService::MAX_LABEL_LENGTH,
+            'eas' => $this->systemEnvironment->easStatus(),
         ]);
     }
 

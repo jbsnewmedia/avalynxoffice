@@ -51,6 +51,20 @@ final class ProfileAppPasswordsControllerTest extends WebTestCase
         self::assertResponseRedirects('/login');
     }
 
+    public function testPageShowsEasConnectionBox(): void
+    {
+        $crawler = $this->client->request('GET', '/profile/app-passwords');
+
+        self::assertResponseIsSuccessful();
+
+        // EAS_BASE_URL is not set in the test environment: the box renders
+        // with the account name and the not-configured hint, without a
+        // server URL row.
+        self::assertSame(1, $crawler->filter('[data-eas-connection-box]')->count());
+        self::assertSame(0, $crawler->filter('[data-eas-connection-box] [data-eas-server-url]')->count());
+        self::assertStringContainsString('app-passwords@example.com', (string) $crawler->filter('[data-eas-connection-box]')->text());
+    }
+
     public function testCreateShowsPasswordOnceAndStoresOnlyHash(): void
     {
         $crawler = $this->client->request('GET', '/profile/app-passwords');
