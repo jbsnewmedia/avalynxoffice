@@ -1,74 +1,265 @@
-<div class="p-4">
-    <section class="mb-5">
-        <h2 class="h5">{{ 'help.gestures.title'|trans }}</h2>
-        <ul class="list-unstyled ms-2">
-            <li class="mb-2"><strong>{{ 'help.gestures.tap_click'|trans }}:</strong> {{ 'help.gestures.tap_click_description'|trans }}</li>
-            <li class="mb-2"><strong>{{ 'help.gestures.double_click'|trans }}:</strong> {{ 'help.gestures.double_click_description'|trans }}</li>
-            <li class="mb-2"><strong>{{ 'help.gestures.long_press'|trans }}:</strong> {{ 'help.gestures.long_press_description'|trans }}</li>
-            <li class="mb-2"><strong>{{ 'help.gestures.drag_drop'|trans }}:</strong> {{ 'help.gestures.drag_drop_description'|trans }}</li>
-        </ul>
-    </section>
-    <section class="mb-5">
-        <h2 class="h5">{{ 'help.symbols.title'|trans }}</h2>
-        <div class="row row-cols-1 g-3">
-            <div class="col">
-                <div class="d-flex align-items-center p-3 border rounded">
-                    <i class="fa-solid fa-envelope me-3" aria-hidden="true"></i>
-                    <div>
-                        <div class="fw-semibold">{{ 'email.mark_unread'|trans }}</div>
-                        <div class="text-body-secondary small">{{ 'help.symbols.mark_unread_description'|trans }}</div>
-                    </div>
+{# Help page: searchable documentation with sticky table of contents.
+   Search and scroll highlighting live in assets/js/help.js,
+   styles in assets/css/help.css. #}
+{% macro entry(title, description) %}
+    <article class="help-entry">
+        <h3 class="h6 fw-semibold mb-1">{{ title }}</h3>
+        <p class="text-body-secondary mb-0">{{ description }}</p>
+    </article>
+{% endmacro %}
+{% from _self import entry %}
+
+{% set helpSections = [
+    { id: 'help-firststeps', icon: 'fa-rocket', title: 'help.firststeps.title'|trans },
+    { id: 'help-mail', icon: 'fa-envelope', title: 'help.mail.title'|trans },
+    { id: 'help-gestures', icon: 'fa-hand-pointer', title: 'help.gestures.title'|trans },
+    { id: 'help-symbols', icon: 'fa-icons', title: 'help.symbols.title'|trans },
+    { id: 'help-contacts', icon: 'fa-address-book', title: 'help.contacts.title'|trans },
+    { id: 'help-calendar', icon: 'fa-calendar-days', title: 'help.calendar.title'|trans },
+    { id: 'help-profile', icon: 'fa-user', title: 'help.profile.title'|trans },
+    { id: 'help-settings', icon: 'fa-gear', title: 'help.settings.title'|trans },
+    { id: 'help-admin', icon: 'fa-user-shield', title: 'help.admin.title'|trans },
+    { id: 'help-faq', icon: 'fa-circle-question', title: 'help.faq.title'|trans },
+] %}
+
+<header class="mb-4">
+    <h1 class="h3 mb-1">{{ 'help.title'|trans }}</h1>
+    <p class="text-body-secondary mb-0">{{ 'help.subtitle'|trans }}</p>
+</header>
+
+<div class="row g-4 help-layout">
+    <aside class="col-lg-3 d-print-none">
+        <div class="help-sidebar">
+            <form class="mb-3" role="search" method="get" action="{{ path('app_help') }}" novalidate>
+                <label class="form-label visually-hidden" for="help-search">{{ 'help.search.label'|trans }}</label>
+                <div class="input-group">
+                    <span class="input-group-text" aria-hidden="true"><i class="fa-solid fa-magnifying-glass"></i></span>
+                    <input type="search" class="form-control" id="help-search" autocomplete="off"
+                           placeholder="{{ 'help.search.placeholder'|trans }}"
+                           data-results-template="{{ 'help.search.results_template'|trans }}"
+                           data-no-results-template="{{ 'help.search.no_results'|trans }}">
+                    <button type="button" class="btn btn-secondary d-none" data-help-search-clear
+                            aria-label="{{ 'help.search.clear'|trans }}" title="{{ 'help.search.clear'|trans }}">
+                        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                    </button>
                 </div>
-            </div>
-            <div class="col">
-                <div class="d-flex align-items-center p-3 border rounded">
-                    <i class="fa-solid fa-envelope-open me-3" aria-hidden="true"></i>
-                    <div>
-                        <div class="fw-semibold">{{ 'email.mark_read'|trans }}</div>
-                        <div class="text-body-secondary small">{{ 'help.symbols.mark_read_description'|trans }}</div>
-                    </div>
-                </div>
-            </div>
-            <div class="col">
-                <div class="d-flex align-items-center p-3 border rounded">
-                    <i class="fa-solid fa-reply me-3" aria-hidden="true"></i>
-                    <div>
-                        <div class="fw-semibold">{{ 'email.reply'|trans }}</div>
-                        <div class="text-body-secondary small">{{ 'help.symbols.reply_description'|trans }}</div>
-                    </div>
-                </div>
-            </div>
-            <div class="col">
-                <div class="d-flex align-items-center p-3 border rounded">
-                    <i class="fa-solid fa-trash me-3" aria-hidden="true"></i>
-                    <div>
-                        <div class="fw-semibold">{{ 'email.delete'|trans }}</div>
-                        <div class="text-body-secondary small">{{ 'help.symbols.delete_description'|trans }}</div>
-                    </div>
-                </div>
-            </div>
-            <div class="col">
-                <div class="d-flex align-items-center p-3 border rounded">
-                    <i class="fa-solid fa-print me-3" aria-hidden="true"></i>
-                    <div>
-                        <div class="fw-semibold">{{ 'email.print'|trans }}</div>
-                        <div class="text-body-secondary small">{{ 'help.symbols.print_description'|trans }}</div>
-                    </div>
-                </div>
-            </div>
-            <div class="col">
-                <div class="d-flex align-items-center p-3 border rounded">
-                    <i class="fa-solid fa-ellipsis-vertical me-3" aria-hidden="true"></i>
-                    <div>
-                        <div class="fw-semibold">{{ 'email.more_actions'|trans }}</div>
-                        <div class="text-body-secondary small">{{ 'help.symbols.more_actions_description'|trans }}</div>
-                    </div>
-                </div>
-            </div>
+                <div class="form-text help-search-count d-none mt-2" aria-live="polite" data-help-search-count></div>
+            </form>
+            <nav aria-label="{{ 'help.toc.title'|trans }}">
+                <h2 class="text-body-secondary text-uppercase fs-6 fw-semibold mb-2">{{ 'help.toc.title'|trans }}</h2>
+                <ul class="list-unstyled mb-0 d-flex flex-column gap-1">
+                    {% for section in helpSections %}
+                        <li>
+                            <a class="help-toc-link" href="#{{ section.id }}">
+                                <i class="fa-solid {{ section.icon }}" aria-hidden="true"></i>
+                                <span>{{ section.title }}</span>
+                            </a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </nav>
         </div>
-    </section>
-    <section>
-        <h2 class="h5">{{ 'help.faq.title'|trans }}</h2>
-        <p class="text-body-secondary">{{ 'help.more_coming'|trans }}</p>
-    </section>
+    </aside>
+
+    <div class="col-lg-9">
+        <section class="help-section" id="help-firststeps" aria-labelledby="help-firststeps-heading">
+            <h2 class="h4 help-section-title" id="help-firststeps-heading">
+                <i class="fa-solid fa-rocket" aria-hidden="true"></i>{{ 'help.firststeps.title'|trans }}
+            </h2>
+            <p class="help-entry text-body-secondary">{{ 'help.firststeps.intro'|trans }}</p>
+            {{ entry('help.firststeps.modules'|trans, 'help.firststeps.modules_description'|trans) }}
+            {{ entry('help.firststeps.usermenu'|trans, 'help.firststeps.usermenu_description'|trans) }}
+            {{ entry('help.firststeps.darkmode'|trans, 'help.firststeps.darkmode_description'|trans) }}
+            {{ entry('help.firststeps.language'|trans, 'help.firststeps.language_description'|trans) }}
+            {{ entry('help.firststeps.pwa'|trans, 'help.firststeps.pwa_description'|trans) }}
+        </section>
+
+        <section class="help-section" id="help-mail" aria-labelledby="help-mail-heading">
+            <h2 class="h4 help-section-title" id="help-mail-heading">
+                <i class="fa-solid fa-envelope" aria-hidden="true"></i>{{ 'help.mail.title'|trans }}
+            </h2>
+            {{ entry('help.mail.layout'|trans, 'help.mail.layout_description'|trans) }}
+            {{ entry('help.mail.accounts'|trans, 'help.mail.accounts_description'|trans) }}
+            {{ entry('help.mail.folders'|trans, 'help.mail.folders_description'|trans) }}
+            {{ entry('help.mail.list'|trans, 'help.mail.list_description'|trans) }}
+            {{ entry('help.mail.search'|trans, 'help.mail.search_description'|trans) }}
+            {{ entry('help.mail.read'|trans, 'help.mail.read_description'|trans) }}
+            {{ entry('help.mail.external'|trans, 'help.mail.external_description'|trans) }}
+            {{ entry('help.mail.attachments'|trans, 'help.mail.attachments_description'|trans) }}
+            {{ entry('help.mail.actions'|trans, 'help.mail.actions_description'|trans) }}
+            {{ entry('help.mail.move'|trans, 'help.mail.move_description'|trans) }}
+            {{ entry('help.mail.read_unread'|trans, 'help.mail.read_unread_description'|trans) }}
+            {{ entry('help.mail.compose'|trans, 'help.mail.compose_description'|trans) }}
+            {{ entry('help.mail.compose_richtext'|trans, 'help.mail.compose_richtext_description'|trans) }}
+            {{ entry('help.mail.compose_attachments'|trans, 'help.mail.compose_attachments_description'|trans) }}
+            {{ entry('help.mail.compose_schedule'|trans, 'help.mail.compose_schedule_description'|trans) }}
+            {{ entry('help.mail.compose_drafts'|trans, 'help.mail.compose_drafts_description'|trans) }}
+            {{ entry('help.mail.print'|trans, 'help.mail.print_description'|trans) }}
+            {{ entry('help.mail.license'|trans, 'help.mail.license_description'|trans) }}
+        </section>
+
+        <section class="help-section" id="help-gestures" aria-labelledby="help-gestures-heading">
+            <h2 class="h4 help-section-title" id="help-gestures-heading">
+                <i class="fa-solid fa-hand-pointer" aria-hidden="true"></i>{{ 'help.gestures.title'|trans }}
+            </h2>
+            {% set helpGestures = [
+                { icon: 'fa-hand-pointer', title: 'help.gestures.tap_click'|trans, description: 'help.gestures.tap_click_description'|trans },
+                { icon: 'fa-mouse', title: 'help.gestures.double_click'|trans, description: 'help.gestures.double_click_description'|trans },
+                { icon: 'fa-clock', title: 'help.gestures.long_press'|trans, description: 'help.gestures.long_press_description'|trans },
+                { icon: 'fa-arrows-up-down-left-right', title: 'help.gestures.drag_drop'|trans, description: 'help.gestures.drag_drop_description'|trans },
+                { icon: 'fa-magnifying-glass', title: 'help.gestures.searchfields'|trans, description: 'help.gestures.searchfields_description'|trans },
+                { icon: 'fa-mobile-screen', title: 'help.gestures.mobile'|trans, description: 'help.gestures.mobile_description'|trans },
+            ] %}
+            <div class="row row-cols-1 row-cols-md-2 g-3">
+                {% for gesture in helpGestures %}
+                    <div class="col help-entry">
+                        <div class="border rounded-3 p-3 h-100 d-flex align-items-start">
+                            <i class="fa-solid {{ gesture.icon }} text-primary mt-1 me-3" aria-hidden="true"></i>
+                            <div>
+                                <h3 class="h6 fw-semibold mb-1">{{ gesture.title }}</h3>
+                                <p class="text-body-secondary small mb-0">{{ gesture.description }}</p>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="help-section" id="help-symbols" aria-labelledby="help-symbols-heading">
+            <h2 class="h4 help-section-title" id="help-symbols-heading">
+                <i class="fa-solid fa-icons" aria-hidden="true"></i>{{ 'help.symbols.title'|trans }}
+            </h2>
+            {% set helpSymbols = [
+                { icon: 'fa-envelope', title: 'email.mark_unread'|trans, description: 'help.symbols.mark_unread_description'|trans },
+                { icon: 'fa-envelope-open', title: 'email.mark_read'|trans, description: 'help.symbols.mark_read_description'|trans },
+                { icon: 'fa-inbox', title: 'email.received'|trans, description: 'help.symbols.received_description'|trans },
+                { icon: 'fa-paper-plane', title: 'email.sent'|trans, description: 'help.symbols.sent_description'|trans },
+                { icon: 'fa-clock', title: 'email.not_sent'|trans, description: 'help.symbols.unsent_description'|trans },
+                { icon: 'fa-calendar-check', title: 'email.scheduled_at'|trans, description: 'help.symbols.scheduled_description'|trans },
+                { icon: 'fa-file-pen', title: 'email.draft'|trans, description: 'help.symbols.draft_description'|trans },
+                { icon: 'fa-star', title: 'email.favorite'|trans, description: 'help.symbols.favorite_description'|trans },
+                { icon: 'fa-triangle-exclamation', title: 'email.important'|trans, description: 'help.symbols.important_description'|trans },
+                { icon: 'fa-paperclip', title: 'email.attachments'|trans, description: 'help.symbols.attachments_description'|trans },
+                { icon: 'fa-reply', title: 'email.reply'|trans, description: 'help.symbols.reply_description'|trans },
+                { icon: 'fa-reply-all', title: 'email.reply_all'|trans, description: 'help.symbols.reply_all_description'|trans },
+                { icon: 'fa-forward', title: 'email.forward'|trans, description: 'help.symbols.forward_description'|trans },
+                { icon: 'fa-folder', title: 'email.move'|trans, description: 'help.symbols.move_description'|trans },
+                { icon: 'fa-tag', title: 'email.mark_spam'|trans, description: 'help.symbols.spam_description'|trans },
+                { icon: 'fa-trash', title: 'email.delete'|trans, description: 'help.symbols.delete_description'|trans },
+                { icon: 'fa-print', title: 'email.print'|trans, description: 'help.symbols.print_description'|trans },
+                { icon: 'fa-ellipsis-vertical', title: 'email.more_actions'|trans, description: 'help.symbols.more_actions_description'|trans },
+                { icon: 'fa-shield-halved', title: 'help.symbols.external_content_title'|trans, description: 'help.symbols.external_content_description'|trans },
+                { icon: 'fa-lock', title: 'email.read_only'|trans, description: 'help.symbols.lock_description'|trans },
+            ] %}
+            <div class="row row-cols-1 row-cols-sm-2 row-cols-xl-3 g-3">
+                {% for symbol in helpSymbols %}
+                    <div class="col help-entry">
+                        <div class="border rounded-3 p-3 h-100 d-flex align-items-start">
+                            <i class="fa-solid {{ symbol.icon }} text-primary mt-1 me-3" aria-hidden="true"></i>
+                            <div>
+                                <h3 class="h6 fw-semibold mb-1">{{ symbol.title }}</h3>
+                                <p class="text-body-secondary small mb-0">{{ symbol.description }}</p>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="help-section" id="help-contacts" aria-labelledby="help-contacts-heading">
+            <h2 class="h4 help-section-title" id="help-contacts-heading">
+                <i class="fa-solid fa-address-book" aria-hidden="true"></i>{{ 'help.contacts.title'|trans }}
+            </h2>
+            {{ entry('help.contacts.groups'|trans, 'help.contacts.groups_description'|trans) }}
+            {{ entry('help.contacts.search'|trans, 'help.contacts.search_description'|trans) }}
+            {{ entry('help.contacts.detail'|trans, 'help.contacts.detail_description'|trans) }}
+            {{ entry('help.contacts.new'|trans, 'help.contacts.new_description'|trans) }}
+            {{ entry('help.contacts.sync'|trans, 'help.contacts.sync_description'|trans) }}
+        </section>
+
+        <section class="help-section" id="help-calendar" aria-labelledby="help-calendar-heading">
+            <h2 class="h4 help-section-title" id="help-calendar-heading">
+                <i class="fa-solid fa-calendar-days" aria-hidden="true"></i>{{ 'help.calendar.title'|trans }}
+            </h2>
+            {{ entry('help.calendar.views'|trans, 'help.calendar.views_description'|trans) }}
+            {{ entry('help.calendar.all'|trans, 'help.calendar.all_description'|trans) }}
+            {{ entry('help.calendar.search'|trans, 'help.calendar.search_description'|trans) }}
+            {{ entry('help.calendar.new'|trans, 'help.calendar.new_description'|trans) }}
+            {{ entry('help.calendar.detail'|trans, 'help.calendar.detail_description'|trans) }}
+        </section>
+
+        <section class="help-section" id="help-profile" aria-labelledby="help-profile-heading">
+            <h2 class="h4 help-section-title" id="help-profile-heading">
+                <i class="fa-solid fa-user" aria-hidden="true"></i>{{ 'help.profile.title'|trans }}
+            </h2>
+            {{ entry('help.profile.overview'|trans, 'help.profile.overview_description'|trans) }}
+            {{ entry('help.profile.recovery'|trans, 'help.profile.recovery_description'|trans) }}
+            {{ entry('help.profile.app_passwords'|trans, 'help.profile.app_passwords_description'|trans) }}
+            {{ entry('help.profile.sessions'|trans, 'help.profile.sessions_description'|trans) }}
+            {{ entry('help.profile.password_reset'|trans, 'help.profile.password_reset_description'|trans) }}
+        </section>
+
+        <section class="help-section" id="help-settings" aria-labelledby="help-settings-heading">
+            <h2 class="h4 help-section-title" id="help-settings-heading">
+                <i class="fa-solid fa-gear" aria-hidden="true"></i>{{ 'help.settings.title'|trans }}
+            </h2>
+            {{ entry('help.settings.language'|trans, 'help.settings.language_description'|trans) }}
+            {{ entry('help.settings.design'|trans, 'help.settings.design_description'|trans) }}
+            {{ entry('help.settings.time'|trans, 'help.settings.time_description'|trans) }}
+        </section>
+
+        <section class="help-section" id="help-admin" aria-labelledby="help-admin-heading">
+            <h2 class="h4 help-section-title" id="help-admin-heading">
+                <i class="fa-solid fa-user-shield" aria-hidden="true"></i>{{ 'help.admin.title'|trans }}
+            </h2>
+            <p class="help-entry text-body-secondary">{{ 'help.admin.intro_description'|trans }}</p>
+            {% set helpAdminModules = [
+                { icon: 'fa-gauge-high', title: 'help.admin.dashboard'|trans, description: 'help.admin.dashboard_description'|trans },
+                { icon: 'fa-users', title: 'help.admin.users'|trans, description: 'help.admin.users_description'|trans },
+                { icon: 'fa-envelope', title: 'help.admin.accounts'|trans, description: 'help.admin.accounts_description'|trans },
+                { icon: 'fa-plug', title: 'help.admin.connectors'|trans, description: 'help.admin.connectors_description'|trans },
+                { icon: 'fa-key', title: 'help.admin.password_resets'|trans, description: 'help.admin.password_resets_description'|trans },
+                { icon: 'fa-file-contract', title: 'help.admin.legal'|trans, description: 'help.admin.legal_description'|trans },
+                { icon: 'fa-scale-balanced', title: 'help.admin.license'|trans, description: 'help.admin.license_description'|trans },
+                { icon: 'fa-box-archive', title: 'help.admin.backup'|trans, description: 'help.admin.backup_description'|trans },
+                { icon: 'fa-server', title: 'help.admin.system'|trans, description: 'help.admin.system_description'|trans },
+            ] %}
+            <div class="row row-cols-1 row-cols-md-2 g-3">
+                {% for module in helpAdminModules %}
+                    <div class="col help-entry">
+                        <div class="border rounded-3 p-3 h-100">
+                            <h3 class="h6 fw-semibold mb-1">
+                                <i class="fa-solid {{ module.icon }} text-body-secondary me-2" aria-hidden="true"></i>{{ module.title }}
+                            </h3>
+                            <p class="text-body-secondary small mb-0">{{ module.description }}</p>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="help-section" id="help-faq" aria-labelledby="help-faq-heading">
+            <h2 class="h4 help-section-title" id="help-faq-heading">
+                <i class="fa-solid fa-circle-question" aria-hidden="true"></i>{{ 'help.faq.title'|trans }}
+            </h2>
+            {% set helpFaq = [
+                { question: 'help.faq.question1'|trans, answer: 'help.faq.answer1'|trans },
+                { question: 'help.faq.question2'|trans, answer: 'help.faq.answer2'|trans },
+                { question: 'help.faq.question3'|trans, answer: 'help.faq.answer3'|trans },
+                { question: 'help.faq.question4'|trans, answer: 'help.faq.answer4'|trans },
+                { question: 'help.faq.question5'|trans, answer: 'help.faq.answer5'|trans },
+                { question: 'help.faq.question6'|trans, answer: 'help.faq.answer6'|trans },
+                { question: 'help.faq.question7'|trans, answer: 'help.faq.answer7'|trans },
+                { question: 'help.faq.question8'|trans, answer: 'help.faq.answer8'|trans },
+            ] %}
+            <div class="d-flex flex-column gap-2">
+                {% for item in helpFaq %}
+                    <details class="help-entry help-faq-item">
+                        <summary>{{ item.question }}</summary>
+                        <p class="text-body-secondary mb-0">{{ item.answer }}</p>
+                    </details>
+                {% endfor %}
+            </div>
+        </section>
+    </div>
 </div>

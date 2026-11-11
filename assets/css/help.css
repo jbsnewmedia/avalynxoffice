@@ -1,0 +1,121 @@
+/*
+ * Help page (/help): sticky sidebar with search + table of contents,
+ * documentation sections and entry cards. Loaded only by
+ * templates/help/index.html.twig.
+ */
+
+/* The row must stretch its columns (Bootstrap default) so the sticky
+   sidebar can follow the scroll over the full page height. */
+.help-layout {
+    align-items: stretch;
+}
+
+.help-sidebar {
+    position: sticky;
+    top: 1rem;
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
+    padding-right: 0.25rem;
+}
+
+.help-toc-link {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.75rem;
+    border-radius: var(--bs-border-radius);
+    color: var(--bs-body-color);
+    text-decoration: none;
+    font-size: 0.925rem;
+}
+
+.help-toc-link:hover {
+    background: var(--bs-tertiary-bg);
+    color: var(--bs-body-color);
+}
+
+.help-toc-link.active {
+    background: var(--bs-primary-bg-subtle);
+    color: var(--bs-primary-text-emphasis);
+    font-weight: 600;
+}
+
+.help-toc-link .fa-solid {
+    width: 1.25rem;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.help-search-count {
+    min-height: 1rem;
+}
+
+.help-section {
+    margin-bottom: 3rem;
+    scroll-margin-top: 1rem;
+}
+
+.help-section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.25rem;
+    border-bottom: 1px solid var(--bs-border-color);
+}
+
+.help-section-title .fa-solid {
+    color: var(--bs-primary);
+}
+
+.help-entry + .help-entry {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px dashed var(--bs-border-color);
+}
+
+.help-entry.d-none + .help-entry {
+    border-top: 0;
+    margin-top: 0;
+}
+
+/* FAQ */
+.help-faq-item {
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius);
+    background: var(--bs-body-bg);
+}
+
+.help-faq-item summary {
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.help-faq-item[open] summary {
+    border-bottom: 1px solid var(--bs-border-color);
+}
+
+.help-faq-item > p {
+    padding: 0.75rem 1rem;
+}
+
+@media print {
+    .help-sidebar {
+        display: none !important;
+    }
+
+    .help-section {
+        break-inside: auto;
+        margin-bottom: 2rem;
+    }
+
+    .help-entry {
+        break-inside: avoid;
+    }
+
+    /* Print the answers even for collapsed FAQ items. */
+    details.help-entry > *:not(summary) {
+        display: block !important;
+    }
+}
