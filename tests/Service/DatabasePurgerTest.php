@@ -136,7 +136,7 @@ final class DatabasePurgerTest extends TestCase
         self::assertContains('DELETE FROM t1', $statements);
     }
 
-    public function testPurgeRollsBackReenablesForeignKeysAndRethrowsOnFailure(): void
+    public function testPurgeReenablesForeignKeysAndRethrowsOnFailure(): void
     {
         $connection = $this->createConnection('mysql', ['t1']);
 
@@ -146,6 +146,40 @@ final class DatabasePurgerTest extends TestCase
             ->willReturnCallback(static function (string $sql) use (&$statements): int {
                 $statements[] = $sql;
                 if ('TRUNCATE t1' === $sql || 'DELETE FROM t1' === $sql) {
+                    throw new \RuntimeException('cannot clear');
+                }
+
+                return 1;
+            });
+
+        // MySQL/MariaDB truncate outside a transaction: TRUNCATE is DDL and
+        // implicitly commits, so there is nothing to roll back.
+        $connection->expects(self::never())->method('beginTransaction');
+        $connection->expects(self::never())->method('commit');
+        $connection->expects(self::never())->method('rollBack');
+
+        $purger = new DatabasePurger($this->createEntityManager($connection, $this->createMetadata('app_user')));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('cannot clear');
+        try {
+            $purger->purge(false);
+        } finally {
+            self::assertContains('SET FOREIGN_KEY_CHECKS = 0', $statements);
+            self::assertContains('SET FOREIGN_KEY_CHECKS = 1', $statements);
+        }
+    }
+
+    public function testPurgeRollsBackReenablesForeignKeysAndRethrowsOnFailure(): void
+    {
+        $connection = $this->createConnection('postgresql', ['a']);
+
+        $statements = [];
+        $connection->expects(self::atLeastOnce())
+            ->method('executeStatement')
+            ->willReturnCallback(static function (string $sql) use (&$statements): int {
+                $statements[] = $sql;
+                if (str_starts_with($sql, 'TRUNCATE ') || str_starts_with($sql, 'DELETE FROM ')) {
                     throw new \RuntimeException('cannot clear');
                 }
 
@@ -164,8 +198,8 @@ final class DatabasePurgerTest extends TestCase
         try {
             $purger->purge(false);
         } finally {
-            self::assertContains('SET FOREIGN_KEY_CHECKS = 0', $statements);
-            self::assertContains('SET FOREIGN_KEY_CHECKS = 1', $statements);
+            self::assertContains("SET session_replication_role = 'replica'", $statements);
+            self::assertContains("SET session_replication_role = 'origin'", $statements);
         }
     }
 

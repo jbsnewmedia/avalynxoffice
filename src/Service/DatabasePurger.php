@@ -43,19 +43,32 @@ class DatabasePurger
 
         $this->disableForeignKeys($connection, $platformName);
         try {
-            $connection->beginTransaction();
             if (str_contains($platformName, 'postgresql')) {
-                $this->truncatePostgresql($connection, $tables);
+                // PostgreSQL: one multi-table TRUNCATE inside an explicit
+                // transaction — genuinely transactional there.
+                $connection->beginTransaction();
+                try {
+                    $this->truncatePostgresql($connection, $tables);
+                    $connection->commit();
+                } catch (\Throwable $throwable) {
+                    if ($connection->isTransactionActive()) {
+                        $connection->rollBack();
+                    }
+
+                    throw $throwable;
+                }
             } else {
+                // MySQL/MariaDB: TRUNCATE is DDL and implicitly commits —
+                // a wrapping transaction cannot survive the first truncate
+                // and the final commit() would fail ("no active
+                // transaction"). SQLite: same per-statement handling via
+                // the DELETE fallback of truncateTable. Foreign key checks
+                // stay disabled for the whole loop instead.
                 foreach ($tables as $table) {
                     $this->truncateTable($connection, $platform, $table);
                 }
             }
-            $connection->commit();
         } catch (\Throwable $throwable) {
-            if ($connection->isTransactionActive()) {
-                $connection->rollBack();
-            }
             $this->enableForeignKeys($connection, $platformName);
             throw $throwable;
         }
