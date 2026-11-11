@@ -82,6 +82,26 @@ final class AdminSystemControllerTest extends WebTestCase
         self::assertSame(1, $crawler->filter('#admin-system-status [data-system-status-card="connectors"]')->count());
     }
 
+    public function testSystemPageShowsEnvironmentCardWithRuntimeAndEas(): void
+    {
+        $this->client->loginUser($this->admin);
+        $crawler = $this->client->request('GET', '/admin/system');
+
+        self::assertResponseIsSuccessful();
+
+        $card = $crawler->filter('#admin-system-status [data-system-status-card="environment"]');
+        self::assertSame(1, $card->count());
+
+        // Two info rows: runtime environment and EAS availability.
+        self::assertSame(2, $card->filter('dt')->count());
+        self::assertSame(2, $card->filter('dd')->count());
+        self::assertSame(1, $card->filter('[data-runtime-mode]')->count());
+
+        // EAS_BASE_URL is not set in the test environment: the card shows
+        // the "not configured" state instead of probing anything.
+        self::assertSame(1, $card->filter('[data-eas-state="not_configured"]')->count());
+    }
+
     public function testSystemPageShowsPlaceholderWhenServiceNeverRan(): void
     {
         $this->client->loginUser($this->admin);
@@ -131,9 +151,10 @@ final class AdminSystemControllerTest extends WebTestCase
         self::assertStringContainsString('Manual', $content);
     }
 
-    public function testSystemPageRendersTimesInUserTimezone(): void
+    public function testSystemPageRendersTimesInUserTimezoneAndFormat(): void
     {
         $this->admin->setTimezone('Europe/Berlin');
+        $this->admin->setTimeFormat('long');
         $this->em->flush();
 
         $run = new SyncRun();
@@ -151,10 +172,13 @@ final class AdminSystemControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
 
         // 10:00 UTC renders as 11:00 in Europe/Berlin (CET, UTC+1 after
-        // the DST switch on 2026-10-25).
+        // the DST switch on 2026-10-25), in the user's configured format
+        // ("long": d.m.Y, H:i:s plus the clock suffix; the test locale is
+        // English, so the suffix renders as "o'clock").
         $content = (string) $this->client->getResponse()->getContent();
-        self::assertStringContainsString('2026-10-26 11:00:00', $content);
-        self::assertStringNotContainsString('2026-10-26 10:00:00', $content);
+        // Twig escapes the apostrophe in the "o'clock" suffix.
+        self::assertStringContainsString('26.10.2026, 11:00:00 o&#039;clock', $content);
+        self::assertStringNotContainsString('26.10.2026, 10:00:00 o&#039;clock', $content);
     }
 
     public function testSaveStoresSettingsAndAppliesOnNextPass(): void
@@ -262,6 +286,7 @@ final class AdminSystemControllerTest extends WebTestCase
         self::assertSame(1, $crawler->filter('[data-system-status-card="latest"]')->count());
         self::assertSame(1, $crawler->filter('[data-system-status-card="recent"]')->count());
         self::assertSame(1, $crawler->filter('[data-system-status-card="connectors"]')->count());
+        self::assertSame(1, $crawler->filter('[data-system-status-card="environment"]')->count());
         // The fragment carries the status cards only — no page frame and
         // none of the settings form.
         self::assertSame(0, $crawler->filter('nav, form')->count());

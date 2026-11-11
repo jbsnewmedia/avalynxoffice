@@ -102,6 +102,10 @@ services:
         arguments:
             $migrationsDir: '%kernel.project_dir%/migrations'
 
+    AvalynxOffice\Service\SystemEnvironmentService:
+        arguments:
+            $easBaseUrl: '%env(default::EAS_BASE_URL)%'
+
     AvalynxOffice\Twig\UserDateTimeExtension: ~
 
     AvalynxOffice\EventSubscriber\UserTimezoneSubscriber:

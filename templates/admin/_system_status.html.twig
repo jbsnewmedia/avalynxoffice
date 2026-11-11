@@ -1,3 +1,38 @@
+<div class="card shadow-sm mb-4" data-system-status-card="environment">
+    <div class="card-header bg-body-tertiary d-flex align-items-center gap-2">
+        <i class="fa-solid fa-server" aria-hidden="true"></i><strong>{{ 'admin.system.environment'|trans }}</strong>
+    </div>
+    <div class="card-body">
+        <dl class="row mb-0">
+            <dt class="col-sm-4">{{ 'admin.system.runtime'|trans }}</dt>
+            <dd class="col-sm-8">
+                {% if runtime.docker %}
+                    <span class="badge text-bg-info" data-runtime-mode="docker"><i class="fa-brands fa-docker me-1" aria-hidden="true"></i>{{ 'admin.system.runtime_docker'|trans }}</span>
+                {% else %}
+                    <span class="badge text-bg-secondary" data-runtime-mode="native">{{ 'admin.system.runtime_native'|trans }}</span>
+                {% endif %}
+            </dd>
+            <dt class="col-sm-4">{{ 'admin.system.eas'|trans }}</dt>
+            <dd class="col-sm-8">
+                {% if runtime.eas.configured %}
+                    {% if runtime.eas.available %}
+                        <span class="badge text-bg-success" data-eas-state="available"><i class="fa-solid fa-circle-check me-1" aria-hidden="true"></i>{{ 'admin.system.eas_available'|trans }}</span>
+                    {% else %}
+                        <span class="badge text-bg-danger" data-eas-state="unavailable"><i class="fa-solid fa-triangle-exclamation me-1" aria-hidden="true"></i>{{ 'admin.system.eas_unavailable'|trans }}</span>
+                    {% endif %}
+                    {% if runtime.eas.latencyMs is not null %}
+                        <span class="text-body-secondary small ms-2">{{ runtime.eas.latencyMs }} ms</span>
+                    {% endif %}
+                    <div class="text-body-secondary small text-break">{{ runtime.eas.url }}</div>
+                {% else %}
+                    <span class="badge text-bg-secondary" data-eas-state="not_configured">{{ 'admin.system.eas_not_configured'|trans }}</span>
+                    <div class="form-text mb-0">{{ 'admin.system.eas_not_configured_help'|trans }}</div>
+                {% endif %}
+            </dd>
+        </dl>
+    </div>
+</div>
+
 <div class="card shadow-sm mb-4" data-system-status-card="latest">
     <div class="card-header bg-body-tertiary d-flex align-items-center gap-2">
         <i class="fa-solid fa-heart-pulse" aria-hidden="true"></i><strong>{{ 'admin.status.title'|trans }}</strong>
@@ -18,11 +53,11 @@
             </div>
             <dl class="row mb-0">
                 <dt class="col-sm-4">{{ 'admin.status.started'|trans }}</dt>
-                <dd class="col-sm-8">{{ lastSyncRun.startedAt|user_datetime('iso') }}</dd>
+                <dd class="col-sm-8">{{ lastSyncRun.startedAt|user_datetime }}</dd>
                 {% if lastSyncRun.finishedAt %}
                     <dt class="col-sm-4">{{ 'admin.status.finished'|trans }}</dt>
                     <dd class="col-sm-8">
-                        {{ lastSyncRun.finishedAt|user_datetime('iso') }}
+                        {{ lastSyncRun.finishedAt|user_datetime }}
                         <span class="text-body-secondary small">({{ (lastSyncRun.finishedAt.getTimestamp() - lastSyncRun.startedAt.getTimestamp()) }}s)</span>
                     </dd>
                 {% endif %}
@@ -68,7 +103,7 @@
                     <tbody>
                     {% for run in recentRuns %}
                         <tr class="{{ run.status == 'error' ? 'table-danger' : '' }}">
-                            <td>{{ run.startedAt|user_datetime('iso') }}</td>
+                            <td>{{ run.startedAt|user_datetime }}</td>
                             <td>
                                 {% if run.status == 'error' %}
                                     <span class="badge text-bg-danger">{{ 'admin.status.error'|trans }}</span>

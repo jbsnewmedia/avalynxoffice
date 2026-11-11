@@ -17,6 +17,7 @@ use AvalynxOffice\Repository\SyncRunRepository;
 use AvalynxOffice\Service\ConnectorPluginRegistry;
 use AvalynxOffice\Service\Idn\IdnService;
 use AvalynxOffice\Service\Sync\SyncSettingsService;
+use AvalynxOffice\Service\SystemEnvironmentService;
 use AvalynxOffice\Util\AvalynxFormResponse;
 use AvalynxOffice\Util\FormInvalidMapper;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -43,6 +44,7 @@ final class AdminSystemController extends AbstractController
         private readonly SyncRunRepository $syncRunRepository,
         private readonly TranslatorInterface $translator,
         private readonly IdnService $idnService,
+        private readonly SystemEnvironmentService $systemEnvironment,
     ) {
     }
 
@@ -75,7 +77,7 @@ final class AdminSystemController extends AbstractController
     }
 
     /**
-     * @return array{lastSyncRun: SyncRun|null, recentRuns: list<SyncRun>, connectors: list<array{name: string, domain: string, plugin: string|null, inputConfigured: bool, status: array{mails: ?string, contacts: ?string, calendar: ?string}}>}
+     * @return array{lastSyncRun: SyncRun|null, recentRuns: list<SyncRun>, connectors: list<array{name: string, domain: string, plugin: string|null, inputConfigured: bool, status: array{mails: ?string, contacts: ?string, calendar: ?string}}>, runtime: array{docker: bool, eas: array{configured: bool, available: bool, url: string|null, statusCode: int|null, latencyMs: int|null, detail: string}}}
      */
     private function statusData(ConnectorRepository $connectorRepository, ConnectorPluginRegistry $pluginRegistry): array
     {
@@ -83,6 +85,10 @@ final class AdminSystemController extends AbstractController
             'lastSyncRun' => $this->syncRunRepository->findLatest(),
             'recentRuns' => $this->syncRunRepository->findBy([], ['startedAt' => 'DESC'], 5),
             'connectors' => $this->connectorOverview($connectorRepository, $pluginRegistry),
+            'runtime' => [
+                'docker' => $this->systemEnvironment->isDocker(),
+                'eas' => $this->systemEnvironment->easStatus(),
+            ],
         ];
     }
 
