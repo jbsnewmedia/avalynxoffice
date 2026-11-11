@@ -43,7 +43,7 @@ class Account
      * @var Collection<int, AccountAlias>
      */
     #[ORM\OneToMany(mappedBy: 'account', targetEntity: AccountAlias::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
-    #[ORM\OrderBy(['localPart' => 'ASC'])]
+    #[ORM\OrderBy(['localPart' => \SortDirection::Ascending])]
     private Collection $aliasLinks;
     /**
      * @var Collection<int, AccountAddress>

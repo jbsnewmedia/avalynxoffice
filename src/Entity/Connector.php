@@ -60,7 +60,7 @@ class Connector
      * @var Collection<int, AccountAlias>
      */
     #[ORM\OneToMany(mappedBy: 'connector', targetEntity: AccountAlias::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
-    #[ORM\OrderBy(['localPart' => 'ASC'])]
+    #[ORM\OrderBy(['localPart' => \SortDirection::Ascending])]
     private Collection $aliases;
 
     public function __construct()

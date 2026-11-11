@@ -11,6 +11,7 @@ namespace AvalynxOffice\Controller;
 
 use AvalynxOffice\Service\Backup\BackupSchedulerService;
 use AvalynxOffice\Service\Backup\BackupScheduleService;
+use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
@@ -31,6 +32,7 @@ final readonly class CronBackupController
     public function __construct(
         private BackupSchedulerService $scheduler,
         private BackupScheduleService $schedule,
+        #[Target('cronBackupLimiter')]
         private RateLimiterFactoryInterface $cronBackupLimiter,
     ) {
     }

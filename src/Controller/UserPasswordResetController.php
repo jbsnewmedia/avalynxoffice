@@ -14,6 +14,7 @@ use AvalynxOffice\Repository\PasswordResetRequestRepository;
 use AvalynxOffice\Service\AdminPasswordResetService;
 use AvalynxOffice\Util\AvalynxFormResponse;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -33,7 +34,9 @@ final class UserPasswordResetController extends AbstractController
         private readonly AdminPasswordResetService $adminPasswordResetService,
         private readonly PasswordResetRequestRepository $passwordResetRequestRepository,
         private readonly TranslatorInterface $translator,
+        #[Target('passwordResetStatusLimiter')]
         private readonly RateLimiterFactoryInterface $passwordResetStatusLimiter,
+        #[Target('passwordResetLimiter')]
         private readonly RateLimiterFactoryInterface $passwordResetLimiter,
     ) {
     }

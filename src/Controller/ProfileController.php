@@ -19,6 +19,7 @@ use AvalynxOffice\Service\UserService;
 use AvalynxOffice\Util\AvalynxFormResponse;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -55,6 +56,7 @@ class ProfileController extends AbstractController
         private readonly TranslatorInterface $translator,
         private readonly AdminPasswordResetService $adminPasswordResetService,
         private readonly LoginSessionService $loginSessionService,
+        #[Target('passwordResetLimiter')]
         private readonly RateLimiterFactoryInterface $passwordResetLimiter,
         private readonly IdnService $idnService,
     ) {

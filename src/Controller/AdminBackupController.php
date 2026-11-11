@@ -20,6 +20,7 @@ use AvalynxOffice\Service\Migration\MigrationResult;
 use AvalynxOffice\Util\AvalynxFormResponse;
 use AvalynxOffice\Util\FormInvalidMapper;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -61,8 +62,11 @@ final class AdminBackupController extends AbstractController
         private readonly BackupScheduleService $schedule,
         private readonly AppService $appService,
         private readonly TranslatorInterface $translator,
+        #[Target('adminBackupCreateLimiter')]
         private readonly RateLimiterFactoryInterface $adminBackupCreateLimiter,
+        #[Target('adminBackupRestoreLimiter')]
         private readonly RateLimiterFactoryInterface $adminBackupRestoreLimiter,
+        #[Target('adminBackupUploadLimiter')]
         private readonly RateLimiterFactoryInterface $adminBackupUploadLimiter,
     ) {
     }
