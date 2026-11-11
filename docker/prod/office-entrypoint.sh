@@ -82,7 +82,10 @@ until run_as_application php bin/console dbal:run-sql 'SELECT 1' >/dev/null 2>&1
 done
 
 echo '[avalynxoffice] Running database migrations ...'
-run_as_application php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration
+# app:migrate keeps all data and also handles installations with an unknown
+# migration history (e.g. from before a rewritten baseline migration) — a
+# plain doctrine:migrations:migrate would fail there.
+run_as_application php bin/console app:migrate --no-interaction
 
 # Least privilege for the ActiveSync service: the EAS container connects with
 # its own database role (created by the postgres init script of the Compose
